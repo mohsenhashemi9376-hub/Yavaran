@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi, getDayOfWeekFromShamsi } from '../utils/persianDate';
@@ -233,7 +234,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const studentFullName = `${selectedStudent.firstName} ${selectedStudent.lastName}`;
 
     // Current arrival time calculation
-    const now = new Date();
+    const now = tehranNow();
     const currentHour = String(now.getHours()).padStart(2, '0');
     const currentMin = String(now.getMinutes()).padStart(2, '0');
     const arrivalTime = editRecord?.arrivalTime || `${currentHour}:${currentMin}`;

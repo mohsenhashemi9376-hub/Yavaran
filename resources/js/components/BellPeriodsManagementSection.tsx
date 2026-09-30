@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { BellPeriod } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
@@ -66,7 +67,7 @@ export const BellPeriodsManagementSection: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Determine current active bell in real time
-  const now = new Date();
+  const now = tehranNow();
   const currentHours = now.getHours();
   const currentMinutes = now.getMinutes();
   const currentTimeStr = `${String(currentHours).padStart(2, '0')}:${String(currentMinutes).padStart(2, '0')}`;

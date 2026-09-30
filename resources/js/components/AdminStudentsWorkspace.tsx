@@ -13,8 +13,10 @@ import {
   Eye, 
   AlertTriangle,
   CheckCircle2,
-  GraduationCap
+  GraduationCap,
+  Trash2
 } from 'lucide-react';
+import { useSchool } from '../context/SchoolContext';
 import * as XLSX from 'xlsx';
 
 interface AdminStudentsWorkspaceProps {
@@ -43,6 +45,18 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'warning' | 'normal'>('all');
 
   const todayInfo = getTodayShamsi();
+  const { deleteStudent, showConfirm, isAdminOrVice } = useSchool();
+
+  const handleDeleteStudent = (student: Student) => {
+    showConfirm({
+      title: 'حذف کامل دانش‌آموز',
+      message: `آیا از حذف «${student.firstName} ${student.lastName}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
+      confirmLabel: 'حذف دانش‌آموز',
+      cancelLabel: 'انصراف',
+      isDangerous: true,
+      onConfirm: () => deleteStudent(student.id),
+    });
+  };
 
   // Compute student stats
   const getStudentMetrics = (studentId: string, classId: string) => {
@@ -242,6 +256,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                   <th className="p-3.5 text-center">شماره تماس ولی</th>
                   <th className="p-3.5 text-center">حضور و غیاب</th>
                   <th className="p-3.5 text-center">انضباط</th>
+                  {isAdminOrVice && <th className="p-3.5 w-16 text-center">حذف</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -324,6 +339,19 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                           {toPersianDigits(student.disciplinaryScore ?? 20)}
                         </span>
                       </td>
+
+                      {isAdminOrVice && (
+                        <td className="p-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(student)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                            title="حذف دانش‌آموز"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
   User, 
@@ -163,6 +164,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     exportDatabaseJson,
     importDatabaseJson,
     resetToDemoData,
+    purgeStudentsAndStaff,
     showToast,
     showConfirm
   } = useSchool();
@@ -188,6 +190,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   // Reset confirmation state
   const [resetConfirmationInput, setResetConfirmationInput] = useState('');
   const [isResetConfirmModalOpen, setIsResetConfirmModalOpen] = useState(false);
+  const [resetMode, setResetMode] = useState<'demo' | 'purge'>('demo');
 
   // Search and filters
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -252,7 +255,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     schoolName: schoolSettings.schoolName || '',
     phone: schoolSettings.phone || '',
     address: schoolSettings.address || '',
-    academicYear: schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵',
+    academicYear: schoolSettings.academicYear || getCurrentAcademicYear(),
     principalName: schoolSettings.principalName || '',
     schoolCode: schoolSettings.schoolCode || '',
   });
@@ -263,7 +266,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       schoolName: schoolSettings.schoolName || '',
       phone: schoolSettings.phone || '',
       address: schoolSettings.address || '',
-      academicYear: schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵',
+      academicYear: schoolSettings.academicYear || getCurrentAcademicYear(),
       principalName: schoolSettings.principalName || '',
       schoolCode: schoolSettings.schoolCode || '',
     });
@@ -296,11 +299,11 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   // --------------------------------------------------------------------------
   // Academic Year Change
   // --------------------------------------------------------------------------
-  const [newAcademicYearInput, setNewAcademicYearInput] = useState(schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵');
+  const [newAcademicYearInput, setNewAcademicYearInput] = useState(schoolSettings.academicYear || getCurrentAcademicYear());
   const [academicYearError, setAcademicYearError] = useState('');
 
   const handleOpenChangeYear = () => {
-    setNewAcademicYearInput(schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵');
+    setNewAcademicYearInput(schoolSettings.academicYear || getCurrentAcademicYear());
     setAcademicYearError('');
     setIsChangeYearModalOpen(true);
   };
@@ -538,10 +541,18 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     e.target.value = '';
   };
 
+  const resetPhrase = resetMode === 'purge' ? 'حذف همه' : 'یاوران ولایت';
+
   const handleConfirmReset = (e: React.FormEvent) => {
     e.preventDefault();
-    if (resetConfirmationInput.trim() !== 'یاوران ولایت') {
-      showToast('لطفاً عبارت «یاوران ولایت» را به‌طور دقیق تایپ فرمایید.', 'error');
+    if (resetConfirmationInput.trim() !== resetPhrase) {
+      showToast(`لطفاً عبارت «${resetPhrase}» را به‌طور دقیق تایپ فرمایید.`, 'error');
+      return;
+    }
+    if (resetMode === 'purge') {
+      purgeStudentsAndStaff();
+      setIsResetConfirmModalOpen(false);
+      setResetConfirmationInput('');
       return;
     }
     resetToDemoData();
@@ -664,7 +675,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   <span className="text-[11px] font-bold text-slate-400 block mb-1">سال تحصیلی جاری</span>
                   <div className="text-sm font-black text-teal-800 flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-teal-700 shrink-0" />
-                    <span>{toPersianDigits(schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵')}</span>
+                    <span>{toPersianDigits(schoolSettings.academicYear || getCurrentAcademicYear())}</span>
                   </div>
                 </div>
                 <div className="mt-3 text-[11px] text-slate-500">مبنای ثبت جلسات، نمرات و گزارش‌ها</div>
@@ -688,7 +699,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   <span className="text-[11px] font-bold text-slate-400 block mb-1">مدیر آموزشگاه</span>
                   <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <UserCheck className="w-4 h-4 text-indigo-700 shrink-0" />
-                    <span>{schoolSettings.principalName || 'دکتر صادقی'}</span>
+                    <span>{schoolSettings.principalName || allUsers.find((u) => u.role === 'admin')?.name || '—'}</span>
                   </div>
                 </div>
                 <div className="mt-3 text-[11px] text-slate-500">مسئول ارشد اداری و آموزشی واحد</div>
@@ -818,7 +829,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   <div>
                     <span className="text-xs font-bold text-teal-800 block">دوره آموزشی فعال در سامانه:</span>
                     <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-0.5 tracking-tight">
-                      سال تحصیلی [ {toPersianDigits(schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵')} ]
+                      سال تحصیلی [ {toPersianDigits(schoolSettings.academicYear || getCurrentAcademicYear())} ]
                     </div>
                   </div>
                 </div>
@@ -1358,7 +1369,32 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
             </div>
 
             {/* بخش ویژه بازنشانی داده‌ها */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
+              <div className="p-5 rounded-2xl bg-amber-50/60 border border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-amber-900 font-black text-sm">
+                    <Trash2 className="w-5 h-5 text-amber-600" />
+                    <span>پاک‌سازی کامل دانش‌آموزان، دبیران و مربیان (شروع از صفر)</span>
+                  </div>
+                  <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                    تمام دانش‌آموزان ({toPersianDigits(students.length)} نفر)، دبیران و مربیان به‌همراه حضور و غیاب، نمرات، تأخیرها، غیبت‌ها و پرونده‌های تربیتی حذف می‌شوند.
+                    حساب مدیر و معاونین، کلاس‌ها، دروس، زنگ‌ها و تنظیمات مدرسه حفظ می‌گردد.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setResetMode('purge');
+                    setResetConfirmationInput('');
+                    setIsResetConfirmModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>پاک‌سازی اطلاعات...</span>
+                </button>
+              </div>
+
               <div className="p-5 rounded-2xl bg-rose-50/60 border border-rose-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 text-rose-800 font-black text-sm">
@@ -1372,6 +1408,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
                 <button
                   onClick={() => {
+                    setResetMode('demo');
                     setResetConfirmationInput('');
                     setIsResetConfirmModalOpen(true);
                   }}
@@ -1837,7 +1874,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
               <div className="flex items-center gap-2 text-rose-800 font-black text-base">
                 <AlertTriangle className="w-5 h-5 text-rose-600" />
-                <span>تایید بازنشانی اطلاعات به حالت اولیه</span>
+                <span>{resetMode === 'purge' ? 'تایید پاک‌سازی دانش‌آموزان و کادر آموزشی' : 'تایید بازنشانی اطلاعات به حالت اولیه'}</span>
               </div>
               <button
                 onClick={() => setIsResetConfirmModalOpen(false)}
@@ -1849,14 +1886,17 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
             <form onSubmit={handleConfirmReset} className="p-5 space-y-4">
               <p className="text-xs text-slate-600 leading-relaxed">
-                با بازنشانی سامانه، کلیه داده‌های ثبت‌شده شما جایگزین نمونه استاندارد اولیه «یاوران ولایت» خواهد شد. جهت تایید این فرآیند مهم، لطفاً عبارت <span className="font-bold text-rose-600">یاوران ولایت</span> را در کادر زیر تایپ نمایید:
+                {resetMode === 'purge'
+                  ? 'تمام دانش‌آموزان، دبیران و مربیان و کلیه سوابق آن‌ها برای همیشه حذف خواهند شد. پیشنهاد می‌شود ابتدا فایل پشتیبان دانلود کنید. جهت تایید، لطفاً عبارت '
+                  : 'با بازنشانی سامانه، کلیه داده‌های ثبت‌شده شما جایگزین نمونه استاندارد اولیه «یاوران ولایت» خواهد شد. جهت تایید این فرآیند مهم، لطفاً عبارت '}
+                <span className="font-bold text-rose-600">{resetPhrase}</span> را در کادر زیر تایپ نمایید:
               </p>
 
               <input
                 type="text"
                 value={resetConfirmationInput}
                 onChange={(e) => setResetConfirmationInput(e.target.value)}
-                placeholder="یاوران ولایت"
+                placeholder={resetPhrase}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-sm font-black text-slate-900 focus:outline-hidden focus:border-rose-600"
               />
 
@@ -1870,15 +1910,15 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={resetConfirmationInput.trim() !== 'یاوران ولایت'}
+                  disabled={resetConfirmationInput.trim() !== resetPhrase}
                   className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                    resetConfirmationInput.trim() === 'یاوران ولایت'
+                    resetConfirmationInput.trim() === resetPhrase
                       ? 'bg-rose-600 hover:bg-rose-700 text-white'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>تایید بازنشانی پایگاه داده</span>
+                  <span>{resetMode === 'purge' ? 'تایید پاک‌سازی نهایی' : 'تایید بازنشانی پایگاه داده'}</span>
                 </button>
               </div>
             </form>

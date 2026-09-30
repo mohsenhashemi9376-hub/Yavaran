@@ -41,7 +41,7 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
-import { toEnglishDigits } from '../utils/persianDate';
+import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear } from '../utils/persianDate';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 
 interface SchoolContextType {
@@ -112,6 +112,7 @@ interface SchoolContextType {
   addStudentsBatch: (classId: string, fullNames: string[]) => void;
   updateStudent: (id: string, updatedData: Partial<Student>) => void;
   deleteStudent: (id: string) => void;
+  purgeStudentsAndStaff: () => void;
   removeStudentFromClass: (studentId: string) => void;
   transferStudentClass: (studentId: string, newClassId: string) => void;
   assignStudentToClass: (studentId: string, classId: string) => void;
@@ -342,6 +343,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSchoolAnnouncements(nextAnnouncements);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
+    if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
     setCurrentUserId(payload.userId || '');
     lastRefreshRef.current = Date.now();
     setAuthStatus('ready');
@@ -791,8 +793,68 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteStudent = (id: string) => {
+    const target = students.find((s) => s.id === id);
     setStudents((prev) => prev.filter((s) => s.id !== id));
-    showToast('دانش‌آموز با موفقیت حذف شد.', 'info');
+    // حذف کامل سوابق وابسته به دانش‌آموز
+    setAcademicGrades((prev) => (prev.some((g) => g.studentId === id) ? prev.filter((g) => g.studentId !== id) : prev));
+    setMorningDelays((prev) => (prev.some((d) => d.studentId === id) ? prev.filter((d) => d.studentId !== id) : prev));
+    setSchoolAbsences((prev) => (prev.some((a) => a.studentId === id) ? prev.filter((a) => a.studentId !== id) : prev));
+    setObservations((prev) => (prev.some((o) => o.studentId === id) ? prev.filter((o) => o.studentId !== id) : prev));
+    setCoachEvaluations((prev) => (prev.some((e) => e.studentId === id) ? prev.filter((e) => e.studentId !== id) : prev));
+    setNurturingDossiers((prev) => {
+      if (!prev[id]) return prev;
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+    setSessions((prev) =>
+      prev.some((ses) => ses.records && ses.records[id])
+        ? prev.map((ses) => {
+            if (!ses.records || !ses.records[id]) return ses;
+            const records = { ...ses.records };
+            delete records[id];
+            return { ...ses, records };
+          })
+        : prev
+    );
+    showToast(
+      target
+        ? `دانش‌آموز «${target.firstName} ${target.lastName}» و تمام سوابق او حذف شد.`
+        : 'دانش‌آموز با موفقیت حذف شد.',
+      'info'
+    );
+  };
+
+  // پاک‌سازی کامل دانش‌آموزان، دبیران و مربیان جهت ورود اطلاعات از ابتدا
+  const purgeStudentsAndStaff = () => {
+    const staffIds = new Set(
+      allUsers.filter((u) => (u.role === 'teacher' || u.role === 'coach') && u.id !== currentUser.id).map((u) => u.id)
+    );
+    setAllUsers((prev) => prev.filter((u) => !staffIds.has(u.id)));
+    setStudents([]);
+    setSessions([]);
+    setAcademicGrades([]);
+    setMorningDelays([]);
+    setSchoolAbsences([]);
+    setObservations([]);
+    setNurturingDossiers({});
+    setCoachEvaluations([]);
+    setTeacherEvaluations([]);
+    setClasses((prev) =>
+      prev.map((c) =>
+        (c.teacherIds && c.teacherIds.length > 0) || c.coachId || (c.coachIds && c.coachIds.length > 0)
+          ? { ...c, teacherIds: [], coachId: undefined, coachIds: [] }
+          : c
+      )
+    );
+    setAcademicSubjects((prev) =>
+      prev.map((sub) =>
+        sub.teacherId || sub.teacherName || sub.defaultTeacherName
+          ? { ...sub, teacherId: undefined, teacherName: undefined, defaultTeacherName: undefined }
+          : sub
+      )
+    );
+    showToast('اطلاعات همه دانش‌آموزان، دبیران و مربیان پاک شد. اکنون می‌توانید اطلاعات را از ابتدا وارد کنید.', 'success');
   };
 
   // Disciplinary Methods
@@ -1116,6 +1178,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateSchoolSettings = (updated: Partial<SchoolSettings>) => {
     setSchoolSettings((prev) => ({ ...prev, ...updated }));
+
+    // هماهنگ‌سازی نام حساب کاربری مدیر با نام مدیر مدرسه در تنظیمات
+    const newPrincipal = typeof updated.principalName === 'string' ? updated.principalName.trim() : '';
+    if (newPrincipal && newPrincipal !== schoolSettings.principalName) {
+      const admins = allUsers.filter((u) => u.role === 'admin');
+      const principalUser =
+        admins.find((u) => u.name === schoolSettings.principalName) ||
+        (admins.length === 1 ? admins[0] : isAdmin ? currentUser : undefined);
+      if (principalUser && principalUser.name !== newPrincipal) {
+        setAllUsers((prev) => prev.map((u) => (u.id === principalUser.id ? { ...u, name: newPrincipal } : u)));
+      }
+    }
     showToast('اطلاعات مدرسه با موفقیت به‌روزرسانی شد.', 'success');
   };
 
@@ -1187,7 +1261,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateUser = (id: string, updated: Partial<User>) => {
+    const target = allUsers.find((u) => u.id === id);
     setAllUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
+
+    // هماهنگ‌سازی نام مدیر مدرسه در تنظیمات با حساب کاربری مدیر
+    if (target && typeof updated.name === 'string' && updated.name.trim()) {
+      const finalRole = updated.role || target.role;
+      const admins = allUsers.filter((u) => u.role === 'admin');
+      const isPrincipal =
+        finalRole === 'admin' &&
+        (admins.length <= 1 || target.name === schoolSettings.principalName || !schoolSettings.principalName);
+      if (isPrincipal && updated.name.trim() !== schoolSettings.principalName) {
+        setSchoolSettings((prev) => ({ ...prev, principalName: updated.name!.trim() }));
+      }
+    }
     showToast('اطلاعات کاربر با موفقیت به‌روزرسانی شد.', 'success');
   };
 
@@ -1416,7 +1503,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getCurrentOrNextBellPeriod = (): BellPeriod => {
-    const now = new Date();
+    const now = tehranNow();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
     const currentTimeStr = `${String(currentHours).padStart(2, '0')}:${String(currentMinutes).padStart(2, '0')}`;
@@ -1805,6 +1892,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // سال تحصیلی فعال برای نمایش در تمام بخش‌های سامانه
+  setActiveAcademicYear(schoolSettings.academicYear);
+
   return (
     <SchoolContext.Provider
       value={{
@@ -1864,6 +1954,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addStudentsBatch,
         updateStudent,
         deleteStudent,
+        purgeStudentsAndStaff,
         removeStudentFromClass,
         transferStudentClass,
         assignStudentToClass,

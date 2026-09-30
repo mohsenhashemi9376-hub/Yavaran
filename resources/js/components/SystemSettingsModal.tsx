@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
   Settings, 
   Download, 
@@ -270,7 +271,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
 
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                   <div className="text-[11px] text-slate-500">سال تحصیلی جاری</div>
-                  <div className="text-xs font-bold text-slate-900">۱۴۰۴ - ۱۴۰۵</div>
+                  <div className="text-xs font-bold text-slate-900">{getActiveAcademicYear()}</div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">

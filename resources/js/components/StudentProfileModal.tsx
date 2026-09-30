@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
   Student, 
   SchoolClass, 
@@ -98,6 +99,9 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     deleteMorningDelay,
     deleteSchoolAbsence,
     showToast,
+    deleteStudent,
+    showConfirm,
+    isAdminOrVice,
   } = useSchool();
 
   // Always bind to the most up-to-date student record from SchoolContext
@@ -1074,6 +1078,29 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    {isAdminOrVice && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          showConfirm({
+                            title: 'حذف کامل دانش‌آموز',
+                            message: `آیا از حذف «${currentStudent.firstName} ${currentStudent.lastName}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
+                            confirmLabel: 'حذف دانش‌آموز',
+                            cancelLabel: 'انصراف',
+                            isDangerous: true,
+                            onConfirm: () => {
+                              deleteStudent(currentStudent.id);
+                              onClose();
+                            },
+                          })
+                        }
+                        disabled={isSubmitting}
+                        className="ml-auto px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>حذف دانش‌آموز</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
@@ -1586,7 +1613,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         ========================================================================= */}
         <div className="bg-slate-50 border-t border-slate-200 px-5 py-3.5 flex items-center justify-between">
           <div className="text-xs text-slate-500">
-            کلاس: <strong className="text-slate-800">{studentClass?.name || 'نامشخص'}</strong> • سال تحصیلی ۱۴۰۴-۱۴۰۵
+            کلاس: <strong className="text-slate-800">{studentClass?.name || 'نامشخص'}</strong> • سال تحصیلی {getActiveAcademicYear()}
           </div>
 
           <div className="flex items-center gap-2">

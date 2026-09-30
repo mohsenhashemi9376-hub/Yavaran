@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
   TeacherEvaluation, 
@@ -130,7 +131,7 @@ export const TeacherEvaluationSection: React.FC = () => {
 
   // Evaluation Form State (Qualitative)
   const [evalFormTeacherId, setEvalFormTeacherId] = useState<string>('');
-  const [evalFormAcademicYear, setEvalFormAcademicYear] = useState<string>('۱۴۰۳-۱۴۰۴');
+  const [evalFormAcademicYear, setEvalFormAcademicYear] = useState<string>(getActiveAcademicYear());
   const [evalFormTerm, setEvalFormTerm] = useState<'term1' | 'term2' | 'annual'>('annual');
   
   const [evalFormRatings, setEvalFormRatings] = useState<Record<string, QualitativeRating>>({
@@ -214,7 +215,7 @@ export const TeacherEvaluationSection: React.FC = () => {
     // Check if existing evaluation exists
     const existing = safeTeacherEvaluations.find(e => e.teacherId === targetId);
     if (existing) {
-      setEvalFormAcademicYear(existing.academicYear || '۱۴۰۳-۱۴۰۴');
+      setEvalFormAcademicYear(existing.academicYear || getActiveAcademicYear());
       setEvalFormTerm(existing.term || 'annual');
       
       setEvalFormRatings({
@@ -238,7 +239,7 @@ export const TeacherEvaluationSection: React.FC = () => {
       setEvalFormImprovements(formatTextContent(existing.areasForImprovement || existing.growthRecommendations, ''));
       setEvalFormGeneralNotes(existing.generalNotes || '');
     } else {
-      setEvalFormAcademicYear('۱۴۰۳-۱۴۰۴');
+      setEvalFormAcademicYear(getActiveAcademicYear());
       setEvalFormTerm('annual');
       setEvalFormRatings({
         lessonPlanning: 'excellent',

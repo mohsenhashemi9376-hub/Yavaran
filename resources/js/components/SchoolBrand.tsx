@@ -1,4 +1,5 @@
 import React from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { YavaranLogo } from './YavaranLogo';
@@ -25,7 +26,7 @@ export const SchoolBrand: React.FC<SchoolBrandProps> = ({
   const { schoolSettings } = useSchool();
   const todayInfo = getTodayShamsi();
   const schoolName = customSchoolName || schoolSettings.schoolName || 'مجتمع تربیتی آموزشی یاوران ولایت';
-  const academicYear = schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵';
+  const academicYear = schoolSettings.academicYear || getCurrentAcademicYear();
 
   const logoSizes = {
     sm: 'sm' as const,

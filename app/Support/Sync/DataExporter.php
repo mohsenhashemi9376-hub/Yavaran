@@ -25,6 +25,7 @@ final class DataExporter
         return '{"authenticated":true,'
             .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
             .'"canSwitchUsers":'.($canSwitchUsers ? 'true' : 'false').','
+            .'"serverTime":'.((int) round(microtime(true) * 1000)).','
             .'"data":{'.implode(',', $parts).'}}';
     }
 

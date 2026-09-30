@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AcademicYear;
 use App\Support\Sync\DataExporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,8 @@ class BootstrapController extends Controller
         if (! $user) {
             return response()->json(['authenticated' => false]);
         }
+
+        AcademicYear::syncSettings();
 
         $originalId = (string) $request->session()->get('impersonator_id', $user->id);
         $canSwitch = $originalId === $user->id ? $user->isAdmin() : (bool) User::query()->whereKey($originalId)->where('role', 'admin')->exists();

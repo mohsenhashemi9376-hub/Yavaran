@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
   LayoutDashboard,
   CheckCircle2, 
@@ -466,7 +467,7 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
       {!isCollapsed && (
         <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/50 shrink-0 text-center select-none">
           <span className="text-[10px] text-slate-400 font-medium">
-            سال تحصیلی ۱۴۰۴-۱۴۰۵
+            سال تحصیلی {getActiveAcademicYear()}
           </span>
         </div>
       )}

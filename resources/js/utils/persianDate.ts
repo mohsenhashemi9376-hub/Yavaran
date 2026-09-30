@@ -44,11 +44,67 @@ export const toEnglishDigits = (str: string): string => {
   return result;
 };
 
+// ------------------------------------------------------------------
+// ساعت رسمی سامانه: همیشه به وقت تهران (UTC+03:30) و هماهنگ با ساعت سرور،
+// مستقل از منطقه زمانی یا ساعت نادرست دستگاه کاربر
+// ------------------------------------------------------------------
+const TEHRAN_OFFSET_MS = 3.5 * 60 * 60 * 1000;
+let serverClockOffsetMs = 0;
+
+/** ثبت ساعت دقیق سرور (میلی‌ثانیه UTC) برای اصلاح ساعت نادرست دستگاه */
+export const setServerClock = (serverEpochMs: number): void => {
+  if (Number.isFinite(serverEpochMs) && serverEpochMs > 0) {
+    serverClockOffsetMs = serverEpochMs - Date.now();
+  }
+};
+
+/** زمان فعلی به وقت تهران؛ مقادیر getHours/getDate/getDay معادل ساعت رسمی ایران هستند */
+export const tehranNow = (): Date => {
+  const t = new Date(Date.now() + serverClockOffsetMs + TEHRAN_OFFSET_MS);
+  return new Date(
+    t.getUTCFullYear(),
+    t.getUTCMonth(),
+    t.getUTCDate(),
+    t.getUTCHours(),
+    t.getUTCMinutes(),
+    t.getUTCSeconds(),
+    t.getUTCMilliseconds()
+  );
+};
+
+/**
+ * سال تحصیلی جاری بر اساس تاریخ امروز (سال تحصیلی از اول مهر آغاز می‌شود)
+ * خروجی نمونه: «۱۴۰۵-۱۴۰۶»
+ */
+export const getCurrentAcademicYear = (): string => {
+  const now = tehranNow();
+  const j = jalaali.toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const startYear = j.jm >= 7 ? j.jy : j.jy - 1;
+  return toPersianDigits(`${startYear}-${startYear + 1}`);
+};
+
+let activeAcademicYear = '';
+
+/** ثبت سال تحصیلی تنظیم‌شده در سامانه (توسط کانتکست) */
+export const setActiveAcademicYear = (academicYear?: string): void => {
+  activeAcademicYear = (academicYear || '').trim();
+};
+
+/** سال تحصیلی فعال سامانه (تنظیمات مدرسه یا محاسبه خودکار از تاریخ امروز) */
+export const getActiveAcademicYear = (): string => toPersianDigits(activeAcademicYear || getCurrentAcademicYear());
+
+/** سال شروع سال تحصیلی (عدد) از روی متن سال تحصیلی مانند «۱۴۰۵-۱۴۰۶» */
+export const getAcademicYearStart = (academicYear?: string): number => {
+  const match = toEnglishDigits(academicYear || '').match(/(\d{4})/);
+  if (match) return Number(match[1]);
+  return Number(toEnglishDigits(getCurrentAcademicYear()).slice(0, 4));
+};
+
 /**
  * Returns today's Shamsi date in formatted object
  */
 export const getTodayShamsi = () => {
-  const now = new Date();
+  const now = tehranNow();
   const j = jalaali.toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
   const dayOfWeekIndex = now.getDay(); // 0 = Sunday
   const dayOfWeek = PERSIAN_WEEKDAYS[dayOfWeekIndex];
@@ -101,7 +157,7 @@ export const getDayOfWeekFromShamsi = (shamsiDate: string): string => {
 export const parseShamsi = (shamsiDate: string) => {
   const parts = shamsiDate.split('/').map(Number);
   return {
-    year: parts[0] || 1404,
+    year: parts[0] || jalaali.toJalaali(tehranNow()).jy,
     month: parts[1] || 1,
     day: parts[2] || 1,
     monthName: PERSIAN_MONTHS[(parts[1] || 1) - 1],
@@ -131,13 +187,13 @@ export const dateToShamsiString = (date: Date): string => {
 export const shamsiStringToDate = (shamsiDate: string): Date => {
   try {
     const parts = shamsiDate.split('/').map(Number);
-    const jy = parts[0] || 1404;
+    const jy = parts[0] || jalaali.toJalaali(tehranNow()).jy;
     const jm = parts[1] || 1;
     const jd = parts[2] || 1;
     const g = jalaali.toGregorian(jy, jm, jd);
     return new Date(g.gy, g.gm - 1, g.gd, 12, 0, 0);
   } catch {
-    return new Date();
+    return tehranNow();
   }
 };
 

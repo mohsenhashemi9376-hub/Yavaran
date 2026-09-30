@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { Header } from './components/Header';
 import { TeacherDashboard } from './components/TeacherDashboard';
@@ -377,7 +378,7 @@ const MainApp: React.FC = () => {
             <span>• سامانه هوشمند حضور و غیاب، مدیریت انضباطی و دفتر نمرات ۴ نوبته</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>سال تحصیلی ۱۴۰۴-۱۴۰۵</span>
+            <span>سال تحصیلی {getActiveAcademicYear()}</span>
             <span>•</span>
             <button
               onClick={() => setUserSwitcherModalOpen(true)}

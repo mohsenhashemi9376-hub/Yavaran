@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { getUserGreeting } from '../utils/userRoles';
@@ -307,7 +308,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </p>
                     )}
                     <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px] text-center">
-                      سال تحصیلی ۱۴۰۴-۱۴۰۵ • دبیرستان دوره اول یاوران ولایت
+                      سال تحصیلی {getActiveAcademicYear()} • دبیرستان دوره اول یاوران ولایت
                     </div>
                   </div>
                 </div>

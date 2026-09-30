@@ -81,7 +81,16 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     updateStudentDiscipline,
     deleteMorningDelay,
     deleteSchoolAbsence,
+    allUsers,
+    schoolSettings,
   } = useSchool();
+
+  const disciplinaryViceName =
+    (currentUser.role === 'vice_disciplinary' ? currentUser.name : '') ||
+    allUsers.find((u) => u.role === 'vice_disciplinary')?.name ||
+    '';
+  const principalDisplayName =
+    schoolSettings.principalName || allUsers.find((u) => u.role === 'admin')?.name || '';
 
   // وضعیت ناوبری سایدبار
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -1242,14 +1251,14 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 <div>
                   <div className="font-bold text-slate-800">معاونت اجرایی آموزشگاه</div>
                   <div className="h-16 flex items-center justify-center font-bold text-teal-800">
-                    استاد تقوی
+                    {disciplinaryViceName}
                   </div>
                   <div className="text-slate-400">مهر و امضا</div>
                 </div>
                 <div>
                   <div className="font-bold text-slate-800">مدیریت مجتمع یاوران ولایت</div>
                   <div className="h-16 flex items-center justify-center font-bold text-indigo-900">
-                    دکتر صادقی
+                    {principalDisplayName}
                   </div>
                   <div className="text-slate-400">مهر آموزشگاه</div>
                 </div>

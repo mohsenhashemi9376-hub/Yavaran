@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, AttendanceSession, User, Student, DisciplinaryNote, StudentAttendanceRecord } from '../types';
 import { toPersianDigits, getTodayShamsi, formatShamsiDisplay } from '../utils/persianDate';
@@ -580,7 +581,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </span>
                   <span className="text-xs text-slate-400">•</span>
                   <span className="text-xs font-medium text-slate-500">
-                    سال تحصیلی {toPersianDigits(schoolSettings.academicYear || '۱۴۰۴-۱۴۰۵')}
+                    سال تحصیلی {toPersianDigits(schoolSettings.academicYear || getCurrentAcademicYear())}
                   </span>
                   {isAdmin && (
                     <button

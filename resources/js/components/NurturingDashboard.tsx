@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
   Student, 
@@ -221,6 +222,29 @@ const OBSERVATION_CATEGORIES: { key: ObservationCategory; label: string; color: 
   { key: 'other', label: 'سایر ملاحظات', color: 'bg-slate-100 text-slate-800 border-slate-200' },
 ];
 
+// دوره‌های ارزیابی رشدی بر اساس سال تحصیلی جاری (به‌صورت خودکار)
+const getEvaluationPeriodOptions = (): string[] => {
+  const start = getAcademicYearStart(getActiveAcademicYear());
+  const y1 = toPersianDigits(start);
+  const y2 = toPersianDigits(start + 1);
+  return [
+    `فصل پاییز (آبان ${y1})`,
+    `نیمسال اول (دی ${y1})`,
+    `فصل زمستان (بهمن ${y1})`,
+    `فصل بهار (اردیبهشت ${y2})`,
+  ];
+};
+
+const getDefaultEvaluationPeriod = (): string => {
+  const month = getTodayShamsi().month;
+  const options = getEvaluationPeriodOptions();
+  if (month === 7 || month === 8) return options[0];
+  if (month === 9 || month === 10) return options[1];
+  if (month === 11 || month === 12) return options[2];
+  if (month >= 1 && month <= 3) return options[3];
+  return options[0];
+};
+
 export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({ 
   onOpenClassDetail,
   onSelectStudent
@@ -248,8 +272,12 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     isAdmin,
     switchUser,
     accessibleClasses,
-    allCoaches
+    allCoaches,
+    allUsers
   } = useSchool();
+
+  const nurturingViceUser = allUsers.find((u) => u.role === 'vice_nurturing');
+  const firstCoachUser = allCoaches[0];
 
   const todayInfo = getTodayShamsi();
   const userGreeting = getUserGreeting(currentUser);
@@ -297,7 +325,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [isCoachEvalModalOpen, setIsCoachEvalModalOpen] = useState(false);
   const [editingCoachEvalId, setEditingCoachEvalId] = useState<string | null>(null);
   const [evalStudentId, setEvalStudentId] = useState<string>('');
-  const [evalPeriod, setEvalPeriod] = useState<string>('فصل پاییز (آبان ۱۴۰۴)');
+  const [evalPeriod, setEvalPeriod] = useState<string>(getDefaultEvaluationPeriod());
   const [evalDate, setEvalDate] = useState<string>(todayInfo.formattedDate);
   const [evalCriteria, setEvalCriteria] = useState<GrowthEvaluationCriteria>({
     responsibility: 'very_good',
@@ -394,7 +422,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     const targetStudentId = student ? student.id : (filteredStudents[0]?.id || students[0]?.id || '');
     setEditingCoachEvalId(null);
     setEvalStudentId(targetStudentId);
-    setEvalPeriod('فصل پاییز (آبان ۱۴۰۴)');
+    setEvalPeriod(getDefaultEvaluationPeriod());
     setEvalDate(todayInfo.formattedDate);
     setEvalCriteria({
       responsibility: 'very_good',
@@ -678,18 +706,18 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
-              onClick={() => switchUser('usr-nur-1')}
+              onClick={() => nurturingViceUser && switchUser(nurturingViceUser.id)}
               className="w-full sm:w-auto px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <HeartHandshake className="w-4 h-4" />
-              <span>ورود به عنوان معاونت تربیتی (حاج‌آقا مهدوی)</span>
+              <span>ورود به عنوان معاونت تربیتی{nurturingViceUser ? ` (${nurturingViceUser.name})` : ''}</span>
             </button>
             <button
-              onClick={() => switchUser('usr-coach-1')}
+              onClick={() => firstCoachUser && switchUser(firstCoachUser.id)}
               className="w-full sm:w-auto px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <Award className="w-4 h-4" />
-              <span>ورود به عنوان مربی یاوران ولایت (استاد تقوی)</span>
+              <span>ورود به عنوان مربی یاوران ولایت{firstCoachUser ? ` (${firstCoachUser.name})` : ''}</span>
             </button>
           </div>
         </div>
@@ -1869,10 +1897,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   className="bg-transparent font-bold text-slate-800 outline-none text-xs"
                 >
                   <option value="all">تمام دوره‌های ارزیابی</option>
-                  <option value="فصل پاییز (آبان ۱۴۰۴)">فصل پاییز (آبان ۱۴۰۴)</option>
-                  <option value="نیمسال اول (دی ۱۴۰۴)">نیمسال اول (دی ۱۴۰۴)</option>
-                  <option value="فصل زمستان (بهمن ۱۴۰۴)">فصل زمستان (بهمن ۱۴۰۴)</option>
-                  <option value="فصل بهار (اردیبهشت ۱۴۰۵)">فصل بهار (اردیبهشت ۱۴۰۵)</option>
+                  {getEvaluationPeriodOptions().map((period) => (
+                    <option key={period} value={period}>{period}</option>
+                  ))}
                 </select>
               </div>
 
@@ -2909,10 +2936,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     onChange={(e) => setEvalPeriod(e.target.value)}
                     className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2.5 outline-none font-bold text-slate-900 focus:ring-2 focus:ring-teal-500"
                   >
-                    <option value="فصل پاییز (آبان ۱۴۰۴)">فصل پاییز (آبان ۱۴۰۴)</option>
-                    <option value="نیمسال اول (دی ۱۴۰۴)">نیمسال اول (دی ۱۴۰۴)</option>
-                    <option value="فصل زمستان (بهمن ۱۴۰۴)">فصل زمستان (بهمن ۱۴۰۴)</option>
-                    <option value="فصل بهار (اردیبهشت ۱۴۰۵)">فصل بهار (اردیبهشت ۱۴۰۵)</option>
+                    {getEvaluationPeriodOptions().map((period) => (
+                      <option key={period} value={period}>{period}</option>
+                    ))}
                     <option value="ارزیابی ویژه ماهانه">ارزیابی ویژه ماهانه</option>
                   </select>
                 </div>

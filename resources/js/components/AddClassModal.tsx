@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { X, GraduationCap, PlusCircle, Clock, Sparkles, User, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
@@ -15,7 +16,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose })
   const [name, setName] = useState('');
   const [major, setMajor] = useState('متوسطه اول');
   const [roomNumber, setRoomNumber] = useState('');
-  const [academicYear, setAcademicYear] = useState('۱۴۰۴-۱۴۰۵');
+  const [academicYear, setAcademicYear] = useState(getActiveAcademicYear());
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,7 +232,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose })
                 type="text"
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
-                placeholder="۱۴۰۴-۱۴۰۵"
+                placeholder={getActiveAcademicYear()}
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-teal-700 outline-none font-mono"
               />
             </div>
