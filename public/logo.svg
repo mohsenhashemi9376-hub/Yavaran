@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Authentic Yavaran Velayat Emerald Gradients -->
+    <linearGradient id="yavaranOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#157c62" />
+      <stop offset="50%" stop-color="#10634e" />
+      <stop offset="100%" stop-color="#0b4838" />
+    </linearGradient>
+
+    <linearGradient id="yavaranMiddleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#198a6d" />
+      <stop offset="60%" stop-color="#126b55" />
+      <stop offset="100%" stop-color="#0a4435" />
+    </linearGradient>
+
+    <linearGradient id="yavaranCoreGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f5c47" />
+      <stop offset="100%" stop-color="#23a07e" />
+    </linearGradient>
+
+    <!-- Islamic Geometric Girih Pattern (Shamseh & Arabesque Motif) -->
+    <pattern id="girihPattern" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 18 0 L 36 18 L 18 36 L 0 18 Z" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.13" fill="none" />
+      <circle cx="18" cy="18" r="9" stroke="#ffffff" stroke-width="0.6" stroke-opacity="0.11" fill="none" />
+      <path d="M 0 0 L 36 36 M 36 0 L 0 36" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.08" />
+    </pattern>
+
+    <filter id="emblemShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#062e24" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Group with subtle drop shadow for depth -->
+  <g filter="url(#emblemShadow)">
+    <!-- Layer 1: Outermost Toranj / Pointed Medallion -->
+    <path
+      d="M 160 20 
+         C 208 48, 256 94, 276 148 
+         C 256 202, 208 248, 160 276 
+         C 112 248, 64 202, 44 148 
+         C 64 94, 112 48, 160 20 Z"
+      fill="url(#yavaranOuterGrad)"
+    />
+
+    <!-- Islamic Girih Overlay Pattern inside the crest -->
+    <path
+      d="M 160 20 
+         C 208 48, 256 94, 276 148 
+         C 256 202, 208 248, 160 276 
+         C 112 248, 64 202, 44 148 
+         C 64 94, 112 48, 160 20 Z"
+      fill="url(#girihPattern)"
+    />
+
+    <!-- Layer 2: White Bold Dividing Arch (Stroke) -->
+    <path
+      d="M 160 56 
+         C 198 84, 234 118, 248 156 
+         C 232 194, 198 226, 160 252 
+         C 122 226, 88 194, 72 156 
+         C 86 118, 122 84, 160 56 Z"
+      stroke="#ffffff"
+      stroke-width="11"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      fill="none"
+    />
+
+    <!-- Layer 3: Middle Emerald Arch -->
+    <path
+      d="M 160 70 
+         C 192 96, 222 126, 234 158 
+         C 220 190, 192 216, 160 240 
+         C 128 216, 100 190, 86 158 
+         C 98 126, 128 96, 160 70 Z"
+      fill="url(#yavaranMiddleGrad)"
+    />
+
+    <!-- Layer 4: Inner White Accent Line -->
+    <path
+      d="M 160 102 
+         C 182 124, 204 146, 212 170 
+         C 202 194, 182 212, 160 228 
+         C 138 212, 118 194, 108 170 
+         C 116 146, 138 124, 160 102 Z"
+      stroke="#ffffff"
+      stroke-width="4.5"
+      stroke-opacity="0.92"
+      stroke-linejoin="round"
+      fill="none"
+    />
+
+    <!-- Layer 5: Central Core Bud (Emerald Gradient) -->
+    <path
+      d="M 160 114 
+         C 178 134, 196 154, 202 174 
+         C 194 194, 178 208, 160 220 
+         C 142 208, 126 194, 118 174 
+         C 124 154, 142 134, 160 114 Z"
+      fill="url(#yavaranCoreGrad)"
+    />
+
+    <!-- Layer 6: Central Core Eye Aperture -->
+    <ellipse cx="160" cy="172" rx="9" ry="15" fill="#ffffff" />
+  </g>
+</svg>

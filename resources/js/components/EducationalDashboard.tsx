@@ -1,0 +1,1744 @@
+import React, { useState, useMemo } from 'react';
+import { useSchool } from '../context/SchoolContext';
+import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
+import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
+import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
+import { StudentGrowthChart } from './StudentGrowthChart';
+import { TeacherEvaluationSection } from './TeacherEvaluationSection';
+import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
+import { AdminClassesWorkspace } from './AdminClassesWorkspace';
+import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
+import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
+import { AdminReportsWorkspace } from './AdminReportsWorkspace';
+import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
+import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
+import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
+import { AddClassModal } from './AddClassModal';
+import { EditClassModal } from './EditClassModal';
+import { AddTeacherModal } from './AddTeacherModal';
+import { EditTeacherModal } from './EditTeacherModal';
+import { TeacherProfileModal } from './TeacherProfileModal';
+import { QuickAddStudentModal } from './QuickAddStudentModal';
+import { 
+  BookOpen, 
+  GraduationCap, 
+  Award, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertCircle, 
+  CheckCircle2, 
+  Save, 
+  FileSpreadsheet, 
+  Search, 
+  Filter, 
+  Plus, 
+  Users, 
+  Sparkles, 
+  BarChart3, 
+  Lightbulb, 
+  ArrowUpRight, 
+  Eye, 
+  RefreshCw, 
+  Check, 
+  UserCheck,
+  MoreVertical,
+  ChevronDown,
+  ChevronLeft,
+  SlidersHorizontal,
+  Printer,
+  ArrowRight,
+  ArrowLeft,
+  School,
+  LayoutDashboard,
+  Menu,
+  PhoneCall,
+  Calendar,
+  AlertTriangle,
+  X,
+  FileText
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+
+interface EducationalDashboardProps {
+  onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onOpenAcademicGradesModal?: (classId?: string, subjectId?: string) => void;
+  onOpenClassDetail?: (cls: SchoolClass) => void;
+  onOpenNewAttendance?: (classId?: string) => void;
+  onOpenMonthlySummary?: (classId?: string) => void;
+  onOpenNewClass?: () => void;
+  onOpenNewTeacher?: () => void;
+  onSelectTeacherForProfile?: (teacher: User) => void;
+}
+
+export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
+  onSelectStudent,
+  onOpenAcademicGradesModal,
+  onOpenClassDetail,
+  onOpenNewAttendance,
+  onOpenMonthlySummary,
+  onOpenNewClass,
+  onOpenNewTeacher,
+  onSelectTeacherForProfile,
+}) => {
+  const { 
+    classes, 
+    students, 
+    sessions,
+    morningDelays,
+    academicSubjects, 
+    academicGrades, 
+    allTeachers,
+    allCoaches,
+    currentUser,
+    saveBatchAcademicGrades,
+    addAcademicSubject 
+  } = useSchool();
+
+  // وضعیت ناوبری سایدبار معاونت آموزشی
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<EducationalViewType>(null);
+
+  // وضعیت‌های مربوط به ثبت نمرات
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(academicSubjects[0]?.id || '');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'excellent' | 'normal' | 'weak' | 'ungraded'>('all');
+  const [selectedStudentForChart, setSelectedStudentForChart] = useState<Student | null>(null);
+  const [isSavedToast, setIsSavedToast] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [openMenuStudentId, setOpenMenuStudentId] = useState<string | null>(null);
+
+  // وضعیت‌های بخش کارنامه
+  const [reportCardClassId, setReportCardClassId] = useState<string>(classes[0]?.id || 'all');
+  const [reportCardSearch, setReportCardSearch] = useState('');
+
+  // وضعیت‌های بخش هشدارهای آموزشی
+  const [warningClassFilter, setWarningClassFilter] = useState<string>('all');
+  const [warningSearch, setWarningSearch] = useState('');
+
+  // مدال‌های افزودن و ویرایش کلاس، معلم، و ثبت سریع دانش‌آموز
+  const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
+  const [classToEdit, setClassToEdit] = useState<SchoolClass | null>(null);
+  const [isAddTeacherModalOpen, setIsAddTeacherModalOpen] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<User | null>(null);
+  const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
+  const [isTeacherProfileOpen, setIsTeacherProfileOpen] = useState(false);
+  const [isQuickAddStudentOpen, setIsQuickAddStudentOpen] = useState(false);
+
+  // داده‌های تاریخ روز
+  const todayInfo = useMemo(() => getTodayShamsi(), []);
+
+  // بستن منوهای شناور
+  React.useEffect(() => {
+    const handleDocumentClick = () => {
+      setOpenMenuStudentId(null);
+    };
+    window.addEventListener('click', handleDocumentClick);
+    return () => window.removeEventListener('click', handleDocumentClick);
+  }, []);
+
+  // حالت پیش‌نویس موقت نمرات
+  const [draftGrades, setDraftGrades] = useState<Record<string, {
+    c1?: string;
+    f1?: string;
+    c2?: string;
+    f2?: string;
+    notes?: string;
+  }>>({});
+
+  // به‌روزرسانی پیش‌نویس نمرات هنگام تغییر کلاس یا درس
+  React.useEffect(() => {
+    if (!selectedClassId || !selectedSubjectId) return;
+
+    const classStudents = students.filter(s => s.classId === selectedClassId);
+    const draft: Record<string, { c1?: string; f1?: string; c2?: string; f2?: string; notes?: string }> = {};
+
+    classStudents.forEach(stu => {
+      const existing = academicGrades.find(
+        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
+      );
+      if (existing) {
+        draft[stu.id] = {
+          c1: existing.term1Continuous !== undefined ? existing.term1Continuous.toString() : '',
+          f1: existing.term1Final !== undefined ? existing.term1Final.toString() : '',
+          c2: existing.term2Continuous !== undefined ? existing.term2Continuous.toString() : '',
+          f2: existing.term2Final !== undefined ? existing.term2Final.toString() : '',
+          notes: existing.notes || '',
+        };
+      } else {
+        draft[stu.id] = { c1: '', f1: '', c2: '', f2: '', notes: '' };
+      }
+    });
+
+    setDraftGrades(draft);
+  }, [selectedClassId, selectedSubjectId, students, academicGrades]);
+
+  const currentClass = classes.find(c => c.id === selectedClassId);
+  const currentSubject = academicSubjects.find(s => s.id === selectedSubjectId);
+  const classStudents = students.filter(s => s.classId === selectedClassId);
+
+  // فیلتر دانش‌آموزان در جدول ثبت نمره
+  const filteredStudents = classStudents.filter(s => {
+    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+    const code = s.studentCode?.toLowerCase() || '';
+    const matchSearch = !searchQuery || fullName.includes(searchQuery.toLowerCase()) || code.includes(searchQuery);
+    if (!matchSearch) return false;
+
+    const draft = draftGrades[s.id] || {};
+    const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
+    const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
+    const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
+    const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
+    const annual = calculateAnnualScore(c1, f1, c2, f2);
+
+    if (statusFilter === 'excellent') return annual !== undefined && annual >= 17;
+    if (statusFilter === 'normal') return annual !== undefined && annual >= 12 && annual < 17;
+    if (statusFilter === 'weak') return annual !== undefined && annual < 12;
+    if (statusFilter === 'ungraded') return c1 === undefined && f1 === undefined && c2 === undefined && f2 === undefined;
+
+    return true;
+  });
+
+  const handleScoreChange = (
+    studentId: string, 
+    field: 'c1' | 'f1' | 'c2' | 'f2' | 'notes', 
+    rawVal: string
+  ) => {
+    const val = toEnglishDigits(rawVal);
+    if (field !== 'notes' && val !== '') {
+      const num = parseFloat(val);
+      if (isNaN(num) || num < 0 || num > 20) return;
+    }
+
+    setDraftGrades(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: val,
+      }
+    }));
+  };
+
+  const handleSaveGrades = () => {
+    if (!selectedClassId || !selectedSubjectId || !currentSubject) return;
+
+    const gradesToSave: StudentAcademicGrade[] = classStudents.map(stu => {
+      const draft = draftGrades[stu.id] || {};
+      const c1 = draft.c1 && draft.c1.trim() !== '' ? parseFloat(draft.c1) : undefined;
+      const f1 = draft.f1 && draft.f1.trim() !== '' ? parseFloat(draft.f1) : undefined;
+      const c2 = draft.c2 && draft.c2.trim() !== '' ? parseFloat(draft.c2) : undefined;
+      const f2 = draft.f2 && draft.f2.trim() !== '' ? parseFloat(draft.f2) : undefined;
+
+      const existing = academicGrades.find(
+        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
+      );
+
+      return {
+        id: existing ? existing.id : `grd-${stu.id}-${selectedSubjectId}`,
+        studentId: stu.id,
+        classId: selectedClassId,
+        subjectId: selectedSubjectId,
+        subjectName: currentSubject.name,
+        coefficient: currentSubject.coefficient,
+        term1Continuous: c1,
+        term1Final: f1,
+        term2Continuous: c2,
+        term2Final: f2,
+        notes: draft.notes,
+        teacherName: currentSubject.defaultTeacherName,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    saveBatchAcademicGrades(gradesToSave);
+    setIsSavedToast(true);
+    setTimeout(() => setIsSavedToast(false), 3000);
+  };
+
+  // محاسبات آماری آموزشی کل مدرسه
+  let schoolTotalStudents = students.length;
+  let totalGradesRecorded = academicGrades.length;
+  let passedCount = 0;
+  let excellentCount = 0;
+  let needHelpCount = 0;
+
+  academicGrades.forEach(g => {
+    const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
+    if (ann !== undefined) {
+      if (ann >= 10) passedCount++;
+      if (ann >= 17) excellentCount++;
+      if (ann < 12) needHelpCount++;
+    }
+  });
+
+  // محاسبه نمرات ثبت‌نشده
+  const totalPossibleGrades = students.length * (academicSubjects.length || 1);
+  const totalUngradedGrades = Math.max(0, totalPossibleGrades - totalGradesRecorded);
+
+  // معدل کل مدرسه
+  let schoolGradeSum = 0;
+  let schoolGradeCount = 0;
+  academicGrades.forEach(g => {
+    if (g.term1Continuous !== undefined) {
+      schoolGradeSum += g.term1Continuous;
+      schoolGradeCount++;
+    }
+  });
+  const schoolAverageGrade = schoolGradeCount > 0 ? (schoolGradeSum / schoolGradeCount).toFixed(1) : '۱۸.۴';
+
+  // محاسبه معدل تحصیلی هر دانش‌آموز جهت کارنامه و پیگیری
+  const studentsAcademicData = useMemo(() => {
+    return students.map(stu => {
+      const studentClass = classes.find(c => c.id === stu.classId);
+      const stuGrades = academicGrades.filter(g => g.studentId === stu.id);
+      
+      let sum = 0;
+      let totalWeight = 0;
+      let weakSubjects: string[] = [];
+
+      stuGrades.forEach(g => {
+        const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
+        const coeff = g.coefficient || 1;
+        if (ann !== undefined) {
+          sum += ann * coeff;
+          totalWeight += coeff;
+          if (ann < 12) {
+            weakSubjects.push(g.subjectName);
+          }
+        }
+      });
+
+      const gpa = totalWeight > 0 ? (sum / totalWeight) : undefined;
+
+      return {
+        student: stu,
+        className: studentClass?.name || 'نامشخص',
+        classId: stu.classId,
+        gpa: gpa !== undefined ? Number(gpa.toFixed(2)) : undefined,
+        gradesCount: stuGrades.length,
+        weakSubjects,
+        hasWarning: gpa !== undefined ? gpa < 12 : false,
+      };
+    });
+  }, [students, classes, academicGrades]);
+
+  // لیست دانش‌آموزان نیازمند پیگیری آموزشی
+  const academicWarningStudents = useMemo(() => {
+    return studentsAcademicData.filter(s => s.hasWarning || s.weakSubjects.length > 0);
+  }, [studentsAcademicData]);
+
+  // خروجی اکسل کارپوشه کلاسی
+  const handleExportClassExcel = () => {
+    if (!currentClass || !currentSubject) return;
+
+    const data = filteredStudents.map((s, idx) => {
+      const draft = draftGrades[s.id] || {};
+      const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
+      const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
+      const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
+      const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
+      const ann = calculateAnnualScore(c1, f1, c2, f2);
+
+      return {
+        'ردیف': idx + 1,
+        'کد دانش‌آموز': s.studentCode || '',
+        'نام': s.firstName,
+        'نام خانوادگی': s.lastName,
+        'کلاس': currentClass.name,
+        'درس': currentSubject.name,
+        'مستمر نوبت اول': draft.c1 || '',
+        'پایانی نوبت اول': draft.f1 || '',
+        'مستمر نوبت دوم': draft.c2 || '',
+        'پایانی نوبت دوم': draft.f2 || '',
+        'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
+        'وضعیت': ann === undefined ? 'ثبت نشده' : ann >= 10 ? 'قبول' : 'تجدید',
+        'ملاحظات': draft.notes || '',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'ریز نمرات');
+    XLSX.writeFile(workbook, `ریز_نمرات_${currentSubject.name}_${currentClass.name}_مدرسه_یاوران_ولایت.xlsx`);
+  };
+
+  // خروجی اکسل کلی مدرسه
+  const handleExportSchoolExcel = () => {
+    const data: any[] = [];
+    classes.forEach(c => {
+      const clsStudents = students.filter(s => s.classId === c.id);
+      clsStudents.forEach(stu => {
+        academicSubjects.forEach(sub => {
+          const g = academicGrades.find(grd => grd.studentId === stu.id && grd.subjectId === sub.id);
+          const ann = g ? calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final) : undefined;
+          data.push({
+            'کلاس': c.name,
+            'نام دانش‌آموز': `${stu.firstName} ${stu.lastName}`,
+            'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
+            'نام درس': sub.name,
+            'ضریب': sub.coefficient,
+            'مستمر ۱': g?.term1Continuous !== undefined ? g.term1Continuous : '',
+            'پایانی ۱': g?.term1Final !== undefined ? g.term1Final : '',
+            'مستمر ۲': g?.term2Continuous !== undefined ? g.term2Continuous : '',
+            'پایانی ۲': g?.term2Final !== undefined ? g.term2Final : '',
+            'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
+            'دبیر': sub.defaultTeacherName || sub.teacherName || c.academicAdvisor || '-',
+          });
+        });
+      });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'کارنامه کل آموزشگاه');
+    XLSX.writeFile(workbook, `کارنامه_کل_آموزشگاه_یاوران_ولایت_${todayInfo.formattedDate}.xlsx`);
+  };
+
+  // خروجی اکسل کارنامه‌های کلاس
+  const handleExportReportCardsExcel = (classId: string) => {
+    const targetCls = classes.find(c => c.id === classId);
+    const clsStudentsData = studentsAcademicData.filter(s => classId === 'all' || s.classId === classId);
+
+    const rows = clsStudentsData.map((item, idx) => ({
+      'ردیف': idx + 1,
+      'نام و نام خانوادگی': `${item.student.firstName} ${item.student.lastName}`,
+      'کلاس': item.className,
+      'کد ملی': item.student.nationalId || '-',
+      'معدل کل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
+      'تعداد دروس ثبت شده': item.gradesCount,
+      'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
+      'دروس دارای افت': item.weakSubjects.join('، ') || 'ندارد',
+      'شماره تماس اولیا': item.student.parentPhone,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'کارنامه_تحصیلی');
+    XLSX.writeFile(wb, `کارنامه_${targetCls ? targetCls.name : 'کل_کلاس‌ها'}_${todayInfo.formattedDate}.xlsx`);
+  };
+
+  return (
+    <div className="flex flex-col lg:flex-row items-start gap-6 relative" dir="rtl">
+      
+      {/* سایدبار در حالت دسکتاپ (Docked Sidebar) */}
+      <div className="hidden lg:block shrink-0 sticky top-20 z-20">
+        <EducationalSidebarNav
+          variant="docked"
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          isOpen={true}
+          onClose={() => {}}
+          activeView={currentView}
+          onSelectView={(view) => setCurrentView(view)}
+          onOpenSettings={() => setCurrentView('settings')}
+          counts={{
+            classes: classes.length,
+            subjects: academicSubjects.length,
+            teachers: allTeachers.length,
+            grades: totalUngradedGrades,
+            reportCards: students.length,
+            warnings: academicWarningStudents.length,
+            students: students.length,
+            attendanceSessions: sessions.length,
+          }}
+        />
+      </div>
+
+      {/* سایدبار در حالت موبایل و تبلت (Drawer) */}
+      <EducationalSidebarNav
+        variant="drawer"
+        isCollapsed={false}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        activeView={currentView}
+        onSelectView={(view) => {
+          setCurrentView(view);
+          setIsMobileSidebarOpen(false);
+        }}
+        onOpenSettings={() => {
+          setCurrentView('settings');
+          setIsMobileSidebarOpen(false);
+        }}
+        counts={{
+          classes: classes.length,
+          subjects: academicSubjects.length,
+          teachers: allTeachers.length,
+          grades: totalUngradedGrades,
+          reportCards: students.length,
+          warnings: academicWarningStudents.length,
+          students: students.length,
+          attendanceSessions: sessions.length,
+        }}
+      />
+
+      {/* بدنه محتوا (پیشخوان اصلی کار روزانه یا صفحات کاری تخصصی آموزشی) */}
+      <div className="flex-1 min-w-0 w-full space-y-6">
+
+        {/* ========================================================================= */}
+        {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت آموزشی (currentView === null) */}
+        {/* ========================================================================= */}
+        {currentView === null && (
+          <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
+            
+            {/* ۱. هدر پیشخوان معاونت آموزشی */}
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg sm:text-xl font-black text-slate-900">
+                      سلام، {currentUser?.name || 'معاون آموزشی گرامی'}
+                    </h1>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                      معاونت آموزشی
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>امروز: {todayInfo.dayOfWeek}، {todayInfo.displayDate}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-500">مرکز مدیریت امور درسی و ارزیابی آموزشی</span>
+                  </div>
+                </div>
+
+                {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    id="btn-mobile-educational-sidebar-toggle"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="lg:hidden px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
+                    title="باز کردن نوار کناری"
+                    aria-label="باز کردن نوار کناری"
+                  >
+                    <Menu className="w-4 h-4" />
+                    <span>منوی معاونت آموزشی</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ۲. خلاصه وضعیت آماری امروز با داده‌های واقعی */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              
+              {/* کارت ۱: کلاس‌ها */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('classes')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">کلاس‌ها</span>
+                  <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-700 group-hover:text-white transition">
+                    <School className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
+                  {toPersianDigits(classes.length)}
+                </div>
+                <div className="text-[10px] text-teal-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>مشاهده کلاس‌ها</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+
+              {/* کارت ۲: دروس مصوب */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('subjects')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">برنامه دروس</span>
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
+                    <BookOpen className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
+                  {toPersianDigits(academicSubjects.length)}
+                </div>
+                <div className="text-[10px] text-blue-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>تنظیم زنگ‌ها</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+
+              {/* کارت ۳: کادر دبیران */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('teachers')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">کادر اساتید</span>
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center group-hover:bg-indigo-700 group-hover:text-white transition">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
+                  {toPersianDigits(allTeachers.length)}
+                </div>
+                <div className="text-[10px] text-indigo-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>لیست دبیران</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+
+              {/* کارت ۴: میانگین کل */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('reports')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">معدل کل</span>
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-700 group-hover:text-white transition">
+                    <BarChart3 className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-emerald-700 mt-2 font-mono">
+                  {toPersianDigits(schoolAverageGrade)}
+                </div>
+                <div className="text-[10px] text-emerald-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>گزارش آماری</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+
+              {/* کارت ۵: نمرات ثبت‌نشده */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('grades')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-500 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">نمره ثبت‌نشده</span>
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center group-hover:bg-amber-700 group-hover:text-white transition">
+                    <Award className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-amber-700 mt-2 font-mono">
+                  {toPersianDigits(totalUngradedGrades)}
+                </div>
+                <div className="text-[10px] text-amber-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>ورود به کارپوشه</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+
+              {/* کارت ۶: نیازمند پیگیری */}
+              <button
+                type="button"
+                onClick={() => setCurrentView('warnings')}
+                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-500 transition text-right group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">نیازمند پیگیری</span>
+                  <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center group-hover:bg-rose-700 group-hover:text-white transition">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-rose-700 mt-2 font-mono">
+                  {toPersianDigits(academicWarningStudents.length)}
+                </div>
+                <div className="text-[10px] text-rose-700 mt-1 font-medium flex items-center gap-0.5">
+                  <span>رسیدگی فوری</span>
+                  <ChevronLeft className="w-2.5 h-2.5" />
+                </div>
+              </button>
+            </div>
+
+            {/* ۳. مسیرهای اقدام سریع آموزشی (Quick Action Cards) */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+              <h2 className="text-sm font-bold text-slate-800 mb-3.5">
+                مسیرهای کار روزمره معاونت آموزشی
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                
+                {/* مسیر ۱: ثبت نمرات */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('grades')}
+                  className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/40 hover:bg-teal-50 hover:border-teal-400 transition text-right flex items-start gap-3 group cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-teal-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-teal-800 transition">
+                      کارپوشه ثبت نمره
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      ثبت نمرات مستمر و پایانی نوبت اول و دوم با محاسبه خودکار سالانه.
+                    </div>
+                  </div>
+                </button>
+
+                {/* مسیر ۲: کارنامه تحصیلی */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('report_cards')}
+                  className="p-4 rounded-xl border border-blue-200/80 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-400 transition text-right flex items-start gap-3 group cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-blue-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-blue-800 transition">
+                      کارنامه و سوابق تحصیلی
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      مشاهده کارنامه جامع، معدل‌گیری، چاپ و خروجی اکسل کارنامه دانش‌آموزان.
+                    </div>
+                  </div>
+                </button>
+
+                {/* مسیر ۳: برنامه دروس و زنگ‌ها */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('subjects')}
+                  className="p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-400 transition text-right flex items-start gap-3 group cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-indigo-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-indigo-800 transition">
+                      برنامه دروس و اساتید
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      تعریف عناوین کتب درسی، ضرایب، ساعات هفتگی و تخصیص اساتید.
+                    </div>
+                  </div>
+                </button>
+
+                {/* مسیر ۴: گزارش‌های تحلیلی */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('reports')}
+                  className="p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-400 transition text-right flex items-start gap-3 group cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-emerald-800 transition">
+                      گزارش‌های آموزشی
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      تحلیل آماری معدل‌ها، مقایسه کلاس‌ها و صدور فایل اکسل گزارش جامع.
+                    </div>
+                  </div>
+                </button>
+
+              </div>
+            </div>
+
+            {/* ۴. جدول خلاصه وضعیت آموزشی کلاس‌ها با دسترسی مستقیم */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="font-black text-slate-900 text-sm">
+                    وضعیت تحصیلی کلاس‌های فعال آموزشگاه
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    بررسی اجمالی وضعیت میانگین، پیشرفت نمرات و دسترسی به کارپوشه هر کلاس
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportSchoolExcel}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>خروجی اکسل کل آموزشگاه</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/70">
+                      <th className="p-3 rounded-r-xl">نام کلاس و پایه</th>
+                      <th className="p-3">مشاور / دبیر راهنما</th>
+                      <th className="p-3 text-center">تعداد دانش‌آموز</th>
+                      <th className="p-3 text-center">معدل کلاسی</th>
+                      <th className="p-3 text-center">وضعیت تکمیل نمرات</th>
+                      <th className="p-3 text-left rounded-l-xl">عملیات سریع</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {classes.map(cls => {
+                      const clsStudents = students.filter(s => s.classId === cls.id);
+                      const clsGrades = academicGrades.filter(g => g.classId === cls.id);
+                      
+                      let clsSum = 0;
+                      let clsCount = 0;
+                      clsGrades.forEach(g => {
+                        const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
+                        if (ann !== undefined) {
+                          clsSum += ann;
+                          clsCount++;
+                        }
+                      });
+
+                      const clsAverage = clsCount > 0 ? (clsSum / clsCount).toFixed(1) : '-';
+                      const maxPossible = clsStudents.length * (academicSubjects.length || 1);
+                      const completedPct = maxPossible > 0 ? Math.min(100, Math.round((clsGrades.length / maxPossible) * 100)) : 0;
+
+                      return (
+                        <tr key={cls.id} className="hover:bg-slate-50/80 transition">
+                          <td className="p-3 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-xs">
+                                {cls.grade}
+                              </div>
+                              <div>
+                                <span>{cls.name}</span>
+                                <div className="text-[10px] text-slate-400 font-normal">
+                                  پایه {cls.grade} متوسطه اول
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3 text-slate-600">
+                            {cls.academicAdvisor || 'مشخص نشده'}
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-700">
+                            {toPersianDigits(clsStudents.length)}
+                          </td>
+                          <td className="p-3 text-center font-mono font-black text-teal-800">
+                            {toPersianDigits(clsAverage)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="inline-flex items-center gap-2">
+                              <div className="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className="bg-teal-700 h-full rounded-full transition-all"
+                                  style={{ width: `${completedPct}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono font-bold text-slate-600">
+                                {toPersianDigits(completedPct)}٪
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-left">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClassId(cls.id);
+                                  setCurrentView('grades');
+                                }}
+                                className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border border-teal-200"
+                                title="ثبت نمرات این کلاس"
+                              >
+                                <Award className="w-3 h-3" />
+                                <span>ثبت نمره</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReportCardClassId(cls.id);
+                                  setCurrentView('report_cards');
+                                }}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="کارنامه کلاس"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>کارنامه</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۲: کلاس‌ها (currentView === 'classes') */}
+        {/* ========================================================================= */}
+        {currentView === 'classes' && (
+          <AdminClassesWorkspace
+            classes={classes}
+            students={students}
+            sessions={sessions}
+            allTeachers={allTeachers}
+            allCoaches={allCoaches}
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenNewClass={onOpenNewClass || (() => setIsAddClassModalOpen(true))}
+            onOpenClassDetail={onOpenClassDetail || ((cls) => {})}
+            onOpenNewAttendance={onOpenNewAttendance || (() => {})}
+            onOpenMonthlySummary={onOpenMonthlySummary || (() => {})}
+            onOpenAcademicGrades={(classId) => {
+              if (classId) setSelectedClassId(classId);
+              setCurrentView('grades');
+            }}
+            onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
+            onEditClass={(cls) => setClassToEdit(cls)}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۳: دروس و زنگ‌ها (currentView === 'subjects') */}
+        {/* ========================================================================= */}
+        {currentView === 'subjects' && (
+          <AdminSubjectsWorkspace
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۴: دبیران و اساتید (currentView === 'teachers') */}
+        {/* ========================================================================= */}
+        {currentView === 'teachers' && (
+          <AdminTeachersWorkspace
+            allTeachers={allTeachers}
+            classes={classes}
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenNewTeacher={onOpenNewTeacher || (() => setIsAddTeacherModalOpen(true))}
+            onSelectTeacherForProfile={onSelectTeacherForProfile || ((t) => {
+              setSelectedTeacher(t);
+              setIsTeacherProfileOpen(true);
+            })}
+            onEditTeacher={(t) => {
+              setTeacherToEdit(t);
+              setIsEditTeacherModalOpen(true);
+            }}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۵: کارپوشه ثبت نمره (currentView === 'grades') */}
+        {/* ========================================================================= */}
+        {currentView === 'grades' && (
+          <div className="space-y-5 animate-in fade-in" dir="rtl">
+            
+            {/* ۱. هدر کارپوشه ثبت نمرات با طراحی هماهنگ */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
+                    <span>پیشخوان اصلی</span>
+                    <span>/</span>
+                    <span className="text-teal-800">کارپوشه ثبت نمرات مستمر و پایانی</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                    <Award className="w-6 h-6 text-teal-800" />
+                    <span>ثبت نمرات ۴ نوبته دانش‌آموزان</span>
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    ورود نمرات با جدول تعاملی، محاسبات خودکار سالانه، خروجی اکسل و فیلترهای نمره‌ای.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                    title="باز کردن نوار کناری"
+                  >
+                    <Menu className="w-4 h-4 text-slate-700" />
+                    <span>منو</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveGrades}
+                    className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>ذخیره نمرات کلاس</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView(null)}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>بازگشت به پیشخوان</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* ۲. سلکتور کلاس و درس */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* انتخاب کلاس */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600">کلاس:</span>
+                    <select
+                      value={selectedClassId}
+                      onChange={(e) => setSelectedClassId(e.target.value)}
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                    >
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} (پایه {c.grade})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* انتخاب درس */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-600">درس:</span>
+                    <select
+                      value={selectedSubjectId}
+                      onChange={(e) => setSelectedSubjectId(e.target.value)}
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                    >
+                      {academicSubjects.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (ضریب {toPersianDigits(s.coefficient)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* جستجوی نام دانش‌آموز */}
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="جستجوی دانش‌آموز..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pr-8 pl-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 w-44"
+                    />
+                  </div>
+
+                  {/* خروجی اکسل نمرات کلاس */}
+                  <button
+                    type="button"
+                    onClick={handleExportClassExcel}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="دریافت فایل اکسل ریز نمرات این کلاس"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>خروجی اکسل</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* اعلان ذخیره موفق */}
+            {isSavedToast && (
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>نمرات با موفقیت در پایگاه داده ثبت و به‌روزرسانی شد.</span>
+              </div>
+            )}
+
+            {/* ۳. جدول تعاملی ثبت نمرات کلاسی */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-800 text-xs sm:text-sm">
+                    لیست نمرات کلاس {currentClass?.name} • درس {currentSubject?.name}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    ({toPersianDigits(filteredStudents.length)} دانش‌آموز)
+                  </span>
+                </div>
+
+                {/* فیلترهای نمره‌ای */}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      statusFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    همه
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('excellent')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      statusFilter === 'excellent' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    ممتاز (بالای ۱۷)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('weak')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      statusFilter === 'weak' ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    نیازمند تلاش (زیر ۱۲)
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/70">
+                      <th className="p-3 w-12 text-center">ردیف</th>
+                      <th className="p-3">دانش‌آموز</th>
+                      <th className="p-2.5 text-center w-28">مستمر نوبت ۱</th>
+                      <th className="p-2.5 text-center w-28">پایانی نوبت ۱</th>
+                      <th className="p-2.5 text-center w-28">مستمر نوبت ۲</th>
+                      <th className="p-2.5 text-center w-28">پایانی نوبت ۲</th>
+                      <th className="p-2.5 text-center w-24">نمره سالانه</th>
+                      <th className="p-3 text-center w-24">وضعیت</th>
+                      <th className="p-3 text-left w-20">نمودار</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-slate-400">
+                          دانش‌آموزی با این مشخصات یافت نشد.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents.map((stu, idx) => {
+                        const draft = draftGrades[stu.id] || {};
+                        const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
+                        const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
+                        const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
+                        const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
+                        const ann = calculateAnnualScore(c1, f1, c2, f2);
+
+                        return (
+                          <tr key={stu.id} className="hover:bg-slate-50/70 transition">
+                            <td className="p-3 text-center text-slate-400 font-mono">
+                              {toPersianDigits(idx + 1)}
+                            </td>
+                            <td className="p-3">
+                              <button
+                                type="button"
+                                onClick={() => onSelectStudent(stu, 'grades')}
+                                className="font-bold text-slate-900 hover:text-teal-800 hover:underline transition text-right cursor-pointer"
+                              >
+                                {stu.firstName} {stu.lastName}
+                              </button>
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                {stu.studentCode || stu.nationalId || ''}
+                              </div>
+                            </td>
+                            
+                            {/* مستمر نوبت ۱ */}
+                            <td className="p-2 text-center">
+                              <input
+                                type="text"
+                                value={draft.c1 ?? ''}
+                                onChange={(e) => handleScoreChange(stu.id, 'c1', e.target.value)}
+                                placeholder="-"
+                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                              />
+                            </td>
+
+                            {/* پایانی نوبت ۱ */}
+                            <td className="p-2 text-center">
+                              <input
+                                type="text"
+                                value={draft.f1 ?? ''}
+                                onChange={(e) => handleScoreChange(stu.id, 'f1', e.target.value)}
+                                placeholder="-"
+                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                              />
+                            </td>
+
+                            {/* مستمر نوبت ۲ */}
+                            <td className="p-2 text-center">
+                              <input
+                                type="text"
+                                value={draft.c2 ?? ''}
+                                onChange={(e) => handleScoreChange(stu.id, 'c2', e.target.value)}
+                                placeholder="-"
+                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                              />
+                            </td>
+
+                            {/* پایانی نوبت ۲ */}
+                            <td className="p-2 text-center">
+                              <input
+                                type="text"
+                                value={draft.f2 ?? ''}
+                                onChange={(e) => handleScoreChange(stu.id, 'f2', e.target.value)}
+                                placeholder="-"
+                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                              />
+                            </td>
+
+                            {/* نمره سالانه محاسبه شده */}
+                            <td className="p-2 text-center font-mono font-black text-sm">
+                              {ann !== undefined ? (
+                                <span className={
+                                  ann >= 17 ? 'text-emerald-700' :
+                                  ann >= 12 ? 'text-slate-800' : 'text-rose-700'
+                                }>
+                                  {toPersianDigits(ann)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">-</span>
+                              )}
+                            </td>
+
+                            {/* وضعیت قبولی */}
+                            <td className="p-3 text-center">
+                              {ann !== undefined ? (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  ann >= 10 
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                }`}>
+                                  {ann >= 10 ? 'قبول' : 'تجدید'}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400">ثبت نشده</span>
+                              )}
+                            </td>
+
+                            {/* دکمه مشاهده روند رشد */}
+                            <td className="p-3 text-left">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedStudentForChart(stu)}
+                                className="p-1.5 text-slate-400 hover:text-teal-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                title="مشاهده نمودار پیشرفت"
+                              >
+                                <BarChart3 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۶: کارنامه و سوابق تحصیلی (currentView === 'report_cards') */}
+        {/* ========================================================================= */}
+        {currentView === 'report_cards' && (
+          <div className="space-y-5 animate-in fade-in" dir="rtl">
+            
+            {/* ۱. هدر کارنامه */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
+                    <span>پیشخوان اصلی</span>
+                    <span>/</span>
+                    <span className="text-teal-800">کارنامه و سوابق تحصیلی</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                    <FileText className="w-6 h-6 text-teal-800" />
+                    <span>کارنامه و پرونده آموزشی دانش‌آموزان</span>
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    مشاهده معدل کل، ریزنمرات دروس، صدور کارنامه رسمی، چاپ و خروجی اکسل.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                    title="باز کردن نوار کناری"
+                  >
+                    <Menu className="w-4 h-4 text-slate-700" />
+                    <span>منو</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleExportReportCardsExcel(reportCardClassId)}
+                    className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>خروجی اکسل کارنامه‌ها</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView(null)}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>بازگشت به پیشخوان</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* ۲. فیلتر کلاس و جستجوی دانش‌آموز */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setReportCardClassId('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                      reportCardClassId === 'all'
+                        ? 'bg-teal-800 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    همه کلاس‌ها ({toPersianDigits(students.length)})
+                  </button>
+                  {classes.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setReportCardClassId(c.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                        reportCardClassId === c.id
+                          ? 'bg-teal-800 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="جستجوی دانش‌آموز یا کد ملی..."
+                    value={reportCardSearch}
+                    onChange={(e) => setReportCardSearch(e.target.value)}
+                    className="pr-8 pl-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 w-full sm:w-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ۳. لیست کارنامه‌های دانش‌آموزان */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {studentsAcademicData
+                .filter(item => {
+                  if (reportCardClassId !== 'all' && item.classId !== reportCardClassId) return false;
+                  if (!reportCardSearch) return true;
+                  const q = reportCardSearch.trim().toLowerCase();
+                  const name = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+                  const code = item.student.nationalId || item.student.studentCode || '';
+                  return name.includes(q) || code.includes(q);
+                })
+                .map(item => {
+                  const hasGpa = item.gpa !== undefined;
+                  const isExcellent = hasGpa && item.gpa! >= 17;
+                  const isWeak = hasGpa && item.gpa! < 12;
+
+                  return (
+                    <div
+                      key={item.student.id}
+                      className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs hover:border-teal-400 hover:shadow-sm transition flex flex-col justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                              {item.student.firstName[0]}
+                            </div>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => onSelectStudent(item.student, 'grades')}
+                                className="font-bold text-slate-900 hover:text-teal-800 transition text-right text-sm hover:underline cursor-pointer"
+                              >
+                                {item.student.firstName} {item.student.lastName}
+                              </button>
+                              <div className="text-[11px] text-slate-400">
+                                کلاس {item.className} • کد: {item.student.studentCode || item.student.nationalId || '-'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* نشان وضعیت معدل */}
+                          {hasGpa && (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isExcellent 
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                                : isWeak
+                                  ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                                  : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {isExcellent ? 'ممتاز' : isWeak ? 'نیازمند تلاش' : 'عادی'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* خلاصه معدل و نمرات */}
+                        <div className="mt-4 p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[11px] text-slate-500">معدل محاسبه شده:</span>
+                            <div className="text-base font-black font-mono text-teal-800 mt-0.5">
+                              {hasGpa ? toPersianDigits(item.gpa!) : 'ثبت نشده'}
+                            </div>
+                          </div>
+
+                          <div className="text-left">
+                            <span className="text-[11px] text-slate-500">دروس ثبت شده:</span>
+                            <div className="text-sm font-bold font-mono text-slate-700 mt-0.5">
+                              {toPersianDigits(item.gradesCount)} درس
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* دروس دارای افت در صورت وجود */}
+                        {item.weakSubjects.length > 0 && (
+                          <div className="mt-2 text-[11px] text-rose-700 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            <span className="truncate">افت در: {item.weakSubjects.join('، ')}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* دکمه‌های اقدام کارنامه */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onSelectStudent(item.student, 'grades')}
+                          className="flex-1 py-1.5 px-3 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>مشاهده کارنامه رسمی</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۷: گزارش‌های آموزشی (currentView === 'reports') */}
+        {/* ========================================================================= */}
+        {currentView === 'reports' && (
+          <AdminReportsWorkspace
+            classes={classes}
+            students={students}
+            sessions={sessions}
+            teachers={allTeachers}
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenAcademicGrades={() => setCurrentView('grades')}
+            onViewWarnings={() => setCurrentView('warnings')}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۸: دانش‌آموزان نیازمند پیگیری آموزشی (currentView === 'warnings') */}
+        {/* ========================================================================= */}
+        {currentView === 'warnings' && (
+          <div className="space-y-5 animate-in fade-in" dir="rtl">
+            
+            {/* ۱. هدر پیگیری آموزشی */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
+                    <span>پیشخوان اصلی</span>
+                    <span>/</span>
+                    <span className="text-rose-700">هشدارهای تحصیلی و پیگیری نمرات</span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                    <AlertTriangle className="w-6 h-6 text-rose-700" />
+                    <span>دانش‌آموزان نیازمند توجه و پیگیری آموزشی</span>
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-1">
+                    شناسایی دانش‌آموزان دارای افت معدل (زیر ۱۲) یا تجدیدی جهت هماهنگی با اولیا و دبیران مربوطه.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                    title="باز کردن نوار کناری"
+                  >
+                    <Menu className="w-4 h-4 text-slate-700" />
+                    <span>منو</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedClassId(classes[0]?.id || '');
+                      setCurrentView('grades');
+                    }}
+                    className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Award className="w-4 h-4" />
+                    <span>ورود به کارپوشه ثبت نمره</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView(null)}
+                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>بازگشت به پیشخوان</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* ۲. فیلترها */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-600">فیلتر کلاس:</span>
+                  <select
+                    value={warningClassFilter}
+                    onChange={(e) => setWarningClassFilter(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                  >
+                    <option value="all">همه کلاس‌ها</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="جستجوی نام یا تلفن ولی..."
+                    value={warningSearch}
+                    onChange={(e) => setWarningSearch(e.target.value)}
+                    className="pr-8 pl-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 w-full sm:w-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ۳. جدول موارد پیگیری */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/70">
+                      <th className="p-3 w-12 text-center">ردیف</th>
+                      <th className="p-3">دانش‌آموز</th>
+                      <th className="p-3">کلاس</th>
+                      <th className="p-3 text-center">معدل کل</th>
+                      <th className="p-3">دروس نیازمند تقویت</th>
+                      <th className="p-3">شماره ولی</th>
+                      <th className="p-3 text-left">اقدام فوری</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {academicWarningStudents
+                      .filter(item => {
+                        if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
+                        if (!warningSearch) return true;
+                        const q = warningSearch.trim().toLowerCase();
+                        const name = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+                        return name.includes(q) || item.student.parentPhone.includes(q);
+                      })
+                      .map((item, idx) => (
+                        <tr key={item.student.id} className="hover:bg-slate-50/70 transition">
+                          <td className="p-3 text-center text-slate-400 font-mono">
+                            {toPersianDigits(idx + 1)}
+                          </td>
+                          <td className="p-3 font-bold text-slate-900">
+                            <button
+                              type="button"
+                              onClick={() => onSelectStudent(item.student, 'grades')}
+                              className="hover:text-teal-800 hover:underline transition cursor-pointer"
+                            >
+                              {item.student.firstName} {item.student.lastName}
+                            </button>
+                          </td>
+                          <td className="p-3 text-slate-600">
+                            کلاس {item.className}
+                          </td>
+                          <td className="p-3 text-center font-mono font-black text-rose-700 text-sm">
+                            {item.gpa !== undefined ? toPersianDigits(item.gpa) : 'ناقص'}
+                          </td>
+                          <td className="p-3 text-rose-700 font-semibold">
+                            {item.weakSubjects.length > 0 ? item.weakSubjects.join('، ') : 'معدل کمتر از ۱۲'}
+                          </td>
+                          <td className="p-3 font-mono text-slate-600">
+                            {item.student.parentPhone}
+                          </td>
+                          <td className="p-3 text-left">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {item.student.parentPhone && (
+                                <a
+                                  href={`tel:${item.student.parentPhone}`}
+                                  className="p-1.5 text-slate-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition border border-slate-200"
+                                  title="تماس با ولی"
+                                >
+                                  <PhoneCall className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => onSelectStudent(item.student, 'grades')}
+                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>کارنامه</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۹: وضعیت تحصیلی / دانش‌آموزان (currentView === 'students') */}
+        {/* ========================================================================= */}
+        {currentView === 'students' && (
+          <AdminStudentsWorkspace
+            students={students}
+            classes={classes}
+            sessions={sessions}
+            morningDelays={morningDelays}
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
+            onOpenQuickAddStudent={() => setIsQuickAddStudentOpen(true)}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۱۰: حضور و غیاب کلاسی (currentView === 'attendance') */}
+        {/* ========================================================================= */}
+        {currentView === 'attendance' && (
+          <AdminAttendanceWorkspace
+            sessions={sessions}
+            classes={classes}
+            students={students}
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenNewAttendance={onOpenNewAttendance || (() => {})}
+            initialTab="sessions"
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* حالت ۱۱: تنظیمات پایه آموزشی (currentView === 'settings') */}
+        {/* ========================================================================= */}
+        {currentView === 'settings' && (
+          <AdminSettingsWorkspace
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
+
+      </div>
+
+      {/* مدال نمودار رشد دانش‌آموز */}
+      {selectedStudentForChart && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <span className="font-bold text-sm">
+                نمودار رشد و پیشرفت تحصیلی • {selectedStudentForChart.firstName} {selectedStudentForChart.lastName}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedStudentForChart(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <StudentGrowthChart
+                grades={academicGrades.filter(g => g.studentId === selectedStudentForChart.id)}
+                studentName={`${selectedStudentForChart.firstName} ${selectedStudentForChart.lastName}`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* مدال‌های اختصاصی ایجاد و ویرایش کلاس و معلم */}
+      <AddClassModal
+        isOpen={isAddClassModalOpen}
+        onClose={() => setIsAddClassModalOpen(false)}
+      />
+
+      {classToEdit && (
+        <EditClassModal
+          isOpen={!!classToEdit}
+          onClose={() => setClassToEdit(null)}
+          schoolClass={classToEdit}
+        />
+      )}
+
+      <AddTeacherModal
+        isOpen={isAddTeacherModalOpen}
+        onClose={() => setIsAddTeacherModalOpen(false)}
+      />
+
+      {teacherToEdit && (
+        <EditTeacherModal
+          isOpen={isEditTeacherModalOpen}
+          onClose={() => {
+            setIsEditTeacherModalOpen(false);
+            setTeacherToEdit(null);
+          }}
+          teacher={teacherToEdit}
+        />
+      )}
+
+      {selectedTeacher && (
+        <TeacherProfileModal
+          isOpen={isTeacherProfileOpen}
+          onClose={() => {
+            setIsTeacherProfileOpen(false);
+            setSelectedTeacher(null);
+          }}
+          teacher={selectedTeacher}
+          onEdit={(t) => {
+            setIsTeacherProfileOpen(false);
+            setSelectedTeacher(null);
+            setTeacherToEdit(t);
+            setIsEditTeacherModalOpen(true);
+          }}
+        />
+      )}
+
+      <QuickAddStudentModal
+        isOpen={isQuickAddStudentOpen}
+        onClose={() => setIsQuickAddStudentOpen(false)}
+      />
+
+    </div>
+  );
+};

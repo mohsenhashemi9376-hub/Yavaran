@@ -1,0 +1,107 @@
+name: ساخت بسته نهایی cPanel
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, openssl, pdo, pdo_mysql, tokenizer, xml, ctype, json, bcmath, fileinfo
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install PHP dependencies (vendor)
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build frontend (React → public/build)
+        run: npm run build
+
+      - name: PHP syntax check
+        run: find app bootstrap config database routes public -name "*.php" -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Prepare package
+        run: |
+          set -e
+          rm -rf dist && mkdir -p dist/yavaran
+          rsync -a ./ dist/yavaran/ \
+            --exclude '.git' --exclude '.github' --exclude 'node_modules' --exclude 'dist' \
+            --exclude 'resources/js' --exclude 'database/tools' --exclude 'database/database.sql' \
+            --exclude '.env' --exclude 'tests' --exclude 'storage/logs/*.log' \
+            --exclude 'package.json' --exclude 'package-lock.json' --exclude 'vite.config.ts' --exclude 'tsconfig.json'
+          rm -f dist/yavaran/bootstrap/cache/config.php dist/yavaran/bootstrap/cache/routes-*.php
+          cd dist/yavaran && zip -qr ../yavaran-cpanel.zip . && cd ../..
+          cp database/database.sql dist/database.sql
+          ls -la dist
+
+      - name: Upload cPanel package
+        uses: actions/upload-artifact@v4
+        with:
+          name: yavaran-cpanel-package
+          path: |
+            dist/yavaran-cpanel.zip
+            dist/database.sql
+          retention-days: 30
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: yavaran
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: yavaran-cpanel-package
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, openssl, pdo_mysql
+      - name: Import database & boot application
+        run: |
+          set -e
+          mkdir app && cd app && unzip -q ../yavaran-cpanel.zip
+          mysql -h127.0.0.1 -uroot -proot yavaran < ../database.sql
+          cp .env.example .env
+          sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/; s/^DB_DATABASE=.*/DB_DATABASE=yavaran/; s/^DB_USERNAME=.*/DB_USERNAME=root/; s/^DB_PASSWORD=.*/DB_PASSWORD=root/; s#^APP_URL=.*#APP_URL=http://127.0.0.1:8000#' .env
+          php -S 127.0.0.1:8000 -t public public/index.php > /tmp/server.log 2>&1 &
+          sleep 3
+          curl -sf -c jar.txt http://127.0.0.1:8000/ | grep -q 'id="root"'
+          curl -sf -b jar.txt -c jar.txt http://127.0.0.1:8000/api/bootstrap | grep -q '"authenticated":false'
+          TOKEN=$(grep XSRF-TOKEN jar.txt | awk '{print $7}' | python3 -c 'import sys,urllib.parse;print(urllib.parse.unquote(sys.stdin.read().strip()))')
+          curl -sf -b jar.txt -c jar.txt -H 'Accept: application/json' -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $TOKEN" \
+            -d '{"username":"admin","password":"123"}' http://127.0.0.1:8000/api/auth/login | grep -q '"success":true'
+          curl -sf -b jar.txt http://127.0.0.1:8000/api/bootstrap | grep -q '"authenticated":true'
+          echo "✅ Smoke test passed"
+      - name: Server log
+        if: always()
+        run: cat /tmp/server.log || true; cat app/storage/logs/*.log 2>/dev/null | tail -50 || true

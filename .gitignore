@@ -1,0 +1,12 @@
+/node_modules
+/vendor
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/.env
+/.env.backup
+/dist
+/yavaran-cpanel.zip
+npm-debug.log
+.DS_Store
