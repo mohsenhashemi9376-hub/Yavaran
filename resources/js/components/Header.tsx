@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+        <div className="flex items-center justify-between h-14 md:h-16 gap-2 sm:gap-4">
           
           {/* ==================================================
               1. Right: School Brand (Logo + Name + Academic Year)

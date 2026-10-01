@@ -59,6 +59,8 @@ import {
   FileText
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { MobileBottomNav } from './MobileBottomNav';
+import { educationalMobileNav, HOME } from './mobileNavConfigs';
 
 interface EducationalDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
@@ -446,6 +448,19 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           }}
         />
       </div>
+
+      {/* نوار ناوبری پایین (فقط موبایل) */}
+      {(() => {
+        const nav = educationalMobileNav({ warnings: academicWarningStudents.length });
+        return (
+          <MobileBottomNav
+            items={nav.primary}
+            moreItems={nav.more}
+            activeId={currentView ?? HOME}
+            onSelect={(id) => setCurrentView(id === HOME ? null : (id as EducationalViewType))}
+          />
+        );
+      })()}
 
       {/* سایدبار در حالت موبایل و تبلت (Drawer) */}
       <EducationalSidebarNav

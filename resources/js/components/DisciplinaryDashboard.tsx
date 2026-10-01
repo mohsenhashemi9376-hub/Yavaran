@@ -52,6 +52,8 @@ import { TeacherProfileModal } from './TeacherProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
 import { CoachProfileModal } from './CoachProfileModal';
+import { MobileBottomNav } from './MobileBottomNav';
+import { executiveMobileNav, HOME } from './mobileNavConfigs';
 
 interface DisciplinaryDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
@@ -892,6 +894,19 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
       </div>
 
       {/* سایدبار کشویی دستگاه‌های همراه (Mobile / Tablet Drawer) */}
+      {/* نوار ناوبری پایین (فقط موبایل) */}
+      {(() => {
+        const nav = executiveMobileNav({ warnings: urgentNeedsCount });
+        return (
+          <MobileBottomNav
+            items={nav.primary}
+            moreItems={nav.more}
+            activeId={currentView ?? HOME}
+            onSelect={(id) => setCurrentView(id === HOME ? null : (id as ExecutiveViewType))}
+          />
+        );
+      })()}
+
       <ExecutiveSidebarNav
         variant="drawer"
         isOpen={isMobileSidebarOpen}

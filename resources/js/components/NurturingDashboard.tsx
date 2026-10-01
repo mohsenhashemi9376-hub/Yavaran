@@ -71,6 +71,8 @@ import {
   LayoutDashboard,
   RotateCcw
 } from 'lucide-react';
+import { MobileBottomNav } from './MobileBottomNav';
+import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -746,6 +748,22 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       </div>
 
       {/* سایدبار در حالت موبایل و تبلت (Drawer) */}
+      {/* نوار ناوبری پایین (فقط موبایل) */}
+      {(() => {
+        const nav = nurturingMobileNav();
+        return (
+          <MobileBottomNav
+            items={nav.primary}
+            moreItems={nav.more}
+            activeId={currentView === null || currentView === 'dashboard' ? HOME : currentView}
+            onSelect={(id) => {
+              setCurrentView(id === HOME ? 'dashboard' : (id as NurturingViewType));
+              if (id !== 'dossier') setSelectedDossierStudent(null);
+            }}
+          />
+        );
+      })()}
+
       <NurturingSidebarNav
         variant="drawer"
         isCollapsed={false}

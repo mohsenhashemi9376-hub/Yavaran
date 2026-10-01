@@ -33,6 +33,8 @@ import {
   ArrowUpRight,
   Check
 } from 'lucide-react';
+import { MobileBottomNav } from './MobileBottomNav';
+import { teacherMobileNav, HOME } from './mobileNavConfigs';
 
 interface TeacherDashboardProps {
   onOpenNewAttendance: (classId?: string) => void;
@@ -138,7 +140,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       <div className="flex flex-col lg:flex-row items-start gap-6">
         
         {/* RIGHT SIDEBAR NAV (Desktop + Mobile Drawer) */}
-        <div className="w-full lg:w-auto shrink-0">
+        <div className="hidden md:block w-full lg:w-auto shrink-0">
           <TeacherSidebarNav
             activeView={activeView}
             onSelectView={(view) => {
@@ -156,6 +158,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
         </div>
+
+        {/* نوار ناوبری پایین (فقط موبایل) */}
+        {(() => {
+          const nav = teacherMobileNav();
+          return (
+            <MobileBottomNav
+              items={nav.primary}
+              moreItems={nav.more}
+              activeId={activeView}
+              onSelect={(id) => {
+                setActiveView(id as TeacherViewType);
+                if (id === 'grades' && !selectedClassForMonthlyGrades && teacherClasses.length > 0) {
+                  setSelectedClassForMonthlyGrades(teacherClasses[0].id);
+                }
+              }}
+            />
+          );
+        })()}
 
         {/* LEFT / CENTER MAIN CONTENT AREA */}
         <div className="flex-1 w-full min-w-0 space-y-6">

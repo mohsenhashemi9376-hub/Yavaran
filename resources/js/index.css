@@ -1,2 +1,64 @@
 @import "tailwindcss";
 @source "../views";
+
+/* ==========================================================================
+   نمای اپلیکیشن موبایل (کمتر از 768px)
+   ========================================================================== */
+@keyframes yv-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+html { scroll-behavior: smooth; }
+
+@media (max-width: 767.98px) {
+  html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+  body { -webkit-overflow-scrolling: touch; }
+
+  /* مخفی‌سازی نوار اسکرول (اسکرول همچنان کار می‌کند) */
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
+
+  /* نوار پایین با ناحیه امن آیفون */
+  .yv-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* اندازه مناسب لمس و جلوگیری از زوم خودکار iOS */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea { font-size: 16px !important; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select { min-height: 44px; }
+  button:not(table button):not([role="tab"] ) { min-height: 40px; }
+  .yv-bottom-nav button { min-height: 56px; }
+
+  /* پنجره‌ها و مودال‌ها به صورت Bottom Sheet از پایین صفحه */
+  .fixed.inset-0.items-center.justify-center {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    overflow-y: hidden !important;
+  }
+  .fixed.inset-0.items-center.justify-center > div {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 92dvh !important;
+    margin: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 1.75rem !important;
+    border-top-right-radius: 1.75rem !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: yv-sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  .fixed.inset-0.items-center.justify-center > div:not(.flex-col) { overflow-y: auto; }
+  /* دستگیره بالای برگه */
+  .fixed.inset-0.items-center.justify-center > div:not(.flex-row)::before {
+    content: "";
+    display: block;
+    flex: none;
+    width: 2.5rem;
+    height: 0.3rem;
+    border-radius: 9999px;
+    background: #cbd5e1;
+    margin: 0.5rem auto 0;
+  }
+}
