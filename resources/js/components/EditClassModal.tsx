@@ -223,23 +223,23 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose,
             </div>
           )}
 
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-              <span>ذخیره تغییرات</span>
-            </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+            <span>ذخیره تغییرات</span>
+          </button>
+
+          <div className="flex justify-start">
             <button
               type="button"
               onClick={handleDeleteClick}
-              className="h-12 w-12 rounded-2xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center transition cursor-pointer"
-              title="حذف کلاس"
-              aria-label="حذف کلاس"
+              className="flex items-center gap-1.5 text-xs font-medium text-rose-300 hover:text-rose-500 transition cursor-pointer"
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>حذف کلاس</span>
             </button>
           </div>
         </form>
