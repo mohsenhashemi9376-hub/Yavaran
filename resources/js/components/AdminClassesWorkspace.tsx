@@ -76,27 +76,6 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
     const currentCls = classes.find((c) => c.id === selectedClassForProfile.id) || selectedClassForProfile;
     return (
       <div className="space-y-4" dir="rtl">
-        <div className="flex items-center justify-between bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-            <button
-              onClick={() => setSelectedClassForProfile(null)}
-              className="hover:text-teal-800 transition cursor-pointer"
-            >
-              کلاس‌ها
-            </button>
-            <span>/</span>
-            <span className="text-teal-800 font-bold">{currentCls.name}</span>
-          </div>
-
-          <button
-            onClick={() => setSelectedClassForProfile(null)}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <ArrowRight className="w-4 h-4" />
-            <span>بازگشت به لیست تمام کلاس‌ها</span>
-          </button>
-        </div>
-
         <ClassProfileView
           classData={currentCls}
           onBack={() => setSelectedClassForProfile(null)}

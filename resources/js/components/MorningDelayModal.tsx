@@ -3,7 +3,7 @@ import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYe
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi, getDayOfWeekFromShamsi } from '../utils/persianDate';
-import { Clock, X, Search, Calendar, AlertCircle, Loader2, CheckCircle2, UserCheck, ChevronDown } from 'lucide-react';
+import { X, Search, Calendar, AlertCircle, Loader2, Check, Plus } from 'lucide-react';
 
 interface MorningDelayModalProps {
   isOpen: boolean;
@@ -13,7 +13,17 @@ interface MorningDelayModalProps {
   editRecord?: MorningDelayRecord | null;
 }
 
-const QUICK_MINUTE_OPTIONS = [5, 10, 15, 20, 30];
+const QUICK_MINUTE_OPTIONS = [5, 10, 15, 20, 30, 45];
+
+// یکسان‌سازی حروف عربی/فارسی و حذف فاصله‌های اضافی برای جستجوی دقیق‌تر
+const normalizeText = (value: string) =>
+  toEnglishDigits(value || '')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/\u200c/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 
 export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   isOpen,
@@ -37,7 +47,6 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   // -------------------------------------------------------------
   // Form States
   // -------------------------------------------------------------
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState<boolean>(false);
@@ -45,6 +54,9 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   const [delayMinutesInput, setDelayMinutesInput] = useState<string>('15');
   const [reason, setReason] = useState<string>('');
   const [isExcused, setIsExcused] = useState<boolean>(false);
+  const [showDetails, setShowDetails] = useState<boolean>(false);
+  const [isEditingDate, setIsEditingDate] = useState<boolean>(false);
+  const [highlightIndex, setHighlightIndex] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -70,20 +82,21 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     if (justOpened || editRecord?.id) {
       setErrorMessage(null);
       setIsSearchDropdownOpen(false);
+      setShowDetails(false);
+      setIsEditingDate(false);
+      setHighlightIndex(0);
 
       if (editRecord) {
         // Editing existing delay record
-        const existingStudent = students.find((s) => s.id === editRecord.studentId);
-        setSelectedClassId(editRecord.classId || existingStudent?.classId || '');
         setSelectedStudentId(editRecord.studentId);
         setDate(toEnglishDigits(editRecord.date));
         setDelayMinutesInput(String(editRecord.delayMinutes || 15));
         setReason(editRecord.reason || '');
         setIsExcused(editRecord.isExcused ?? false);
+        setShowDetails(Boolean(editRecord.reason) || Boolean(editRecord.isExcused));
         setStudentSearchQuery('');
       } else if (initialStudent) {
         // Opened with preselected student (e.g. from Student Profile)
-        setSelectedClassId(initialStudent.classId || '');
         setSelectedStudentId(initialStudent.id);
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
@@ -92,7 +105,6 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setStudentSearchQuery('');
       } else if (initialClassId) {
         // Opened with preselected class (e.g. from Class Profile)
-        setSelectedClassId(initialClassId);
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
@@ -101,7 +113,6 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setStudentSearchQuery('');
       } else {
         // Fresh empty registration
-        setSelectedClassId('');
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
@@ -116,50 +127,30 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   // Derived Data
   // -------------------------------------------------------------
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
-  const selectedClass = classes.find((c) => c.id === (selectedClassId || selectedStudent?.classId));
+  const classNameOf = (classId?: string) => classes.find((c) => c.id === classId)?.name || 'بدون کلاس';
 
-  // Students belonging strictly to the selected class
-  const classStudents = useMemo(() => {
-    if (!selectedClassId) return [];
-    return students.filter((s) => s.classId === selectedClassId);
-  }, [students, selectedClassId]);
-
-  // Filtered students based on search query (within selected class).
-  // Rule: Do NOT open full list automatically when search is empty. Only show on typed query.
+  // جستجوی مستقیم در بین تمام دانش‌آموزان (نام، نام خانوادگی، کد دانش‌آموزی)
   const filteredStudents = useMemo(() => {
-    const query = studentSearchQuery.trim().toLowerCase();
+    const query = normalizeText(studentSearchQuery);
     if (!query) return [];
-    return classStudents.filter((stu) => {
-      const fullName = `${stu.firstName} ${stu.lastName}`.toLowerCase();
-      const code = (stu.studentCode || '').toLowerCase();
-      return fullName.includes(query) || code.includes(query);
-    });
-  }, [classStudents, studentSearchQuery]);
+    const words = query.split(' ');
+    return students
+      .filter((stu) => {
+        const haystack = normalizeText(`${stu.firstName} ${stu.lastName} ${stu.studentCode || ''}`);
+        return words.every((w) => haystack.includes(w));
+      })
+      .slice(0, 8);
+  }, [students, studentSearchQuery]);
 
-  // Parsed delay minutes
   const parsedMinutes = Number(toEnglishDigits(delayMinutesInput.trim()));
   const isDelayValid = !isNaN(parsedMinutes) && parsedMinutes > 0;
+  const isQuickValue = QUICK_MINUTE_OPTIONS.includes(parsedMinutes);
 
   // -------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------
-  const handleClassChange = (newClassId: string) => {
-    setSelectedClassId(newClassId);
-    // If a student was already chosen and is not in the new class, clear selection
-    if (selectedStudentId) {
-      const stu = students.find((s) => s.id === selectedStudentId);
-      if (!stu || stu.classId !== newClassId) {
-        setSelectedStudentId('');
-      }
-    }
-    setStudentSearchQuery('');
-    setIsSearchDropdownOpen(false);
-    setErrorMessage(null);
-  };
-
   const handleSelectStudent = (stu: Student) => {
     setSelectedStudentId(stu.id);
-    setSelectedClassId(stu.classId || selectedClassId);
     setStudentSearchQuery('');
     setIsSearchDropdownOpen(false);
     setErrorMessage(null);
@@ -168,17 +159,31 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   const handleClearSelectedStudent = () => {
     setSelectedStudentId('');
     setStudentSearchQuery('');
-    setIsSearchDropdownOpen(false);
     setErrorMessage(null);
-    setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 50);
+    setTimeout(() => searchInputRef.current?.focus(), 50);
   };
 
-  const handleMinuteChipClick = (mins: number) => {
-    setDelayMinutesInput(String(mins));
-    setErrorMessage(null);
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!filteredStudents.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex((i) => (i + 1) % filteredStudents.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex((i) => (i - 1 + filteredStudents.length) % filteredStudents.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSelectStudent(filteredStudents[Math.min(highlightIndex, filteredStudents.length - 1)]);
+    }
   };
+
+  // فوکوس خودکار روی جستجو هنگام باز شدن فرم ثبت جدید
+  useEffect(() => {
+    if (isOpen && !editRecord && !initialStudent) {
+      const t = setTimeout(() => searchInputRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, editRecord?.id, initialStudent?.id]);
 
   // -------------------------------------------------------------
   // Submission
@@ -188,44 +193,28 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     if (isSubmitting || isSubmittingRef.current) return;
     setErrorMessage(null);
 
-    // Validation 1: Class
-    const effectiveClassId = selectedClassId || selectedStudent?.classId;
-    if (!effectiveClassId) {
-      setErrorMessage('لطفاً ابتدا کلاس را انتخاب کنید.');
-      return;
-    }
-
-    // Validation 2: Student
     if (!selectedStudentId || !selectedStudent) {
       setErrorMessage('لطفاً دانش‌آموز را انتخاب کنید.');
       return;
     }
 
-    // Validation 3: Date
     const cleanDate = toEnglishDigits(date.trim());
     if (!cleanDate || cleanDate.length < 8) {
       setErrorMessage('لطفاً تاریخ تأخیر را بررسی کنید.');
       return;
     }
 
-    // Validation 4: Delay minutes
-    if (!delayMinutesInput.trim()) {
-      setErrorMessage('لطفاً مدت تأخیر را وارد کنید.');
+    if (!isDelayValid) {
+      setErrorMessage('مدت تأخیر را انتخاب کنید.');
       return;
     }
 
-    if (isNaN(parsedMinutes) || parsedMinutes <= 0) {
-      setErrorMessage('مدت تأخیر باید یک عدد مثبت باشد.');
-      return;
-    }
-
-    // Duplicate check for same student on the same day
     const isDuplicate = morningDelays.some(
       (m) => m.studentId === selectedStudentId && toEnglishDigits(m.date) === cleanDate && (!editRecord || m.id !== editRecord.id)
     );
     if (isDuplicate) {
       setErrorMessage(
-        `برای دانش‌آموز «${selectedStudent.firstName} ${selectedStudent.lastName}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً سند تأخیر ورود ثبت شده است.`
+        `برای «${selectedStudent.firstName} ${selectedStudent.lastName}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً تأخیر ثبت شده است.`
       );
       return;
     }
@@ -233,43 +222,31 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const dayOfWeek = getDayOfWeekFromShamsi(cleanDate);
     const studentFullName = `${selectedStudent.firstName} ${selectedStudent.lastName}`;
 
-    // Current arrival time calculation
     const now = tehranNow();
-    const currentHour = String(now.getHours()).padStart(2, '0');
-    const currentMin = String(now.getMinutes()).padStart(2, '0');
-    const arrivalTime = editRecord?.arrivalTime || `${currentHour}:${currentMin}`;
+    const arrivalTime =
+      editRecord?.arrivalTime ||
+      `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
+      const payload = {
+        studentId: selectedStudentId,
+        studentName: studentFullName,
+        classId: selectedStudent.classId || '',
+        date: cleanDate,
+        dayOfWeek,
+        arrivalTime,
+        delayMinutes: parsedMinutes,
+        reason: reason.trim() || undefined,
+        isExcused,
+      };
       if (editRecord) {
-        updateMorningDelay(editRecord.id, {
-          studentId: selectedStudentId,
-          studentName: studentFullName,
-          classId: selectedStudent.classId || effectiveClassId,
-          date: cleanDate,
-          dayOfWeek,
-          arrivalTime,
-          delayMinutes: parsedMinutes,
-          reason: reason.trim() || undefined,
-          isExcused,
-        });
+        updateMorningDelay(editRecord.id, payload);
         showToast(`تغییرات تأخیر ${studentFullName} با موفقیت ذخیره شد.`, 'success');
       } else {
-        addMorningDelay({
-          studentId: selectedStudentId,
-          studentName: studentFullName,
-          classId: selectedStudent.classId || effectiveClassId,
-          date: cleanDate,
-          dayOfWeek,
-          arrivalTime,
-          delayMinutes: parsedMinutes,
-          reason: reason.trim() || undefined,
-          isExcused,
-          recordedBy: `${currentUser.name} (${currentUser.roleTitle})`,
-        });
-        // Note: addMorningDelay already provides toast feedback
+        addMorningDelay({ ...payload, recordedBy: `${currentUser.name} (${currentUser.roleTitle})` });
       }
       onClose();
     } catch {
@@ -282,183 +259,111 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div 
-      id="morning-delay-modal-backdrop"
-      className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150"
-      dir="rtl"
-    >
-      <div 
-        id="morning-delay-modal-container"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
-      >
-        
-        {/* ========================================================= */}
-        {/* 1. Header فرم */}
-        {/* ========================================================= */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                {editRecord ? 'ویرایش تأخیر' : 'ثبت تأخیر'}
-              </h2>
-              <p className="text-[11px] text-slate-400">
-                تأخیر ورود دانش‌آموز به مدرسه را ثبت کنید.
-              </p>
-            </div>
-          </div>
+  const isToday = toEnglishDigits(date) === todayInfo.formattedDate;
 
+  return (
+    <div
+      id="morning-delay-modal-backdrop"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150"
+      dir="rtl"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        id="morning-delay-modal-container"
+        className="bg-white rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-md flex flex-col max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150"
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+          <h2 className="text-lg font-extrabold text-slate-900">
+            {editRecord ? 'ویرایش تأخیر' : 'ثبت تأخیر'}
+          </h2>
           <button
             id="morning-delay-close-btn"
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
             aria-label="بستن"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ========================================================= */}
-        {/* Modal Form Body */}
-        {/* ========================================================= */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 text-right">
-          
-          {/* Inline Error Message */}
+        <form onSubmit={handleSubmit} className="px-6 pb-6 pt-2 space-y-5 text-right">
           {errorMessage && (
-            <div 
-              role="alert" 
-              className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2 animate-in fade-in"
-            >
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <div role="alert" className="p-3 rounded-2xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          {/* ======================================================= */}
-          {/* 2 & 3 & 4. بخش انتخاب دانش‌آموز (کلاس -> دانش‌آموز) */}
-          {/* ======================================================= */}
+          {/* دانش‌آموز */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-800">
-              دانش‌آموز <span className="text-rose-600">*</span>
-            </label>
+            <label className="block text-sm font-bold text-slate-700">دانش‌آموز</label>
 
-            {/* حالت الف: دانش‌آموز قبلاً انتخاب شده (کارت بسیار کوچک و جمع‌وجور) */}
             {selectedStudent ? (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
-                    <UserCheck className="w-4 h-4" />
+              <div className="bg-emerald-50 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-extrabold text-slate-900 text-sm truncate">
+                    {selectedStudent.firstName} {selectedStudent.lastName}
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate">
-                      {selectedStudent.firstName} {selectedStudent.lastName}
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
-                      {selectedClass ? selectedClass.name : 'بدون کلاس'}
-                      {selectedStudent.fatherName ? ` • فرزند ${selectedStudent.fatherName}` : ''}
-                    </div>
-                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">{classNameOf(selectedStudent.classId)}</div>
                 </div>
-
                 {!editRecord && (
                   <button
                     type="button"
                     onClick={handleClearSelectedStudent}
-                    className="px-2.5 py-1 text-xs font-bold text-amber-700 hover:text-amber-800 hover:bg-amber-100/60 rounded-lg transition cursor-pointer shrink-0"
-                    title="تغییر دانش‌آموز یا کلاس"
+                    className="px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 rounded-xl transition cursor-pointer shrink-0"
                   >
                     تغییر
                   </button>
                 )}
               </div>
             ) : (
-              /* حالت ب: دانش‌آموز هنوز انتخاب نشده است */
-              <div className="space-y-2.5 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3">
-                
-                {/* انتخاب کلاس */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-bold text-slate-600">کلاس</span>
-                    {selectedClassId && (
-                      <span className="text-[10px] text-slate-400">
-                        {toPersianDigits(classStudents.length)} دانش‌آموز
-                      </span>
-                    )}
-                  </div>
+              <div className="relative">
+                <Search className="w-5 h-5 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  id="delay-student-search-input"
+                  type="text"
+                  autoComplete="off"
+                  value={studentSearchQuery}
+                  onChange={(e) => {
+                    setStudentSearchQuery(e.target.value);
+                    setIsSearchDropdownOpen(true);
+                    setHighlightIndex(0);
+                    setErrorMessage(null);
+                  }}
+                  onFocus={() => setIsSearchDropdownOpen(true)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="نام یا نام خانوادگی دانش‌آموز..."
+                  className="w-full text-base bg-slate-50 rounded-2xl pr-12 pl-4 py-3.5 text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition"
+                />
 
-                  <div className="relative">
-                    <select
-                      id="delay-class-select"
-                      value={selectedClassId}
-                      onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 transition cursor-pointer"
-                    >
-                      <option value="">انتخاب کلاس...</option>
-                      {classes.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* انتخاب دانش‌آموز (فقط پس از انتخاب کلاس) */}
-                {!selectedClassId ? (
-                  <div className="py-2 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg bg-white/60">
-                    ابتدا کلاس را انتخاب کنید.
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <div className="relative">
-                      <input
-                        ref={searchInputRef}
-                        id="delay-student-search-input"
-                        type="text"
-                        value={studentSearchQuery}
-                        onChange={(e) => {
-                          setStudentSearchQuery(e.target.value);
-                          setIsSearchDropdownOpen(true);
-                          setErrorMessage(null);
-                        }}
-                        onFocus={() => setIsSearchDropdownOpen(true)}
-                        placeholder="جستجوی نام دانش‌آموز..."
-                        className="w-full text-xs sm:text-sm bg-white border border-slate-200 rounded-lg pr-8 pl-3 py-2 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 transition"
-                      />
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-                    </div>
-
-                    {/* لیست هدفمند جستجو (فقط در زمان باز بودن یا جستجو) */}
-                    {isSearchDropdownOpen && (
-                      <div className="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-44 overflow-y-auto divide-y divide-slate-100 z-20">
-                        {filteredStudents.length > 0 ? (
-                          filteredStudents.map((stu) => (
-                            <button
-                              type="button"
-                              key={stu.id}
-                              onClick={() => handleSelectStudent(stu)}
-                              className="w-full px-3 py-2 text-right text-xs hover:bg-amber-50/70 flex items-center justify-between transition cursor-pointer group"
-                            >
-                              <span className="font-bold text-slate-800 group-hover:text-amber-950">
-                                {stu.firstName} {stu.lastName}
-                              </span>
-                              {stu.fatherName && (
-                                <span className="text-[11px] text-slate-400">
-                                  فرزند {stu.fatherName}
-                                </span>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="p-3 text-center text-xs text-slate-400">
-                            دانش‌آموزی با این نام در این کلاس یافت نشد.
-                          </div>
-                        )}
-                      </div>
+                {isSearchDropdownOpen && studentSearchQuery.trim() && (
+                  <div className="absolute top-full right-0 left-0 mt-2 bg-white rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 max-h-64 overflow-y-auto p-1.5 z-20">
+                    {filteredStudents.length > 0 ? (
+                      filteredStudents.map((stu, idx) => (
+                        <button
+                          type="button"
+                          key={stu.id}
+                          onClick={() => handleSelectStudent(stu)}
+                          onMouseEnter={() => setHighlightIndex(idx)}
+                          className={`w-full px-3 py-2.5 text-right rounded-xl flex items-center justify-between gap-3 transition cursor-pointer ${
+                            idx === highlightIndex ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="font-bold text-sm text-slate-900 truncate">
+                            {stu.firstName} {stu.lastName}
+                          </span>
+                          <span className="text-xs text-slate-500 shrink-0 bg-slate-100 rounded-lg px-2 py-0.5">
+                            {classNameOf(stu.classId)}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-sm text-slate-400">دانش‌آموزی یافت نشد.</div>
                     )}
                   </div>
                 )}
@@ -466,191 +371,131 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
             )}
           </div>
 
-          {/* ======================================================= */}
-          {/* 5. مدت تأخیر — ورودی دستی و چیپ‌های سریع */}
-          {/* ======================================================= */}
+          {/* مدت تأخیر */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-800">
-              مدت تأخیر <span className="text-rose-600">*</span>
-            </label>
-
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  id="delay-minutes-input"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={delayMinutesInput}
-                  onChange={(e) => {
-                    setDelayMinutesInput(e.target.value);
-                    setErrorMessage(null);
-                  }}
-                  placeholder="۱۵"
-                  className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition text-center"
-                />
-              </div>
-              <span className="text-xs font-bold text-slate-500 shrink-0">
-                دقیقه
-              </span>
-            </div>
-
-            {/* Quick Selection Chips */}
-            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-              <span className="text-[11px] text-slate-400 ml-1">انتخاب سریع:</span>
+            <label className="block text-sm font-bold text-slate-700">مدت تأخیر (دقیقه)</label>
+            <div className="grid grid-cols-3 gap-2.5">
               {QUICK_MINUTE_OPTIONS.map((mins) => {
-                const isActive = parsedMinutes === mins;
+                const active = parsedMinutes === mins;
                 return (
                   <button
                     type="button"
                     key={mins}
-                    onClick={() => handleMinuteChipClick(mins)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      isActive
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    onClick={() => {
+                      setDelayMinutesInput(String(mins));
+                      setErrorMessage(null);
+                    }}
+                    className={`h-14 rounded-2xl text-xl font-extrabold transition cursor-pointer ${
+                      active
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    {toPersianDigits(mins)} دقیقه
+                    {toPersianDigits(mins)}
                   </button>
                 );
               })}
             </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>مقدار دیگر:</span>
+              <input
+                id="delay-minutes-input"
+                type="text"
+                inputMode="numeric"
+                value={isQuickValue ? '' : toPersianDigits(delayMinutesInput)}
+                onChange={(e) => {
+                  setDelayMinutesInput(toEnglishDigits(e.target.value).replace(/[^0-9]/g, ''));
+                  setErrorMessage(null);
+                }}
+                placeholder="مثلاً ۲۵"
+                className="w-24 text-center text-sm font-bold bg-slate-50 rounded-xl px-3 py-2 text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white transition"
+              />
+            </div>
           </div>
 
-          {/* ======================================================= */}
-          {/* 6. تاریخ تأخیر (جمع‌وجور و ثانویه) */}
-          {/* ======================================================= */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700">
-                تاریخ تأخیر
-              </label>
-              <span className="text-[10px] text-slate-400">
-                پیش‌فرض: امروز
-              </span>
-            </div>
-
-            <div className="relative">
+          {/* تاریخ */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-bold text-slate-700">تاریخ</span>
+            {isEditingDate ? (
               <input
                 id="delay-date-input"
                 type="text"
-                value={date}
+                autoFocus
+                value={toPersianDigits(date)}
                 onChange={(e) => {
-                  setDate(e.target.value);
+                  setDate(toEnglishDigits(e.target.value));
                   setErrorMessage(null);
                 }}
-                placeholder={todayInfo.formattedDate}
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-8 pl-3 py-2 text-slate-800 font-mono outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition"
+                onBlur={() => setIsEditingDate(false)}
+                className="w-36 text-center text-sm font-bold bg-slate-50 rounded-xl px-3 py-2 text-slate-900 outline-none border border-emerald-500"
               />
-              <Calendar className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingDate(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold transition cursor-pointer"
+              >
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span>{isToday ? 'امروز' : ''} {toPersianDigits(date)}</span>
+              </button>
+            )}
           </div>
 
-          {/* ======================================================= */}
-          {/* 7. توضیحات (اختیاری) */}
-          {/* ======================================================= */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-700">
-              توضیحات <span className="text-slate-400 font-normal">(اختیاری)</span>
-            </label>
-            <textarea
-              id="delay-reason-textarea"
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="مثلاً: تأخیر به دلیل ترافیک یا هماهنگی قبلی..."
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition resize-none"
-            />
-          </div>
-
-          {/* ======================================================= */}
-          {/* 8. وضعیت موجه بودن (Progressive Disclosure) */}
-          {/* ======================================================= */}
-          <div className="pt-1">
-            <label className="inline-flex items-start gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
-              <input
-                id="delay-excused-checkbox"
-                type="checkbox"
-                checked={isExcused}
-                onChange={(e) => setIsExcused(e.target.checked)}
-                className="w-4 h-4 mt-0.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
+          {/* توضیحات و موجه بودن (در صورت نیاز) */}
+          {showDetails ? (
+            <div className="space-y-3 animate-in fade-in">
+              <textarea
+                id="delay-reason-textarea"
+                rows={2}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="توضیحات (اختیاری)"
+                className="w-full text-sm bg-slate-50 rounded-2xl p-3 text-slate-800 outline-none border border-transparent focus:border-emerald-500 focus:bg-white transition resize-none"
               />
-              <div>
-                <span className="font-bold block text-slate-800">
-                  تأخیر موجه است
-                </span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">
-                  برای تأخیرهایی که با هماهنگی مدرسه یا ارائه گواهی تأیید شده‌اند.
-                </span>
-              </div>
-            </label>
-          </div>
-
-          {/* ======================================================= */}
-          {/* 9. خلاصه قبل از ثبت (Quick Verification Summary) */}
-          {/* ======================================================= */}
-          {selectedStudent && isDelayValid && (
-            <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 text-xs text-slate-800 space-y-1 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">دانش‌آموز:</span>
-                <span className="font-bold text-slate-900">
-                  {selectedStudent.firstName} {selectedStudent.lastName} ({selectedClass?.name || 'کلاس'})
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">مدت تأخیر:</span>
-                <span className="font-bold text-amber-800">
-                  {toPersianDigits(parsedMinutes)} دقیقه
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">وضعیت:</span>
-                <span className={`font-bold ${isExcused ? 'text-emerald-700' : 'text-slate-700'}`}>
-                  {isExcused ? 'موجه' : 'عادی'}
-                </span>
-              </div>
+              <label className="flex items-center gap-3 text-sm font-bold text-slate-700 cursor-pointer select-none">
+                <input
+                  id="delay-excused-checkbox"
+                  type="checkbox"
+                  checked={isExcused}
+                  onChange={(e) => setIsExcused(e.target.checked)}
+                  className="w-5 h-5 accent-emerald-600 rounded cursor-pointer"
+                />
+                تأخیر موجه است
+              </label>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowDetails(true)}
+              className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-emerald-700 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              توضیحات / تأخیر موجه
+            </button>
           )}
 
-          {/* ======================================================= */}
-          {/* 10. Footer Actions */}
-          {/* ======================================================= */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
-            <button
-              id="morning-delay-cancel-btn"
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-            >
-              انصراف
-            </button>
-
-            <button
-              id="morning-delay-submit-btn"
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5 ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>در حال ثبت...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{editRecord ? 'ذخیره تغییرات' : 'ثبت تأخیر'}</span>
-                </>
-              )}
-            </button>
-          </div>
-
+          {/* ثبت */}
+          <button
+            id="morning-delay-submit-btn"
+            type="submit"
+            disabled={isSubmitting}
+            className={`w-full h-14 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 ${
+              isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>در حال ثبت...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                <span>{editRecord ? 'ذخیره تغییرات' : 'ثبت تأخیر'}</span>
+              </>
+            )}
+          </button>
         </form>
-
       </div>
     </div>
   );
