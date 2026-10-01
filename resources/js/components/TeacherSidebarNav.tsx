@@ -19,7 +19,6 @@ import {
 
 export type TeacherViewType = 
   | 'dashboard'
-  | 'classes'
   | 'subjects'
   | 'attendance'
   | 'grades'
@@ -79,13 +78,6 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
     {
       title: 'آموزش',
       items: [
-        {
-          id: 'classes',
-          label: 'کلاس‌های من',
-          icon: School,
-          badge: toPersianDigits(teachingClasses.length),
-          badgeColor: 'bg-emerald-100 text-emerald-800',
-        },
         {
           id: 'subjects',
           label: 'دروس من',

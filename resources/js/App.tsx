@@ -121,6 +121,9 @@ const MainApp: React.FC = () => {
 
   // Modal triggers
   const handleOpenNewAttendance = (classId?: string) => {
+    // پنجره جزئیات کلاس باید بسته شود تا فهرست حضور و غیاب بلافاصله دیده شود
+    setClassDetailModalOpen(false);
+    setTargetClassForDetail(null);
     setSessionToEdit(null);
     setTargetClassIdForAttendance(classId);
     setAttendanceModalOpen(true);

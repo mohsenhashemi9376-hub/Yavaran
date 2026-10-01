@@ -70,8 +70,10 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
     allTeachers, 
     allCoaches,
     updateStudent,
-    bellPeriods
+    bellPeriods,
+    currentUser
   } = useSchool();
+  const canEditClass = currentUser?.role !== 'teacher';
 
   // Tab State: 4 core sections according to user specification (Phase 11)
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'attendance' | 'reports'>('overview');
@@ -224,13 +226,13 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
 
         {/* ابزارهای جمع‌وجور (Action Pills) */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
+          {canEditClass && <button
             onClick={() => setIsEditClassModalOpen(true)}
             className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-full text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>ویرایش کلاس</span>
-          </button>
+          </button>}
           {onOpenMonthlySummary && (
             <button
               onClick={() => onOpenMonthlySummary(classData.id)}
@@ -353,12 +355,14 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                       <GraduationCap className="w-4 h-4 text-teal-800" />
                       <span>کادر آموزشی و تربیتی کلاس</span>
                     </h3>
+                    {canEditClass && (
                     <button
                       onClick={() => setIsEditClassModalOpen(true)}
                       className="text-[11px] font-bold text-teal-800 hover:text-teal-900 cursor-pointer"
                     >
                       ویرایش کادر
                     </button>
+                    )}
                   </div>
 
                   <div className="space-y-2 text-xs divide-y divide-slate-200/60">

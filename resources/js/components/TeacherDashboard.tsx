@@ -278,13 +278,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       کلاس‌های اختصاصی شما ({toPersianDigits(teacherClasses.length)} کلاس)
                     </h3>
                   </div>
-                  <button
-                    onClick={() => setActiveView('classes')}
-                    className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>مشاهده تمام کلاس‌ها</span>
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
                 </div>
 
                 {teacherClasses.length === 0 ? (
@@ -299,7 +292,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {teacherClasses.slice(0, 6).map((cls) => {
+                    {teacherClasses.map((cls) => {
                       const classStudents = students.filter((s) => s.classId === cls.id);
                       const classSessions = teacherSessions.filter((s) => s.classId === cls.id);
                       const lastSession = classSessions[0];
@@ -471,144 +464,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 )}
               </div>
 
-            </div>
-          )}
-
-          {/* VIEW 2: MY CLASSES (کلاس‌های من) */}
-          {activeView === 'classes' && (
-            <div className="space-y-5">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl">
-                    <GraduationCap className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      کلاس‌های من
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      فهرست کلاس‌هایی که به عنوان معلم یا مربی-معلم در آنها تعریف شده‌اید
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-emerald-50 text-emerald-800 font-bold px-3 py-1.5 rounded-xl border border-emerald-200">
-                    {toPersianDigits(teacherClasses.length)} کلاس تحت تدریس
-                  </span>
-                </div>
-              </div>
-
-              {teacherClasses.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
-                  <GraduationCap className="w-16 h-16 text-slate-300 mx-auto" />
-                  <h4 className="text-base font-bold text-slate-800">
-                    هیچ کلاسی به شما تخصیص داده نشده است
-                  </h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                    برای فعال‌سازی تدریس، مدیر یا معاون آموزشی مدرسه می‌تواند از بخش مدیریت مربیان یا معلمان، کلاس‌ها و دروس شما را تنظیم کند.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {teacherClasses.map((cls) => {
-                    const classStudents = students.filter((s) => s.classId === cls.id);
-                    const classSessions = teacherSessions.filter((s) => s.classId === cls.id);
-                    const lastSession = classSessions[0];
-                    const subjectName = getSubjectForClass(cls.id);
-
-                    return (
-                      <div
-                        key={cls.id}
-                        className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-emerald-500 hover:shadow-md transition space-y-4 flex flex-col justify-between"
-                      >
-                        <div className="space-y-3">
-                          {/* Header of card: Subject + Class name */}
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-900 text-xs font-black mb-1.5">
-                                <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
-                                <span>درس: {subjectName}</span>
-                              </div>
-                              <h4 className="text-lg font-black text-slate-900">
-                                {cls.name}
-                              </h4>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                پایه {cls.grade} • رشته {cls.major} {cls.roomNumber ? `• شماره اتاق ${cls.roomNumber}` : ''}
-                              </p>
-                            </div>
-
-                            <span className="bg-slate-100 text-slate-800 text-xs font-bold px-3 py-1 rounded-full border border-slate-200 shrink-0">
-                              {toPersianDigits(classStudents.length)} دانش‌آموز
-                            </span>
-                          </div>
-
-                          {/* Quick Stats */}
-                          <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
-                            <div>
-                              <span className="text-slate-400 block text-[10px]">تعداد جلسات برگزارشده:</span>
-                              <span className="font-bold text-slate-800 mt-0.5 block">
-                                {toPersianDigits(classSessions.length)} جلسه
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400 block text-[10px]">آخرین تاریخ تدریس:</span>
-                              <span className="font-mono font-bold text-slate-800 mt-0.5 block">
-                                {lastSession ? lastSession.date : 'هنوز ثبت نشده'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action buttons (Requirement 10: [ورود به کلاس], [حضور و غیاب], [ثبت نمره]) */}
-                        <div className="space-y-2 pt-3 border-t border-slate-100">
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => onOpenClassDetail(cls)}
-                              className="py-2.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                            >
-                              <Users className="w-3.5 h-3.5" />
-                              <span>ورود به کلاس</span>
-                            </button>
-
-                            <button
-                              onClick={() => onOpenNewAttendance(cls.id)}
-                              className="py-2.5 px-3 bg-white hover:bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-300 shadow-2xs"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>ثبت حضور و غیاب</span>
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedClassForMonthlyGrades(cls.id);
-                                setActiveView('grades');
-                              }}
-                              className="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <BookOpen className="w-3.5 h-3.5 text-slate-600" />
-                              <span>ثبت و مشاهده نمرات</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                exportClassAttendanceToExcel(cls, classStudents, classSessions);
-                              }}
-                              className="py-2 px-3 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
-                              title="خروجی اکسل کلاس"
-                            >
-                              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                              <span>خروجی اکسل</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 
