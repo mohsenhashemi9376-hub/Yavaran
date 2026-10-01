@@ -19,6 +19,7 @@ import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
 import { AddCoachModal } from './AddCoachModal';
+import { MentorMessagesSection } from './MentorMessages';
 import { EditCoachModal } from './EditCoachModal';
 import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 import { getUserGreeting } from '../utils/userRoles';
@@ -935,6 +936,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {(currentView === null || currentView === 'dashboard') && (
         <div className="space-y-6 animate-in fade-in">
+          <MentorMessagesSection />
+
           {/* ۴ کارت اصلی وضعیت تربیتی */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* کارت ۱: فعالیتهای تربیتی */}
