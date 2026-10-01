@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
+use App\Http\Controllers\MentorMessageController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
@@ -20,9 +21,14 @@ Route::prefix('api')->group(function (): void {
 
     Route::middleware('auth')->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
-        Route::post('auth/switch', [AuthController::class, 'switch'])
-            ->middleware('throttle:30,1')
-            ->name('api.switch');
+        Route::prefix('mentor-messages')->middleware('throttle:120,1')->group(function (): void {
+            Route::post('/', [MentorMessageController::class, 'store'])->name('api.mentor-messages.store');
+            Route::get('active', [MentorMessageController::class, 'active'])->name('api.mentor-messages.active');
+            Route::get('sent', [MentorMessageController::class, 'sent'])->name('api.mentor-messages.sent');
+            Route::post('{message}/acknowledge', [MentorMessageController::class, 'acknowledge'])
+                ->whereNumber('message')
+                ->name('api.mentor-messages.acknowledge');
+        });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
             ->name('api.sync');

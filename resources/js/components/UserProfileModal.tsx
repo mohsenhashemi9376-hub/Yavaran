@@ -19,13 +19,11 @@ import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenSwitcher?: () => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
   onClose,
-  onOpenSwitcher,
 }) => {
   const { currentUser, classes } = useSchool();
   const todayInfo = getTodayShamsi();
@@ -203,18 +201,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
-          {onOpenSwitcher ? (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenSwitcher();
-              }}
-              className="text-xs font-bold text-teal-800 hover:text-teal-900 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>تغییر حساب / نقش</span>
-            </button>
-          ) : <div />}
+          <div />
 
           <button
             type="button"

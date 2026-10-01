@@ -469,6 +469,47 @@ CREATE TABLE `cache_locks` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `comprehensive_exams`;
+CREATE TABLE `comprehensive_exams` (
+  `id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `comprehensive_exams_class_id_index` (`class_id`),
+  KEY `comprehensive_exams_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `mentor_messages`;
+CREATE TABLE `mentor_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `sender_id` varchar(100) NOT NULL,
+  `target_type` varchar(10) NOT NULL DEFAULT 'all',
+  `target_mentor_id` varchar(100) DEFAULT NULL,
+  `priority` varchar(10) NOT NULL DEFAULT 'normal',
+  `title` varchar(191) NOT NULL DEFAULT '',
+  `content` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mentor_messages_sender_id_index` (`sender_id`),
+  KEY `mentor_messages_target_mentor_id_index` (`target_mentor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `mentor_message_reads`;
+CREATE TABLE `mentor_message_reads` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `message_id` bigint unsigned NOT NULL,
+  `mentor_id` varchar(100) NOT NULL,
+  `acknowledged_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mentor_message_reads_unique` (`message_id`,`mentor_id`),
+  KEY `mentor_message_reads_message_id_index` (`message_id`),
+  KEY `mentor_message_reads_mentor_id_index` (`mentor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 DROP TABLE IF EXISTS `migrations`;
 CREATE TABLE `migrations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
@@ -478,7 +519,9 @@ CREATE TABLE `migrations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
-(1, '2026_09_30_000000_create_school_tables', 1);
+(1, '2026_09_30_000000_create_school_tables', 1),
+(2, '2026_10_01_000000_create_mentor_messages_tables', 1),
+(3, '2026_10_02_000000_create_comprehensive_exams_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

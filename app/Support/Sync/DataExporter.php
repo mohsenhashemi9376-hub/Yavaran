@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class DataExporter
 {
-    public function json(User $user, bool $canSwitchUsers): string
+    public function json(User $user): string
     {
         $policy = new AccessPolicy($user);
         $parts = [];
@@ -24,7 +24,6 @@ final class DataExporter
 
         return '{"authenticated":true,'
             .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
-            .'"canSwitchUsers":'.($canSwitchUsers ? 'true' : 'false').','
             .'"serverTime":'.((int) round(microtime(true) * 1000)).','
             .'"data":{'.implode(',', $parts).'}}';
     }

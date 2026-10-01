@@ -293,80 +293,50 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   return (
     <div className="space-y-4 font-['Vazirmatn',sans-serif]">
       
-      {/* Top Header & Controls Bar */}
-      <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
-              <BookOpen className="w-3.5 h-3.5" />
-              دفتر نمرات مستمر ماهانه کلاسی
-            </span>
-            <span className="text-xs text-slate-300 font-bold">
-              {classData.name} ({classData.grade})
-            </span>
-          </div>
-          <h3 className="text-base sm:text-lg font-bold mt-1 text-white">
-            ثبت نمرات مستمر ماه به ماه و ارزشیابی‌های نوبتی
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            امکان ثبت نمره مستمر برای ماه‌های مهر، آبان، آذر، ترم اول، بهمن، اسفند، فروردین، اردیبهشت و ترم دوم
-          </p>
-        </div>
-
-        {/* Subject Dropdown & Actions */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Subject selector */}
-          <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl text-xs">
-            <span className="text-slate-400 font-bold">انتخاب درس:</span>
-            <select
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="bg-transparent text-white font-bold outline-none cursor-pointer"
-            >
-              {academicSubjects.map((sub) => (
-                <option key={sub.id} value={sub.id} className="bg-slate-900 text-white">
-                  {sub.name} (ضریب {toPersianDigits(sub.coefficient)})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* View mode toggle */}
-          <div className="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700 text-xs font-semibold">
-            <button
-              onClick={() => setViewMode('single_month')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                viewMode === 'single_month' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              ماه به ماه
-            </button>
-            <button
-              onClick={() => setViewMode('full_matrix')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                viewMode === 'full_matrix' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              ماتریس کل سال
-            </button>
-            <button
-              onClick={() => setViewMode('monthly_analytics')}
-              className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                viewMode === 'monthly_analytics' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              تحلیل و نمودار رشد
-            </button>
-          </div>
-
-          {/* Save Button */}
+      {/* نوار کنترل: انتخاب درس، حالت نمایش، ذخیره */}
+      <div className="bg-white rounded-2xl shadow-sm shadow-slate-200/60 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <h3 className="text-lg font-extrabold text-slate-900">دفتر نمرات</h3>
           <button
             onClick={handleSaveGrades}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl transition shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer shrink-0"
           >
             <Save className="w-4 h-4" />
-            <span>ذخیره نمرات مستمر</span>
+            <span>ذخیره نمرات</span>
           </button>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={selectedSubjectId}
+            onChange={(e) => setSelectedSubjectId(e.target.value)}
+            className="h-11 bg-slate-50 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer min-w-48"
+            aria-label="انتخاب درس"
+          >
+            {academicSubjects.map((sub) => (
+              <option key={sub.id} value={sub.id}>
+                {sub.name} (ضریب {toPersianDigits(sub.coefficient)})
+              </option>
+            ))}
+          </select>
+
+          <div className="flex bg-slate-100 p-1 rounded-xl text-sm font-bold">
+            {([
+              ['single_month', 'ماه به ماه'],
+              ['full_matrix', 'کل سال'],
+              ['monthly_analytics', 'نمودار رشد'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-2 rounded-lg transition cursor-pointer ${
+                  viewMode === mode ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -383,7 +353,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
       {/* Month Selection Bar (When in single_month mode) */}
       {viewMode === 'single_month' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200/60 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-emerald-600" />
@@ -421,38 +391,21 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
           </div>
 
           {/* Month Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-1.5 text-xs font-semibold">
-            {MONTHLY_EVALUATION_PERIODS.map((period) => {
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {MONTHLY_EVALUATION_PERIODS.filter((p) => !p.key.endsWith('Final')).map((period) => {
               const isActive = activePeriodKey === period.key;
-              const hasGrades = classStudents.some(
-                (s) => draftGrades[s.id]?.[period.key] && draftGrades[s.id]?.[period.key] !== ''
-              );
-
+              const title = period.key === 'term1Continuous' ? 'ترم اول' : period.key === 'term2Continuous' ? 'ترم دوم' : period.monthName;
               return (
                 <button
                   key={period.key}
                   onClick={() => setActivePeriodKey(period.key)}
-                  className={`p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-between gap-1 ${
+                  className={`h-11 px-5 rounded-xl text-sm font-bold whitespace-nowrap transition cursor-pointer shrink-0 ${
                     isActive
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-bold ring-2 ring-emerald-200'
-                      : period.term === 1
-                        ? 'bg-amber-50/50 hover:bg-amber-100/70 border-amber-200/60 text-slate-800'
-                        : 'bg-emerald-50/40 hover:bg-emerald-100/60 border-emerald-200/60 text-slate-800'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  <div className="text-[10px] opacity-75">
-                    {period.term === 1 ? '🍂 نیمسال ۱' : '🌱 نیمسال ۲'}
-                  </div>
-                  <div className="text-xs font-bold whitespace-nowrap">
-                    {period.label}
-                  </div>
-                  <div className={`w-2 h-2 rounded-full mt-0.5 ${
-                    isActive 
-                      ? 'bg-white' 
-                      : hasGrades 
-                        ? 'bg-emerald-500' 
-                        : 'bg-slate-200'
-                  }`} />
+                  {title}
                 </button>
               );
             })}
@@ -501,7 +454,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
       {/* Mode 1: Single Month Entry Table */}
       {viewMode === 'single_month' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm shadow-slate-200/60 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h4 className="text-xs sm:text-sm font-bold text-slate-900">

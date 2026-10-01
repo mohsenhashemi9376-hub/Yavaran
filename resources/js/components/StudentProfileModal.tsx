@@ -457,95 +457,78 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
   return (
     <div 
       id="student-profile-modal-backdrop"
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-start sm:items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
+      {/* کل پنجره یک کانتینر اسکرول‌شونده است (بدون اسکرول داخلی تودرتو) */}
       <div 
         id="student-profile-modal-container"
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col overflow-hidden border border-slate-200 text-slate-800"
+        className="bg-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
       >
-        {/* =========================================================================
-            HEADER (مرحله ۳: مشخص، ساده، با عملکرد سریع)
-        ========================================================================= */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800">
-          <div className="flex items-center gap-3.5">
-            {/* Student Avatar / Initials */}
-            <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-lg font-bold shadow-md shadow-indigo-900/30 shrink-0">
+        {/* ===================== HEADER ===================== */}
+        <div className="bg-white px-5 sm:px-7 pt-5 pb-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl font-extrabold shrink-0">
               {currentStudent.firstName[0]}
             </div>
-
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-                  {currentStudent.firstName} {currentStudent.lastName}
-                </h2>
+            <div className="min-w-0">
+              <h2 className="text-xl font-extrabold text-slate-900 truncate">
+                {currentStudent.firstName} {currentStudent.lastName}
+              </h2>
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
                 {studentClass && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
-                    {studentClass.name} {studentClass.grade ? `(${studentClass.grade})` : ''}
+                  <span className="px-2.5 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700">
+                    {studentClass.name}
                   </span>
                 )}
-              </div>
-
-              <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 flex-wrap">
-                <span>کد سناد: <strong className="text-slate-200 font-mono">{toPersianDigits(currentStudent.studentCode || 'ثبت نشده')}</strong></span>
-                <span>•</span>
-                <span>کد ملی: <strong className="text-slate-200 font-mono">{toPersianDigits(currentStudent.nationalId || 'ثبت نشده')}</strong></span>
-                {currentStudent.fatherName && (
-                  <>
-                    <span>•</span>
-                    <span>نام پدر: <strong className="text-slate-200">{currentStudent.fatherName}</strong></span>
-                  </>
-                )}
+                {currentStudent.studentCode && <span>کد: {toPersianDigits(currentStudent.studentCode)}</span>}
+                {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
             </div>
           </div>
 
-          {/* Quick Header Actions */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
             <button
               id="btn-profile-edit-info"
               onClick={() => {
                 setActiveTab('info');
                 setIsEditing(true);
               }}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-slate-700"
-              title="ویرایش مشخصات شناسنامه‌ای و پرونده"
+              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              title="ویرایش مشخصات"
             >
-              <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">ویرایش مشخصات</span>
+              <Edit3 className="w-5 h-5" />
             </button>
-
             <button
               id="btn-profile-print"
               onClick={handlePrint}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer border border-slate-700"
-              title="چاپ پرونده و کارنامه"
+              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              title="چاپ پرونده"
             >
-              <Printer className="w-4 h-4 text-slate-300" />
+              <Printer className="w-5 h-5" />
             </button>
-
             <button
               id="btn-profile-excel"
               onClick={handleExportExcel}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer border border-slate-700"
+              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded-xl transition cursor-pointer"
               title="خروجی اکسل"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <FileSpreadsheet className="w-5 h-5" />
             </button>
-
             <button
               id="btn-profile-sms"
               onClick={handleOpenSms}
-              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm"
-              title="ارسال پیامک یا تماس با اولیاء"
+              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              title="پیام به اولیاء"
             >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">پیام به اولیاء</span>
+              <MessageSquare className="w-5 h-5" />
             </button>
-
             <button
               id="btn-close-student-profile"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              className="p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
               title="بستن پرونده"
             >
               <X className="w-5 h-5" />
@@ -553,82 +536,81 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           </div>
         </div>
 
-        {/* =========================================================================
-            OVERALL STATUS ROW (مرحله ۴: وضعیت کلی ۵ ثانیه‌ای)
-        ========================================================================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 text-xs">
-          {/* Absences Card */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 text-[11px]">
-              <span>تعداد غیبت</span>
-              <UserX className={`w-3.5 h-3.5 ${absentCount > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
-            </div>
-            <div className={`text-base sm:text-lg font-bold mt-1 ${absentCount > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-              {toPersianDigits(absentCount)} جلسه
+        {/* ===================== عملیات سریع ===================== */}
+        <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-3 gap-3">
+          <button
+            id="btn-quick-add-absence"
+            onClick={() => setIsAddAbsenceOpen(true)}
+            className="h-16 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
+          >
+            <UserX className="w-6 h-6" />
+            <span>ثبت غیبت</span>
+          </button>
+          <button
+            id="btn-quick-add-delay"
+            onClick={() => setIsAddDelayOpen(true)}
+            className="h-16 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
+          >
+            <Clock className="w-6 h-6" />
+            <span>ثبت تأخیر</span>
+          </button>
+          <button
+            id="btn-quick-add-discipline"
+            onClick={() => setIsAddDisciplineOpen(true)}
+            className="h-16 rounded-2xl bg-violet-50 hover:bg-violet-100 text-violet-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
+          >
+            <ShieldAlert className="w-6 h-6" />
+            <span>ثبت مورد انضباطی</span>
+          </button>
+        </div>
+
+        {/* ===================== آمار (با آخرین مورد) ===================== */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
+          <div className="bg-white p-4 rounded-2xl shadow-xs">
+            <div className="text-slate-500 text-xs">غیبت</div>
+            <div className={`text-2xl font-extrabold mt-1 ${absentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+              {toPersianDigits(absentCount)}
               {excusedCount > 0 && (
-                <span className="text-[10px] font-normal text-blue-600 mr-1.5">
-                  (+ {toPersianDigits(excusedCount)} موجه)
-                </span>
+                <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(excusedCount)} موجه</span>
               )}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              {absentCount === 0 ? 'بدون غیبت غیرموجه' : 'نیازمند پیگیری علت غیبت'}
+            <div className="text-[11px] text-slate-400 mt-1">
+              {latestAbsence ? `آخرین: ${formatShamsiDisplay(latestAbsence)}` : 'بدون غیبت'}
             </div>
           </div>
 
-          {/* Delays Card */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 text-[11px]">
-              <span>تعداد تأخیرها</span>
-              <Clock className={`w-3.5 h-3.5 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+          <div className="bg-white p-4 rounded-2xl shadow-xs">
+            <div className="text-slate-500 text-xs">تأخیر</div>
+            <div className={`text-2xl font-extrabold mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+              {toPersianDigits(totalDelaysCount)}
             </div>
-            <div className={`text-base sm:text-lg font-bold mt-1 ${totalDelaysCount > 0 ? 'text-amber-700' : 'text-slate-700'}`}>
-              {toPersianDigits(totalDelaysCount)} مورد
-              {morningLateCount > 0 && (
-                <span className="text-[10px] font-normal text-slate-500 mr-1">
-                  ({toPersianDigits(morningLateCount)} ورود)
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              {totalDelaysCount === 0 ? 'ورود و حضور به‌موقع' : 'تأخیر کلاسی و صبحگاهی'}
+            <div className="text-[11px] text-slate-400 mt-1">
+              {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
             </div>
           </div>
 
-          {/* Disciplinary Incidents Card */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 text-[11px]">
-              <span>موارد انضباطی</span>
-              <ShieldAlert className={`w-3.5 h-3.5 ${disciplinaryNotes.length > 0 ? 'text-purple-600' : 'text-slate-400'}`} />
-            </div>
-            <div className={`text-base sm:text-lg font-bold mt-1 ${disciplinaryNotes.length > 0 ? 'text-purple-700' : 'text-slate-700'}`}>
-              {toPersianDigits(disciplinaryNotes.length)} مورد
+          <div className="bg-white p-4 rounded-2xl shadow-xs">
+            <div className="text-slate-500 text-xs">موارد انضباطی</div>
+            <div className={`text-2xl font-extrabold mt-1 ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
+              {toPersianDigits(disciplinaryNotes.length)}
               {totalDeductedPoints > 0 && (
-                <span className="text-[10px] font-normal text-rose-600 mr-1">
-                  (-{toPersianDigits(totalDeductedPoints)} نمره)
-                </span>
+                <span className="text-[11px] font-normal text-rose-500 mr-1.5">-{toPersianDigits(totalDeductedPoints)} نمره</span>
               )}
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              {disciplinaryNotes.length === 0 ? 'پرونده انضباطی تمیز' : 'ثبت‌شده در پرونده'}
+            <div className="text-[11px] text-slate-400 mt-1 truncate">
+              {latestDiscipline ? `آخرین: ${latestDiscipline.title}` : 'پرونده تمیز'}
             </div>
           </div>
 
-          {/* Discipline Score Card */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 text-[11px]">
-              <span>نمره انضباط فعلی</span>
-              <ShieldCheck className={`w-3.5 h-3.5 ${
-                disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'
-              }`} />
-            </div>
-            <div className={`text-base sm:text-lg font-bold mt-1 font-mono ${
-              disciplineScore >= 18 ? 'text-emerald-700' : disciplineScore >= 15 ? 'text-amber-700' : 'text-rose-700'
+          <div className="bg-white p-4 rounded-2xl shadow-xs">
+            <div className="text-slate-500 text-xs">نمره انضباط</div>
+            <div className={`text-2xl font-extrabold mt-1 ${
+              disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'
             }`}>
-              {toPersianDigits(disciplineScore)} از ۲۰
+              {toPersianDigits(disciplineScore)}<span className="text-sm font-normal text-slate-400"> از ۲۰</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              {disciplineScore >= 18 ? 'وضعیت عالی' : disciplineScore >= 15 ? 'هشدار انضباطی' : 'بحرانی'}
+            <div className="text-[11px] text-slate-400 mt-1">
+              {disciplineScore >= 18 ? 'وضعیت عالی' : disciplineScore >= 15 ? 'هشدار' : 'بحرانی'}
             </div>
           </div>
         </div>
@@ -636,7 +618,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         {/* =========================================================================
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
-        <div className="flex items-center justify-between px-4 pt-2.5 pb-2 border-b border-slate-200 bg-white gap-2 flex-wrap">
+        <div className="flex items-center justify-between px-5 sm:px-7 pt-5 gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
             <button
               id="tab-btn-overview"
@@ -644,10 +626,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('overview');
                 setIsEditing(false);
               }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'overview' && !isEditing
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
@@ -660,10 +642,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('info');
                 setIsEditing(false);
               }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'info' && !isEditing
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
               }`}
             >
               <User className="w-3.5 h-3.5" />
@@ -676,10 +658,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('attendance');
                 setIsEditing(false);
               }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'attendance' && !isEditing
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -692,10 +674,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('discipline');
                 setIsEditing(false);
               }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'discipline' && !isEditing
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
@@ -708,10 +690,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('grades');
                 setIsEditing(false);
               }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'grades' && !isEditing
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Award className="w-3.5 h-3.5" />
@@ -734,7 +716,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         {/* =========================================================================
             SCROLLABLE BODY
         ========================================================================= */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+        <div className="p-5 sm:p-7 space-y-5">
           
           {/* =======================================================================
               TAB 1: خلاصه پرونده (OVERVIEW) - مهم‌ترین بخش
@@ -742,105 +724,6 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           {activeTab === 'overview' && !isEditing && (
             <div className="space-y-5">
               
-              {/* Snapshot Row (آخرین غیبت، آخرین تأخیر، آخرین مورد انضباطی) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Latest Absence */}
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-                    <UserX className="w-4 h-4 text-rose-500" />
-                    <span className="font-bold">آخرین غیبت</span>
-                  </div>
-                  <div className="font-bold text-sm text-slate-800 font-mono">
-                    {latestAbsence ? formatShamsiDisplay(latestAbsence) : 'بدون غیبت ثبت‌شده'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    {latestAbsence ? 'ثبت در سیستم حضور و غیاب کلاسی' : 'حضور کامل در کلاس‌ها'}
-                  </div>
-                </div>
-
-                {/* Latest Delay */}
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-                    <Clock className="w-4 h-4 text-amber-500" />
-                    <span className="font-bold">آخرین تأخیر</span>
-                  </div>
-                  <div className="font-bold text-sm text-slate-800 font-mono">
-                    {latestDelay ? `${formatShamsiDisplay(latestDelay.date)} (${latestDelay.text})` : 'بدون تأخیر ثبت‌شده'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    {latestDelay ? 'شامل تأخیر صبحگاهی و کلاسی' : 'ورود و حضور وقت‌شناسانه'}
-                  </div>
-                </div>
-
-                {/* Latest Disciplinary */}
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
-                    <ShieldAlert className="w-4 h-4 text-purple-500" />
-                    <span className="font-bold">آخرین مورد انضباطی</span>
-                  </div>
-                  <div className="font-bold text-sm text-slate-800 truncate" title={latestDiscipline ? latestDiscipline.title : ''}>
-                    {latestDiscipline ? latestDiscipline.title : 'مورد انضباطی ثبت نشده'}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-1 font-mono">
-                    {latestDiscipline ? formatShamsiDisplay(latestDiscipline.date) : 'پرونده اخلاقی و انضباطی کامل'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Direct Quick Actions Bar (مرحله ۱۲ و ۱۳: ثبت مستقیم از پرونده) */}
-              <div className="bg-linear-to-r from-slate-900 to-indigo-950 p-4 rounded-2xl text-white shadow-sm flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>عملیات سریع برای {currentStudent.firstName} {currentStudent.lastName}</span>
-                  </h3>
-                  <p className="text-[11px] text-indigo-200 mt-0.5">
-                    ثبت مستقیم با انتخاب خودکار این دانش‌آموز در سیستم واحد مدرسه
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    id="btn-quick-add-absence"
-                    onClick={() => setIsAddAbsenceOpen(true)}
-                    className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                    title="ثبت غیبت برای این دانش‌آموز در کل روز مدرسه"
-                  >
-                    <UserX className="w-3.5 h-3.5" />
-                    <span>ثبت غیبت مدرسه</span>
-                  </button>
-
-                  <button
-                    id="btn-quick-add-discipline"
-                    onClick={() => setIsAddDisciplineOpen(true)}
-                    className="px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                    title="ثبت مورد انضباطی در پرونده"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>ثبت مورد انضباطی</span>
-                  </button>
-
-                  <button
-                    id="btn-quick-add-delay"
-                    onClick={() => setIsAddDelayOpen(true)}
-                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                    title="ثبت تأخیر ورود صبحگاهی"
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>ثبت تأخیر ورود</span>
-                  </button>
-
-                  <button
-                    id="btn-quick-view-grades"
-                    onClick={() => setActiveTab('grades')}
-                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Award className="w-3.5 h-3.5 text-amber-300" />
-                    <span>مشاهده کارنامه</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Recent Activity Timeline (مرحله ۹: آخرین فعالیت‌ها) */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">

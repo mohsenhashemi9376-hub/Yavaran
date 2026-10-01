@@ -19,6 +19,7 @@ export type CollectionKey =
   | 'coachEvaluations'
   | 'teacherEvaluations'
   | 'schoolAnnouncements'
+  | 'comprehensiveExams'
   | 'grades'
   | 'settings';
 
@@ -37,6 +38,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'coachEvaluations',
   'teacherEvaluations',
   'schoolAnnouncements',
+  'comprehensiveExams',
   'grades',
   'settings',
 ];
@@ -49,7 +51,6 @@ export interface SyncRow {
 export interface BootstrapPayload {
   authenticated: boolean;
   userId?: string;
-  canSwitchUsers?: boolean;
   serverTime?: number;
   data?: Record<CollectionKey, SyncRow[]>;
 }

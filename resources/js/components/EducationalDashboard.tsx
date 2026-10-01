@@ -5,6 +5,7 @@ import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persi
 import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
+import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -1237,6 +1238,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         )}
 
         {/* ========================================================================= */}
+        {/* آزمون جامع (currentView === 'comprehensive_exam') */}
+        {currentView === 'comprehensive_exam' && (
+          <ComprehensiveExamManagement
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
+
         {/* حالت ۶: کارنامه و سوابق تحصیلی (currentView === 'report_cards') */}
         {/* ========================================================================= */}
         {currentView === 'report_cards' && (

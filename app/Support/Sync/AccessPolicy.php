@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -55,8 +55,14 @@ final class AccessPolicy
 
     public function canRead(string $collection): bool
     {
+        // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
+        if ($collection === 'comprehensiveExams') {
+            return $this->isManager();
+        }
+
         if ($collection === 'nurturingDossiers') {
-            return $this->isManager() || $this->isCoach();
+            // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
+            return ($this->isManager() && ! $this->isAdmin()) || $this->isCoach();
         }
 
         return true;
@@ -68,6 +74,10 @@ final class AccessPolicy
             $this->authorizeUserWrite($old, $new);
 
             return;
+        }
+
+        if ($this->isAdmin() && in_array($collection, self::NURTURING, true)) {
+            $this->deny();
         }
 
         if ($this->isManager()) {
@@ -130,6 +140,10 @@ final class AccessPolicy
             }
 
             return;
+        }
+
+        if ($this->isAdmin() && in_array($collection, self::NURTURING, true)) {
+            $this->deny();
         }
 
         if ($this->isManager()) {

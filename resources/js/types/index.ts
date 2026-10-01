@@ -159,7 +159,9 @@ export type SubjectCategory =
   | 'زبان‌های خارجی' 
   | 'علوم اجتماعی و فرهنگ' 
   | 'مهارتی و فناوری' 
-  | 'تربیت بدنی و سلامت';
+  | 'تربیت بدنی و سلامت'
+  | 'دروس یاوران'
+  | 'دروس آموزش و پرورش';
 
 export interface AcademicSubject {
   id: string;
@@ -491,3 +493,24 @@ export interface SchoolAnnouncement {
 }
 
 
+
+// ------------------------------------------------------------------
+// آزمون جامع (ثبت نمرات و تحلیل) — یک رکورد برای هر کلاس
+// ------------------------------------------------------------------
+export type ExamSubjectKey = 'math' | 'science' | 'persian' | 'english' | 'arabic';
+
+export const EXAM_SUBJECTS: { key: ExamSubjectKey; label: string }[] = [
+  { key: 'math', label: 'ریاضی' },
+  { key: 'science', label: 'علوم تجربی' },
+  { key: 'persian', label: 'فارسی' },
+  { key: 'english', label: 'زبان انگلیسی' },
+  { key: 'arabic', label: 'عربی' },
+];
+
+export interface ComprehensiveExamRecord {
+  id: string; // cexam-{classId}
+  classId: string;
+  activeSubjects: ExamSubjectKey[];
+  scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
+  updatedAt?: string;
+}

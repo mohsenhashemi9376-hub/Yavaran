@@ -15,7 +15,6 @@ import { StudentProfileModal } from './components/StudentProfileModal';
 import { AcademicGradesModal } from './components/AcademicGradesModal';
 import { AddClassModal } from './components/AddClassModal';
 import { AddTeacherModal } from './components/AddTeacherModal';
-import { UserSwitcherModal } from './components/UserSwitcherModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { TeacherProfileModal } from './components/TeacherProfileModal';
 import { CoachProfileModal } from './components/CoachProfileModal';
@@ -45,6 +44,12 @@ const MainApp: React.FC = () => {
   // Active view tab: 'main' (Classes/Attendance), 'discipline' (Disciplinary VP), 'grades' (Educational VP), 'nurture' (Nurturing VP & Coach), 'teacher' (Coach acting as Teacher)
   const [activeTab, setActiveTab] = useState<'main' | 'discipline' | 'grades' | 'nurture' | 'teacher'>('main');
   const prevUserIdRef = useRef<string>('');
+
+  // گارد دسترسی: مدیر مدرسه هیچ دسترسی‌ای به بخش معاونت تربیتی ندارد
+  const effectiveTab = isAdmin && activeTab === 'nurture' ? 'main' : activeTab;
+  useEffect(() => {
+    if (isAdmin && activeTab === 'nurture') setActiveTab('main');
+  }, [isAdmin, activeTab]);
 
   // Auto-switch view tab when user actually changes accounts
   useEffect(() => {
@@ -89,7 +94,6 @@ const MainApp: React.FC = () => {
 
   const [addClassModalOpen, setAddClassModalOpen] = useState(false);
   const [addTeacherModalOpen, setAddTeacherModalOpen] = useState(false);
-  const [userSwitcherModalOpen, setUserSwitcherModalOpen] = useState(false);
 
   // Global search & Teacher/Coach profile states
   const [globalSearchModalOpen, setGlobalSearchModalOpen] = useState(false);
@@ -167,13 +171,12 @@ const MainApp: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Vazirmatn',sans-serif]">
       {/* Top Header */}
       <Header
-        onOpenUserSwitcher={() => setUserSwitcherModalOpen(true)}
         onOpenNewClassModal={() => setAddClassModalOpen(true)}
         onOpenNewTeacherModal={() => setAddTeacherModalOpen(true)}
         onOpenAcademicGrades={() => handleOpenAcademicGrades()}
         onOpenLoginModal={() => setLoginModalOpen(true)}
         onOpenGlobalSearch={() => setGlobalSearchModalOpen(true)}
-        currentActiveTab={activeTab}
+        currentActiveTab={effectiveTab}
         onSelectTab={setActiveTab}
       />
 
@@ -181,7 +184,7 @@ const MainApp: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           {/* Render Tab Views with strict role isolation */}
-          {isTeacher || (isCoach && currentUser.isAlsoTeacher && activeTab === 'teacher') ? (
+          {isTeacher || (isCoach && currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
             <TeacherDashboard
               onOpenNewAttendance={handleOpenNewAttendance}
               onOpenClassDetail={handleOpenClassDetail}
@@ -190,12 +193,12 @@ const MainApp: React.FC = () => {
               onSelectStudent={handleOpenStudentProfile}
               onOpenAcademicGrades={handleOpenAcademicGrades}
             />
-          ) : isNurturingVice || isCoach || activeTab === 'nurture' ? (
+          ) : isNurturingVice || isCoach || effectiveTab === 'nurture' ? (
             <NurturingDashboard
               onOpenClassDetail={handleOpenClassDetail}
               onSelectStudent={handleOpenStudentProfile}
             />
-          ) : activeTab === 'discipline' ? (
+          ) : effectiveTab === 'discipline' ? (
             <DisciplinaryDashboard
               onSelectStudent={handleOpenStudentProfile}
               onOpenClassDetail={handleOpenClassDetail}
@@ -203,7 +206,7 @@ const MainApp: React.FC = () => {
               onOpenAcademicGrades={handleOpenAcademicGrades}
               onOpenMonthlySummary={handleOpenMonthlySummary}
             />
-          ) : activeTab === 'grades' ? (
+          ) : effectiveTab === 'grades' ? (
             <EducationalDashboard
               onSelectStudent={handleOpenStudentProfile}
               onOpenAcademicGradesModal={handleOpenAcademicGrades}
@@ -301,15 +304,6 @@ const MainApp: React.FC = () => {
         onClose={() => setAddTeacherModalOpen(false)}
       />
 
-      <UserSwitcherModal
-        isOpen={userSwitcherModalOpen}
-        onClose={() => setUserSwitcherModalOpen(false)}
-        onOpenLoginModal={() => {
-          setUserSwitcherModalOpen(false);
-          setLoginModalOpen(true);
-        }}
-      />
-
       {/* Global Search Modal (Command Palette) */}
       <GlobalSearchModal
         isOpen={globalSearchModalOpen}
@@ -379,13 +373,6 @@ const MainApp: React.FC = () => {
           </div>
           <div className="flex items-center gap-4 text-slate-400">
             <span>سال تحصیلی {getActiveAcademicYear()}</span>
-            <span>•</span>
-            <button
-              onClick={() => setUserSwitcherModalOpen(true)}
-              className="text-indigo-600 font-semibold hover:underline cursor-pointer"
-            >
-              تغییر کاربر و بررسی نقش‌ها
-            </button>
             <span>•</span>
             <button
               onClick={() => setLoginModalOpen(true)}

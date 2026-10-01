@@ -19,7 +19,8 @@ import {
   SchoolAnnouncement,
   BellPeriod,
   SchoolSettings,
-  SchoolGradeItem
+  SchoolGradeItem,
+  ComprehensiveExamRecord,
 } from '../types';
 import { ToastNotification, GlobalConfirmModal } from '../components/FeedbackSystem';
 import { 
@@ -62,6 +63,8 @@ interface SchoolContextType {
   coachEvaluations: CoachGrowthEvaluation[];
   teacherEvaluations: TeacherEvaluation[];
   schoolAnnouncements: SchoolAnnouncement[];
+  comprehensiveExams: ComprehensiveExamRecord[];
+  saveComprehensiveExam: (record: ComprehensiveExamRecord) => void;
   bellPeriods: BellPeriod[];
   
   // School Settings & Academic Base Structure
@@ -103,7 +106,6 @@ interface SchoolContextType {
   canTeachClassAndSubject: (classId: string, subjectNameOrId?: string) => boolean;
   
   // Actions
-  switchUser: (userId: string) => void;
   addClass: (newClass: Omit<SchoolClass, 'id'>) => string;
   updateClass: (id: string, updatedData: Partial<SchoolClass>) => void;
   deleteClass: (id: string) => boolean;
@@ -276,6 +278,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [coachEvaluations, setCoachEvaluations] = useState<CoachGrowthEvaluation[]>([]);
   const [teacherEvaluations, setTeacherEvaluations] = useState<TeacherEvaluation[]>([]);
   const [schoolAnnouncements, setSchoolAnnouncements] = useState<SchoolAnnouncement[]>([]);
+  const [comprehensiveExams, setComprehensiveExams] = useState<ComprehensiveExamRecord[]>([]);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(INITIAL_SCHOOL_SETTINGS);
   const [grades, setGrades] = useState<SchoolGradeItem[]>([]);
 
@@ -305,6 +308,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextCoachEvals = (d.coachEvaluations || []) as unknown as CoachGrowthEvaluation[];
     const nextTeacherEvals = (d.teacherEvaluations || []) as unknown as TeacherEvaluation[];
     const nextAnnouncements = (d.schoolAnnouncements || []) as unknown as SchoolAnnouncement[];
+    const nextExams = (d.comprehensiveExams || []) as unknown as ComprehensiveExamRecord[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -323,6 +327,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       coachEvaluations: nextCoachEvals as unknown as SyncRow[],
       teacherEvaluations: nextTeacherEvals as unknown as SyncRow[],
       schoolAnnouncements: nextAnnouncements as unknown as SyncRow[],
+      comprehensiveExams: nextExams as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -341,6 +346,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCoachEvaluations(nextCoachEvals);
     setTeacherEvaluations(nextTeacherEvals);
     setSchoolAnnouncements(nextAnnouncements);
+    setComprehensiveExams(nextExams);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -366,6 +372,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCoachEvaluations([]);
     setTeacherEvaluations([]);
     setSchoolAnnouncements([]);
+    setComprehensiveExams([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -443,6 +450,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
   useEffect(() => { syncEngine.push('teacherEvaluations', teacherEvaluations as unknown as SyncRow[]); }, [teacherEvaluations, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAnnouncements', schoolAnnouncements as unknown as SyncRow[]); }, [schoolAnnouncements, syncEngine]);
+  useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
 
   // Toast & Confirm System
@@ -669,16 +677,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Actions
-  const switchUser = (userId: string) => {
-    const user = allUsers.find((u) => u.id === userId);
-    if (!user) return;
-    syncEngine
-      .flush()
-      .then(() => apiRequest('POST', '/api/auth/switch', { userId }))
-      .then(() => loadFromServer(false))
-      .catch((error) => {
-        showToast(error instanceof ApiError ? error.message : 'تغییر حساب کاربری انجام نشد.', 'error');
-      });
+  const saveComprehensiveExam = (record: ComprehensiveExamRecord) => {
+    const next = { ...record, updatedAt: new Date().toISOString() };
+    setComprehensiveExams((prev) =>
+      prev.some((r) => r.id === next.id) ? prev.map((r) => (r.id === next.id ? next : r)) : [...prev, next]
+    );
   };
 
   const addClass = (newClass: Omit<SchoolClass, 'id'>): string => {
@@ -1915,6 +1918,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         coachEvaluations,
         teacherEvaluations,
         schoolAnnouncements,
+        comprehensiveExams,
+        saveComprehensiveExam,
         bellPeriods,
         schoolSettings,
         updateSchoolSettings,
@@ -1946,7 +1951,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teachingAccessibleClasses,
         teachingAccessibleSessions,
         canTeachClassAndSubject,
-        switchUser,
         addClass,
         updateClass,
         deleteClass,
