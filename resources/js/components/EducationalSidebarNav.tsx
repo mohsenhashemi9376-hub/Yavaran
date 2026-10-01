@@ -5,6 +5,7 @@ import {
   BookOpen, 
   GraduationCap, 
   Award, 
+  ClipboardCheck,
   FileText, 
   BarChart3, 
   AlertTriangle,
@@ -24,6 +25,7 @@ export type EducationalViewType =
   | 'teachers' 
   | 'grades' 
   | 'report_cards' 
+  | 'comprehensive_exam'
   | 'reports' 
   | 'warnings' 
   | 'students' 
@@ -150,6 +152,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           icon: Award,
           count: totalUngraded > 0 ? totalUngraded : undefined,
           isWarning: totalUngraded > 0,
+        },
+        {
+          id: 'comprehensive_exam',
+          label: 'آزمون جامع',
+          tooltip: 'ثبت نمرات و تحلیل آزمون جامع',
+          icon: ClipboardCheck,
         },
         {
           id: 'report_cards',

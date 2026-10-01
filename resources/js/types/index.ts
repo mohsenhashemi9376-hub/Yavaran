@@ -493,3 +493,24 @@ export interface SchoolAnnouncement {
 }
 
 
+
+// ------------------------------------------------------------------
+// آزمون جامع (ثبت نمرات و تحلیل) — یک رکورد برای هر کلاس
+// ------------------------------------------------------------------
+export type ExamSubjectKey = 'math' | 'science' | 'persian' | 'english' | 'arabic';
+
+export const EXAM_SUBJECTS: { key: ExamSubjectKey; label: string }[] = [
+  { key: 'math', label: 'ریاضی' },
+  { key: 'science', label: 'علوم تجربی' },
+  { key: 'persian', label: 'فارسی' },
+  { key: 'english', label: 'زبان انگلیسی' },
+  { key: 'arabic', label: 'عربی' },
+];
+
+export interface ComprehensiveExamRecord {
+  id: string; // cexam-{classId}
+  classId: string;
+  activeSubjects: ExamSubjectKey[];
+  scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
+  updatedAt?: string;
+}

@@ -24,6 +24,7 @@ final class CollectionRegistry
         'coachEvaluations' => 'coach_evaluations',
         'teacherEvaluations' => 'teacher_evaluations',
         'schoolAnnouncements' => 'school_announcements',
+        'comprehensiveExams' => 'comprehensive_exams',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -109,6 +110,9 @@ final class CollectionRegistry
             'schoolAnnouncements' => [
                 'title' => self::str($d, 'title', 191),
                 'priority' => self::str($d, 'priority', 20),
+            ],
+            'comprehensiveExams' => [
+                'class_id' => self::str($d, 'classId', 100),
             ],
             'grades' => [
                 'name' => self::str($d, 'name', 100) ?? '',

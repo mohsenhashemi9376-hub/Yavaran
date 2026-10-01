@@ -155,6 +155,19 @@ CREATE TABLE \`cache_locks\` (
   PRIMARY KEY (\`key\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS \`comprehensive_exams\`;
+CREATE TABLE \`comprehensive_exams\` (
+  \`id\` varchar(100) NOT NULL,
+  \`class_id\` varchar(100) DEFAULT NULL,
+  \`sort_order\` int NOT NULL DEFAULT 0,
+  \`data\` longtext NOT NULL,
+  \`created_at\` timestamp NULL DEFAULT NULL,
+  \`updated_at\` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (\`id\`),
+  KEY \`comprehensive_exams_class_id_index\` (\`class_id\`),
+  KEY \`comprehensive_exams_sort_order_index\` (\`sort_order\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 DROP TABLE IF EXISTS \`mentor_messages\`;
 CREATE TABLE \`mentor_messages\` (
   \`id\` bigint unsigned NOT NULL AUTO_INCREMENT,
@@ -193,7 +206,8 @@ CREATE TABLE \`migrations\` (
 
 INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (1, '2026_09_30_000000_create_school_tables', 1),
-(2, '2026_10_01_000000_create_mentor_messages_tables', 1);
+(2, '2026_10_01_000000_create_mentor_messages_tables', 1),
+(3, '2026_10_02_000000_create_comprehensive_exams_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
