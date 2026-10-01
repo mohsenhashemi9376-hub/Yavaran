@@ -86,12 +86,11 @@ export const nurturingMobileNav = () => ({
 export const teacherMobileNav = () => ({
   primary: [
     { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
-    { id: 'classes', label: 'کلاس‌ها', icon: School },
     { id: 'attendance', label: 'حضور و غیاب', icon: UserCheck },
     { id: 'grades', label: 'ثبت نمره', icon: Award },
+    { id: 'subjects', label: 'دروس من', icon: BookOpen },
   ] as MobileNavItem[],
   more: [
-    { id: 'subjects', label: 'دروس من', icon: BookOpen },
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },

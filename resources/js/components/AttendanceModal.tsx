@@ -572,7 +572,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 return (
                   <li key={student.id} className="py-2">
                     <div className="flex items-center gap-3">
-                      <span className="w-7 text-center text-xs font-bold text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
+                      <span className="hidden sm:block w-7 text-center text-xs font-bold text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
 
                       <button
                         type="button"
@@ -611,7 +611,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                             type="button"
                             id={`btn-status-${value}-${student.id}`}
                             onClick={() => setStudentStatus(student.id, value)}
-                            className={`px-3 sm:px-4 py-2 rounded-[10px] transition cursor-pointer ${
+                            className={`px-2.5 sm:px-4 py-2 rounded-[10px] transition cursor-pointer ${
                               status === value ? activeCls : 'text-slate-500 hover:text-slate-800'
                             }`}
                           >
@@ -619,6 +619,18 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                           </button>
                         ))}
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenWarningModal(student)}
+                        title={rec.disciplinaryWarning?.hasWarning ? 'ویرایش اخطار کلاسی' : 'ثبت اخطار کلاسی'}
+                        aria-label="ثبت اخطار کلاسی"
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition cursor-pointer shrink-0 ${
+                          rec.disciplinaryWarning?.hasWarning ? 'bg-rose-100 text-rose-700' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-700'
+                        }`}
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                      </button>
 
                       <button
                         type="button"

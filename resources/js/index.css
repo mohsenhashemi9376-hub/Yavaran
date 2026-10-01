@@ -11,7 +11,15 @@
 
 html { scroll-behavior: smooth; }
 
+/* ناحیه امن بالای صفحه (ناچ / نوار وضعیت) در حالت نصب‌شده */
+.yv-header { padding-top: env(safe-area-inset-top, 0px); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 @media (max-width: 767.98px) {
+  html, body { max-width: 100vw; overflow-x: hidden; touch-action: manipulation; }
+  /* حس اپلیکیشن: انتخاب متن UI غیرفعال، فقط در فیلدهای ورودی فعال */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
   html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
   body { -webkit-overflow-scrolling: touch; }
 

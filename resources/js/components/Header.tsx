@@ -111,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs" dir="rtl">
+    <header className="yv-header bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs" dir="rtl">
       {/* Click-outside backdrop for open dropdowns */}
       {(showUserMenu || showNotifications || mobileMenuOpen) && (
         <div 
