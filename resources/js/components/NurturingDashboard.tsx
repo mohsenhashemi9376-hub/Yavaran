@@ -270,14 +270,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     isNurturingVice,
     isCoach,
     isAdmin,
-    switchUser,
     accessibleClasses,
     allCoaches,
     allUsers
   } = useSchool();
-
-  const nurturingViceUser = allUsers.find((u) => u.role === 'vice_nurturing');
-  const firstCoachUser = allCoaches[0];
 
   const todayInfo = getTodayShamsi();
   const userGreeting = getUserGreeting(currentUser);
@@ -704,22 +700,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             <span className="px-2 py-1 bg-rose-50 text-rose-700 rounded-md font-bold text-[11px]">غیرمجاز</span>
           </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={() => nurturingViceUser && switchUser(nurturingViceUser.id)}
-              className="w-full sm:w-auto px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <HeartHandshake className="w-4 h-4" />
-              <span>ورود به عنوان معاونت تربیتی{nurturingViceUser ? ` (${nurturingViceUser.name})` : ''}</span>
-            </button>
-            <button
-              onClick={() => firstCoachUser && switchUser(firstCoachUser.id)}
-              className="w-full sm:w-auto px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Award className="w-4 h-4" />
-              <span>ورود به عنوان مربی یاوران ولایت{firstCoachUser ? ` (${firstCoachUser.name})` : ''}</span>
-            </button>
-          </div>
         </div>
       </div>
     );

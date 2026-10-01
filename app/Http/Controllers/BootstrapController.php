@@ -29,10 +29,7 @@ class BootstrapController extends Controller
 
         AcademicYear::syncSettings();
 
-        $originalId = (string) $request->session()->get('impersonator_id', $user->id);
-        $canSwitch = $originalId === $user->id ? $user->isAdmin() : (bool) User::query()->whereKey($originalId)->where('role', 'admin')->exists();
-
-        return response($exporter->json($user, $canSwitch), 200, [
+        return response($exporter->json($user), 200, [
             'Content-Type' => 'application/json; charset=utf-8',
         ]);
     }

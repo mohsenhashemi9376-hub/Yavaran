@@ -56,7 +56,8 @@ final class AccessPolicy
     public function canRead(string $collection): bool
     {
         if ($collection === 'nurturingDossiers') {
-            return $this->isManager() || $this->isCoach();
+            // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
+            return ($this->isManager() && ! $this->isAdmin()) || $this->isCoach();
         }
 
         return true;
@@ -68,6 +69,10 @@ final class AccessPolicy
             $this->authorizeUserWrite($old, $new);
 
             return;
+        }
+
+        if ($this->isAdmin() && in_array($collection, self::NURTURING, true)) {
+            $this->deny();
         }
 
         if ($this->isManager()) {
@@ -130,6 +135,10 @@ final class AccessPolicy
             }
 
             return;
+        }
+
+        if ($this->isAdmin() && in_array($collection, self::NURTURING, true)) {
+            $this->deny();
         }
 
         if ($this->isManager()) {

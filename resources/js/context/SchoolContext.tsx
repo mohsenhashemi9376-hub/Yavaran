@@ -103,7 +103,6 @@ interface SchoolContextType {
   canTeachClassAndSubject: (classId: string, subjectNameOrId?: string) => boolean;
   
   // Actions
-  switchUser: (userId: string) => void;
   addClass: (newClass: Omit<SchoolClass, 'id'>) => string;
   updateClass: (id: string, updatedData: Partial<SchoolClass>) => void;
   deleteClass: (id: string) => boolean;
@@ -669,18 +668,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Actions
-  const switchUser = (userId: string) => {
-    const user = allUsers.find((u) => u.id === userId);
-    if (!user) return;
-    syncEngine
-      .flush()
-      .then(() => apiRequest('POST', '/api/auth/switch', { userId }))
-      .then(() => loadFromServer(false))
-      .catch((error) => {
-        showToast(error instanceof ApiError ? error.message : 'تغییر حساب کاربری انجام نشد.', 'error');
-      });
-  };
-
   const addClass = (newClass: Omit<SchoolClass, 'id'>): string => {
     const id = `cls-${Date.now()}`;
     const createdClass: SchoolClass = { ...newClass, id };
@@ -1946,7 +1933,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teachingAccessibleClasses,
         teachingAccessibleSessions,
         canTeachClassAndSubject,
-        switchUser,
         addClass,
         updateClass,
         deleteClass,

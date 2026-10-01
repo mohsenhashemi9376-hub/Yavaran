@@ -49,7 +49,6 @@ export interface SyncRow {
 export interface BootstrapPayload {
   authenticated: boolean;
   userId?: string;
-  canSwitchUsers?: boolean;
   serverTime?: number;
   data?: Record<CollectionKey, SyncRow[]>;
 }

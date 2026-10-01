@@ -76,7 +76,6 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
-        $request->session()->forget('impersonator_id');
 
         return response()->json(['success' => true]);
     }
@@ -86,46 +85,6 @@ class AuthController extends Controller
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * تغییر سریع حساب (ویژه مدیر سامانه برای بررسی نقش‌ها).
-     */
-    public function switch(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'userId' => ['required', 'string', 'max:100'],
-        ]);
-
-        /** @var User $current */
-        $current = $request->user();
-        $originalId = (string) $request->session()->get('impersonator_id', $current->id);
-        $original = User::query()->find($originalId);
-
-        if (! $original || ! $original->isAdmin() || ! $original->isActive()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'تغییر حساب بدون رمز عبور فقط برای مدیر سامانه مجاز است. لطفاً از «ورود با نام کاربری و رمز» استفاده کنید.',
-            ], 403);
-        }
-
-        /** @var User|null $target */
-        $target = User::query()->find($validated['userId']);
-
-        if (! $target) {
-            return response()->json(['success' => false, 'message' => 'کاربر مورد نظر یافت نشد.'], 404);
-        }
-
-        Auth::login($target);
-        $request->session()->regenerate();
-
-        if ($target->id === $original->id) {
-            $request->session()->forget('impersonator_id');
-        } else {
-            $request->session()->put('impersonator_id', $original->id);
-        }
 
         return response()->json(['success' => true]);
     }

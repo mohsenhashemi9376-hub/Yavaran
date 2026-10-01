@@ -20,9 +20,6 @@ Route::prefix('api')->group(function (): void {
 
     Route::middleware('auth')->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
-        Route::post('auth/switch', [AuthController::class, 'switch'])
-            ->middleware('throttle:30,1')
-            ->name('api.switch');
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
             ->name('api.sync');

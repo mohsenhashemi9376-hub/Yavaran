@@ -159,7 +159,9 @@ export type SubjectCategory =
   | 'زبان‌های خارجی' 
   | 'علوم اجتماعی و فرهنگ' 
   | 'مهارتی و فناوری' 
-  | 'تربیت بدنی و سلامت';
+  | 'تربیت بدنی و سلامت'
+  | 'دروس یاوران'
+  | 'دروس آموزش و پرورش';
 
 export interface AcademicSubject {
   id: string;

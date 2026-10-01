@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 
 interface HeaderProps {
-  onOpenUserSwitcher: () => void;
   onOpenNewClassModal: () => void;
   onOpenNewTeacherModal: () => void;
   onOpenAcademicGrades?: () => void;
@@ -40,7 +39,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onOpenUserSwitcher,
   onOpenNewClassModal,
   onOpenNewTeacherModal,
   onOpenAcademicGrades,
@@ -195,6 +193,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>معاونت آموزش</span>
                 </button>
 
+                {/* تب معاونت تربیتی برای مدیر مدرسه نمایش داده نمی‌شود */}
+                {!isAdmin && (
                 <button
                   id="header-tab-nurture"
                   type="button"
@@ -208,6 +208,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <HeartHandshake className="w-3.5 h-3.5" />
                   <span>معاونت تربیتی</span>
                 </button>
+                )}
               </nav>
             ) : null
           )}
@@ -436,22 +437,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <UserIcon className="w-4 h-4 text-slate-500" />
                       <span>حساب کاربری</span>
                     </button>
-
-                    {/* تغییر حساب / نقش (بدون تکرار و سردرگمی) */}
-                    {onOpenUserSwitcher && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          onOpenUserSwitcher();
-                        }}
-                        className="w-full text-right px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 cursor-pointer transition font-medium"
-                      >
-                        <Users className="w-4 h-4 text-slate-500" />
-                        <span>تغییر حساب / نقش</span>
-                      </button>
-                    )}
                   </div>
 
                   {/* بخش تنظیمات و پشتیبانی */}
@@ -551,16 +536,6 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="text-[11px] font-semibold text-teal-800 mt-0.5">{userGreeting.roleLabel}</div>
               <div className="text-[10px] text-slate-400 mt-0.5">امروز: {todayInfo.dayOfWeek}، {todayInfo.displayDate}</div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                onOpenUserSwitcher();
-                setMobileMenuOpen(false);
-              }}
-              className="text-[11px] font-bold text-teal-700 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
-            >
-              تغییر نقش
-            </button>
           </div>
 
           {/* سوییچ سریع پنل برای مربی-معلم در منوی موبایل */}
@@ -669,6 +644,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span>معاونت آموزش</span>
           </button>
 
+          {!isAdmin && (
           <button
             type="button"
             onClick={() => {
@@ -682,6 +658,7 @@ export const Header: React.FC<HeaderProps> = ({
             <HeartHandshake className="w-4 h-4" />
             <span>معاونت تربیتی</span>
           </button>
+          )}
             </>
           )}
         </div>
@@ -691,7 +668,6 @@ export const Header: React.FC<HeaderProps> = ({
       <UserProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
-        onOpenSwitcher={onOpenUserSwitcher}
       />
 
       {/* مودال پشتیبانی و راهنما */}
