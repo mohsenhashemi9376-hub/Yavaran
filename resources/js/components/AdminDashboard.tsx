@@ -63,6 +63,8 @@ import {
   HeartHandshake,
   Settings
 } from 'lucide-react';
+import { MobileBottomNav } from './MobileBottomNav';
+import { adminMobileNav, HOME } from './mobileNavConfigs';
 
 interface AdminDashboardProps {
   onOpenNewClass: () => void;
@@ -1765,6 +1767,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* ========================================================================= */}
       {/* لایه ۲: SIDEBAR کشویی موبایل (MOBILE SIDEBAR NAVIGATION DRAWER) */}
       {/* ========================================================================= */}
+      {/* نوار ناوبری پایین (فقط موبایل) */}
+      {(() => {
+        const nav = adminMobileNav(currentUser?.role || 'admin', isAdmin, { warnings: schoolWarningList.length });
+        return (
+          <MobileBottomNav
+            items={nav.primary}
+            moreItems={nav.more}
+            activeId={currentFullScreenView ?? HOME}
+            onSelect={(id) => setCurrentFullScreenView(id === HOME ? null : (id as FullScreenView))}
+          />
+        );
+      })()}
+
       <AdminSidebarNav
         variant="drawer"
         isOpen={isSidebarOpen}

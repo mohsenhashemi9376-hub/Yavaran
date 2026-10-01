@@ -181,7 +181,7 @@ const MainApp: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           {/* Render Tab Views with strict role isolation */}
           {isTeacher || (isCoach && currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
@@ -365,7 +365,7 @@ const MainApp: React.FC = () => {
       />
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-500">
+      <footer className="bg-white border-t border-slate-200 mt-8 md:mt-12 py-6 mb-20 md:mb-0 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-800">مدرسه یاوران ولایت</span>
