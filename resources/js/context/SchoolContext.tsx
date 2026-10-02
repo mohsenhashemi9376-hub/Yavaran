@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   User, 
   SchoolClass, 
@@ -263,13 +263,31 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ------------------------------------------------------------------
   const [authStatus, setAuthStatus] = useState<'loading' | 'guest' | 'ready' | 'offline'>('loading');
   const isAuthenticated = authStatus === 'ready';
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [rawUsers, setAllUsers] = useState<User[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [academicSubjects, setAcademicSubjects] = useState<AcademicSubject[]>([]);
+  // درس/تخصص هر معلم فقط از «برنامه دروس» (اختصاص معلم به درس) استخراج می‌شود
+  const allUsers = useMemo<User[]>(
+    () =>
+      rawUsers.map((u) => {
+        if (u.role !== 'teacher') return u;
+        const names = Array.from(
+          new Set(academicSubjects.filter((s) => s.teacherId === u.id).map((s) => s.name))
+        );
+        const subject = names.length ? names.join('، ') : undefined;
+        return {
+          ...u,
+          subject,
+          subjectSpecialty: subject,
+          roleTitle: subject ? `دبیر ${subject}` : 'استاد و دبیر',
+        };
+      }),
+    [rawUsers, academicSubjects]
+  );
   const [academicGrades, setAcademicGrades] = useState<StudentAcademicGrade[]>([]);
   const [morningDelays, setMorningDelays] = useState<MorningDelayRecord[]>([]);
   const [schoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
@@ -437,7 +455,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ذخیره خودکار تغییرات در دیتابیس سرور
   useEffect(() => { syncEngine.push('settings', settingsToRows(schoolSettings)); }, [schoolSettings, syncEngine]);
   useEffect(() => { syncEngine.push('grades', grades as unknown as SyncRow[]); }, [grades, syncEngine]);
-  useEffect(() => { syncEngine.push('users', allUsers as unknown as SyncRow[]); }, [allUsers, syncEngine]);
+  useEffect(() => { syncEngine.push('users', rawUsers as unknown as SyncRow[]); }, [rawUsers, syncEngine]);
   useEffect(() => { syncEngine.push('classes', classes as unknown as SyncRow[]); }, [classes, syncEngine]);
   useEffect(() => { syncEngine.push('students', students as unknown as SyncRow[]); }, [students, syncEngine]);
   useEffect(() => { syncEngine.push('sessions', sessions as unknown as SyncRow[]); }, [sessions, syncEngine]);

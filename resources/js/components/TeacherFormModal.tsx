@@ -18,14 +18,13 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
   onClose,
   teacher,
 }) => {
-  const { addTeacher, updateTeacher, deleteTeacher, classes, academicSubjects, allUsers, showToast } = useSchool();
+  const { addTeacher, updateTeacher, deleteTeacher, classes, allUsers, showToast } = useSchool();
 
   const isEditMode = Boolean(teacher);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Fields
   const [name, setName] = useState('');
-  const [subject, setSubject] = useState('');
   const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('123');
@@ -46,13 +45,11 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
     if (isOpen) {
       if (teacher) {
         setName(teacher.name || '');
-        setSubject(teacher.subjectSpecialty || teacher.subject || '');
         setPhone(teacher.phone || '');
         setUsername(teacher.username || '');
         setPassword(teacher.password || '123');
       } else {
         setName('');
-        setSubject('');
         setPhone('');
         setUsername('');
         setPassword('123');
@@ -106,7 +103,6 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
     if (!validateForm()) return;
 
     const trimmedName = name.trim();
-    const finalSubject = subject.trim() || undefined;
     const finalPhone = toEnglishDigits(phone.trim()) || undefined;
     const finalPassword = password.trim() || '123';
 
@@ -116,9 +112,6 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
         const finalUsername = username.trim() || teacher.username;
         updateTeacher(teacher.id, {
           name: trimmedName,
-          subject: finalSubject,
-          subjectSpecialty: finalSubject,
-          roleTitle: finalSubject ? `دبیر ${finalSubject}` : 'استاد و دبیر',
           phone: finalPhone,
           username: finalUsername,
           password: finalPassword,
@@ -130,9 +123,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
           name: trimmedName,
           username: generatedUsername,
           password: finalPassword,
-          roleTitle: finalSubject ? `دبیر ${finalSubject}` : 'استاد و دبیر',
-          subject: finalSubject,
-          subjectSpecialty: finalSubject,
+          roleTitle: 'استاد و دبیر',
           phone: finalPhone,
           assignedClassIds: [],
         });
@@ -174,11 +165,6 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  // عناوین یکتای درس‌ها برای انتخاب تخصص (در صورت ویرایش، تخصص فعلی هم حفظ می‌شود)
-  const specialtyOptions = Array.from(
-    new Set([...academicSubjects.map((s) => s.name), ...(subject ? [subject] : [])])
-  );
 
   return (
     <div
@@ -233,9 +219,8 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
             {errors.name && <p className="text-xs text-rose-600 mt-1.5 font-medium">{errors.name}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">شماره تماس</label>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">شماره تماس</label>
               <input
                 type="text"
                 inputMode="tel"
@@ -245,18 +230,6 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
                 className={`${fieldClass} text-left`}
                 dir="ltr"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">تخصص / درس</label>
-              <select value={subject} onChange={(e) => setSubject(e.target.value)} className={fieldClass}>
-                <option value="">انتخاب کنید</option>
-                {specialtyOptions.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
