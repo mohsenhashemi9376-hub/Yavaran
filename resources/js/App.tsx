@@ -76,6 +76,7 @@ const MainApp: React.FC = () => {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
   const [targetClassIdForAttendance, setTargetClassIdForAttendance] = useState<string | undefined>(undefined);
+  const [targetSubjectForAttendance, setTargetSubjectForAttendance] = useState<string | undefined>(undefined);
   const [sessionToEdit, setSessionToEdit] = useState<AttendanceSession | null>(null);
 
   const [classDetailModalOpen, setClassDetailModalOpen] = useState(false);
@@ -120,7 +121,8 @@ const MainApp: React.FC = () => {
   }, []);
 
   // Modal triggers
-  const handleOpenNewAttendance = (classId?: string) => {
+  const handleOpenNewAttendance = (classId?: string, subject?: string) => {
+    setTargetSubjectForAttendance(subject);
     // پنجره جزئیات کلاس باید بسته شود تا فهرست حضور و غیاب بلافاصله دیده شود
     setClassDetailModalOpen(false);
     setTargetClassForDetail(null);
@@ -187,7 +189,7 @@ const MainApp: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           {/* Render Tab Views with strict role isolation */}
-          {isTeacher || (isCoach && currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
+          {isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
             <TeacherDashboard
               onOpenNewAttendance={handleOpenNewAttendance}
               onOpenClassDetail={handleOpenClassDetail}
@@ -248,6 +250,7 @@ const MainApp: React.FC = () => {
           setSessionToEdit(null);
         }}
         targetClassId={targetClassIdForAttendance}
+        targetSubject={targetSubjectForAttendance}
         existingSession={sessionToEdit}
         onSelectStudent={handleOpenStudentProfile}
       />

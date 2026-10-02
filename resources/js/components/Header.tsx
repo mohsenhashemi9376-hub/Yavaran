@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -66,6 +66,25 @@ export const Header: React.FC<HeaderProps> = ({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // بستن منوهای شناور با کلیک/لمس در بیرون از آن‌ها
+  useEffect(() => {
+    if (!showUserMenu && !showNotifications) return;
+    const onOutside = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(t)) setShowUserMenu(false);
+      if (showNotifications && notifRef.current && !notifRef.current.contains(t)) setShowNotifications(false);
+    };
+    document.addEventListener('mousedown', onOutside);
+    document.addEventListener('touchstart', onOutside);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      document.removeEventListener('touchstart', onOutside);
+    };
+  }, [showUserMenu, showNotifications]);
 
   const todayInfo = getTodayShamsi();
   const userGreeting = getUserGreeting(currentUser);
@@ -209,6 +228,23 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>معاونت تربیتی</span>
                 </button>
                 )}
+
+                {/* پنل آموزشی برای کاربرانی که درسی به آن‌ها واگذار شده است */}
+                {currentUser.isAlsoTeacher && (
+                <button
+                  id="header-tab-teacher"
+                  type="button"
+                  onClick={() => onSelectTab('teacher')}
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                    currentActiveTab === 'teacher'
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>پنل آموزشی</span>
+                </button>
+                )}
               </nav>
             ) : null
           )}
@@ -253,7 +289,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* 4. اعلان‌ها (Notifications) */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button
                 id="btn-header-notifications"
                 type="button"
@@ -317,7 +353,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* 3. اطلاعات کاربر و منوی حساب (User Menu) */}
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 id="btn-header-user-menu"
                 type="button"
@@ -643,6 +679,22 @@ export const Header: React.FC<HeaderProps> = ({
             <BookOpen className="w-4 h-4" />
             <span>معاونت آموزش</span>
           </button>
+
+          {currentUser.isAlsoTeacher && currentUser.role !== 'coach' && currentUser.role !== 'teacher' && (
+            <button
+              type="button"
+              onClick={() => {
+                onSelectTab('teacher');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-right px-3 py-2.5 rounded-xl transition flex items-center gap-2 ${
+                currentActiveTab === 'teacher' ? 'bg-emerald-800 text-white' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>پنل آموزشی</span>
+            </button>
+          )}
 
           {!isAdmin && (
           <button

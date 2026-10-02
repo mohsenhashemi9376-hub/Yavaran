@@ -37,7 +37,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
 
 interface TeacherDashboardProps {
-  onOpenNewAttendance: (classId?: string) => void;
+  onOpenNewAttendance: (classId?: string, subject?: string) => void;
   onOpenClassDetail: (classData: SchoolClass) => void;
   onOpenMonthlySummary: (classId?: string) => void;
   onEditSession: (session: AttendanceSession) => void;
@@ -95,10 +95,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return currentUser.teachingSubject || currentUser.subject || 'درس تخصصی';
   };
 
-  // Grouped subjects for this teacher
+  // Grouped subjects for this teacher (انتساب سه‌طرفه: کلاس + درس + استاد)
   const subjectGroups = React.useMemo(() => {
     if (currentUser.teachingAssignments && currentUser.teachingAssignments.length > 0) {
       return currentUser.teachingAssignments.map(a => ({
+        subjectId: a.subjectId || a.subjectName,
         subjectName: a.subjectName,
         classes: teacherClasses.filter(c => a.classIds.includes(c.id)),
       }));
@@ -106,11 +107,38 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     const defaultSubject = currentUser.teachingSubject || currentUser.subject || 'درس تخصصی';
     return [
       {
+        subjectId: defaultSubject,
         subjectName: defaultSubject,
         classes: teacherClasses,
       }
     ];
   }, [currentUser, teacherClasses]);
+
+  // هر کارت = یک درس در یک کلاس
+  const courseCards = React.useMemo(
+    () =>
+      subjectGroups.flatMap((g) =>
+        g.classes.map((cls) => ({
+          key: `${cls.id}|${g.subjectId}`,
+          cls,
+          subjectId: g.subjectId,
+          subjectName: g.subjectName,
+        }))
+      ),
+    [subjectGroups]
+  );
+
+  const [selectedCourse, setSelectedCourse] = useState<{
+    classId: string;
+    subjectId: string;
+    subjectName: string;
+  } | null>(null);
+
+  const classTitle = (cls: SchoolClass): string => {
+    const grade = (cls.grade || '').trim();
+    const gradeLabel = grade && !grade.startsWith('پایه') ? `پایه ${grade}` : grade;
+    return (cls.name || '').includes('پایه') || !gradeLabel ? cls.name : `${gradeLabel} ${cls.name}`;
+  };
 
   // Teacher specific stats
   const totalStudentsTaught = students.filter((s) => 
@@ -181,193 +209,211 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         <div className="flex-1 w-full min-w-0 space-y-6">
 
           {/* VIEW 1: DASHBOARD OVERVIEW */}
-          {activeView === 'dashboard' && (
+          {activeView === 'dashboard' && selectedCourse && (() => {
+            const cls = teacherClasses.find((c) => c.id === selectedCourse.classId);
+            if (!cls) return null;
+            const courseSessions = teacherSessions.filter(
+              (s) => s.classId === cls.id && (!s.subject || s.subject.includes(selectedCourse.subjectName) || selectedCourse.subjectName.includes(s.subject))
+            );
+            return (
+              <div className="space-y-5">
+                <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-2xl px-5 py-4 shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCourse(null)}
+                      className="text-[11px] text-emerald-100 hover:text-white flex items-center gap-1 mb-1 cursor-pointer"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5 rotate-180" />
+                      <span>بازگشت به کلاس‌های من</span>
+                    </button>
+                    <h2 className="text-lg font-extrabold leading-snug">
+                      کلاس {selectedCourse.subjectName} - {classTitle(cls)}
+                    </h2>
+                    <p className="text-xs text-emerald-100/90 mt-0.5">
+                      حضور و غیاب این درس، جلسات برگزارشده و ثبت نمرات مستمر
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onOpenNewAttendance(cls.id, selectedCourse.subjectName)}
+                    className="px-4 py-2.5 bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-xs rounded-xl transition shadow-lg shadow-black/10 flex items-center gap-2 cursor-pointer shrink-0"
+                  >
+                    <PlusCircle className="w-4 h-4 text-emerald-600" />
+                    <span>ثبت حضور و غیاب این زنگ</span>
+                  </button>
+                </div>
+
+                <ClassMonthlyGradesSection
+                  classData={cls}
+                  onSelectStudent={onSelectStudent}
+                  initialSubjectId={selectedCourse.subjectId}
+                />
+
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-emerald-700" />
+                    جلسات ثبت‌شده این درس ({toPersianDigits(courseSessions.length)})
+                  </h4>
+                  {courseSessions.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-3 text-center">جلسات ثبت‌شده: ۰</p>
+                  ) : (
+                    <ul className="divide-y divide-slate-100">
+                      {courseSessions.slice(0, 10).map((sess) => (
+                        <li key={sess.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-800">{toPersianDigits(sess.date)} ({sess.dayOfWeek})</div>
+                            <div className="text-slate-500 truncate">مبحث: {sess.lessonTopic || 'ذکر نشده'}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onEditSession(sess)}
+                            className="p-2 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                            aria-label="ویرایش جلسه"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {activeView === 'dashboard' && !selectedCourse && (
             <div className="space-y-6">
               
               {/* Teacher Hero Welcome Banner */}
-              <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-2xl p-6 shadow-md border border-emerald-700/50 relative overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-2xl px-5 py-4 shadow-md border border-emerald-700/50 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-                  <div className="space-y-1.5">
-                    <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-full text-xs font-semibold text-emerald-200">
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>پنل اختصاصی تدریس و آموزش • {userGreeting.roleLabel}</span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-                      <span>{userGreeting.greeting}</span>
-                      <span className="text-xl">👋</span>
+
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="space-y-0.5 min-w-0">
+                    <h2 className="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
+                      <span className="truncate">{userGreeting.greeting}</span>
+                      <span>👋</span>
                     </h2>
-                    <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed max-w-2xl">
-                      {userGreeting.roleDescription}
+                    <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+                      مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <button
-                      id="btn-teacher-quick-attendance"
-                      onClick={() => onOpenNewAttendance()}
-                      className="px-4 py-3 bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-black/10 flex items-center gap-2 cursor-pointer shrink-0"
-                    >
-                      <PlusCircle className="w-4 h-4 text-emerald-600" />
-                      <span>ثبت حضور و غیاب امروز ({todayInfo.dayOfWeek})</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Stats Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-emerald-700/60 text-xs">
-                  <div>
-                    <div className="text-emerald-200 text-[11px]">کلاس‌های اختصاصی شما</div>
-                    <div className="text-lg font-bold mt-0.5">{toPersianDigits(teacherClasses.length)} کلاس</div>
-                  </div>
-                  <div>
-                    <div className="text-emerald-200 text-[11px]">مجموع دانش‌آموزان تحت تدریس</div>
-                    <div className="text-lg font-bold mt-0.5">{toPersianDigits(totalStudentsTaught)} نفر</div>
-                  </div>
-                  <div>
-                    <div className="text-emerald-200 text-[11px]">جلسات ثبت شده شما</div>
-                    <div className="text-lg font-bold mt-0.5">{toPersianDigits(teacherSessions.length)} جلسه</div>
-                  </div>
-                  <div>
-                    <div className="text-emerald-200 text-[11px]">تاریخ روز شمسی</div>
-                    <div className="text-lg font-bold mt-0.5">{todayInfo.displayDate}</div>
+                  <div className="grid grid-cols-3 gap-2 md:flex md:items-center">
+                    {[
+                      { label: 'کلاس', value: teacherClasses.length },
+                      { label: 'دانش‌آموز', value: totalStudentsTaught },
+                      { label: 'جلسه', value: teacherSessions.length },
+                    ].map((st) => (
+                      <div
+                        key={st.label}
+                        className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-3.5 py-1.5 text-center md:min-w-[5.5rem]"
+                      >
+                        <div className="text-base font-extrabold leading-tight">{toPersianDigits(st.value)}</div>
+                        <div className="text-[10px] text-emerald-100/90">{st.label}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
               {/* School Announcements Active Notice Banner (if any) */}
               {(schoolAnnouncements || []).length > 0 && (
-                <div className="bg-gradient-to-r from-indigo-900 to-blue-900 text-white rounded-2xl p-4 border border-indigo-700/60 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/20 text-indigo-200 rounded-xl border border-indigo-400/30 shrink-0">
-                      <Bell className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-indigo-200">اطلاعیه عمومی معاونت آموزش:</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${
-                          schoolAnnouncements[0].priority === 'urgent' ? 'bg-rose-500 text-white' :
-                          schoolAnnouncements[0].priority === 'important' ? 'bg-amber-400 text-slate-900' : 'bg-blue-400 text-slate-900'
-                        }`}>
-                          {schoolAnnouncements[0].priority === 'urgent' ? 'فوری' : schoolAnnouncements[0].priority === 'important' ? 'مهم' : 'عادی'}
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold text-white mt-0.5 line-clamp-1">
-                        {schoolAnnouncements[0].title}
-                      </p>
-                    </div>
+                <div className="bg-violet-50 text-violet-950 rounded-xl px-3.5 py-2 border border-violet-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Bell className="w-4 h-4 text-violet-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-violet-700 shrink-0">اطلاعیه معاونت آموزش:</span>
+                    <p className="text-xs font-bold truncate">{schoolAnnouncements[0].title}</p>
                   </div>
-
                   <button
                     onClick={() => setActiveView('evaluations')}
-                    className="px-3.5 py-1.5 bg-white text-indigo-950 hover:bg-indigo-50 text-xs font-bold rounded-xl transition cursor-pointer shrink-0 flex items-center justify-center gap-1 shadow-xs"
+                    className="text-[11px] text-violet-800 hover:underline font-bold cursor-pointer shrink-0 flex items-center gap-0.5"
                   >
-                    <span>مشاهده بخشنامه‌ها ({toPersianDigits(schoolAnnouncements.length)})</span>
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>همه ({toPersianDigits(schoolAnnouncements.length)})</span>
+                    <ChevronLeft className="w-3 h-3" />
                   </button>
                 </div>
               )}
 
-              {/* SECTION: Quick Access My Classes */}
+              {/* SECTION: دروس و کلاس‌های تدریس (هر کارت = یک درس در یک کلاس) */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-emerald-700" />
-                    <h3 className="text-base font-bold text-slate-900">
-                      کلاس‌های اختصاصی شما ({toPersianDigits(teacherClasses.length)} کلاس)
-                    </h3>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-emerald-700" />
+                  <h3 className="text-base font-bold text-slate-900">
+                    کلاس‌های تدریس شما ({toPersianDigits(courseCards.length)})
+                  </h3>
                 </div>
 
-                {teacherClasses.length === 0 ? (
+                {courseCards.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 shadow-xs space-y-3">
                     <GraduationCap className="w-12 h-12 text-slate-300 mx-auto" />
                     <p className="text-sm text-slate-600 font-bold">
-                      هنوز کلاسی به حساب کاربری شما تخصیص داده نشده است.
+                      هنوز درسی در هیچ کلاسی به شما واگذار نشده است.
                     </p>
                     <p className="text-xs text-slate-400">
-                      معاونت آموزشی یا مدیریت مدرسه می‌تواند کلاس‌ها و دروس شما را تخصیص دهد.
+                      معاونت آموزشی یا مدیریت مدرسه از بخش «برنامه دروس» می‌تواند درس و کلاس شما را تعیین کند.
                     </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {teacherClasses.map((cls) => {
+                    {courseCards.map(({ key, cls, subjectId, subjectName }) => {
                       const classStudents = students.filter((s) => s.classId === cls.id);
-                      const classSessions = teacherSessions.filter((s) => s.classId === cls.id);
-                      const lastSession = classSessions[0];
-                      const subjectName = getSubjectForClass(cls.id);
+                      const courseSessions = teacherSessions.filter(
+                        (s) => s.classId === cls.id && (!s.subject || s.subject.includes(subjectName) || subjectName.includes(s.subject))
+                      );
+                      const openCourse = () => setSelectedCourse({ classId: cls.id, subjectId, subjectName });
 
                       return (
                         <div
-                          key={cls.id}
-                          className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-emerald-500 hover:shadow-md transition space-y-4 flex flex-col justify-between"
+                          key={key}
+                          role="button"
+                          tabIndex={0}
+                          onClick={openCourse}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openCourse();
+                            }
+                          }}
+                          className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-emerald-500 hover:shadow-md transition space-y-4 flex flex-col justify-between cursor-pointer text-right"
                         >
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <div className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold mb-1">
-                                  درس: {subjectName}
-                                </div>
-                                <h4 className="text-base font-bold text-slate-900">
-                                  {cls.name}
-                                </h4>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  پایه {cls.grade} • رشته {cls.major} {cls.roomNumber ? `• اتاق ${cls.roomNumber}` : ''}
-                                </p>
-                              </div>
-                              <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+                          <div className="space-y-2">
+                            <h4 className="text-base font-extrabold text-slate-900 leading-snug">
+                              کلاس {subjectName} - {classTitle(cls)}
+                            </h4>
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                              <span className="inline-flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5 text-emerald-600" />
                                 {toPersianDigits(classStudents.length)} دانش‌آموز
                               </span>
+                              <span>جلسات ثبت‌شده: {toPersianDigits(courseSessions.length)}</span>
+                              {cls.roomNumber ? <span>اتاق {toPersianDigits(cls.roomNumber)}</span> : null}
                             </div>
-
-                            {/* Recent Session Info */}
-                            {lastSession ? (
-                              <div className="text-[11px] bg-slate-50 border border-slate-100 p-2.5 rounded-xl space-y-1">
-                                <div className="flex items-center justify-between text-slate-600 font-medium">
-                                  <span>آخرین جلسه:</span>
-                                  <span className="font-mono">{lastSession.date} ({lastSession.dayOfWeek})</span>
-                                </div>
-                                <div className="line-clamp-1 text-slate-500">
-                                  مبحث: {lastSession.lessonTopic || 'ذکر نشده'}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-[11px] bg-slate-50 border border-slate-100 p-2.5 rounded-xl text-slate-400 text-center">
-                                هنوز جلسه‌ای برای این کلاس ثبت نشده است.
-                              </div>
-                            )}
                           </div>
 
-                          {/* Actions for this class */}
-                          <div className="space-y-2 pt-2 border-t border-slate-100">
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                onClick={() => onOpenNewAttendance(cls.id)}
-                                className="w-full py-2 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>ثبت حضور غیاب</span>
-                              </button>
-
-                              <button
-                                onClick={() => onOpenClassDetail(cls)}
-                                className="w-full py-2 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
-                              >
-                                <Users className="w-3.5 h-3.5 text-slate-500" />
-                                <span>ورود به کلاس</span>
-                              </button>
-                            </div>
-
+                          <div className="grid grid-cols-5 gap-2 pt-3 border-t border-slate-100">
                             <button
-                              onClick={() => {
-                                setSelectedClassForMonthlyGrades(cls.id);
-                                setActiveView('grades');
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openCourse();
                               }}
-                              className="w-full py-2 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-emerald-200"
+                              className="col-span-3 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
                             >
-                              <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>دفتر نمرات این کلاس</span>
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span>ورود به کلاس و دفتر نمرات</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenNewAttendance(cls.id, subjectName);
+                              }}
+                              className="col-span-2 py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
+                              <span>حضور و غیاب سریع</span>
                             </button>
                           </div>
                         </div>

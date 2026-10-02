@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -233,6 +233,11 @@ final class AccessPolicy
                 || ($this->isCoach() && ($coachId === $this->user->id || in_array($this->user->id, $coachIds, true)))) {
                 $ids[] = (string) $row->id;
             }
+        }
+
+        // انتساب سه‌طرفه (کلاس + درس + استاد) مستقل از نقش اصلی کاربر
+        foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->pluck('class_id') as $classId) {
+            $ids[] = (string) $classId;
         }
 
         return $this->classIds = array_values(array_unique($ids));

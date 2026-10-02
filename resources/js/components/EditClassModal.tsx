@@ -24,12 +24,11 @@ const fieldClass =
 
 export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose, classData, schoolClass }) => {
   const currentClass = classData || schoolClass || null;
-  const { updateClass, deleteClass, classes, allTeachers, allCoaches, students, showToast } = useSchool();
+  const { updateClass, deleteClass, classes, allCoaches, students, showToast } = useSchool();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState(GRADE_OPTIONS[0]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [selectedCoachId, setSelectedCoachId] = useState('');
   const [errorName, setErrorName] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -40,7 +39,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose,
     if (!isOpen || !currentClass) return;
     setName(currentClass.name || '');
     setGrade(normalizeGrade(currentClass.grade));
-    setSelectedTeacherId((currentClass.teacherIds || [])[0] || '');
     setSelectedCoachId(currentClass.coachId || '');
     setShowDeleteConfirm(false);
     setDeleteWarning(null);
@@ -49,7 +47,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose,
 
   if (!isOpen || !currentClass) return null;
 
-  const teachers = allTeachers || [];
   const coaches = allCoaches || [];
   const classStudentsCount = (students || []).filter((s) => s.classId === currentClass.id).length;
 
@@ -78,7 +75,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose,
         grade,
         major: currentClass.major || 'متوسطه اول',
         academicYear: currentClass.academicYear || getActiveAcademicYear(),
-        teacherIds: selectedTeacherId ? [selectedTeacherId] : [],
         coachId: selectedCoachId || undefined,
       });
       onClose();
@@ -182,17 +178,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ isOpen, onClose,
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">معلم کلاس</label>
-            <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className={fieldClass}>
-              <option value="">بدون معلم</option>
-              {teachers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {deleteWarning && (
             <div className="bg-rose-50 rounded-2xl p-3 text-xs text-rose-700 flex items-start gap-2">

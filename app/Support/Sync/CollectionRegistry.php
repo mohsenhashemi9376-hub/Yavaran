@@ -25,6 +25,7 @@ final class CollectionRegistry
         'teacherEvaluations' => 'teacher_evaluations',
         'schoolAnnouncements' => 'school_announcements',
         'comprehensiveExams' => 'comprehensive_exams',
+        'courseAssignments' => 'course_assignments',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -113,6 +114,11 @@ final class CollectionRegistry
             ],
             'comprehensiveExams' => [
                 'class_id' => self::str($d, 'classId', 100),
+            ],
+            'courseAssignments' => [
+                'class_id' => self::str($d, 'classId', 100) ?? '',
+                'subject_id' => self::str($d, 'subjectId', 100) ?? '',
+                'user_id' => self::str($d, 'teacherId', 100) ?? '',
             ],
             'grades' => [
                 'name' => self::str($d, 'name', 100) ?? '',

@@ -32,6 +32,14 @@ export interface TeachingAssignment {
   classIds: string[]; // کلاس‌های تخصیص‌یافته به این درس مثلاً: cls-101, cls-102
 }
 
+/** انتساب آموزشی سه‌طرفه: کلاس + درس + استاد (مستقل از مربی تربیتی کلاس) */
+export interface CourseAssignment {
+  id: string;
+  classId: string;
+  subjectId: string;
+  teacherId: string; // شناسه کاربر (user_id) استاد درس
+}
+
 export interface User {
   id: string;
   username: string; // نام کاربری برای ورود
@@ -51,6 +59,7 @@ export interface User {
   teachingSubject?: string; // عنوان درس تدریسی مربی (سازگار با نسخه قبل)
   teachingClassIds?: string[]; // کلاس‌هایی که مربی در آن‌ها معلم است (سازگار با نسخه قبل)
   teachingAssignments?: TeachingAssignment[]; // پشتیبانی کامل از چند درس و چند کلاس
+  permissions?: string[]; // کلیدهای دسترسی اختصاصی کاربر (ماتریس دسترسی)
 }
 
 export interface Student {

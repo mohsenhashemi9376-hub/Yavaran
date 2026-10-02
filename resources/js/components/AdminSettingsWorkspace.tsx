@@ -477,7 +477,19 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   const filteredUsers = useMemo(() => {
     let result = [...allUsers];
     if (userRoleFilter !== 'all') {
-      result = result.filter((u) => u.role === userRoleFilter);
+      result = result.filter((u) => {
+        if (userRoleFilter === 'vice') {
+          return u.role.startsWith('vice') || (u.roleTitle || '').includes('معاون');
+        }
+        if (userRoleFilter === 'teaching') {
+          return (
+            u.role === 'teacher' ||
+            Boolean(u.isAlsoTeacher) ||
+            academicSubjects.some((sub) => sub.teacherId === u.id)
+          );
+        }
+        return u.role === userRoleFilter;
+      });
     }
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.trim().toLowerCase();
@@ -490,7 +502,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       );
     }
     return result;
-  }, [allUsers, userRoleFilter, userSearchQuery]);
+  }, [allUsers, academicSubjects, userRoleFilter, userSearchQuery]);
 
   // --------------------------------------------------------------------------
   // Filtered Subjects List
@@ -1162,23 +1174,21 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
             {/* Filters Bar: Search & Role Filter */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
                   <Filter className="w-3.5 h-3.5" />
                   <span>فیلتر نقش:</span>
                 </span>
                 {[
                   { id: 'all', label: 'همه کاربران' },
                   { id: 'admin', label: 'مدیران' },
-                  { id: 'vice_educational', label: 'معاون آموزشی' },
-                  { id: 'vice_disciplinary', label: 'معاون انضباطی' },
-                  { id: 'vice_nurturing', label: 'معاون تربیتی' },
+                  { id: 'vice', label: 'معاونین' },
                   { id: 'coach', label: 'مربیان' },
-                  { id: 'teacher', label: 'معلمان' },
+                  { id: 'teaching', label: 'اساتید' },
                 ].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setUserRoleFilter(item.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       userRoleFilter === item.id
                         ? 'bg-slate-900 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'

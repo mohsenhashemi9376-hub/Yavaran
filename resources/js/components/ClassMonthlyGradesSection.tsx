@@ -36,11 +36,13 @@ import {
 interface ClassMonthlyGradesSectionProps {
   classData: SchoolClass;
   onSelectStudent?: (student: Student) => void;
+  initialSubjectId?: string;
 }
 
 export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps> = ({
   classData,
   onSelectStudent,
+  initialSubjectId,
 }) => {
   const { 
     students, 
@@ -57,12 +59,17 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Determine initial subject: if current user is teacher with subject, try matching
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(() => {
+    if (initialSubjectId) return initialSubjectId;
     if (isTeacher && currentUser.subject) {
       const match = academicSubjects.find(s => s.name.includes(currentUser.subject!) || currentUser.subject!.includes(s.name));
       if (match) return match.id;
     }
     return academicSubjects[0]?.id || '';
   });
+
+  useEffect(() => {
+    if (initialSubjectId) setSelectedSubjectId(initialSubjectId);
+  }, [initialSubjectId]);
 
   // Selected Month Key for tabbed entry (default: mehrContinuous)
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
