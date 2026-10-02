@@ -1,3 +1,5 @@
+import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -123,7 +125,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [isAdmin, isDisciplinaryVice, isEducationalVice, isNurturingVice]);
 
   // Navigation: Layer 1 (Dashboard = null) vs Layer 3 (FullScreenView)
-  const [currentFullScreenView, setCurrentFullScreenView] = useState<FullScreenView | null>(null);
+  const [rawFullScreenView, setCurrentFullScreenView] = useState<FullScreenView | null>(null);
+  const deniedFullScreenView = rawFullScreenView && !canAccessSection(currentUser, rawFullScreenView);
+  const currentFullScreenView = deniedFullScreenView ? null : rawFullScreenView;
 
   // Navigation: Layer 2 (Sidebar Drawer)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -567,6 +571,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* ========================================================================= */}
           {/* لایه ۱: داشبورد اصلی (راهنمای انجام کار و خلاصه وضعیت مدرسه) */}
           {/* ========================================================================= */}
+          {deniedFullScreenView && <AccessDeniedNotice onClose={() => setCurrentFullScreenView(null)} />}
           {currentFullScreenView === null && (
             <div className="space-y-6" id="admin-main-dashboard-view">
           

@@ -176,7 +176,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
               >
                 {accessibleClasses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.grade})
+                    {c.name}
                   </option>
                 ))}
               </select>

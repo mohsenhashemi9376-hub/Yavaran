@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -57,19 +57,50 @@ final class AccessPolicy
     {
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
         if ($collection === 'comprehensiveExams') {
-            return $this->isManager();
+            return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
         }
 
         if ($collection === 'nurturingDossiers') {
             // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
-            return ($this->isManager() && ! $this->isAdmin()) || $this->isCoach();
+            return (($this->isManager() && ! $this->isAdmin()) || $this->isCoach())
+                && $this->user->hasPermission('view-nurturing-file');
         }
 
         return true;
     }
 
+    /** مجوز لازم برای نوشتن در هر مجموعه (علاوه بر نقش) */
+    private const WRITE_PERMISSION = [
+        'academicGrades' => 'manage-grades',
+        'sessions' => 'manage-attendance',
+        'morningDelays' => 'manage-attendance',
+        'schoolAbsences' => 'manage-attendance',
+        'observations' => 'counseling-report',
+        'coachEvaluations' => 'counseling-report',
+        'nurturingDossiers' => 'counseling-report',
+        'comprehensiveExams' => 'comprehensive-exam',
+        'academicSubjects' => 'manage-curriculum',
+        'courseAssignments' => 'manage-curriculum',
+        'bellPeriods' => 'manage-curriculum',
+        'classes' => 'manage-classes',
+        'settings' => 'school-settings',
+        'schoolAnnouncements' => 'manage-announcements',
+        'teacherEvaluations' => 'evaluate-teachers',
+        'grades' => 'school-settings',
+    ];
+
+    private function requireWritePermission(string $collection): void
+    {
+        $key = self::WRITE_PERMISSION[$collection] ?? null;
+        if ($key !== null && ! $this->user->hasPermission($key)) {
+            $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
+        }
+    }
+
     public function authorizeUpsert(string $collection, ?object $old, object $new): void
     {
+        $this->requireWritePermission($collection);
+
         if ($collection === 'users') {
             $this->authorizeUserWrite($old, $new);
 
@@ -128,6 +159,8 @@ final class AccessPolicy
 
     public function authorizeDelete(string $collection, object $old): void
     {
+        $this->requireWritePermission($collection);
+
         if ($collection === 'users') {
             if (! $this->isManager()) {
                 $this->deny();
@@ -177,6 +210,13 @@ final class AccessPolicy
         }
 
         $oldRole = $old ? $this->prop($old, 'role') : null;
+
+        // تغییر ماتریس دسترسی‌ها فقط توسط مدیر سامانه
+        $oldPerms = $old && property_exists($old, 'permissions') ? $old->permissions : null;
+        $newPerms = property_exists($new, 'permissions') ? $new->permissions : null;
+        if (! $this->isAdmin() && json_encode($oldPerms) !== json_encode($newPerms)) {
+            $this->deny('فقط مدیر سامانه مجاز به تغییر سطوح دسترسی کاربران است.');
+        }
 
         if (! $this->isAdmin() && ($newRole === 'admin' || $oldRole === 'admin')) {
             $this->deny('فقط مدیر سامانه مجاز به ایجاد یا ویرایش حساب مدیریت است.');
@@ -233,6 +273,11 @@ final class AccessPolicy
                 || ($this->isCoach() && ($coachId === $this->user->id || in_array($this->user->id, $coachIds, true)))) {
                 $ids[] = (string) $row->id;
             }
+        }
+
+        // انتساب سه‌طرفه (کلاس + درس + استاد) مستقل از نقش اصلی کاربر
+        foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->pluck('class_id') as $classId) {
+            $ids[] = (string) $classId;
         }
 
         return $this->classIds = array_values(array_unique($ids));

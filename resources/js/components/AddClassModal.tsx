@@ -14,11 +14,10 @@ const fieldClass =
   'w-full text-base bg-slate-50 rounded-2xl px-4 py-3 text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition';
 
 export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose }) => {
-  const { addClass, classes, allTeachers, allCoaches } = useSchool();
+  const { addClass, classes, allCoaches } = useSchool();
 
   const [grade, setGrade] = useState(GRADE_OPTIONS[0]);
   const [name, setName] = useState('');
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [selectedCoachId, setSelectedCoachId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorName, setErrorName] = useState<string | null>(null);
@@ -28,7 +27,6 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose })
   const handleClose = () => {
     setName('');
     setGrade(GRADE_OPTIONS[0]);
-    setSelectedTeacherId('');
     setSelectedCoachId('');
     setErrorName(null);
     onClose();
@@ -60,7 +58,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose })
         grade,
         major: 'متوسطه اول',
         academicYear: getActiveAcademicYear(),
-        teacherIds: selectedTeacherId ? [selectedTeacherId] : [],
+        teacherIds: [],
         coachId: selectedCoachId || undefined,
       });
       handleClose();
@@ -149,17 +147,6 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose })
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">معلم کلاس</label>
-            <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className={fieldClass}>
-              <option value="">بدون معلم</option>
-              {(allTeachers || []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <button
             type="submit"

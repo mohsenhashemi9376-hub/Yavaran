@@ -32,6 +32,14 @@ export interface TeachingAssignment {
   classIds: string[]; // کلاس‌های تخصیص‌یافته به این درس مثلاً: cls-101, cls-102
 }
 
+/** انتساب آموزشی سه‌طرفه: کلاس + درس + استاد (مستقل از مربی تربیتی کلاس) */
+export interface CourseAssignment {
+  id: string;
+  classId: string;
+  subjectId: string;
+  teacherId: string; // شناسه کاربر (user_id) استاد درس
+}
+
 export interface User {
   id: string;
   username: string; // نام کاربری برای ورود
@@ -51,6 +59,7 @@ export interface User {
   teachingSubject?: string; // عنوان درس تدریسی مربی (سازگار با نسخه قبل)
   teachingClassIds?: string[]; // کلاس‌هایی که مربی در آن‌ها معلم است (سازگار با نسخه قبل)
   teachingAssignments?: TeachingAssignment[]; // پشتیبانی کامل از چند درس و چند کلاس
+  permissions?: string[]; // کلیدهای دسترسی اختصاصی کاربر (ماتریس دسترسی)
 }
 
 export interface Student {
@@ -167,7 +176,7 @@ export interface AcademicSubject {
   id: string;
   code?: string; // کد درس مثلاً: M101
   name: string; // نام درس: ریاضی، علوم تجربی، پیام‌های آسمان، آموزش قرآن، فارسی، نگارش و ...
-  coefficient: number; // ضریب واحد درس (مثلاً ۲، ۳، ۴)
+  coefficient?: number; // (منسوخ) دروس ضریب ندارند
   grade?: string; // پایه تحصیلی (هفتم، هشتم، نهم، یا عمومی متوسطه اول)
   targetGrades?: string[]; // e.g. ['پایه هفتم', 'پایه هشتم', 'پایه نهم']
   category?: SubjectCategory; // گروه درسی
@@ -185,7 +194,7 @@ export interface StudentAcademicGrade {
   classId: string;
   subjectId: string;
   subjectName: string;
-  coefficient: number; // ضریب درس
+  coefficient?: number; // (منسوخ) دروس ضریب ندارند
   
   // نمرات مستمر ماهانه نیمسال اول
   mehrContinuous?: number; // نمره مستمر مهر (۰ تا ۲۰)
@@ -490,6 +499,8 @@ export interface SchoolAnnouncement {
   author?: string;
   authorName?: string;
   createdAt?: string;
+  status?: 'active' | 'archived'; // فعال / آرشیو
+  attachments?: { name: string; type: string; dataUrl: string }[]; // پیوست‌ها
 }
 
 

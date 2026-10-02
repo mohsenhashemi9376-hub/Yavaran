@@ -109,7 +109,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
               <option value="">-- کلاس جدید را انتخاب کنید --</option>
               {availableClasses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.grade} • {c.major})
+                  {c.name}
                 </option>
               ))}
             </select>

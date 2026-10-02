@@ -25,7 +25,7 @@ const common = ['`sort_order` int NOT NULL DEFAULT 0', '`data` longtext NOT NULL
 
 const tables = {
   users: { table: 'users',
-    cols: ['`username` varchar(100) DEFAULT NULL', "`name` varchar(191) NOT NULL DEFAULT ''", "`role` varchar(40) NOT NULL DEFAULT 'teacher'", '`phone` varchar(30) DEFAULT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 1', '`password` varchar(255) DEFAULT NULL', '`password_encrypted` text DEFAULT NULL', '`remember_token` varchar(100) DEFAULT NULL'],
+    cols: ['`username` varchar(100) DEFAULT NULL', "`name` varchar(191) NOT NULL DEFAULT ''", "`role` varchar(40) NOT NULL DEFAULT 'teacher'", '`phone` varchar(30) DEFAULT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 1', '`permissions` json DEFAULT NULL', '`password` varchar(255) DEFAULT NULL', '`password_encrypted` text DEFAULT NULL', '`remember_token` varchar(100) DEFAULT NULL'],
     keys: ['UNIQUE KEY `users_username_unique` (`username`)', 'KEY `users_role_index` (`role`)', 'KEY `users_phone_index` (`phone`)'],
     extract: (d) => ({ username: s(d, 'username', 100) || null, name: s(d, 'name', 191) || '', role: s(d, 'role', 40) || 'teacher', phone: s(d, 'phone', 30), is_active: d.isActive === false ? 0 : 1 }) },
   classes: { table: 'school_classes',
@@ -168,6 +168,25 @@ CREATE TABLE \`comprehensive_exams\` (
   KEY \`comprehensive_exams_sort_order_index\` (\`sort_order\`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS \`course_assignments\`;
+CREATE TABLE \`course_assignments\` (
+  \`id\` varchar(100) NOT NULL,
+  \`class_id\` varchar(100) NOT NULL,
+  \`subject_id\` varchar(100) NOT NULL,
+  \`user_id\` varchar(100) NOT NULL,
+  \`sort_order\` int NOT NULL DEFAULT 0,
+  \`data\` longtext NOT NULL,
+  \`created_at\` timestamp NULL DEFAULT NULL,
+  \`updated_at\` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (\`id\`),
+  UNIQUE KEY \`course_assignments_class_subject_unique\` (\`class_id\`,\`subject_id\`),
+  KEY \`course_assignments_class_id_index\` (\`class_id\`),
+  KEY \`course_assignments_subject_id_index\` (\`subject_id\`),
+  KEY \`course_assignments_user_id_index\` (\`user_id\`),
+  KEY \`course_assignments_sort_order_index\` (\`sort_order\`),
+  CONSTRAINT \`course_assignments_user_id_foreign\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 DROP TABLE IF EXISTS \`mentor_messages\`;
 CREATE TABLE \`mentor_messages\` (
   \`id\` bigint unsigned NOT NULL AUTO_INCREMENT,
@@ -207,7 +226,9 @@ CREATE TABLE \`migrations\` (
 INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (1, '2026_09_30_000000_create_school_tables', 1),
 (2, '2026_10_01_000000_create_mentor_messages_tables', 1),
-(3, '2026_10_02_000000_create_comprehensive_exams_table', 1);
+(3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
+(4, '2026_10_03_000000_create_course_assignments_table', 1),
+(5, '2026_10_04_000000_add_permissions_to_users_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

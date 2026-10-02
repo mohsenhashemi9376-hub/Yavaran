@@ -1,3 +1,5 @@
+import { PermissionsMatrixEditor } from './PermissionsMatrixEditor';
+import { effectivePermissions, defaultPermissionsFor } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -364,6 +366,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   // --------------------------------------------------------------------------
   // User Management State & Methods
   // --------------------------------------------------------------------------
+  const [permDraft, setPermDraft] = useState<string[]>([]);
+  const [permDirty, setPermDirty] = useState(false);
+  const [permReset, setPermReset] = useState(false);
   const [userFormData, setUserFormData] = useState<{
     name: string;
     username: string;
@@ -385,6 +390,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
   const handleOpenAddUser = () => {
     setEditingUser(null);
+    setPermDraft(defaultPermissionsFor('teacher'));
+    setPermDirty(false);
+    setPermReset(false);
     setUserFormData({
       name: '',
       username: '',
@@ -400,6 +408,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
   const handleOpenEditUser = (usr: User) => {
     setEditingUser(usr);
+    setPermDraft(effectivePermissions(usr));
+    setPermDirty(false);
+    setPermReset(false);
     setUserFormData({
       name: usr.name,
       username: usr.username,
@@ -442,6 +453,8 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
         roleTitle: userFormData.roleTitle.trim() || ROLE_LABELS[userFormData.role],
         phone: userFormData.phone.trim(),
         assignedClassIds: userFormData.assignedClassIds,
+        ...(isAdmin && permReset ? { permissions: undefined } : {}),
+        ...(isAdmin && permDirty && !permReset ? { permissions: permDraft } : {}),
       });
     } else {
       addUser({
@@ -452,6 +465,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
         roleTitle: userFormData.roleTitle.trim() || ROLE_LABELS[userFormData.role],
         phone: userFormData.phone.trim(),
         assignedClassIds: userFormData.assignedClassIds,
+        ...(isAdmin && permDirty ? { permissions: permDraft } : {}),
       });
     }
 
@@ -477,7 +491,19 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   const filteredUsers = useMemo(() => {
     let result = [...allUsers];
     if (userRoleFilter !== 'all') {
-      result = result.filter((u) => u.role === userRoleFilter);
+      result = result.filter((u) => {
+        if (userRoleFilter === 'vice') {
+          return u.role.startsWith('vice') || (u.roleTitle || '').includes('معاون');
+        }
+        if (userRoleFilter === 'teaching') {
+          return (
+            u.role === 'teacher' ||
+            Boolean(u.isAlsoTeacher) ||
+            academicSubjects.some((sub) => sub.teacherId === u.id)
+          );
+        }
+        return u.role === userRoleFilter;
+      });
     }
     if (userSearchQuery.trim()) {
       const q = userSearchQuery.trim().toLowerCase();
@@ -490,7 +516,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       );
     }
     return result;
-  }, [allUsers, userRoleFilter, userSearchQuery]);
+  }, [allUsers, academicSubjects, userRoleFilter, userSearchQuery]);
 
   // --------------------------------------------------------------------------
   // Filtered Subjects List
@@ -1051,7 +1077,6 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                       <tr>
                         <th className="py-3 px-4">نام درس</th>
                         <th className="py-3 px-4">پایه‌های مرتبط</th>
-                        <th className="py-3 px-4">ضریب درس</th>
                         <th className="py-3 px-4">گروه درسی</th>
                         <th className="py-3 px-4">وضعیت</th>
                         {(isAdmin || isEducationalVice) && <th className="py-3 px-4 text-center">عملیات</th>}
@@ -1066,9 +1091,6 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
                             {subj.grade || 'کلیه پایه‌ها (هفتم، هشتم، نهم)'}
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-slate-800">
-                            ضریب {toPersianDigits(subj.coefficient || 2)}
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700">
@@ -1162,23 +1184,21 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
             {/* Filters Bar: Search & Role Filter */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
                   <Filter className="w-3.5 h-3.5" />
                   <span>فیلتر نقش:</span>
                 </span>
                 {[
                   { id: 'all', label: 'همه کاربران' },
                   { id: 'admin', label: 'مدیران' },
-                  { id: 'vice_educational', label: 'معاون آموزشی' },
-                  { id: 'vice_disciplinary', label: 'معاون انضباطی' },
-                  { id: 'vice_nurturing', label: 'معاون تربیتی' },
+                  { id: 'vice', label: 'معاونین' },
                   { id: 'coach', label: 'مربیان' },
-                  { id: 'teacher', label: 'معلمان' },
+                  { id: 'teaching', label: 'اساتید' },
                 ].map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setUserRoleFilter(item.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       userRoleFilter === item.id
                         ? 'bg-slate-900 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1776,6 +1796,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                         role: newRole,
                         roleTitle: ROLE_LABELS[newRole],
                       });
+                      if (!permDirty) setPermDraft(defaultPermissionsFor(newRole));
                     }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-teal-700"
                   >
@@ -1843,6 +1864,22 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   dir="ltr"
                 />
               </div>
+
+              {isAdmin && userFormData.role !== 'admin' && (
+                <PermissionsMatrixEditor
+                  value={permDraft}
+                  onChange={(next) => {
+                    setPermDraft(next);
+                    setPermDirty(true);
+                    setPermReset(false);
+                  }}
+                  onResetToRoleDefault={() => {
+                    setPermDraft(defaultPermissionsFor(userFormData.role));
+                    setPermDirty(true);
+                    setPermReset(true);
+                  }}
+                />
+              )}
 
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button

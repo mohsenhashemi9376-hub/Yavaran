@@ -20,6 +20,7 @@ export type CollectionKey =
   | 'teacherEvaluations'
   | 'schoolAnnouncements'
   | 'comprehensiveExams'
+  | 'courseAssignments'
   | 'grades'
   | 'settings';
 
@@ -39,6 +40,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'teacherEvaluations',
   'schoolAnnouncements',
   'comprehensiveExams',
+  'courseAssignments',
   'grades',
   'settings',
 ];

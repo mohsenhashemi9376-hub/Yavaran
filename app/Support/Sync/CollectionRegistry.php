@@ -25,6 +25,7 @@ final class CollectionRegistry
         'teacherEvaluations' => 'teacher_evaluations',
         'schoolAnnouncements' => 'school_announcements',
         'comprehensiveExams' => 'comprehensive_exams',
+        'courseAssignments' => 'course_assignments',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -57,6 +58,9 @@ final class CollectionRegistry
                 'role' => self::str($d, 'role', 40) ?? 'teacher',
                 'phone' => self::str($d, 'phone', 30),
                 'is_active' => ! (property_exists($d, 'isActive') && $d->isActive === false),
+                'permissions' => (property_exists($d, 'permissions') && is_array($d->permissions))
+                    ? json_encode(array_values(array_filter($d->permissions, 'is_string')), JSON_UNESCAPED_UNICODE)
+                    : null,
             ],
             'classes' => [
                 'name' => self::str($d, 'name', 191) ?? '',
@@ -113,6 +117,11 @@ final class CollectionRegistry
             ],
             'comprehensiveExams' => [
                 'class_id' => self::str($d, 'classId', 100),
+            ],
+            'courseAssignments' => [
+                'class_id' => self::str($d, 'classId', 100) ?? '',
+                'subject_id' => self::str($d, 'subjectId', 100) ?? '',
+                'user_id' => self::str($d, 'teacherId', 100) ?? '',
             ],
             'grades' => [
                 'name' => self::str($d, 'name', 100) ?? '',

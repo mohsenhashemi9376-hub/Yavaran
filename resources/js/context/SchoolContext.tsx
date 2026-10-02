@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { subjectAppliesToClass } from '../utils/courseAssignments';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   User, 
   SchoolClass, 
@@ -21,6 +22,7 @@ import {
   SchoolSettings,
   SchoolGradeItem,
   ComprehensiveExamRecord,
+  CourseAssignment,
 } from '../types';
 import { ToastNotification, GlobalConfirmModal } from '../components/FeedbackSystem';
 import { 
@@ -65,6 +67,13 @@ interface SchoolContextType {
   schoolAnnouncements: SchoolAnnouncement[];
   comprehensiveExams: ComprehensiveExamRecord[];
   saveComprehensiveExam: (record: ComprehensiveExamRecord) => void;
+  courseAssignments: CourseAssignment[];
+  /** انتساب (یا لغو انتساب با teacherId=null) استاد به یک درس در یک کلاس */
+  assignCourseTeacher: (classId: string, subjectId: string, teacherId: string | null) => void;
+  /** تمام کاربران فعال کادر مدرسه برای انتخاب استاد درس */
+  assignableStaff: User[];
+  /** استاد مؤثر هر (کلاس، درس) */
+  getCourseTeacherId: (classId: string, subjectId: string) => string | undefined;
   bellPeriods: BellPeriod[];
   
   // School Settings & Academic Base Structure
@@ -192,6 +201,7 @@ interface SchoolContextType {
   // School Public Announcements (اطلاعیه‌های عمومی مدرسه یاوران ولایت)
   addSchoolAnnouncement: (announcement: Omit<SchoolAnnouncement, 'id' | 'createdAt'>) => string;
   deleteSchoolAnnouncement: (id: string) => void;
+  updateSchoolAnnouncement: (id: string, updates: Partial<SchoolAnnouncement>) => void;
 
   resetToDemoData: () => void;
   exportDatabaseJson: () => void;
@@ -263,9 +273,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ------------------------------------------------------------------
   const [authStatus, setAuthStatus] = useState<'loading' | 'guest' | 'ready' | 'offline'>('loading');
   const isAuthenticated = authStatus === 'ready';
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [rawUsers, setAllUsers] = useState<User[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [rawClasses, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
@@ -279,6 +289,112 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [teacherEvaluations, setTeacherEvaluations] = useState<TeacherEvaluation[]>([]);
   const [schoolAnnouncements, setSchoolAnnouncements] = useState<SchoolAnnouncement[]>([]);
   const [comprehensiveExams, setComprehensiveExams] = useState<ComprehensiveExamRecord[]>([]);
+  const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([]);
+
+  // ------------------------------------------------------------------
+  // انتساب آموزشی سه‌طرفه (کلاس + درس + استاد) — مستقل از مربی تربیتی کلاس
+  // درس، کلاس‌های تدریس و دسترسی آموزشی هر کاربر فقط از «برنامه دروس» استخراج می‌شود.
+  // ------------------------------------------------------------------
+  /** نگاشت «کلاس|درس» ← شناسه استاد (انتساب صریح، سپس دبیر پیش‌فرض درس) */
+  const effectiveCourses = useMemo(() => {
+    const explicit = new Map<string, string>();
+    courseAssignments.forEach((a) => explicit.set(`${a.classId}|${a.subjectId}`, a.teacherId));
+    const list: { classId: string; subjectId: string; subjectName: string; teacherId: string }[] = [];
+    rawClasses.forEach((cls) => {
+      academicSubjects.forEach((sub) => {
+        const key = `${cls.id}|${sub.id}`;
+        const teacherId = explicit.get(key) ?? (subjectAppliesToClass(sub, cls) ? sub.teacherId : undefined);
+        if (teacherId) list.push({ classId: cls.id, subjectId: sub.id, subjectName: sub.name, teacherId });
+      });
+    });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawClasses, academicSubjects, courseAssignments]);
+
+  const allUsers = useMemo<User[]>(
+    () =>
+      rawUsers.map((u) => {
+        const mine = effectiveCourses.filter((c) => c.teacherId === u.id);
+        const bySubject = new Map<string, { subjectId: string; subjectName: string; classIds: string[] }>();
+        mine.forEach((c) => {
+          const cur = bySubject.get(c.subjectId) || { subjectId: c.subjectId, subjectName: c.subjectName, classIds: [] };
+          cur.classIds.push(c.classId);
+          bySubject.set(c.subjectId, cur);
+        });
+        const assignments = Array.from(bySubject.values());
+        const names = assignments.map((a) => a.subjectName);
+        const subject = names.length ? Array.from(new Set(names)).join('، ') : undefined;
+        const classIds = Array.from(new Set(mine.map((c) => c.classId)));
+
+        if (u.role === 'teacher') {
+          return {
+            ...u,
+            subject,
+            subjectSpecialty: subject,
+            roleTitle: subject ? `دبیر ${subject}` : 'استاد و دبیر',
+            assignedClassIds: Array.from(new Set([...(u.assignedClassIds || []), ...classIds])),
+            teachingClassIds: classIds,
+            teachingAssignments: assignments.map((a) => ({ id: `ta-${u.id}-${a.subjectId}`, ...a })),
+            teachingSubject: subject,
+          };
+        }
+        if (assignments.length === 0) return u;
+        // سایر نقش‌ها (مدیر، معاون، مربی): ادغام با انتساب‌های قدیمی مربی
+        const legacy = (u.teachingAssignments || []).filter((ta) => !bySubject.has(ta.subjectId || ''));
+        return {
+          ...u,
+          isAlsoTeacher: true,
+          subject: u.subject || subject,
+          teachingSubject: subject,
+          teachingClassIds: Array.from(new Set([...(u.teachingClassIds || []), ...classIds])),
+          teachingAssignments: [
+            ...legacy,
+            ...assignments.map((a) => ({ id: `ta-${u.id}-${a.subjectId}`, ...a })),
+          ],
+        };
+      }),
+    [rawUsers, effectiveCourses]
+  );
+
+  const classes = useMemo<SchoolClass[]>(
+    () =>
+      rawClasses.map((raw) => {
+        // فقط نام خالص کلاس (بدون عبارت داخل پرانتز)
+        const cleaned = (raw.name || '').replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+        const c = cleaned && cleaned !== raw.name ? { ...raw, name: cleaned } : raw;
+        const extra = effectiveCourses.filter((e) => e.classId === c.id).map((e) => e.teacherId);
+        if (extra.length === 0) return c;
+        return { ...c, teacherIds: Array.from(new Set([...(c.teacherIds || []), ...extra])) };
+      }),
+    [rawClasses, effectiveCourses]
+  );
+
+  const assignableStaff = useMemo(
+    () =>
+      allUsers
+        .filter((u) => u.isActive !== false)
+        .sort((a, b) => a.name.localeCompare(b.name, 'fa')),
+    [allUsers]
+  );
+
+  const getCourseTeacherId = (classId: string, subjectId: string): string | undefined =>
+    effectiveCourses.find((c) => c.classId === classId && c.subjectId === subjectId)?.teacherId;
+
+  const assignCourseTeacher = (classId: string, subjectId: string, teacherId: string | null) => {
+    setCourseAssignments((prev) => {
+      const rest = prev.filter((a) => !(a.classId === classId && a.subjectId === subjectId));
+      if (!teacherId) return rest;
+      return [...rest, { id: `ca-${classId}-${subjectId}`, classId, subjectId, teacherId }];
+    });
+    // اگر دبیر پیش‌فرض درس داشته و لغو شد، انتساب صریح خالی لازم نیست؛ لغو یعنی حذف انتساب کلاس
+    if (!teacherId) {
+      const sub = academicSubjects.find((x) => x.id === subjectId);
+      if (sub?.teacherId) {
+        // پیش‌فرض سراسری درس را برای سایر کلاس‌ها نگه می‌داریم و فقط این کلاس را مستثنی می‌کنیم
+        showToast('این کلاس از دبیر پیش‌فرض درس مستثنی نشد؛ برای تغییر، استاد دیگری انتخاب کنید.', 'info');
+      }
+    }
+  };
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(INITIAL_SCHOOL_SETTINGS);
   const [grades, setGrades] = useState<SchoolGradeItem[]>([]);
 
@@ -309,6 +425,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextTeacherEvals = (d.teacherEvaluations || []) as unknown as TeacherEvaluation[];
     const nextAnnouncements = (d.schoolAnnouncements || []) as unknown as SchoolAnnouncement[];
     const nextExams = (d.comprehensiveExams || []) as unknown as ComprehensiveExamRecord[];
+    const nextCourseAssignments = (d.courseAssignments || []) as unknown as CourseAssignment[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -328,6 +445,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       teacherEvaluations: nextTeacherEvals as unknown as SyncRow[],
       schoolAnnouncements: nextAnnouncements as unknown as SyncRow[],
       comprehensiveExams: nextExams as unknown as SyncRow[],
+      courseAssignments: nextCourseAssignments as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -347,6 +465,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTeacherEvaluations(nextTeacherEvals);
     setSchoolAnnouncements(nextAnnouncements);
     setComprehensiveExams(nextExams);
+    setCourseAssignments(nextCourseAssignments);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -373,6 +492,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTeacherEvaluations([]);
     setSchoolAnnouncements([]);
     setComprehensiveExams([]);
+    setCourseAssignments([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -437,8 +557,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ذخیره خودکار تغییرات در دیتابیس سرور
   useEffect(() => { syncEngine.push('settings', settingsToRows(schoolSettings)); }, [schoolSettings, syncEngine]);
   useEffect(() => { syncEngine.push('grades', grades as unknown as SyncRow[]); }, [grades, syncEngine]);
-  useEffect(() => { syncEngine.push('users', allUsers as unknown as SyncRow[]); }, [allUsers, syncEngine]);
-  useEffect(() => { syncEngine.push('classes', classes as unknown as SyncRow[]); }, [classes, syncEngine]);
+  useEffect(() => { syncEngine.push('users', rawUsers as unknown as SyncRow[]); }, [rawUsers, syncEngine]);
+  useEffect(() => { syncEngine.push('classes', rawClasses as unknown as SyncRow[]); }, [rawClasses, syncEngine]);
   useEffect(() => { syncEngine.push('students', students as unknown as SyncRow[]); }, [students, syncEngine]);
   useEffect(() => { syncEngine.push('sessions', sessions as unknown as SyncRow[]); }, [sessions, syncEngine]);
   useEffect(() => { syncEngine.push('academicSubjects', academicSubjects as unknown as SyncRow[]); }, [academicSubjects, syncEngine]);
@@ -450,6 +570,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
   useEffect(() => { syncEngine.push('teacherEvaluations', teacherEvaluations as unknown as SyncRow[]); }, [teacherEvaluations, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAnnouncements', schoolAnnouncements as unknown as SyncRow[]); }, [schoolAnnouncements, syncEngine]);
+  useEffect(() => { syncEngine.push('courseAssignments', courseAssignments as unknown as SyncRow[]); }, [courseAssignments, syncEngine]);
   useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
 
@@ -539,7 +660,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAdminOrVice = isAdmin || isEducationalVice || isDisciplinaryVice || isNurturingVice;
   const isVicePrincipal = isEducationalVice || isDisciplinaryVice || isNurturingVice;
 
-  const allTeachers = allUsers.filter((u) => u.role === 'teacher' || (u.role === 'coach' && u.isAlsoTeacher));
+  const allTeachers = allUsers.filter((u) => u.role === 'teacher' || Boolean(u.isAlsoTeacher));
   const allCoaches = allUsers.filter((u) => u.role === 'coach');
 
   const accessibleClasses = isTeacher
@@ -576,13 +697,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     : sessions;
 
   // Classes where current user is authorized to teach (strictly for Educational/Teacher panel)
+  // کاربران غیر دبیر (مدیر، معاون، مربی) که درسی به آن‌ها واگذار شده نیز پنل آموزشی دارند
+  const hasTeachingLoad =
+    !isTeacher &&
+    (Boolean(currentUser.isAlsoTeacher) ||
+      (currentUser.teachingClassIds || []).length > 0 ||
+      (currentUser.teachingAssignments || []).some((ta) => ta.classIds.length > 0));
+
   const teachingAccessibleClasses = isTeacher
     ? classes.filter(
         (c) =>
           currentUser.assignedClassIds.includes(c.id) ||
           c.teacherIds.includes(currentUser.id)
       )
-    : isCoach && currentUser.isAlsoTeacher
+    : hasTeachingLoad
     ? classes.filter((c) => {
         const directClassIds = currentUser.teachingClassIds || [];
         const assignmentClassIds = (currentUser.teachingAssignments || []).flatMap((ta) => ta.classIds);
@@ -605,7 +733,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           teachingClassIdsSet.has(s.classId) &&
           (s.teacherId === currentUser.id || currentUser.assignedClassIds.includes(s.classId))
       )
-    : isCoach && currentUser.isAlsoTeacher
+    : hasTeachingLoad
     ? sessions.filter(
         (s) =>
           teachingClassIdsSet.has(s.classId) &&
@@ -624,7 +752,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (currentUser.subject && (subjectNameOrId === currentUser.subject || subjectNameOrId.includes(currentUser.subject))) return true;
       return true;
     }
-    if (isCoach && currentUser.isAlsoTeacher) {
+    if (hasTeachingLoad) {
       const teachesClass = teachingClassIdsSet.has(classId);
       if (!teachesClass) return false;
       if (!subjectNameOrId) return true;
@@ -716,6 +844,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
     setClasses((prev) => prev.filter((c) => c.id !== id));
+    setCourseAssignments((prev) => prev.filter((a) => a.classId !== id));
     setSessions((prev) => prev.filter((s) => s.classId !== id));
     showToast('کلاس با موفقیت حذف شد.', 'info');
     return true;
@@ -834,6 +963,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       allUsers.filter((u) => (u.role === 'teacher' || u.role === 'coach') && u.id !== currentUser.id).map((u) => u.id)
     );
     setAllUsers((prev) => prev.filter((u) => !staffIds.has(u.id)));
+    setCourseAssignments((prev) => prev.filter((a) => !staffIds.has(a.teacherId)));
     setStudents([]);
     setSessions([]);
     setAcademicGrades([]);
@@ -1092,6 +1222,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
     setAllUsers((prev) => prev.filter((u) => u.id !== id));
+    setCourseAssignments((prev) => prev.filter((a) => a.teacherId !== id));
     // Also cleanly dissociate from any academic subjects without deleting subjects
     setAcademicSubjects((prev) =>
       prev.map((s) => (s.teacherId === id ? { ...s, teacherId: undefined, defaultTeacherName: undefined } : s))
@@ -1171,6 +1302,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
     setAllUsers((prev) => prev.filter((u) => u.id !== id));
+    setCourseAssignments((prev) => prev.filter((a) => a.teacherId !== id));
     showToast('مربی از سیستم حذف گردید.', 'info');
     return true;
   };
@@ -1293,6 +1425,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return false;
     }
     setAllUsers((prev) => prev.filter((u) => u.id !== id));
+    setCourseAssignments((prev) => prev.filter((a) => a.teacherId !== id));
     showToast(`کاربر «${target.name}» با موفقیت حذف شد.`, 'success');
     return true;
   };
@@ -1470,6 +1603,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteAcademicSubject = (id: string) => {
     setAcademicSubjects((prev) => prev.filter((s) => s.id !== id));
+    setCourseAssignments((prev) => prev.filter((a) => a.subjectId !== id));
     setAcademicGrades((prev) => prev.filter((g) => g.subjectId !== id));
   };
 
@@ -1817,6 +1951,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return newId;
   };
 
+  const updateSchoolAnnouncement = (id: string, updates: Partial<SchoolAnnouncement>) => {
+    setSchoolAnnouncements((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+  };
+
   const deleteSchoolAnnouncement = (id: string) => {
     setSchoolAnnouncements((prev) => prev.filter((item) => item.id !== id));
   };
@@ -1919,6 +2057,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teacherEvaluations,
         schoolAnnouncements,
         comprehensiveExams,
+        courseAssignments,
+        assignCourseTeacher,
+        assignableStaff,
+        getCourseTeacherId,
         saveComprehensiveExam,
         bellPeriods,
         schoolSettings,
@@ -2014,6 +2156,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         getTeacherEvaluations,
         addSchoolAnnouncement,
         deleteSchoolAnnouncement,
+        updateSchoolAnnouncement,
         resetToDemoData,
         exportDatabaseJson,
         importDatabaseJson,

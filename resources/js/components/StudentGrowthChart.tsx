@@ -172,7 +172,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
               <option value="all">📊 مقایسه تمام دروس</option>
               {grades.map((g) => (
                 <option key={g.subjectId} value={g.subjectId}>
-                  {g.subjectName} (ضریب {toPersianDigits(g.coefficient)})
+                  {g.subjectName}
                 </option>
               ))}
             </select>

@@ -217,7 +217,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
               <option value="">تمام کلاس‌ها ({toPersianDigits(classes.length)} کلاس)</option>
               {classes.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.name} (پایه {cls.grade})
+                  {cls.name}
                 </option>
               ))}
             </select>
@@ -246,17 +246,18 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
             <p className="text-[11px] text-slate-400">می‌توانید فیلترها را بازنشانی کرده یا دانش‌آموز جدیدی ثبت کنید.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="p-3.5 w-12 text-center">ردیف</th>
-                  <th className="p-3.5">نام و نام خانوادگی</th>
-                  <th className="p-3.5">کلاس و پایه</th>
-                  <th className="p-3.5 text-center">شماره تماس ولی</th>
-                  <th className="p-3.5 text-center">حضور و غیاب</th>
-                  <th className="p-3.5 text-center">انضباط</th>
-                  {isAdminOrVice && <th className="p-3.5 w-16 text-center">حذف</th>}
+                  <th className="p-3.5 whitespace-nowrap w-12 text-center">ردیف</th>
+                  <th className="p-3.5 whitespace-nowrap">نام و نام خانوادگی</th>
+                  <th className="p-3.5 whitespace-nowrap">کلاس و پایه</th>
+                  <th className="p-3.5 whitespace-nowrap text-center">شماره تماس ولی</th>
+                  <th className="p-3.5 whitespace-nowrap text-center">حضور و غیاب</th>
+                  <th className="p-3.5 whitespace-nowrap text-center">انضباط</th>
+                  {isAdminOrVice && <th className="p-3.5 whitespace-nowrap w-16 text-center">حذف</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -272,11 +273,11 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                         hasWarning ? 'bg-rose-50/20' : ''
                       }`}
                     >
-                      <td className="p-3.5 text-center font-bold text-slate-400">
+                      <td className="p-3.5 whitespace-nowrap text-center font-bold text-slate-400">
                         {toPersianDigits(idx + 1)}
                       </td>
 
-                      <td className="p-3.5">
+                      <td className="p-3.5 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => onSelectStudent && onSelectStudent(student)}
@@ -296,7 +297,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                         </button>
                       </td>
 
-                      <td className="p-3.5">
+                      <td className="p-3.5 whitespace-nowrap">
                         <span className="font-bold text-slate-800">
                           {studentClass?.name || 'کلاس نامشخص'}
                         </span>
@@ -307,17 +308,17 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                         )}
                       </td>
 
-                      <td className="p-3.5 text-center">
+                      <td className="p-3.5 whitespace-nowrap text-center">
                         <a
                           href={`tel:${student.parentPhone}`}
-                          className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold text-slate-700 hover:text-teal-800 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-700 hover:text-teal-800 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition"
                         >
                           <Phone className="w-3 h-3 text-teal-700" />
-                          <span>{student.parentPhone}</span>
+                          <span dir="ltr">{toPersianDigits(student.parentPhone)}</span>
                         </a>
                       </td>
 
-                      <td className="p-3.5 text-center">
+                      <td className="p-3.5 whitespace-nowrap text-center">
                         <div className="inline-flex items-center gap-1.5">
                           <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                             hasWarning 
@@ -334,14 +335,14 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                         </div>
                       </td>
 
-                      <td className="p-3.5 text-center">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold font-mono bg-slate-50 text-slate-800 border border-slate-200">
+                      <td className="p-3.5 whitespace-nowrap text-center">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-50 text-slate-800 border border-slate-200">
                           {toPersianDigits(student.disciplinaryScore ?? 20)}
                         </span>
                       </td>
 
                       {isAdminOrVice && (
-                        <td className="p-3.5 text-center">
+                        <td className="p-3.5 whitespace-nowrap text-center">
                           <button
                             type="button"
                             onClick={() => handleDeleteStudent(student)}
@@ -358,6 +359,85 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
               </tbody>
             </table>
           </div>
+
+          {/* نمای کارتی موبایل */}
+          <ul className="md:hidden p-3 space-y-3">
+            {filteredStudents.map((student, idx) => {
+              const studentClass = classes.find((c) => c.id === student.classId);
+              const metrics = getStudentMetrics(student.id, student.classId);
+              const hasWarning = metrics.absences >= 2;
+              return (
+                <li
+                  key={student.id}
+                  className={`bg-white rounded-2xl border shadow-sm shadow-slate-900/5 p-4 space-y-3 ${
+                    hasWarning ? 'border-rose-200' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-[11px] font-bold text-slate-400 pt-1 w-6 shrink-0 text-center">
+                      {toPersianDigits(idx + 1)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onSelectStudent && onSelectStudent(student)}
+                      className="flex-1 min-w-0 text-right cursor-pointer"
+                    >
+                      <div className="text-base font-extrabold text-slate-900 leading-snug break-words">
+                        {student.firstName} {student.lastName}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800">
+                          {studentClass?.name || 'کلاس نامشخص'}
+                        </span>
+                        {studentClass?.grade && (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600">
+                            پایه {studentClass.grade}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    {isAdminOrVice && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStudent(student)}
+                        className="p-2.5 -m-1 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
+                        title="حذف دانش‌آموز"
+                        aria-label="حذف دانش‌آموز"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+                    <a
+                      href={`tel:${student.parentPhone}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-teal-700" />
+                      <span dir="ltr">{toPersianDigits(student.parentPhone)}</span>
+                    </a>
+                    <span
+                      className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold ${
+                        hasWarning ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {toPersianDigits(metrics.absences)} غیبت
+                    </span>
+                    {metrics.lates > 0 && (
+                      <span className="px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                        {toPersianDigits(metrics.lates)} تأخیر
+                      </span>
+                    )}
+                    <span className="mr-auto px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      انضباط: {toPersianDigits(student.disciplinaryScore ?? 20)}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          </>
         )}
 
         {/* 3. Footer ساختار یکسان */}

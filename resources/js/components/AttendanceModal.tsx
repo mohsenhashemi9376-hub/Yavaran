@@ -27,6 +27,7 @@ interface AttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetClassId?: string;
+  targetSubject?: string;
   existingSession?: AttendanceSession | null;
   onSelectStudent?: (student: Student) => void;
 }
@@ -35,6 +36,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   isOpen,
   onClose,
   targetClassId,
+  targetSubject,
   existingSession,
   onSelectStudent,
 }) => {
@@ -69,7 +71,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [endTime, setEndTime] = useState<string>('09:15');
   const [selectedBellId, setSelectedBellId] = useState<string>('');
   const [bellPeriodName, setBellPeriodName] = useState<string>('');
-  const [subject, setSubject] = useState<string>(currentUser.subject || 'درس عمومی');
+  const [subject, setSubject] = useState<string>(targetSubject || currentUser.subject || 'درس عمومی');
   const [lessonTopic, setLessonTopic] = useState<string>('');
   const [homeworkDescription, setHomeworkDescription] = useState<string>('');
   const [sessionNotes, setSessionNotes] = useState<string>('');
@@ -175,7 +177,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
       setDate(todayInfo.formattedDate);
       setDayOfWeek(todayInfo.dayOfWeek);
-      setSubject(currentUser.subject || 'درس');
+      setSubject(targetSubject || currentUser.subject || 'درس');
       setLessonTopic('');
       setHomeworkDescription('');
       setSessionNotes('');
@@ -192,7 +194,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       });
       setRecords(initial);
     }
-  }, [existingSession, isOpen, targetClassId]);
+  }, [existingSession, isOpen, targetClassId, targetSubject]);
 
   // When class changes, ensure students in that class have initialized records and default times applied
   const handleClassChange = (newClassId: string) => {

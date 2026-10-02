@@ -1,3 +1,5 @@
+import { useSchool } from '../context/SchoolContext';
+import { filterNavGroups } from '../utils/permissions';
 import React, { useState } from 'react';
 import { 
   LayoutDashboard,
@@ -12,6 +14,8 @@ import {
   Users, 
   CheckCircle2, 
   Settings,
+  Megaphone,
+  UserCheck,
   X, 
   ChevronLeft,
   ChevronRight
@@ -26,6 +30,8 @@ export type EducationalViewType =
   | 'grades' 
   | 'report_cards' 
   | 'comprehensive_exam'
+  | 'announcements'
+  | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
   | 'students' 
@@ -91,6 +97,7 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
   const totalUngraded = counts?.grades ?? 0;
   const totalReportCards = counts?.reportCards ?? 0;
   const totalWarnings = counts?.warnings ?? 0;
+  const { currentUser } = useSchool();
   const totalStudents = counts?.students ?? 0;
   const totalSessions = counts?.attendanceSessions ?? 0;
 
@@ -139,6 +146,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           icon: GraduationCap,
           count: totalTeachers > 0 ? totalTeachers : undefined,
         },
+        {
+          id: 'announcements',
+          label: 'بخشنامه‌ها و اطلاعیه‌ها',
+          tooltip: 'مدیریت و ابلاغ بخشنامه‌ها و اطلاعیه‌ها به اساتید',
+          icon: Megaphone,
+        },
       ],
     },
     {
@@ -171,6 +184,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           label: 'گزارش‌های آموزشی',
           tooltip: 'گزارش‌ها و تحلیل معدل',
           icon: BarChart3,
+        },
+        {
+          id: 'teacher_evaluation',
+          label: 'ارزیابی اساتید',
+          tooltip: 'ارزیابی دوره‌ای عملکرد اساتید',
+          icon: UserCheck,
         },
       ],
     },
@@ -302,7 +321,7 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           isCollapsed ? 'overflow-visible' : 'overflow-y-auto'
         }`}
       >
-        {navGroups.map((group) => (
+        {filterNavGroups(navGroups, currentUser).map((group) => (
           <div key={group.id} className="space-y-0.5">
             {/* عنوان گروه منو در حالت Expanded */}
             {!isCollapsed ? (

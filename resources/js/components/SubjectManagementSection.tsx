@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { AcademicSubject, SubjectCategory } from '../types';
 import { EditSubjectModal } from './EditSubjectModal';
+import { SubjectClassAssignmentModal } from './SubjectClassAssignmentModal';
+import { getStandardRoleTitle } from '../utils/userRoles';
 import { toPersianDigits } from '../utils/persianDate';
 import { BookOpen, Plus, Search, Edit2, Trash2, RotateCcw, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -15,7 +17,9 @@ const categoryOf = (s: AcademicSubject): string =>
 export const SubjectManagementSection: React.FC = () => {
   const {
     academicSubjects,
-    allTeachers,
+    assignableStaff,
+    classes,
+    courseAssignments,
     isAdmin,
     isEducationalVice,
     assignTeacherToSubject,
@@ -33,6 +37,7 @@ export const SubjectManagementSection: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<AcademicSubject | null>(null);
+  const [classAssignSubject, setClassAssignSubject] = useState<AcademicSubject | null>(null);
 
   // Quick Action Notification Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -80,7 +85,7 @@ export const SubjectManagementSection: React.FC = () => {
       assignTeacherToSubject(subjectId, null);
       showToast('تخصیص دبیر این درس لغو گردید.');
     } else {
-      const foundTeacher = allTeachers.find((t) => t.id === teacherId);
+      const foundTeacher = assignableStaff.find((t) => t.id === teacherId);
       assignTeacherToSubject(subjectId, teacherId, foundTeacher ? foundTeacher.name : undefined);
       showToast(`استاد «${foundTeacher?.name || ''}» به این درس اختصاص یافت.`);
     }
@@ -125,7 +130,7 @@ export const SubjectManagementSection: React.FC = () => {
     const data = academicSubjects.map((s, idx) => ({
       'ردیف': idx + 1,
       'نام درس': s.name,
-      'ساعت در هفته': s.hoursPerWeek || s.coefficient,
+      'ساعت در هفته': s.hoursPerWeek || 2,
       'گروه درسی': categoryOf(s),
       'پایه‌های تحصیلی': s.targetGrades ? s.targetGrades.join('، ') : (s.grade || 'متوسطه اول'),
       'دبیر تخصیص یافته': s.defaultTeacherName || 'بدون دبیر',
@@ -230,7 +235,7 @@ export const SubjectManagementSection: React.FC = () => {
       {/* کارت دروس */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredSubjects.map((subject) => {
-          const assignedTeacher = allTeachers.find((t) => t.id === subject.teacherId);
+          const assignedTeacher = assignableStaff.find((t) => t.id === subject.teacherId);
           const teacherDisplay = subject.defaultTeacherName || assignedTeacher?.name;
 
           return (
@@ -242,7 +247,7 @@ export const SubjectManagementSection: React.FC = () => {
                 <div className="min-w-0">
                   <h3 className="font-extrabold text-base text-slate-900 truncate">{subject.name}</h3>
                   <span className="inline-block mt-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
-                    ضریب {toPersianDigits(subject.coefficient)} • {toPersianDigits(subject.hoursPerWeek || subject.coefficient)} ساعت در هفته
+                    {toPersianDigits(subject.hoursPerWeek || 2)} ساعت در هفته
                   </span>
                 </div>
 
@@ -275,10 +280,10 @@ export const SubjectManagementSection: React.FC = () => {
                   aria-label={`دبیر درس ${subject.name}`}
                   className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2.5 outline-none border border-transparent focus:border-emerald-500 focus:bg-white font-bold text-slate-700 cursor-pointer"
                 >
-                  <option value="">دبیر تعیین نشده</option>
-                  {allTeachers.map((t) => (
+                  <option value="">دبیر پیش‌فرض تعیین نشده</option>
+                  {assignableStaff.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name}
+                      {t.name} ({getStandardRoleTitle(t.role)})
                     </option>
                   ))}
                 </select>
@@ -286,6 +291,20 @@ export const SubjectManagementSection: React.FC = () => {
                 <div className="text-sm font-bold text-slate-700">
                   {teacherDisplay || <span className="text-slate-400 font-normal">دبیر تعیین نشده</span>}
                 </div>
+              )}
+
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setClassAssignSubject(subject)}
+                  className="w-full text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl px-3 py-2 transition cursor-pointer"
+                >
+                  استاد هر کلاس
+                  {(() => {
+                    const n = courseAssignments.filter((a) => a.subjectId === subject.id).length;
+                    return n > 0 ? ` (${toPersianDigits(n)} کلاس)` : '';
+                  })()}
+                </button>
               )}
             </div>
           );
@@ -308,6 +327,10 @@ export const SubjectManagementSection: React.FC = () => {
             </button>
           )}
         </div>
+      )}
+
+      {classAssignSubject && (
+        <SubjectClassAssignmentModal subject={classAssignSubject} onClose={() => setClassAssignSubject(null)} />
       )}
 
       {isModalOpen && (

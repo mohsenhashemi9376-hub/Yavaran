@@ -379,7 +379,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               )}
               {accessibleClasses.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.grade} - پایه {toPersianDigits(c.roomNumber || '')})
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -715,11 +715,6 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                               <tr key={sub.id} className="hover:bg-slate-50">
                                 <td className="py-2.5 px-3 font-bold text-slate-800">
                                   {sub.name}
-                                  {sub.coefficient && sub.coefficient > 1 && (
-                                    <span className="text-[10px] text-slate-400 font-normal mr-1">
-                                      (ضریب {toPersianDigits(sub.coefficient)})
-                                    </span>
-                                  )}
                                 </td>
 
                                 <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">

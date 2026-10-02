@@ -214,7 +214,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                     key={sub.id}
                     className="px-2 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[11px] font-medium"
                   >
-                    {sub.name} (ضریب {toPersianDigits(sub.coefficient)} • {toPersianDigits(sub.hoursPerWeek || 2)} ساعت هفتگی)
+                    {sub.name} ({toPersianDigits(sub.hoursPerWeek || 2)} ساعت هفتگی)
                   </span>
                 ))}
               </div>

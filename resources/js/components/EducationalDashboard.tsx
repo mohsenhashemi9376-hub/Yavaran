@@ -1,10 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import { subjectAppliesToClass } from '../utils/courseAssignments';
+import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { canAccessSection } from '../utils/permissions';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
 import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
+import { AnnouncementsManagement } from './AnnouncementsManagement';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
@@ -100,11 +104,25 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // وضعیت ناوبری سایدبار معاونت آموزشی
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<EducationalViewType>(null);
+  const [rawView, setCurrentView] = useState<EducationalViewType>(null);
+  const deniedView = rawView && !canAccessSection(currentUser, rawView);
+  const currentView = deniedView ? null : rawView;
 
   // وضعیت‌های مربوط به ثبت نمرات
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(academicSubjects[0]?.id || '');
+  // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
+  const classSubjects = React.useMemo(() => {
+    const cls = classes.find((c) => c.id === selectedClassId);
+    return cls ? academicSubjects.filter((s) => subjectAppliesToClass(s, cls)) : academicSubjects;
+  }, [academicSubjects, classes, selectedClassId]);
+
+  useEffect(() => {
+    if (classSubjects.length > 0 && !classSubjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(classSubjects[0].id);
+    }
+  }, [classSubjects, selectedSubjectId]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'excellent' | 'normal' | 'weak' | 'ungraded'>('all');
   const [selectedStudentForChart, setSelectedStudentForChart] = useState<Student | null>(null);
@@ -244,7 +262,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         classId: selectedClassId,
         subjectId: selectedSubjectId,
         subjectName: currentSubject.name,
-        coefficient: currentSubject.coefficient,
         term1Continuous: c1,
         term1Final: f1,
         term2Continuous: c2,
@@ -303,7 +320,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
       stuGrades.forEach(g => {
         const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
-        const coeff = g.coefficient || 1;
+        const coeff = 1;
         if (ann !== undefined) {
           sum += ann * coeff;
           totalWeight += coeff;
@@ -381,7 +398,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             'نام دانش‌آموز': `${stu.firstName} ${stu.lastName}`,
             'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
             'نام درس': sub.name,
-            'ضریب': sub.coefficient,
             'مستمر ۱': g?.term1Continuous !== undefined ? g.term1Continuous : '',
             'پایانی ۱': g?.term1Final !== undefined ? g.term1Final : '',
             'مستمر ۲': g?.term2Continuous !== undefined ? g.term2Continuous : '',
@@ -495,6 +511,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* ========================================================================= */}
         {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت آموزشی (currentView === null) */}
         {/* ========================================================================= */}
+        {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         {currentView === null && (
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             
@@ -1005,7 +1022,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     >
                       {classes.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.name} (پایه {c.grade})
+                          {c.name}
                         </option>
                       ))}
                     </select>
@@ -1019,9 +1036,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       onChange={(e) => setSelectedSubjectId(e.target.value)}
                       className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
                     >
-                      {academicSubjects.map(s => (
+                      {classSubjects.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.name} (ضریب {toPersianDigits(s.coefficient)})
+                          {s.name}
                         </option>
                       ))}
                     </select>
@@ -1110,14 +1127,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/70">
-                      <th className="p-3 w-12 text-center">ردیف</th>
-                      <th className="p-3">دانش‌آموز</th>
-                      <th className="p-2.5 text-center w-28">مستمر نوبت ۱</th>
-                      <th className="p-2.5 text-center w-28">پایانی نوبت ۱</th>
-                      <th className="p-2.5 text-center w-28">مستمر نوبت ۲</th>
-                      <th className="p-2.5 text-center w-28">پایانی نوبت ۲</th>
-                      <th className="p-2.5 text-center w-24">نمره سالانه</th>
+                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-white">
+                      <th className="p-3 w-12 text-center border-l border-slate-100">ردیف</th>
+                      <th className="p-3 border-l border-slate-200">مشخصات دانش‌آموز</th>
+                      <th className="p-2.5 text-center w-28 bg-sky-50/70 text-sky-900 border-x border-sky-100">مستمر نوبت ۱</th>
+                      <th className="p-2.5 text-center w-28 bg-sky-50/70 text-sky-900 border-x border-sky-100">پایانی نوبت ۱</th>
+                      <th className="p-2.5 text-center w-28 bg-indigo-50/60 text-indigo-900 border-x border-indigo-100">مستمر نوبت ۲</th>
+                      <th className="p-2.5 text-center w-28 bg-indigo-50/60 text-indigo-900 border-x border-indigo-100">پایانی نوبت ۲</th>
+                      <th className="p-2.5 text-center w-24 bg-emerald-50/80 text-emerald-900 font-black border-x border-emerald-100">نمره سالانه</th>
                       <th className="p-3 text-center w-24">وضعیت</th>
                       <th className="p-3 text-left w-20">نمودار</th>
                     </tr>
@@ -1139,11 +1156,11 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                         const ann = calculateAnnualScore(c1, f1, c2, f2);
 
                         return (
-                          <tr key={stu.id} className="hover:bg-slate-50/70 transition">
+                          <tr key={stu.id} className="hover:bg-slate-50/70 transition-colors duration-200">
                             <td className="p-3 text-center text-slate-400 font-mono">
                               {toPersianDigits(idx + 1)}
                             </td>
-                            <td className="p-3">
+                            <td className="p-3 bg-white border-l border-slate-200">
                               <button
                                 type="button"
                                 onClick={() => onSelectStudent(stu, 'grades')}
@@ -1157,51 +1174,55 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                             </td>
                             
                             {/* مستمر نوبت ۱ */}
-                            <td className="p-2 text-center">
+                            <td className="p-2 text-center bg-sky-50/40 border-x border-sky-100">
                               <input
                                 type="text"
-                                value={draft.c1 ?? ''}
+                                inputMode="decimal"
+                                value={toPersianDigits(draft.c1 ?? '')}
                                 onChange={(e) => handleScoreChange(stu.id, 'c1', e.target.value)}
                                 placeholder="-"
-                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-sky-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
                               />
                             </td>
 
                             {/* پایانی نوبت ۱ */}
-                            <td className="p-2 text-center">
+                            <td className="p-2 text-center bg-sky-50/40 border-x border-sky-100">
                               <input
                                 type="text"
-                                value={draft.f1 ?? ''}
+                                inputMode="decimal"
+                                value={toPersianDigits(draft.f1 ?? '')}
                                 onChange={(e) => handleScoreChange(stu.id, 'f1', e.target.value)}
                                 placeholder="-"
-                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-sky-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
                               />
                             </td>
 
                             {/* مستمر نوبت ۲ */}
-                            <td className="p-2 text-center">
+                            <td className="p-2 text-center bg-indigo-50/30 border-x border-indigo-100">
                               <input
                                 type="text"
-                                value={draft.c2 ?? ''}
+                                inputMode="decimal"
+                                value={toPersianDigits(draft.c2 ?? '')}
                                 onChange={(e) => handleScoreChange(stu.id, 'c2', e.target.value)}
                                 placeholder="-"
-                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-indigo-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
                               />
                             </td>
 
                             {/* پایانی نوبت ۲ */}
-                            <td className="p-2 text-center">
+                            <td className="p-2 text-center bg-indigo-50/30 border-x border-indigo-100">
                               <input
                                 type="text"
-                                value={draft.f2 ?? ''}
+                                inputMode="decimal"
+                                value={toPersianDigits(draft.f2 ?? '')}
                                 onChange={(e) => handleScoreChange(stu.id, 'f2', e.target.value)}
                                 placeholder="-"
-                                className="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg font-mono font-bold text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-teal-700"
+                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-indigo-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
                               />
                             </td>
 
                             {/* نمره سالانه محاسبه شده */}
-                            <td className="p-2 text-center font-mono font-black text-sm">
+                            <td className="p-2 text-center font-black text-base bg-emerald-50/60 border-x border-emerald-100">
                               {ann !== undefined ? (
                                 <span className={
                                   ann >= 17 ? 'text-emerald-700' :
@@ -1225,7 +1246,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                                   {ann >= 10 ? 'قبول' : 'تجدید'}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-slate-400">ثبت نشده</span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">ثبت نشده</span>
                               )}
                             </td>
 
@@ -1253,6 +1274,29 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         )}
 
         {/* ========================================================================= */}
+        {currentView === 'announcements' && (
+          <AnnouncementsManagement
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
+
+        {currentView === 'teacher_evaluation' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3" dir="rtl">
+              <button
+                onClick={() => setCurrentView(null)}
+                className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 cursor-pointer"
+                aria-label="بازگشت"
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <h1 className="text-xl font-extrabold text-slate-900 flex-1">ارزیابی اساتید</h1>
+            </div>
+            <TeacherEvaluationSection mode="evaluations" />
+          </div>
+        )}
+
         {/* آزمون جامع (currentView === 'comprehensive_exam') */}
         {currentView === 'comprehensive_exam' && (
           <ComprehensiveExamManagement

@@ -1,3 +1,4 @@
+import { getStandardRoleTitle } from '../utils/userRoles';
 import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { AcademicSubject, SubjectCategory } from '../types';
@@ -22,7 +23,7 @@ const fieldClass =
   'w-full text-base bg-slate-50 rounded-2xl px-4 py-3 text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition';
 
 export const EditSubjectModal: React.FC<EditSubjectModalProps> = ({ isOpen, onClose, subject }) => {
-  const { allTeachers, addAcademicSubject, updateAcademicSubject, showToast } = useSchool();
+  const { assignableStaff, addAcademicSubject, updateAcademicSubject, showToast } = useSchool();
 
   const [name, setName] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState(2);
@@ -68,7 +69,7 @@ export const EditSubjectModal: React.FC<EditSubjectModalProps> = ({ isOpen, onCl
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
-      const teacher = allTeachers.find((t) => t.id === selectedTeacherId);
+      const teacher = assignableStaff.find((t) => t.id === selectedTeacherId);
       const payload: Omit<AcademicSubject, 'id'> = {
         name: trimmedName,
         // ضریب در فرم نیست؛ مقدار قبلی حفظ می‌شود و برای درس جدید پیش‌فرض ۱ است
@@ -206,12 +207,12 @@ export const EditSubjectModal: React.FC<EditSubjectModalProps> = ({ isOpen, onCl
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">دبیر مسئول</label>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">دبیر پیش‌فرض درس (برای همه کلاس‌های پایه)</label>
             <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className={fieldClass}>
               <option value="">بدون دبیر</option>
-              {allTeachers.map((t) => (
+              {assignableStaff.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {t.name} ({getStandardRoleTitle(t.role)})
                 </option>
               ))}
             </select>
