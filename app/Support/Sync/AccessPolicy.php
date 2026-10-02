@@ -276,8 +276,10 @@ final class AccessPolicy
         }
 
         // انتساب سه‌طرفه (کلاس + درس + استاد) مستقل از نقش اصلی کاربر
-        foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->pluck('class_id') as $classId) {
-            $ids[] = (string) $classId;
+        if (CollectionRegistry::tableExists('course_assignments')) {
+            foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->pluck('class_id') as $classId) {
+                $ids[] = (string) $classId;
+            }
         }
 
         return $this->classIds = array_values(array_unique($ids));

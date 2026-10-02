@@ -34,6 +34,20 @@ final class CollectionRegistry
         'admin', 'vice_educational', 'vice_disciplinary', 'vice_nurturing', 'vice_principal', 'coach', 'teacher',
     ];
 
+    /** @var array<string, bool> */
+    private static array $schemaCache = [];
+
+    /** بررسی (با کش) وجود جدول؛ برای سازگاری با دیتابیس‌هایی که هنوز به‌روزرسانی نشده‌اند */
+    public static function tableExists(string $table): bool
+    {
+        return self::$schemaCache["t:$table"] ??= \Illuminate\Support\Facades\Schema::hasTable($table);
+    }
+
+    public static function columnExists(string $table, string $column): bool
+    {
+        return self::$schemaCache["c:$table.$column"] ??= \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
+    }
+
     public static function has(string $collection): bool
     {
         return array_key_exists($collection, self::TABLES);
@@ -52,7 +66,7 @@ final class CollectionRegistry
     public static function columns(string $collection, object $d): array
     {
         return match ($collection) {
-            'users' => [
+            'users' => array_filter([
                 'username' => self::str($d, 'username', 100) ?: null,
                 'name' => self::str($d, 'name', 191) ?? '',
                 'role' => self::str($d, 'role', 40) ?? 'teacher',
@@ -61,7 +75,7 @@ final class CollectionRegistry
                 'permissions' => (property_exists($d, 'permissions') && is_array($d->permissions))
                     ? json_encode(array_values(array_filter($d->permissions, 'is_string')), JSON_UNESCAPED_UNICODE)
                     : null,
-            ],
+            ], static fn ($v, $k) => $k !== 'permissions' || self::columnExists('users', 'permissions'), ARRAY_FILTER_USE_BOTH),
             'classes' => [
                 'name' => self::str($d, 'name', 191) ?? '',
                 'grade' => self::str($d, 'grade', 100),

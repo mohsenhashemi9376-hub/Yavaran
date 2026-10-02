@@ -27,6 +27,10 @@ final class SyncService
         $policy = new AccessPolicy($user);
         $table = CollectionRegistry::table($collection);
 
+        if (! CollectionRegistry::tableExists($table)) {
+            abort(503, 'ساختار دیتابیس هنوز به‌روزرسانی نشده است. لطفاً فایل upgrade.sql را روی دیتابیس اجرا کنید.');
+        }
+
         DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes): void {
             if ($deletes !== []) {
                 $rows = DB::table($table)->whereIn('id', $deletes)->lockForUpdate()->get(['id', 'data']);
