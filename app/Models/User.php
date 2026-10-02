@@ -77,7 +77,8 @@ class User extends Authenticatable
             return true;
         }
 
-        return \Illuminate\Support\Facades\DB::table('course_assignments')->where('user_id', $this->id)->exists();
+        return \App\Support\Sync\CollectionRegistry::tableExists('course_assignments')
+            && \Illuminate\Support\Facades\DB::table('course_assignments')->where('user_id', $this->id)->exists();
     }
 
     public function hasPermission(string $key): bool

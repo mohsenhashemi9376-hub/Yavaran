@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
 use App\Http\Controllers\MentorMessageController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,9 @@ Route::prefix('api')->group(function (): void {
 
     Route::middleware('auth')->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
+        Route::post('profile', [ProfileController::class, 'update'])
+            ->middleware('throttle:20,1')
+            ->name('api.profile.update');
         Route::prefix('mentor-messages')->middleware('throttle:120,1')->group(function (): void {
             Route::post('/', [MentorMessageController::class, 'store'])->name('api.mentor-messages.store');
             Route::get('active', [MentorMessageController::class, 'active'])->name('api.mentor-messages.active');

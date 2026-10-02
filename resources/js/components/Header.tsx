@@ -163,7 +163,7 @@ export const Header: React.FC<HeaderProps> = ({
                 currentActiveTab={currentActiveTab}
                 onSelectTab={onSelectTab}
               />
-            ) : currentUser.role !== 'teacher' && currentUser.role !== 'coach' ? (
+            ) : isAdmin ? (
               <nav aria-label="بخش‌های اصلی سامانه" className="hidden lg:flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/80 text-xs font-bold gap-1">
                 <button
                   id="header-tab-main"
@@ -246,6 +246,35 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
                 )}
               </nav>
+            ) : currentUser.isAlsoTeacher && currentUser.role !== 'teacher' ? (
+              <div
+                role="tablist"
+                aria-label="انتخاب پنل کاری"
+                className="inline-flex shrink-0 items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={currentActiveTab !== 'teacher'}
+                  onClick={() => onSelectTab('main')}
+                  className={`min-w-[6.5rem] px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+                    currentActiveTab !== 'teacher' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200/70'
+                  }`}
+                >
+                  پنل معاونت
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={currentActiveTab === 'teacher'}
+                  onClick={() => onSelectTab('teacher')}
+                  className={`min-w-[6.5rem] px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+                    currentActiveTab === 'teacher' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200/70'
+                  }`}
+                >
+                  پنل آموزشی
+                </button>
+              </div>
             ) : null
           )}
 
@@ -635,7 +664,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {onSelectTab && (
+          {onSelectTab && isAdmin && (
             <>
               <button
                 type="button"
@@ -712,6 +741,27 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           )}
             </>
+          )}
+          {onSelectTab && !isAdmin && currentUser.isAlsoTeacher && currentUser.role !== 'coach' && currentUser.role !== 'teacher' && (
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {([['main', 'پنل معاونت'], ['teacher', 'پنل آموزشی']] as const).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    onSelectTab(tab);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    (tab === 'teacher') === (currentActiveTab === 'teacher')
+                      ? 'bg-teal-800 text-white'
+                      : 'bg-white border border-slate-200 text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

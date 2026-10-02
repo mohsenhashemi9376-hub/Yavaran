@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { apiRequest, ApiError } from '../lib/serverSync';
+import { toEnglishDigits } from '../utils/persianDate';
 import { 
   X, 
   User as UserIcon, 
@@ -25,7 +27,54 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentUser, classes } = useSchool();
+  const { currentUser, classes, reloadFromServer, showToast } = useSchool();
+  const [editing, setEditing] = useState(false);
+  const [username, setUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = () => {
+    setUsername(currentUser.username || '');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setErrors({});
+    setEditing(true);
+  };
+
+  const saveCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (saving) return;
+    setErrors({});
+    const nextErrors: Record<string, string> = {};
+    if (!currentPassword) nextErrors.current_password = 'لطفاً رمز عبور فعلی خود را وارد کنید.';
+    if (newPassword && newPassword.length < 6) nextErrors.new_password = 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.';
+    if (newPassword && newPassword !== confirmPassword) nextErrors.new_password_confirmation = 'تکرار رمز عبور جدید یکسان نیست.';
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiRequest<{ message: string }>('POST', '/api/profile', {
+        current_password: currentPassword,
+        username: toEnglishDigits(username.trim()),
+        new_password: newPassword ? toEnglishDigits(newPassword) : undefined,
+        new_password_confirmation: newPassword ? toEnglishDigits(confirmPassword) : undefined,
+      });
+      await reloadFromServer();
+      showToast('ذخیره شد', res?.message || 'اطلاعات حساب کاربری به‌روزرسانی شد.', 'success');
+      setEditing(false);
+    } catch (err) {
+      if (err instanceof ApiError && Object.keys(err.fieldErrors).length) setErrors(err.fieldErrors);
+      else setErrors({ general: err instanceof ApiError ? err.message : 'ذخیره اطلاعات با خطا مواجه شد.' });
+    } finally {
+      setSaving(false);
+    }
+  };
   const todayInfo = getTodayShamsi();
   const userGreeting = getUserGreeting(currentUser);
 
@@ -189,11 +238,53 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
+          {/* ویرایش نام کاربری و رمز عبور */}
+          {!editing ? (
+            <button
+              type="button"
+              onClick={openEdit}
+              className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>تغییر نام کاربری و رمز عبور</span>
+            </button>
+          ) : (
+            <form onSubmit={saveCredentials} className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-3">
+              <div className="text-xs font-black text-slate-800">ویرایش اطلاعات ورود</div>
+              {errors.general && <div role="alert" className="text-[11px] font-bold text-rose-700 bg-rose-50 rounded-lg p-2">{errors.general}</div>}
+              {([
+                ['username', 'نام کاربری', username, setUsername, 'text', 'username'],
+                ['current_password', 'رمز عبور فعلی', currentPassword, setCurrentPassword, 'password', 'current-password'],
+                ['new_password', 'رمز عبور جدید (اختیاری)', newPassword, setNewPassword, 'password', 'new-password'],
+                ['new_password_confirmation', 'تکرار رمز عبور جدید', confirmPassword, setConfirmPassword, 'password', 'new-password'],
+              ] as const).map(([key, label, value, setter, type, ac]) => (
+                <div key={key}>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">{label}</label>
+                  <input
+                    type={type}
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    autoComplete={ac}
+                    dir="ltr"
+                    className={`w-full px-3 py-2 rounded-xl bg-white border text-xs outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${errors[key] ? 'border-rose-300' : 'border-slate-200'}`}
+                  />
+                  {errors[key] && <p className="text-[11px] text-rose-600 font-bold mt-1">{errors[key]}</p>}
+                </div>
+              ))}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setEditing(false)} className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">انصراف</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer disabled:opacity-60">
+                  {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+                </button>
+              </div>
+            </form>
+          )}
+
           {/* Security & Access Notice */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-[11px] leading-relaxed flex items-start gap-2">
             <Lock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <div>
-              سطح دسترسی شما مطابق با سیاست‌های امنیتی مجتمع تربیتی آموزشی یاوران ولایت تنظیم گردیده است. برای تغییر مشخصات پرسنلی یا کلاس‌ها با معاونت مربوطه هماهنگ فرمایید.
+              سطح دسترسی شما مطابق با سیاست‌های امنیتی مجتمع تنظیم شده است. نام و کلاس‌ها را معاونت مربوطه تغییر می‌دهد؛ نام کاربری و رمز عبور را خودتان می‌توانید عوض کنید.
             </div>
           </div>
 
