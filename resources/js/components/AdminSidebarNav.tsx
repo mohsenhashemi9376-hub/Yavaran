@@ -1,3 +1,4 @@
+import { filterNavGroups } from '../utils/permissions';
 import React, { useState } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
@@ -241,7 +242,7 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
 
   // Filter groups and items based on current user role
   const userRole = currentUser?.role || 'admin';
-  const filteredNavGroups = rawNavGroups
+  const filteredNavGroups = filterNavGroups(rawNavGroups, currentUser)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {

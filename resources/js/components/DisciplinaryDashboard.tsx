@@ -1,3 +1,5 @@
+import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student, SchoolClass, DisciplinaryNote, MorningDelayRecord, User } from '../types';
@@ -97,7 +99,9 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   // وضعیت ناوبری سایدبار
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<ExecutiveViewType>(null);
+  const [rawView, setCurrentView] = useState<ExecutiveViewType>(null);
+  const deniedView = rawView && !canAccessSection(currentUser, rawView);
+  const currentView = deniedView ? null : rawView;
 
   // وضعیت‌های مربوط به مدال‌های عملیاتی
   const [isDelayModalOpen, setIsDelayModalOpen] = useState(false);
@@ -304,6 +308,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {/* ========================================================================= */}
           {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت اجرایی (currentView === null) */}
           {/* ========================================================================= */}
+          {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
           {currentView === null && (
             <div className="space-y-6 animate-in fade-in" id="executive-dashboard-home">
               

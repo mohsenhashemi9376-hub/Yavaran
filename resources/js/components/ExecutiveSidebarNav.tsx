@@ -1,3 +1,5 @@
+import { useSchool } from '../context/SchoolContext';
+import { filterNavGroups } from '../utils/permissions';
 import React, { useState } from 'react';
 import { 
   LayoutDashboard,
@@ -78,6 +80,7 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
 }) => {
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
+  const { currentUser } = useSchool();
   const totalStudents = counts?.students ?? 0;
   const totalClasses = counts?.classes ?? 0;
   const totalTeachers = counts?.teachers ?? 0;
@@ -273,7 +276,7 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
           isCollapsed ? 'overflow-visible' : 'overflow-y-auto'
         }`}
       >
-        {navGroups.map((group) => (
+        {filterNavGroups(navGroups, currentUser).map((group) => (
           <div key={group.id} className="space-y-0.5">
             {/* عنوان گروه منو در حالت Expanded */}
             {!isCollapsed ? (

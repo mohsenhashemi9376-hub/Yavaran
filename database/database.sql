@@ -21,6 +21,7 @@ CREATE TABLE `users` (
   `role` varchar(40) NOT NULL DEFAULT 'teacher',
   `phone` varchar(30) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `permissions` json DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
   `password_encrypted` text DEFAULT NULL,
   `remember_token` varchar(100) DEFAULT NULL,
@@ -541,7 +542,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (1, '2026_09_30_000000_create_school_tables', 1),
 (2, '2026_10_01_000000_create_mentor_messages_tables', 1),
 (3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
-(4, '2026_10_03_000000_create_course_assignments_table', 1);
+(4, '2026_10_03_000000_create_course_assignments_table', 1),
+(5, '2026_10_04_000000_add_permissions_to_users_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

@@ -1,3 +1,5 @@
+import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -282,7 +284,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const userGreeting = getUserGreeting(currentUser);
   
   // Dedicated professional sidebar navigation state
-  const [currentView, setCurrentView] = useState<NurturingViewType>(null);
+  const [rawView, setCurrentView] = useState<NurturingViewType>(null);
+  const deniedView = rawView && !canAccessSection(currentUser, rawView);
+  const currentView = deniedView ? null : rawView;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -798,6 +802,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* فضای اصلی محتوا */}
       <div className="flex-1 w-full min-w-0 space-y-6 pb-12">
         {/* Top Banner with Confidentiality & Role identity */}
+        {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         {(currentView === null || currentView === 'dashboard') && (
           <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
             <div className="absolute left-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />

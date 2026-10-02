@@ -1,3 +1,5 @@
+import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
@@ -100,7 +102,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // وضعیت ناوبری سایدبار معاونت آموزشی
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<EducationalViewType>(null);
+  const [rawView, setCurrentView] = useState<EducationalViewType>(null);
+  const deniedView = rawView && !canAccessSection(currentUser, rawView);
+  const currentView = deniedView ? null : rawView;
 
   // وضعیت‌های مربوط به ثبت نمرات
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
@@ -495,6 +499,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* ========================================================================= */}
         {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت آموزشی (currentView === null) */}
         {/* ========================================================================= */}
+        {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         {currentView === null && (
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             

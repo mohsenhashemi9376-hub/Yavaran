@@ -25,7 +25,7 @@ const common = ['`sort_order` int NOT NULL DEFAULT 0', '`data` longtext NOT NULL
 
 const tables = {
   users: { table: 'users',
-    cols: ['`username` varchar(100) DEFAULT NULL', "`name` varchar(191) NOT NULL DEFAULT ''", "`role` varchar(40) NOT NULL DEFAULT 'teacher'", '`phone` varchar(30) DEFAULT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 1', '`password` varchar(255) DEFAULT NULL', '`password_encrypted` text DEFAULT NULL', '`remember_token` varchar(100) DEFAULT NULL'],
+    cols: ['`username` varchar(100) DEFAULT NULL', "`name` varchar(191) NOT NULL DEFAULT ''", "`role` varchar(40) NOT NULL DEFAULT 'teacher'", '`phone` varchar(30) DEFAULT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 1', '`permissions` json DEFAULT NULL', '`password` varchar(255) DEFAULT NULL', '`password_encrypted` text DEFAULT NULL', '`remember_token` varchar(100) DEFAULT NULL'],
     keys: ['UNIQUE KEY `users_username_unique` (`username`)', 'KEY `users_role_index` (`role`)', 'KEY `users_phone_index` (`phone`)'],
     extract: (d) => ({ username: s(d, 'username', 100) || null, name: s(d, 'name', 191) || '', role: s(d, 'role', 40) || 'teacher', phone: s(d, 'phone', 30), is_active: d.isActive === false ? 0 : 1 }) },
   classes: { table: 'school_classes',
@@ -227,7 +227,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (1, '2026_09_30_000000_create_school_tables', 1),
 (2, '2026_10_01_000000_create_mentor_messages_tables', 1),
 (3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
-(4, '2026_10_03_000000_create_course_assignments_table', 1);
+(4, '2026_10_03_000000_create_course_assignments_table', 1),
+(5, '2026_10_04_000000_add_permissions_to_users_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

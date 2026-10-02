@@ -1,3 +1,4 @@
+import { filterNavGroups } from '../utils/permissions';
 import React from 'react';
 import { User, SchoolClass, TeachingAssignment } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
@@ -173,7 +174,7 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
 
       {/* Navigation List */}
       <div className="p-2 space-y-4 flex-1 overflow-y-auto">
-        {navGroups.map((group, idx) => (
+        {filterNavGroups(navGroups, currentUser, ['attendance', 'grades', 'report_cards']).map((group, idx) => (
           <div key={idx} className="space-y-1">
             {!isCollapsed && (
               <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">

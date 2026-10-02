@@ -1,3 +1,4 @@
+import { filterNavGroups } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { 
   LayoutDashboard,
@@ -338,7 +339,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           isCollapsed ? 'overflow-visible' : 'overflow-y-auto'
         }`}
       >
-        {navGroups.map((group) => (
+        {filterNavGroups(navGroups, school.currentUser).map((group) => (
           <div key={group.id} className="space-y-0.5">
             {/* عنوان گروه منو در حالت Expanded */}
             {!isCollapsed ? (

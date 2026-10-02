@@ -1,3 +1,5 @@
+import { PermissionsMatrixEditor } from './PermissionsMatrixEditor';
+import { effectivePermissions, defaultPermissionsFor } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -364,6 +366,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
   // --------------------------------------------------------------------------
   // User Management State & Methods
   // --------------------------------------------------------------------------
+  const [permDraft, setPermDraft] = useState<string[]>([]);
+  const [permDirty, setPermDirty] = useState(false);
+  const [permReset, setPermReset] = useState(false);
   const [userFormData, setUserFormData] = useState<{
     name: string;
     username: string;
@@ -385,6 +390,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
   const handleOpenAddUser = () => {
     setEditingUser(null);
+    setPermDraft(defaultPermissionsFor('teacher'));
+    setPermDirty(false);
+    setPermReset(false);
     setUserFormData({
       name: '',
       username: '',
@@ -400,6 +408,9 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
 
   const handleOpenEditUser = (usr: User) => {
     setEditingUser(usr);
+    setPermDraft(effectivePermissions(usr));
+    setPermDirty(false);
+    setPermReset(false);
     setUserFormData({
       name: usr.name,
       username: usr.username,
@@ -442,6 +453,8 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
         roleTitle: userFormData.roleTitle.trim() || ROLE_LABELS[userFormData.role],
         phone: userFormData.phone.trim(),
         assignedClassIds: userFormData.assignedClassIds,
+        ...(isAdmin && permReset ? { permissions: undefined } : {}),
+        ...(isAdmin && permDirty && !permReset ? { permissions: permDraft } : {}),
       });
     } else {
       addUser({
@@ -452,6 +465,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
         roleTitle: userFormData.roleTitle.trim() || ROLE_LABELS[userFormData.role],
         phone: userFormData.phone.trim(),
         assignedClassIds: userFormData.assignedClassIds,
+        ...(isAdmin && permDirty ? { permissions: permDraft } : {}),
       });
     }
 
@@ -1786,6 +1800,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                         role: newRole,
                         roleTitle: ROLE_LABELS[newRole],
                       });
+                      if (!permDirty) setPermDraft(defaultPermissionsFor(newRole));
                     }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-teal-700"
                   >
@@ -1853,6 +1868,22 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   dir="ltr"
                 />
               </div>
+
+              {isAdmin && userFormData.role !== 'admin' && (
+                <PermissionsMatrixEditor
+                  value={permDraft}
+                  onChange={(next) => {
+                    setPermDraft(next);
+                    setPermDirty(true);
+                    setPermReset(false);
+                  }}
+                  onResetToRoleDefault={() => {
+                    setPermDraft(defaultPermissionsFor(userFormData.role));
+                    setPermDirty(true);
+                    setPermReset(true);
+                  }}
+                />
+              )}
 
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button
