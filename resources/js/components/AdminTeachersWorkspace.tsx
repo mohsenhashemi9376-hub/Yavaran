@@ -224,7 +224,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
               <option value="">همه کلاس‌ها</option>
               {classes.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.name} (پایه {cls.grade})
+                  {cls.name}
                 </option>
               ))}
             </select>

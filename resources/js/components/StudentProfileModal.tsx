@@ -816,7 +816,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-slate-400 text-[11px]">کلاس و پایه تحصیلی</div>
                       <div className="font-bold text-slate-800 text-sm mt-1">
-                        {studentClass ? `${studentClass.name} (${studentClass.grade || 'متوسطه اول'})` : 'ثبت نشده'}
+                        {studentClass ? `${studentClass.name}` : 'ثبت نشده'}
                       </div>
                     </div>
 
@@ -1412,7 +1412,6 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         <tr>
                           <th className="p-3 w-10 text-center">ردیف</th>
                           <th className="p-3 font-bold min-w-[140px]">عنوان درس</th>
-                          <th className="p-2.5 text-center w-14">ضریب</th>
                           <th className="p-2.5 text-center bg-amber-50/70 text-amber-900 font-bold min-w-[75px]">
                             مستمر ۱
                           </th>
@@ -1442,9 +1441,6 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                               {sub.teacherName && (
                                 <div className="text-[10px] text-slate-400">استاد: {sub.teacherName}</div>
                               )}
-                            </td>
-                            <td className="p-2.5 text-center font-bold text-slate-600 font-mono">
-                              {toPersianDigits(sub.coefficient)}
                             </td>
                             <td className="p-2.5 text-center bg-amber-50/30 font-bold font-mono text-slate-800">
                               {sub.term1Continuous !== undefined ? toPersianDigits(sub.term1Continuous) : '-'}

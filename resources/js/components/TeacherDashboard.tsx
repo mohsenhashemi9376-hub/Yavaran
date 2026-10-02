@@ -61,10 +61,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     accessibleSessions, 
     teachingAccessibleSessions,
     teacherEvaluations,
-    schoolAnnouncements,
+    schoolAnnouncements: allAnnouncements,
     deleteAttendanceSession 
   } = useSchool();
 
+  const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
@@ -771,7 +772,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     >
                       {teacherClasses.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.name} ({c.grade} • {c.major})
+                          {c.name}
                         </option>
                       ))}
                     </select>
@@ -1132,6 +1133,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         <p className="text-xs text-slate-600 leading-relaxed text-justify whitespace-pre-line">
                           {ann.content}
                         </p>
+                        {(ann.attachments || []).map((f, i) => (
+                          <a
+                            key={i}
+                            href={f.dataUrl}
+                            download={f.name}
+                            className="flex items-center gap-2 text-[11px] font-bold text-emerald-800 bg-emerald-50 rounded-lg px-2.5 py-1.5"
+                          >
+                            <span className="truncate">📎 {f.name}</span>
+                          </a>
+                        ))}
 
                         <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100">
                           <span>صادرکننده: {ann.author || ann.authorName || 'معاونت آموزش'}</span>

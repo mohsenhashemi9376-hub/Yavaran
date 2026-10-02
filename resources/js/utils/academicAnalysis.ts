@@ -185,7 +185,7 @@ export function analyzeSubjectGrade(grade: StudentAcademicGrade): SubjectAnalysi
   return {
     subjectId: grade.subjectId,
     subjectName: grade.subjectName,
-    coefficient: grade.coefficient || 1,
+    coefficient: 1, // دروس ضریب ندارند؛ میانگین ساده
     mehrContinuous: grade.mehrContinuous,
     abanContinuous: grade.abanContinuous,
     azarContinuous: grade.azarContinuous,
@@ -246,7 +246,7 @@ export function generateComprehensiveAcademicReport(
     grades.forEach((g) => {
       const score = g[period.key];
       if (score !== undefined && !isNaN(score)) {
-        const coeff = g.coefficient || 1;
+        const coeff = 1;
         total += score * coeff;
         count += coeff;
       }

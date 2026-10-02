@@ -1077,7 +1077,6 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                       <tr>
                         <th className="py-3 px-4">نام درس</th>
                         <th className="py-3 px-4">پایه‌های مرتبط</th>
-                        <th className="py-3 px-4">ضریب درس</th>
                         <th className="py-3 px-4">گروه درسی</th>
                         <th className="py-3 px-4">وضعیت</th>
                         {(isAdmin || isEducationalVice) && <th className="py-3 px-4 text-center">عملیات</th>}
@@ -1092,9 +1091,6 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                           </td>
                           <td className="py-3.5 px-4 text-slate-600">
                             {subj.grade || 'کلیه پایه‌ها (هفتم، هشتم، نهم)'}
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-slate-800">
-                            ضریب {toPersianDigits(subj.coefficient || 2)}
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700">

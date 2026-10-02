@@ -435,7 +435,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
               <option value="">تمام کلاس‌ها ({toPersianDigits(classes.length)} کلاس)</option>
               {classes.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.name} (پایه {cls.grade})
+                  {cls.name}
                 </option>
               ))}
             </select>

@@ -19,6 +19,8 @@ final class Permissions
                 'report-cards' => 'صدور کارنامه',
                 'analytics-reports' => 'گزارشات تحلیلی',
                 'manage-curriculum' => 'مدیریت برنامه دروس',
+                'manage-announcements' => 'مدیریت بخشنامه‌ها و اطلاعیه‌ها',
+                'evaluate-teachers' => 'ارزیابی اساتید',
             ],
         ],
         'attendance' => [
@@ -64,7 +66,7 @@ final class Permissions
     public static function defaultsFor(string $role): array
     {
         $all = self::all();
-        $withoutSettings = array_values(array_diff($all, ['school-settings']));
+        $withoutSettings = array_values(array_diff($all, ['school-settings', 'manage-announcements', 'evaluate-teachers']));
 
         return match ($role) {
             'admin' => $all,

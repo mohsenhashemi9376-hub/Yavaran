@@ -114,7 +114,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
               >
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name} (پایه {cls.grade})
+                    {cls.name}
                   </option>
                 ))}
               </select>

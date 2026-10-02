@@ -84,6 +84,8 @@ final class AccessPolicy
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',
+        'schoolAnnouncements' => 'manage-announcements',
+        'teacherEvaluations' => 'evaluate-teachers',
         'grades' => 'school-settings',
     ];
 

@@ -176,7 +176,7 @@ export interface AcademicSubject {
   id: string;
   code?: string; // کد درس مثلاً: M101
   name: string; // نام درس: ریاضی، علوم تجربی، پیام‌های آسمان، آموزش قرآن، فارسی، نگارش و ...
-  coefficient: number; // ضریب واحد درس (مثلاً ۲، ۳، ۴)
+  coefficient?: number; // (منسوخ) دروس ضریب ندارند
   grade?: string; // پایه تحصیلی (هفتم، هشتم، نهم، یا عمومی متوسطه اول)
   targetGrades?: string[]; // e.g. ['پایه هفتم', 'پایه هشتم', 'پایه نهم']
   category?: SubjectCategory; // گروه درسی
@@ -194,7 +194,7 @@ export interface StudentAcademicGrade {
   classId: string;
   subjectId: string;
   subjectName: string;
-  coefficient: number; // ضریب درس
+  coefficient?: number; // (منسوخ) دروس ضریب ندارند
   
   // نمرات مستمر ماهانه نیمسال اول
   mehrContinuous?: number; // نمره مستمر مهر (۰ تا ۲۰)
@@ -499,6 +499,8 @@ export interface SchoolAnnouncement {
   author?: string;
   authorName?: string;
   createdAt?: string;
+  status?: 'active' | 'archived'; // فعال / آرشیو
+  attachments?: { name: string; type: string; dataUrl: string }[]; // پیوست‌ها
 }
 
 

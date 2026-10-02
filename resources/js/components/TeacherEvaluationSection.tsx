@@ -107,8 +107,15 @@ const CRITERIA_DEFINITIONS = [
   }
 ];
 
-export const TeacherEvaluationSection: React.FC = () => {
+interface TeacherEvaluationSectionProps {
+  /** نمایش فقط یکی از زیربخش‌ها */
+  mode?: 'evaluations' | 'announcements' | 'both';
+}
+
+export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> = ({ mode = 'both' }) => {
   const { 
+    classes,
+    academicSubjects,
     allTeachers, 
     teacherEvaluations = [], 
     schoolAnnouncements = [],
@@ -124,10 +131,14 @@ export const TeacherEvaluationSection: React.FC = () => {
   const safeSchoolAnnouncements = schoolAnnouncements || [];
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [inspectTeacherEvaluation, setInspectTeacherEvaluation] = useState<TeacherEvaluation | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'evaluations' | 'announcements'>('evaluations');
+  const [activeSubTab, setActiveSubTab] = useState<'evaluations' | 'announcements'>(
+    mode === 'announcements' ? 'announcements' : 'evaluations'
+  );
 
   // Evaluation Form State (Qualitative)
   const [evalFormTeacherId, setEvalFormTeacherId] = useState<string>('');
@@ -201,11 +212,17 @@ export const TeacherEvaluationSection: React.FC = () => {
   // Filtered Teachers
   const filteredTeachers = teachers.filter((t) => {
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesText =
       t.name.toLowerCase().includes(term) ||
       (t.subject || '').toLowerCase().includes(term) ||
-      t.username.toLowerCase().includes(term)
-    );
+      t.username.toLowerCase().includes(term);
+    const assignments = t.teachingAssignments || [];
+    const matchesSubject = !subjectFilter || assignments.some((a) => a.subjectId === subjectFilter);
+    const matchesClass =
+      !classFilter ||
+      assignments.some((a) => a.classIds.includes(classFilter)) ||
+      (t.assignedClassIds || []).includes(classFilter);
+    return matchesText && matchesSubject && matchesClass;
   });
 
   const handleOpenNewEvaluation = (teacherId?: string) => {
@@ -474,7 +491,7 @@ export const TeacherEvaluationSection: React.FC = () => {
       </div>
 
       {/* Sub-Tabs: Evaluations vs Announcements */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300/80">
+      <div className={`${mode === 'both' ? 'flex' : 'hidden'} items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300/80`}>
         <button
           onClick={() => setActiveSubTab('evaluations')}
           className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
@@ -521,6 +538,31 @@ export const TeacherEvaluationSection: React.FC = () => {
                 placeholder="جستجوی نام دبیر، درس یا نام کاربری..."
                 className="w-full text-xs bg-white border border-slate-200 rounded-xl pr-9 pl-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
               />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+                aria-label="فیلتر درس"
+                className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+              >
+                <option value="">همه دروس</option>
+                {Array.from(new Map(academicSubjects.map((s) => [s.id, s.name])).entries()).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+              <select
+                value={classFilter}
+                onChange={(e) => setClassFilter(e.target.value)}
+                aria-label="فیلتر کلاس"
+                className="text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+              >
+                <option value="">همه کلاس‌ها</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Qualitative Rating Legend */}

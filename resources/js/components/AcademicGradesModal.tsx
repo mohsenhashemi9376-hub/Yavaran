@@ -1,3 +1,4 @@
+import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject } from '../types';
@@ -64,7 +65,6 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
   // New subject creation inline
   const [showNewSubjectForm, setShowNewSubjectForm] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectCoeff, setNewSubjectCoeff] = useState('2');
 
   // Initialize selected class & subject
   useEffect(() => {
@@ -82,6 +82,18 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
       }
     }
   }, [isOpen, initialClassId, initialSubjectId, classes, academicSubjects]);
+
+  // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
+  const classSubjects = React.useMemo(() => {
+    const cls = classes.find((c) => c.id === selectedClassId);
+    return cls ? academicSubjects.filter((s) => subjectAppliesToClass(s, cls)) : academicSubjects;
+  }, [academicSubjects, classes, selectedClassId]);
+
+  useEffect(() => {
+    if (classSubjects.length > 0 && !classSubjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(classSubjects[0].id);
+    }
+  }, [classSubjects, selectedSubjectId]);
 
   // Load existing grades into draft when class or subject changes
   useEffect(() => {
@@ -166,7 +178,6 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
         classId: selectedClassId,
         subjectId: selectedSubjectId,
         subjectName: currentSubject.name,
-        coefficient: currentSubject.coefficient,
         term1Continuous: c1,
         term1Final: f1,
         term2Continuous: c2,
@@ -185,10 +196,9 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
   const handleCreateSubject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubjectName.trim()) return;
-    const coeff = parseInt(newSubjectCoeff) || 2;
     const newId = addAcademicSubject({
       name: newSubjectName.trim(),
-      coefficient: coeff,
+      coefficient: 1,
     });
     setSelectedSubjectId(newId);
     setNewSubjectName('');
@@ -317,7 +327,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
               >
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name} ({cls.grade} - {cls.major})
+                    {cls.name}
                   </option>
                 ))}
               </select>
@@ -344,9 +354,9 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                   onChange={(e) => setSelectedSubjectId(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 >
-                  {academicSubjects.map((sub) => (
+                  {classSubjects.map((sub) => (
                     <option key={sub.id} value={sub.id}>
-                      {sub.name} (ضریب {toPersianDigits(sub.coefficient)}) {sub.defaultTeacherName ? `- ${sub.defaultTeacherName}` : ''}
+                      {sub.name} {sub.defaultTeacherName ? `- ${sub.defaultTeacherName}` : ''}
                     </option>
                   ))}
                 </select>
@@ -383,19 +393,6 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                 className="bg-white border border-indigo-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500 grow"
                 required
               />
-              <div className="flex items-center gap-1.5">
-                <label className="font-semibold text-slate-700">ضریب:</label>
-                <select
-                  value={newSubjectCoeff}
-                  onChange={(e) => setNewSubjectCoeff(e.target.value)}
-                  className="bg-white border border-indigo-300 rounded-lg px-2 py-1.5 font-bold"
-                >
-                  <option value="1">۱ واحد</option>
-                  <option value="2">۲ واحد</option>
-                  <option value="3">۳ واحد</option>
-                  <option value="4">۴ واحد</option>
-                </select>
-              </div>
               <button
                 type="submit"
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold cursor-pointer transition"

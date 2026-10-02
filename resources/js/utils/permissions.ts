@@ -17,6 +17,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'report-cards', label: 'صدور کارنامه' },
       { key: 'analytics-reports', label: 'گزارشات تحلیلی' },
       { key: 'manage-curriculum', label: 'مدیریت برنامه دروس' },
+      { key: 'manage-announcements', label: 'مدیریت بخشنامه‌ها و اطلاعیه‌ها' },
+      { key: 'evaluate-teachers', label: 'ارزیابی اساتید' },
     ],
   },
   {
@@ -50,7 +52,9 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
 
-const WITHOUT_SETTINGS = ALL_PERMISSION_KEYS.filter((k) => k !== 'school-settings');
+const WITHOUT_SETTINGS = ALL_PERMISSION_KEYS.filter(
+  (k) => !['school-settings', 'manage-announcements', 'evaluate-teachers'].includes(k)
+);
 
 export const TEACHER_DEFAULTS = [
   'manage-grades',
@@ -105,6 +109,8 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   report_cards: ['report-cards'],
   reports: ['analytics-reports'],
   settings: ['school-settings'],
+  announcements: ['manage-announcements'],
+  teacher_evaluation: ['evaluate-teachers'],
   warnings: ['discipline', 'view-attendance-history'],
   observation: ['counseling-report', 'view-nurturing-file'],
   student_observations: ['counseling-report', 'view-nurturing-file'],

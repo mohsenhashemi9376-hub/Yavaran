@@ -201,6 +201,7 @@ interface SchoolContextType {
   // School Public Announcements (اطلاعیه‌های عمومی مدرسه یاوران ولایت)
   addSchoolAnnouncement: (announcement: Omit<SchoolAnnouncement, 'id' | 'createdAt'>) => string;
   deleteSchoolAnnouncement: (id: string) => void;
+  updateSchoolAnnouncement: (id: string, updates: Partial<SchoolAnnouncement>) => void;
 
   resetToDemoData: () => void;
   exportDatabaseJson: () => void;
@@ -357,7 +358,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const classes = useMemo<SchoolClass[]>(
     () =>
-      rawClasses.map((c) => {
+      rawClasses.map((raw) => {
+        // فقط نام خالص کلاس (بدون عبارت داخل پرانتز)
+        const cleaned = (raw.name || '').replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+        const c = cleaned && cleaned !== raw.name ? { ...raw, name: cleaned } : raw;
         const extra = effectiveCourses.filter((e) => e.classId === c.id).map((e) => e.teacherId);
         if (extra.length === 0) return c;
         return { ...c, teacherIds: Array.from(new Set([...(c.teacherIds || []), ...extra])) };
@@ -656,7 +660,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAdminOrVice = isAdmin || isEducationalVice || isDisciplinaryVice || isNurturingVice;
   const isVicePrincipal = isEducationalVice || isDisciplinaryVice || isNurturingVice;
 
-  const allTeachers = allUsers.filter((u) => u.role === 'teacher' || (u.role === 'coach' && u.isAlsoTeacher));
+  const allTeachers = allUsers.filter((u) => u.role === 'teacher' || Boolean(u.isAlsoTeacher));
   const allCoaches = allUsers.filter((u) => u.role === 'coach');
 
   const accessibleClasses = isTeacher
@@ -1947,6 +1951,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return newId;
   };
 
+  const updateSchoolAnnouncement = (id: string, updates: Partial<SchoolAnnouncement>) => {
+    setSchoolAnnouncements((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
+  };
+
   const deleteSchoolAnnouncement = (id: string) => {
     setSchoolAnnouncements((prev) => prev.filter((item) => item.id !== id));
   };
@@ -2148,6 +2156,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         getTeacherEvaluations,
         addSchoolAnnouncement,
         deleteSchoolAnnouncement,
+        updateSchoolAnnouncement,
         resetToDemoData,
         exportDatabaseJson,
         importDatabaseJson,

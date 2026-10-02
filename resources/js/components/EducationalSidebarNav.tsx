@@ -14,6 +14,8 @@ import {
   Users, 
   CheckCircle2, 
   Settings,
+  Megaphone,
+  UserCheck,
   X, 
   ChevronLeft,
   ChevronRight
@@ -28,6 +30,8 @@ export type EducationalViewType =
   | 'grades' 
   | 'report_cards' 
   | 'comprehensive_exam'
+  | 'announcements'
+  | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
   | 'students' 
@@ -142,6 +146,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           icon: GraduationCap,
           count: totalTeachers > 0 ? totalTeachers : undefined,
         },
+        {
+          id: 'announcements',
+          label: 'بخشنامه‌ها و اطلاعیه‌ها',
+          tooltip: 'مدیریت و ابلاغ بخشنامه‌ها و اطلاعیه‌ها به اساتید',
+          icon: Megaphone,
+        },
       ],
     },
     {
@@ -174,6 +184,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           label: 'گزارش‌های آموزشی',
           tooltip: 'گزارش‌ها و تحلیل معدل',
           icon: BarChart3,
+        },
+        {
+          id: 'teacher_evaluation',
+          label: 'ارزیابی اساتید',
+          tooltip: 'ارزیابی دوره‌ای عملکرد اساتید',
+          icon: UserCheck,
         },
       ],
     },

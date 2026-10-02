@@ -1,3 +1,4 @@
+import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect, useMemo } from 'react';
 import { SchoolClass, Student, AcademicSubject, StudentAcademicGrade, MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey } from '../types';
 import { useSchool } from '../context/SchoolContext';
@@ -70,6 +71,18 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   useEffect(() => {
     if (initialSubjectId) setSelectedSubjectId(initialSubjectId);
   }, [initialSubjectId]);
+
+  // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
+  const classSubjects = useMemo(
+    () => academicSubjects.filter((s) => subjectAppliesToClass(s, classData)),
+    [academicSubjects, classData]
+  );
+
+  useEffect(() => {
+    if (classSubjects.length > 0 && !classSubjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(classSubjects[0].id);
+    }
+  }, [classSubjects, selectedSubjectId]);
 
   // Selected Month Key for tabbed entry (default: mehrContinuous)
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
@@ -159,7 +172,6 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
         classId: classData.id,
         subjectId: selectedSubjectId,
         subjectName: currentSubject.name,
-        coefficient: currentSubject.coefficient || 1,
         teacherName: currentUser.name,
         notes: stuDraft.notes || existing?.notes || '',
         updatedAt: new Date().toISOString(),
@@ -320,9 +332,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             className="h-11 bg-slate-50 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer min-w-48"
             aria-label="انتخاب درس"
           >
-            {academicSubjects.map((sub) => (
+            {classSubjects.map((sub) => (
               <option key={sub.id} value={sub.id}>
-                {sub.name} (ضریب {toPersianDigits(sub.coefficient)})
+                {sub.name}
               </option>
             ))}
           </select>
@@ -699,7 +711,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
               </div>
 
               <div className="text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                درس: {currentSubject?.name} • ضریب {toPersianDigits(currentSubject?.coefficient || 1)}
+                درس: {currentSubject?.name}
               </div>
             </div>
 

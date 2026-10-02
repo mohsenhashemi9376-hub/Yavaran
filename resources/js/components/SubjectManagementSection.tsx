@@ -130,7 +130,7 @@ export const SubjectManagementSection: React.FC = () => {
     const data = academicSubjects.map((s, idx) => ({
       'ردیف': idx + 1,
       'نام درس': s.name,
-      'ساعت در هفته': s.hoursPerWeek || s.coefficient,
+      'ساعت در هفته': s.hoursPerWeek || 2,
       'گروه درسی': categoryOf(s),
       'پایه‌های تحصیلی': s.targetGrades ? s.targetGrades.join('، ') : (s.grade || 'متوسطه اول'),
       'دبیر تخصیص یافته': s.defaultTeacherName || 'بدون دبیر',
@@ -247,7 +247,7 @@ export const SubjectManagementSection: React.FC = () => {
                 <div className="min-w-0">
                   <h3 className="font-extrabold text-base text-slate-900 truncate">{subject.name}</h3>
                   <span className="inline-block mt-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
-                    ضریب {toPersianDigits(subject.coefficient)} • {toPersianDigits(subject.hoursPerWeek || subject.coefficient)} ساعت در هفته
+                    {toPersianDigits(subject.hoursPerWeek || 2)} ساعت در هفته
                   </span>
                 </div>
 
