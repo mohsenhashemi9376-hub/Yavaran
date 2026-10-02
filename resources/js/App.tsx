@@ -46,10 +46,20 @@ const MainApp: React.FC = () => {
   const prevUserIdRef = useRef<string>('');
 
   // گارد دسترسی: مدیر مدرسه هیچ دسترسی‌ای به بخش معاونت تربیتی ندارد
-  const effectiveTab = isAdmin && activeTab === 'nurture' ? 'main' : activeTab;
-  useEffect(() => {
-    if (isAdmin && activeTab === 'nurture') setActiveTab('main');
-  }, [isAdmin, activeTab]);
+  // جابه‌جایی بین پنل معاونت‌ها فقط برای مدیر مدرسه؛ سایرین فقط پنل مسئولیت خود (و پنل آموزشی در صورت داشتن درس)
+  const ownTab: typeof activeTab = isTeacher
+    ? 'main'
+    : isCoach || isNurturingVice
+    ? 'nurture'
+    : currentUser.role === 'vice_disciplinary'
+    ? 'discipline'
+    : currentUser.role === 'vice_educational'
+    ? 'grades'
+    : 'main';
+  const allowedTabs: (typeof activeTab)[] = isAdmin
+    ? ['main', 'discipline', 'grades', ...(currentUser.isAlsoTeacher ? (['teacher'] as const) : [])]
+    : [ownTab, ...(currentUser.isAlsoTeacher ? (['teacher'] as const) : [])];
+  const effectiveTab = allowedTabs.includes(activeTab) ? activeTab : ownTab;
 
   // Auto-switch view tab when user actually changes accounts
   useEffect(() => {

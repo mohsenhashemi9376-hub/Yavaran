@@ -59,6 +59,8 @@ export interface BootstrapPayload {
 
 export class ApiError extends Error {
   status: number;
+  /** خطاهای اعتبارسنجی هر فیلد (کد ۴۲۲) */
+  fieldErrors: Record<string, string> = {};
 
   constructor(status: number, message: string) {
     super(message);
@@ -113,7 +115,13 @@ export async function apiRequest<T = unknown>(method: 'GET' | 'POST', url: strin
     const message = serverMessage && /[\u0600-\u06FF]/.test(serverMessage) && response.status < 500
       ? serverMessage
       : defaultMessage(response.status);
-    throw new ApiError(response.status, message);
+    const apiError = new ApiError(response.status, message);
+    if (response.status === 422 && data && data.errors && typeof data.errors === 'object') {
+      for (const [field, msgs] of Object.entries<any>(data.errors)) {
+        if (Array.isArray(msgs) && typeof msgs[0] === 'string') apiError.fieldErrors[field] = msgs[0];
+      }
+    }
+    throw apiError;
   }
 
   return data as T;
