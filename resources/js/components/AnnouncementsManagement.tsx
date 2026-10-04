@@ -228,7 +228,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
       {viewing && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => e.target === e.currentTarget && setViewing(null)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-3 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-2 -mx-6 -mt-6 px-6 py-4 bg-sky-50/70 border-b border-sky-100 rounded-t-3xl">
               <h3 className="font-extrabold text-slate-900">{viewing.title}</h3>
               <button onClick={() => setViewing(null)} aria-label="بستن" className="text-slate-400 hover:text-slate-700 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
@@ -247,7 +247,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
       {isFormOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onMouseDown={(e) => e.target === e.currentTarget && setIsFormOpen(false)}>
           <form onSubmit={submit} className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between -mx-6 -mt-6 px-6 py-4 bg-emerald-50/70 border-b border-emerald-100 rounded-t-3xl">
               <h3 className="text-lg font-extrabold text-slate-900">{editingId ? 'ویرایش بخشنامه' : 'ثبت بخشنامه جدید'}</h3>
               <button type="button" onClick={() => setIsFormOpen(false)} aria-label="بستن" className="text-slate-400 hover:text-slate-700 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>

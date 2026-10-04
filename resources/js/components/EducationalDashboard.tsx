@@ -10,6 +10,8 @@ import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
 import { AnnouncementsManagement } from './AnnouncementsManagement';
 import { TeacherActivitiesReport } from './TeacherActivitiesReport';
+import { GradePeriodsModal } from './GradePeriodsModal';
+import { scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
@@ -95,6 +97,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     morningDelays,
     academicSubjects, 
     academicGrades, 
+    gradePeriods,
     allTeachers,
     allCoaches,
     currentUser,
@@ -294,9 +297,33 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     }
   });
 
-  // محاسبه نمرات ثبت‌نشده
-  const totalPossibleGrades = students.length * (academicSubjects.length || 1);
-  const totalUngradedGrades = Math.max(0, totalPossibleGrades - totalGradesRecorded);
+  // نمرات ثبت‌نشده: فقط بازه‌های فعال‌شده توسط معاون آموزش مبنای محاسبه‌اند
+  // = [مجموع دانش‌آموزان هر درس × بازه‌های فعال] − [نمرات ثبت‌شده همان بازه‌ها]
+  const activeGradePeriods = gradePeriods.filter((p) => p.isActive);
+  const { totalUngradedGrades } = useMemo(() => {
+    if (activeGradePeriods.length === 0) return { totalUngradedGrades: 0 };
+    const subjectClassIds = new Map<string, Set<string>>();
+    academicSubjects.forEach((sub) => {
+      subjectClassIds.set(sub.id, new Set(classes.filter((c) => subjectAppliesToClass(sub, c)).map((c) => c.id)));
+    });
+    let expected = 0;
+    academicSubjects.forEach((sub) => {
+      const ids = subjectClassIds.get(sub.id)!;
+      expected += students.filter((st) => ids.has(st.classId)).length * activeGradePeriods.length;
+    });
+    const studentClass = new Map(students.map((st) => [st.id, st.classId]));
+    let recorded = 0;
+    academicGrades.forEach((g) => {
+      const classId = studentClass.get(g.studentId);
+      if (!classId || !subjectClassIds.get(g.subjectId)?.has(classId)) return;
+      activeGradePeriods.forEach((p) => {
+        const v = g[p.code];
+        if (typeof v === 'number' && !Number.isNaN(v)) recorded++;
+      });
+    });
+    return { totalUngradedGrades: Math.max(0, expected - recorded) };
+  }, [activeGradePeriods, academicSubjects, classes, students, academicGrades]);
+  const [isGradePeriodsOpen, setIsGradePeriodsOpen] = useState(false);
 
   // معدل کل مدرسه
   let schoolGradeSum = 0;
@@ -440,7 +467,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row items-start gap-6 relative" dir="rtl">
+    <div className="edu-pastel flex flex-col lg:flex-row items-start gap-6 relative" dir="rtl">
       
       {/* سایدبار در حالت دسکتاپ (Docked Sidebar) */}
       <div className="hidden lg:block shrink-0 sticky top-20 z-20">
@@ -520,11 +547,11 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     <h1 className="text-lg sm:text-xl font-black text-slate-900">
                       سلام، {currentUser?.name || 'معاون آموزشی گرامی'}
                     </h1>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                    <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
                       معاونت آموزشی
                     </span>
                   </div>
@@ -536,13 +563,23 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsGradePeriodsOpen(true)}
+                    className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  >
+                    <Award className="w-4 h-4" />
+                    <span>بازه‌های ثبت نمره</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-white/70 text-[10px]">
+                      {toPersianDigits(activeGradePeriods.length)} فعال
+                    </span>
+                  </button>
                   <button
                     type="button"
                     id="btn-mobile-educational-sidebar-toggle"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="lg:hidden px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
+                    className="lg:hidden px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
                     title="باز کردن نوار کناری"
                     aria-label="باز کردن نوار کناری"
                   >
@@ -553,219 +590,81 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </div>
             </div>
 
-            {/* ۲. خلاصه وضعیت آماری امروز با داده‌های واقعی */}
+            {/* ۲. خلاصه وضعیت آماری با داده‌های واقعی */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              
-              {/* کارت ۱: کلاس‌ها */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('classes')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">کلاس‌ها</span>
-                  <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-700 group-hover:text-white transition">
-                    <School className="w-3.5 h-3.5" />
+              {([
+                ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
+                ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-sky-600'],
+                ['teachers', 'کادر اساتید', toPersianDigits(allTeachers.length), 'لیست دبیران', GraduationCap, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
+                ['reports', 'معدل کل', toPersianDigits(schoolAverageGrade), 'گزارش آماری', BarChart3, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
+                [
+                  'grades',
+                  'نمره ثبت‌نشده',
+                  toPersianDigits(totalUngradedGrades),
+                  activeGradePeriods.length === 0
+                    ? 'بازه فعالی باز نیست'
+                    : totalUngradedGrades === 0
+                      ? 'تمام نمرات ثبت شده'
+                      : 'ورود به کارپوشه',
+                  Award,
+                  'bg-amber-50/70 border-amber-200/80 text-amber-950',
+                  'text-amber-600',
+                ],
+                ['warnings', 'نیازمند پیگیری', toPersianDigits(academicWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
+              ] as const).map(([view, label, value, hint, Icon, tone, iconTone]) => (
+                <button
+                  key={view}
+                  type="button"
+                  onClick={() => setCurrentView(view)}
+                  className={`p-3.5 rounded-2xl border shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all text-right cursor-pointer ${tone}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold opacity-80 whitespace-nowrap">{label}</span>
+                    <div className={`bg-white shadow-xs rounded-xl p-2 ${iconTone}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
                   </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
-                  {toPersianDigits(classes.length)}
-                </div>
-                <div className="text-[10px] text-teal-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>مشاهده کلاس‌ها</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
-
-              {/* کارت ۲: دروس مصوب */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('subjects')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">برنامه دروس</span>
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-700 group-hover:text-white transition">
-                    <BookOpen className="w-3.5 h-3.5" />
+                  <div className="text-2xl font-black font-mono tabular-nums mt-2">{value}</div>
+                  <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1 whitespace-nowrap">
+                    <span>{hint}</span>
+                    <ChevronLeft className="w-3 h-3" />
                   </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
-                  {toPersianDigits(academicSubjects.length)}
-                </div>
-                <div className="text-[10px] text-blue-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>تنظیم زنگ‌ها</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
-
-              {/* کارت ۳: کادر دبیران */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('teachers')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">کادر اساتید</span>
-                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center group-hover:bg-indigo-700 group-hover:text-white transition">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-slate-900 mt-2 font-mono">
-                  {toPersianDigits(allTeachers.length)}
-                </div>
-                <div className="text-[10px] text-indigo-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>لیست دبیران</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
-
-              {/* کارت ۴: میانگین کل */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('reports')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-600 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">معدل کل</span>
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-700 group-hover:text-white transition">
-                    <BarChart3 className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-emerald-700 mt-2 font-mono">
-                  {toPersianDigits(schoolAverageGrade)}
-                </div>
-                <div className="text-[10px] text-emerald-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>گزارش آماری</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
-
-              {/* کارت ۵: نمرات ثبت‌نشده */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('grades')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-500 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">نمره ثبت‌نشده</span>
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center group-hover:bg-amber-700 group-hover:text-white transition">
-                    <Award className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-amber-700 mt-2 font-mono">
-                  {toPersianDigits(totalUngradedGrades)}
-                </div>
-                <div className="text-[10px] text-amber-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>ورود به کارپوشه</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
-
-              {/* کارت ۶: نیازمند پیگیری */}
-              <button
-                type="button"
-                onClick={() => setCurrentView('warnings')}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-500 transition text-right group cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">نیازمند پیگیری</span>
-                  <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center group-hover:bg-rose-700 group-hover:text-white transition">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-                <div className="text-xl font-black text-rose-700 mt-2 font-mono">
-                  {toPersianDigits(academicWarningStudents.length)}
-                </div>
-                <div className="text-[10px] text-rose-700 mt-1 font-medium flex items-center gap-0.5">
-                  <span>رسیدگی فوری</span>
-                  <ChevronLeft className="w-2.5 h-2.5" />
-                </div>
-              </button>
+                </button>
+              ))}
             </div>
 
-            {/* ۳. مسیرهای اقدام سریع آموزشی (Quick Action Cards) */}
+            {/* ۳. مسیرهای کار روزمره */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
               <h2 className="text-sm font-bold text-slate-800 mb-3.5">
                 مسیرهای کار روزمره معاونت آموزشی
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                
-                {/* مسیر ۱: ثبت نمرات */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('grades')}
-                  className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/40 hover:bg-teal-50 hover:border-teal-400 transition text-right flex items-start gap-3 group cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-teal-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Award className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-teal-800 transition">
-                      کارپوشه ثبت نمره
+                {([
+                  ['grades', 'کارپوشه ثبت نمره', 'ثبت نمرات مستمر و پایانی نوبت اول و دوم با محاسبه خودکار سالانه.', Award, 'bg-emerald-50/60 border-emerald-200/80', 'text-emerald-600', 'bg-emerald-100/70 text-emerald-800 border-emerald-200'],
+                  ['report_cards', 'کارنامه و سوابق تحصیلی', 'مشاهده کارنامه جامع، معدل‌گیری، چاپ و خروجی اکسل کارنامه دانش‌آموزان.', FileText, 'bg-sky-50/60 border-sky-200/80', 'text-sky-600', 'bg-sky-100/70 text-sky-800 border-sky-200'],
+                  ['subjects', 'برنامه دروس و اساتید', 'تعریف عناوین کتب درسی، ساعات هفتگی و تخصیص اساتید.', BookOpen, 'bg-violet-50/60 border-violet-200/80', 'text-violet-600', 'bg-violet-100/70 text-violet-800 border-violet-200'],
+                  ['reports', 'گزارش‌های آموزشی', 'تحلیل آماری معدل‌ها، مقایسه کلاس‌ها و صدور فایل اکسل گزارش جامع.', BarChart3, 'bg-teal-50/60 border-teal-200/80', 'text-teal-600', 'bg-teal-100/70 text-teal-800 border-teal-200'],
+                ] as const).map(([view, title, desc, Icon, tone, iconTone, pill]) => (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => setCurrentView(view)}
+                    className={`p-4 rounded-2xl border text-right flex flex-col gap-3 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer ${tone}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 ${iconTone}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm">{title}</div>
+                        <div className="text-[11px] text-slate-500 mt-1 leading-relaxed whitespace-normal">{desc}</div>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      ثبت نمرات مستمر و پایانی نوبت اول و دوم با محاسبه خودکار سالانه.
-                    </div>
-                  </div>
-                </button>
-
-                {/* مسیر ۲: کارنامه تحصیلی */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('report_cards')}
-                  className="p-4 rounded-xl border border-blue-200/80 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-400 transition text-right flex items-start gap-3 group cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-blue-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-blue-800 transition">
-                      کارنامه و سوابق تحصیلی
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      مشاهده کارنامه جامع، معدل‌گیری، چاپ و خروجی اکسل کارنامه دانش‌آموزان.
-                    </div>
-                  </div>
-                </button>
-
-                {/* مسیر ۳: برنامه دروس و زنگ‌ها */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('subjects')}
-                  className="p-4 rounded-xl border border-indigo-200/80 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-400 transition text-right flex items-start gap-3 group cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-indigo-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-indigo-800 transition">
-                      برنامه دروس و اساتید
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      تعریف عناوین کتب درسی، ضرایب، ساعات هفتگی و تخصیص اساتید.
-                    </div>
-                  </div>
-                </button>
-
-                {/* مسیر ۴: گزارش‌های تحلیلی */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('reports')}
-                  className="p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-400 transition text-right flex items-start gap-3 group cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <BarChart3 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-emerald-800 transition">
-                      گزارش‌های آموزشی
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      تحلیل آماری معدل‌ها، مقایسه کلاس‌ها و صدور فایل اکسل گزارش جامع.
-                    </div>
-                  </div>
-                </button>
-
+                    <span className={`self-end px-3 py-1 rounded-full border text-[11px] font-bold whitespace-nowrap ${pill}`}>
+                      ورود به بخش ←
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1469,8 +1368,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                         <div className="mt-4 p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
                           <div>
                             <span className="text-[11px] text-slate-500">معدل محاسبه شده:</span>
-                            <div className="text-base font-black font-mono text-teal-800 mt-0.5">
-                              {hasGpa ? toPersianDigits(item.gpa!) : 'ثبت نشده'}
+                            <div className={`inline-block text-base font-black font-mono mt-1 px-3 py-0.5 rounded-xl whitespace-nowrap ${scorePillClass(hasGpa ? item.gpa! : null)}`}>
+                              {hasGpa ? toPersianDigits(item.gpa!) : '—'}
                             </div>
                           </div>
 
@@ -1654,8 +1553,10 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                           <td className="p-3 text-slate-600">
                             کلاس {item.className}
                           </td>
-                          <td className="p-3 text-center font-mono font-black text-rose-700 text-sm">
-                            {item.gpa !== undefined ? toPersianDigits(item.gpa) : 'ناقص'}
+                          <td className="p-3 text-center">
+                            <span className={`inline-block font-mono font-black text-sm px-3 py-1 rounded-xl whitespace-nowrap ${scorePillClass(item.gpa ?? null)}`}>
+                              {item.gpa !== undefined ? toPersianDigits(item.gpa) : '—'}
+                            </span>
                           </td>
                           <td className="p-3 text-rose-700 font-semibold">
                             {item.weakSubjects.length > 0 ? item.weakSubjects.join('، ') : 'معدل کمتر از ۱۲'}
@@ -1814,6 +1715,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         onClose={() => setIsQuickAddStudentOpen(false)}
       />
 
+      <GradePeriodsModal isOpen={isGradePeriodsOpen} onClose={() => setIsGradePeriodsOpen(false)} />
     </div>
   );
 };

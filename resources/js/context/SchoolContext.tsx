@@ -12,6 +12,7 @@ import {
   MorningDelayRecord,
   MorningAttendanceRecord,
   TeacherActivity,
+  GradePeriod,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -48,6 +49,7 @@ import {
 } from '../utils/sampleData';
 import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
+import { buildGradePeriodList } from '../utils/gradePeriods';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 
 interface SchoolContextType {
@@ -81,6 +83,11 @@ interface SchoolContextType {
   saveComprehensiveExam: (record: ComprehensiveExamRecord) => void;
   courseAssignments: CourseAssignment[];
   teacherActivities: TeacherActivity[];
+  /** فهرست کامل بازه‌های ثبت نمره (فعال/قفل) */
+  gradePeriods: GradePeriod[];
+  setGradePeriodActive: (code: string, isActive: boolean) => void;
+  /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
+  isGradePeriodOpen: (code: string) => boolean;
   addTeacherActivity: (data: Pick<TeacherActivity, 'date' | 'title' | 'hours'>) => void;
   updateTeacherActivity: (id: string, updates: Partial<Pick<TeacherActivity, 'date' | 'title' | 'hours' | 'status'>>) => void;
   deleteTeacherActivity: (id: string) => void;
@@ -308,6 +315,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [comprehensiveExams, setComprehensiveExams] = useState<ComprehensiveExamRecord[]>([]);
   const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([]);
   const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
+  const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
+  const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
   // ------------------------------------------------------------------
   // انتساب آموزشی سه‌طرفه (کلاس + درس + استاد) — مستقل از مربی تربیتی کلاس
@@ -446,6 +455,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextExams = (d.comprehensiveExams || []) as unknown as ComprehensiveExamRecord[];
     const nextCourseAssignments = (d.courseAssignments || []) as unknown as CourseAssignment[];
     const nextTeacherActivities = (d.teacherActivities || []) as unknown as TeacherActivity[];
+    const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -468,6 +478,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       comprehensiveExams: nextExams as unknown as SyncRow[],
       courseAssignments: nextCourseAssignments as unknown as SyncRow[],
       teacherActivities: nextTeacherActivities as unknown as SyncRow[],
+      gradePeriods: nextGradePeriods as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -490,6 +501,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setComprehensiveExams(nextExams);
     setCourseAssignments(nextCourseAssignments);
     setTeacherActivities(nextTeacherActivities);
+    setStoredGradePeriods(nextGradePeriods);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -519,6 +531,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setComprehensiveExams([]);
     setCourseAssignments([]);
     setTeacherActivities([]);
+    setStoredGradePeriods([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -599,6 +612,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('schoolAnnouncements', schoolAnnouncements as unknown as SyncRow[]); }, [schoolAnnouncements, syncEngine]);
   useEffect(() => { syncEngine.push('courseAssignments', courseAssignments as unknown as SyncRow[]); }, [courseAssignments, syncEngine]);
   useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
+  useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
   useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
 
@@ -1224,6 +1238,25 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteTeacherActivity = (id: string) => {
     setTeacherActivities((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // ------------------------------------------------------------------
+  // بازه‌های ثبت نمره (فعال/قفل توسط معاون آموزش)
+  // ------------------------------------------------------------------
+  const setGradePeriodActive = (code: string, isActive: boolean) => {
+    const base = gradePeriods.find((p) => p.code === code);
+    if (!base) return;
+    setStoredGradePeriods((prev) => {
+      const exists = prev.some((p) => (p.code || p.id) === code);
+      const next: GradePeriod = { ...base, isActive };
+      return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
+    });
+  };
+
+  const isGradePeriodOpen = (code: string): boolean => {
+    const managerRole = ['admin', 'vice_educational', 'vice_principal'].includes(currentUser.role);
+    if (managerRole) return true;
+    return Boolean(gradePeriods.find((p) => p.code === code)?.isActive);
   };
 
   // Morning Entrance Delays CRUD
@@ -2295,6 +2328,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         acknowledgeMorningRecord,
         setMorningAbsenceInfo,
         teacherActivities,
+        gradePeriods,
+        setGradePeriodActive,
+        isGradePeriodOpen,
         addTeacherActivity,
         updateTeacherActivity,
         deleteTeacherActivity,

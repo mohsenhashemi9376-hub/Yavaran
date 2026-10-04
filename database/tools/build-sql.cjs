@@ -5,6 +5,7 @@ const crypto = require('crypto');
 
 const seed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const outFile = process.argv[3];
+seed.gradePeriods = seed.gradePeriods || [{"id": "mehrContinuous", "code": "mehrContinuous", "name": "مستمر مهر", "isActive": true}, {"id": "abanContinuous", "code": "abanContinuous", "name": "مستمر آبان", "isActive": false}, {"id": "azarContinuous", "code": "azarContinuous", "name": "مستمر آذر", "isActive": false}, {"id": "term1Continuous", "code": "term1Continuous", "name": "مستمر دی", "isActive": false}, {"id": "term1Final", "code": "term1Final", "name": "پایانی نوبت اول (دی)", "isActive": false}, {"id": "bahmanContinuous", "code": "bahmanContinuous", "name": "مستمر بهمن", "isActive": false}, {"id": "esfandContinuous", "code": "esfandContinuous", "name": "مستمر اسفند", "isActive": false}, {"id": "farvardinContinuous", "code": "farvardinContinuous", "name": "مستمر فروردین", "isActive": false}, {"id": "ordibeheshtContinuous", "code": "ordibeheshtContinuous", "name": "مستمر اردیبهشت", "isActive": false}, {"id": "term2Continuous", "code": "term2Continuous", "name": "مستمر ترم دوم (خرداد)", "isActive": false}, {"id": "term2Final", "code": "term2Final", "name": "پایانی نوبت دوم (خرداد)", "isActive": false}];
 
 const q = (v) => {
   if (v === null || v === undefined) return 'NULL';
@@ -80,6 +81,10 @@ const tables = {
   grades: { table: 'school_grades',
     cols: ["`name` varchar(100) NOT NULL DEFAULT ''", "`status` varchar(20) NOT NULL DEFAULT 'active'"], keys: [],
     extract: (d) => ({ name: s(d, 'name', 100) || '', status: s(d, 'status', 20) || 'active' }) },
+  gradePeriods: { table: 'grade_periods',
+    cols: ["`name` varchar(100) NOT NULL DEFAULT ''", '`code` varchar(50) NOT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 0', '`deadline` date DEFAULT NULL'],
+    keys: ['KEY `grade_periods_code_index` (`code`)'],
+    extract: (d) => ({ name: s(d, 'name', 100) || '', code: s(d, 'code', 50) || '', is_active: d.isActive ? 1 : 0, deadline: null }) },
   settings: { table: 'school_settings', cols: [], keys: [], extract: () => ({}) },
 };
 
@@ -235,7 +240,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (5, '2026_10_04_000000_add_permissions_to_users_table', 1),
 (6, '2026_10_05_000000_create_morning_attendance_table', 1),
 (7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
-(8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1);
+(8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
+(9, '2026_10_08_000000_create_grade_periods_table', 1);
 
 DROP TABLE IF EXISTS \`notifications\`;
 DROP TABLE IF EXISTS \`teacher_activities\`;

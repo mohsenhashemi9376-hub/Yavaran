@@ -28,6 +28,7 @@ final class CollectionRegistry
         'comprehensiveExams' => 'comprehensive_exams',
         'courseAssignments' => 'course_assignments',
         'teacherActivities' => 'teacher_activities',
+        'gradePeriods' => 'grade_periods',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -57,6 +58,25 @@ final class CollectionRegistry
             }
 
             return true;
+        }
+        if ($table === 'grade_periods') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('grade_periods', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('name', 100)->default('');
+                    $t->string('code', 50)->index();
+                    $t->boolean('is_active')->default(false);
+                    $t->date('deadline')->nullable();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+                self::seedGradePeriods();
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
         }
         if ($table === 'teacher_activities') {
             try {
@@ -105,6 +125,40 @@ final class CollectionRegistry
         unset(self::$schemaCache["t:$table"]);
 
         return self::tableExists($table);
+    }
+
+    /** بازه‌های پیش‌فرض ثبت نمره؛ فقط «مستمر مهر» فعال است */
+    public const GRADE_PERIODS = [
+        'mehrContinuous' => 'مستمر مهر',
+        'abanContinuous' => 'مستمر آبان',
+        'azarContinuous' => 'مستمر آذر',
+        'term1Continuous' => 'مستمر دی',
+        'term1Final' => 'پایانی نوبت اول (دی)',
+        'bahmanContinuous' => 'مستمر بهمن',
+        'esfandContinuous' => 'مستمر اسفند',
+        'farvardinContinuous' => 'مستمر فروردین',
+        'ordibeheshtContinuous' => 'مستمر اردیبهشت',
+        'term2Continuous' => 'مستمر ترم دوم (خرداد)',
+        'term2Final' => 'پایانی نوبت دوم (خرداد)',
+    ];
+
+    private static function seedGradePeriods(): void
+    {
+        $now = now();
+        $order = 0;
+        foreach (self::GRADE_PERIODS as $code => $name) {
+            $active = $code === 'mehrContinuous';
+            \Illuminate\Support\Facades\DB::table('grade_periods')->insertOrIgnore([
+                'id' => $code,
+                'name' => $name,
+                'code' => $code,
+                'is_active' => $active,
+                'sort_order' => $order++,
+                'data' => json_encode(['id' => $code, 'code' => $code, 'name' => $name, 'isActive' => $active], JSON_UNESCAPED_UNICODE),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
     }
 
     /** افزودن خودکار ستون‌های is_excused و absence_note به جدول موجود (در صورت نبودن) */
@@ -226,6 +280,12 @@ final class CollectionRegistry
                 'class_id' => self::str($d, 'classId', 100) ?? '',
                 'subject_id' => self::str($d, 'subjectId', 100) ?? '',
                 'user_id' => self::str($d, 'teacherId', 100) ?? '',
+            ],
+            'gradePeriods' => [
+                'name' => self::str($d, 'name', 100) ?? '',
+                'code' => self::str($d, 'code', 50) ?? (self::str($d, 'id', 50) ?? ''),
+                'is_active' => ! empty($d->isActive),
+                'deadline' => \App\Support\Jalali::shamsiToDate(self::str($d, 'deadline', 20)),
             ],
             'teacherActivities' => [
                 'teacher_id' => self::str($d, 'teacherId', 100) ?? '',

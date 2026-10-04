@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { EXAM_SUBJECTS, ExamSubjectKey, ComprehensiveExamRecord } from '../types';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
+import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 
 interface ComprehensiveExamManagementProps {
@@ -320,21 +321,21 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       {/* جدول */}
       <div className={`${card} overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm">
+          <table className="w-full min-w-[850px] text-right text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
                 <th className="p-3 w-14 text-center font-bold">ردیف</th>
                 <th className="p-3 font-bold min-w-40">نام دانش‌آموز</th>
                 {activeSubjects.map((s) => (
                   <th key={s.key} className="p-3 text-center font-bold">
-                    <button type="button" onClick={() => toggleSort(s.key)} className="inline-flex items-center gap-1 cursor-pointer hover:text-slate-800">
+                    <button type="button" onClick={() => toggleSort(s.key)} className={`inline-flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-xs whitespace-nowrap ${subjectPillClass(s.label)}`}>
                       {s.label}
                       <SortIcon k={s.key} />
                     </button>
                   </th>
                 ))}
-                <th className="p-3 text-center font-bold">
-                  <button type="button" onClick={() => toggleSort('average')} className="inline-flex items-center gap-1 cursor-pointer hover:text-slate-800">
+                <th className="p-3 text-center font-bold bg-indigo-50/60 border-x border-indigo-200">
+                  <button type="button" onClick={() => toggleSort('average')} className="inline-flex items-center gap-1 cursor-pointer text-indigo-900 whitespace-nowrap">
                     معدل آزمون جامع
                     <SortIcon k="average" />
                   </button>
@@ -353,9 +354,9 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                 rows.map(({ st, avg }, idx) => {
                   const lv = levelOf(avg);
                   return (
-                    <tr key={st.id} className="hover:bg-slate-50/60 transition">
+                    <tr key={st.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</td>
-                      <td className="p-3 font-bold text-slate-800">
+                      <td className="p-3 font-semibold text-slate-800 whitespace-nowrap">
                         {st.firstName} {st.lastName}
                       </td>
                       {activeSubjects.map((s) => {
@@ -372,21 +373,33 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                               aria-label={`${s.label} ${st.firstName} ${st.lastName}`}
                               aria-invalid={bad}
                               title={bad ? 'نمره باید بین ۰ تا ۲۰ باشد' : undefined}
-                              className={`w-16 text-center font-bold rounded-xl py-2 outline-none border transition ${
+                              className={`w-16 text-center rounded-xl py-2 outline-none transition focus:ring-4 focus:ring-emerald-100 ${
                                 bad
-                                  ? 'bg-rose-50 border-rose-300 text-rose-700 focus:ring-4 focus:ring-rose-100'
-                                  : 'bg-slate-50 border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100'
+                                  ? 'bg-rose-50 border border-rose-300 text-rose-700 font-bold'
+                                  : scorePillClass(parseScore(v))
                               }`}
                             />
                           </td>
                         );
                       })}
-                      <td className="p-3 text-center font-extrabold text-slate-900">{fa(avg)}</td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap ${avg === null ? 'bg-slate-100/70 border border-slate-200/70 text-slate-400' : 'bg-indigo-50/60 border border-indigo-200 text-indigo-950'}`}>{fa(avg)}</span>
+                      </td>
                       <td className="p-3 text-center">
                         {lv ? (
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${lv.chip}`}>{lv.label}</span>
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
+                              lv.id === LEVELS[0].id
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : lv.id === LEVELS[3].id
+                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                  : 'bg-blue-100 text-blue-800 border-blue-300'
+                            }`}
+                          >
+                            {lv.id === LEVELS[0].id ? 'ممتاز / رتبه برتر' : lv.id === LEVELS[3].id ? 'نیاز به پیگیری' : 'پذیرفته / عادی'}
+                          </span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="inline-block px-3 py-1 rounded-full text-xs bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>
                         )}
                       </td>
                     </tr>
