@@ -23,6 +23,7 @@ export type CollectionKey =
   | 'comprehensiveExams'
   | 'courseAssignments'
   | 'teacherActivities'
+  | 'gradePeriods'
   | 'grades'
   | 'settings';
 
@@ -45,6 +46,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'comprehensiveExams',
   'courseAssignments',
   'teacherActivities',
+  'gradePeriods',
   'grades',
   'settings',
 ];

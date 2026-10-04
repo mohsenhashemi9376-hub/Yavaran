@@ -251,6 +251,15 @@ export interface MonthlyPeriodInfo {
   order: number;
 }
 
+/** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */
+export interface GradePeriod {
+  id: string; // = code
+  code: MonthlyContinuousKey;
+  name: string;
+  isActive: boolean;
+  deadline?: string; // مهلت ثبت (شمسی)
+}
+
 export const MONTHLY_EVALUATION_PERIODS: MonthlyPeriodInfo[] = [
   { key: 'mehrContinuous', monthName: 'مهر', label: 'مستمر مهر', shortLabel: 'مهر', term: 1, order: 1 },
   { key: 'abanContinuous', monthName: 'آبان', label: 'مستمر آبان', shortLabel: 'آبان', term: 1, order: 2 },

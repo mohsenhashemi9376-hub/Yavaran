@@ -103,3 +103,31 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   /* متن‌های بلند هرگز عرض صفحه را بزرگ نکنند */
   h1, h2, h3, h4, p, span, a, button, label { overflow-wrap: anywhere; }
 }
+
+/* ==========================================================================
+   پنل معاونت آموزش — تم پاستلی (کارت‌ها، فیلدها، جدول‌ها)
+   قواعد بدون layer عمداً بر کلاس‌های ابزاری تیلویند اولویت دارند.
+   ========================================================================== */
+.edu-pastel :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(:disabled):not(:focus):is([class*="bg-white"], [class*="bg-slate-50"]) {
+  background-color: rgb(248 250 252 / 0.8);
+}
+.edu-pastel :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(:disabled):focus {
+  background-color: #fff;
+  border-color: rgb(45 212 191);
+  box-shadow: 0 0 0 4px rgb(204 251 241 / 0.5);
+  outline: none;
+}
+.edu-pastel thead th:not([class*="bg-"]) {
+  background-color: rgb(240 249 255 / 0.6);
+}
+.edu-pastel tbody tr:not([class*="bg-"]):hover {
+  background-color: rgb(248 250 252 / 0.7);
+}
+
+/* کارت‌های سفید داخل گرید (آمار، کلاس‌ها، دروس، گزارش‌ها) با ته‌رنگ‌های چرخشی */
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 1) { background-color: rgb(236 253 245 / 0.7); border-color: rgb(167 243 208 / 0.8); }
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 2) { background-color: rgb(240 249 255 / 0.7); border-color: rgb(186 230 253 / 0.8); }
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 3) { background-color: rgb(250 245 255 / 0.7); border-color: rgb(233 213 255 / 0.8); }
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 4) { background-color: rgb(240 253 250 / 0.7); border-color: rgb(153 246 228 / 0.8); }
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 5) { background-color: rgb(255 251 235 / 0.7); border-color: rgb(253 230 138 / 0.8); }
+.edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 6) { background-color: rgb(255 241 242 / 0.7); border-color: rgb(254 205 211 / 0.8); }

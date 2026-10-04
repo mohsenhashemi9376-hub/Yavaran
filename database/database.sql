@@ -577,7 +577,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (5, '2026_10_04_000000_add_permissions_to_users_table', 1),
 (6, '2026_10_05_000000_create_morning_attendance_table', 1),
 (7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
-(8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1);
+(8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
+(9, '2026_10_08_000000_create_grade_periods_table', 1);
 
 -- ------------------------------------------------------------
 -- جداول notifications و teacher_activities
@@ -620,6 +621,38 @@ CREATE TABLE `teacher_activities` (
   KEY `teacher_activities_sort_order_index` (`sort_order`),
   CONSTRAINT `teacher_activities_teacher_id_foreign` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
+-- جدول grade_periods
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `grade_periods`;
+CREATE TABLE `grade_periods` (
+  `id` varchar(100) NOT NULL,
+  `name` varchar(100) NOT NULL DEFAULT '',
+  `code` varchar(50) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 0,
+  `deadline` date DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `grade_periods_code_index` (`code`),
+  KEY `grade_periods_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `grade_periods` (`id`, `name`, `code`, `is_active`, `deadline`, `sort_order`, `data`, `created_at`, `updated_at`) VALUES
+('mehrContinuous', 'مستمر مهر', 'mehrContinuous', 1, NULL, 0, '{"id":"mehrContinuous","code":"mehrContinuous","name":"مستمر مهر","isActive":true}', NOW(), NOW()),
+('abanContinuous', 'مستمر آبان', 'abanContinuous', 0, NULL, 1, '{"id":"abanContinuous","code":"abanContinuous","name":"مستمر آبان","isActive":false}', NOW(), NOW()),
+('azarContinuous', 'مستمر آذر', 'azarContinuous', 0, NULL, 2, '{"id":"azarContinuous","code":"azarContinuous","name":"مستمر آذر","isActive":false}', NOW(), NOW()),
+('term1Continuous', 'مستمر دی', 'term1Continuous', 0, NULL, 3, '{"id":"term1Continuous","code":"term1Continuous","name":"مستمر دی","isActive":false}', NOW(), NOW()),
+('term1Final', 'پایانی نوبت اول (دی)', 'term1Final', 0, NULL, 4, '{"id":"term1Final","code":"term1Final","name":"پایانی نوبت اول (دی)","isActive":false}', NOW(), NOW()),
+('bahmanContinuous', 'مستمر بهمن', 'bahmanContinuous', 0, NULL, 5, '{"id":"bahmanContinuous","code":"bahmanContinuous","name":"مستمر بهمن","isActive":false}', NOW(), NOW()),
+('esfandContinuous', 'مستمر اسفند', 'esfandContinuous', 0, NULL, 6, '{"id":"esfandContinuous","code":"esfandContinuous","name":"مستمر اسفند","isActive":false}', NOW(), NOW()),
+('farvardinContinuous', 'مستمر فروردین', 'farvardinContinuous', 0, NULL, 7, '{"id":"farvardinContinuous","code":"farvardinContinuous","name":"مستمر فروردین","isActive":false}', NOW(), NOW()),
+('ordibeheshtContinuous', 'مستمر اردیبهشت', 'ordibeheshtContinuous', 0, NULL, 8, '{"id":"ordibeheshtContinuous","code":"ordibeheshtContinuous","name":"مستمر اردیبهشت","isActive":false}', NOW(), NOW()),
+('term2Continuous', 'مستمر ترم دوم (خرداد)', 'term2Continuous', 0, NULL, 9, '{"id":"term2Continuous","code":"term2Continuous","name":"مستمر ترم دوم (خرداد)","isActive":false}', NOW(), NOW()),
+('term2Final', 'پایانی نوبت دوم (خرداد)', 'term2Final', 0, NULL, 10, '{"id":"term2Final","code":"term2Final","name":"پایانی نوبت دوم (خرداد)","isActive":false}', NOW(), NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

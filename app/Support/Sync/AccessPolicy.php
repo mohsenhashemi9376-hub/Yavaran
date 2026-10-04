@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -90,6 +90,7 @@ final class AccessPolicy
         'comprehensiveExams' => 'comprehensive-exam',
         'academicSubjects' => 'manage-curriculum',
         'courseAssignments' => 'manage-curriculum',
+        'gradePeriods' => 'manage-grades',
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',
@@ -122,6 +123,10 @@ final class AccessPolicy
 
         if ($this->isManager()) {
             return;
+        }
+
+        if ($collection === 'academicGrades') {
+            $this->requireOpenGradePeriods($old, $new);
         }
 
         if (in_array($collection, self::TEACHER_OWNED, true)) {
@@ -307,6 +312,30 @@ final class AccessPolicy
         }
 
         return $this->classIds = array_values(array_unique($ids));
+    }
+
+    /** معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش مجاز به تغییر نمره است */
+    private function requireOpenGradePeriods(?object $old, object $new): void
+    {
+        if (! CollectionRegistry::tableExists('grade_periods')) {
+            return;
+        }
+
+        $periods = DB::table('grade_periods')->pluck('is_active', 'code')->all();
+        if ($periods === []) {
+            return;
+        }
+
+        foreach ($periods as $code => $active) {
+            if ($active) {
+                continue;
+            }
+            $before = $old !== null && isset($old->{$code}) ? (string) $old->{$code} : '';
+            $after = isset($new->{$code}) ? (string) $new->{$code} : '';
+            if ($before !== $after) {
+                $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
+            }
+        }
     }
 
     private function requireOwner(?string $teacherId): void

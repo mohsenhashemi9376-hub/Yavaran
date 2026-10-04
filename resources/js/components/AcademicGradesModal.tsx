@@ -1,3 +1,4 @@
+import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
@@ -44,8 +45,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
     academicSubjects, 
     academicGrades, 
     saveBatchAcademicGrades, 
-    addAcademicSubject 
+    addAcademicSubject,
+    isGradePeriodOpen
   } = useSchool();
+
+  const FIELD_PERIOD = { c1: 'term1Continuous', f1: 'term1Final', c2: 'term2Continuous', f2: 'term2Final' } as const;
+  const fieldOpen = (f: keyof typeof FIELD_PERIOD) => isGradePeriodOpen(FIELD_PERIOD[f]);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
@@ -140,6 +145,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
     field: 'c1' | 'f1' | 'c2' | 'f2' | 'notes', 
     rawVal: string
   ) => {
+    if (field !== 'notes' && !fieldOpen(field)) return;
     const val = toEnglishDigits(rawVal);
     // If number, ensure it's within 0-20
     if (field !== 'notes' && val !== '') {
@@ -439,22 +445,26 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
         {/* Grades Table */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
-            <table className="w-full text-right border-collapse text-xs sm:text-sm">
+            <table className="w-full min-w-[850px] text-right border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 text-[11px] sm:text-xs">
                   <th className="p-3 text-center w-10">#</th>
                   <th className="p-3 font-bold min-w-[160px]">دانش‌آموز</th>
                   <th className="p-2.5 text-center font-bold bg-amber-50/60 text-amber-900 min-w-[90px]">
                     مستمر اول (C1)
+                    {!fieldOpen('c1') && <span className="block mt-0.5 mx-auto w-fit px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap">هنوز باز نشده</span>}
                   </th>
                   <th className="p-2.5 text-center font-bold bg-amber-100/70 text-amber-950 min-w-[90px]">
                     پایانی اول (F1)
+                    {!fieldOpen('f1') && <span className="block mt-0.5 mx-auto w-fit px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap">هنوز باز نشده</span>}
                   </th>
                   <th className="p-2.5 text-center font-bold bg-emerald-50/60 text-emerald-900 min-w-[90px]">
                     مستمر دوم (C2)
+                    {!fieldOpen('c2') && <span className="block mt-0.5 mx-auto w-fit px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap">هنوز باز نشده</span>}
                   </th>
                   <th className="p-2.5 text-center font-bold bg-emerald-100/70 text-emerald-950 min-w-[90px]">
                     پایانی دوم (F2)
+                    {!fieldOpen('f2') && <span className="block mt-0.5 mx-auto w-fit px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap">هنوز باز نشده</span>}
                   </th>
                   <th className="p-2.5 text-center font-bold bg-indigo-50 text-indigo-900 min-w-[100px]">
                     نمره سالانه رسمی
@@ -473,12 +483,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
 
                   const annual = calculateAnnualScore(c1, f1, c2, f2);
 
-                  let passBadge = '-';
-                  let passClass = 'text-slate-400 bg-slate-50';
+                  let passBadge = '—';
+                  let passClass = 'text-slate-400 bg-slate-100/70 border-slate-200/70';
                   if (annual !== undefined) {
                     if (annual >= 10 && (f2 === undefined || f2 >= 10)) {
                       passBadge = 'قبول';
-                      passClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                      passClass = 'text-emerald-800 bg-emerald-100 border-emerald-300';
                     } else if (annual >= 7) {
                       passBadge = 'تبصره';
                       passClass = 'text-amber-700 bg-amber-50 border-amber-200';
@@ -489,7 +499,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                   }
 
                   return (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition">
+                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3 text-center text-slate-400 font-bold">
                         {toPersianDigits(idx + 1)}
                       </td>
@@ -500,7 +510,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                           <button
                             type="button"
                             onClick={() => onSelectStudent(student)}
-                            className="font-bold text-slate-900 hover:text-teal-800 hover:underline transition cursor-pointer text-right block"
+                            className="font-semibold text-slate-800 hover:text-teal-800 hover:underline transition cursor-pointer text-right block whitespace-nowrap"
                             title="مشاهده پرونده کامل دانش‌آموز"
                           >
                             {student.firstName} {student.lastName}
@@ -524,10 +534,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                           step="0.25"
                           min="0"
                           max="20"
+                          disabled={!fieldOpen('c1')}
+                          title={!fieldOpen('c1') ? 'هنوز باز نشده' : undefined}
                           value={draft.c1 ?? ''}
                           onChange={(e) => handleScoreChange(student.id, 'c1', e.target.value)}
                           placeholder="۰-۲۰"
-                          className="w-18 text-center font-bold font-mono bg-white border border-amber-200 rounded-md py-1 text-slate-800 focus:ring-2 focus:ring-amber-400 outline-none text-xs sm:text-sm"
+                          className={`w-20 text-center font-mono text-xs sm:text-sm py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 ${scorePillClass(c1)}`}
                         />
                       </td>
 
@@ -538,10 +550,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                           step="0.25"
                           min="0"
                           max="20"
+                          disabled={!fieldOpen('f1')}
+                          title={!fieldOpen('f1') ? 'هنوز باز نشده' : undefined}
                           value={draft.f1 ?? ''}
                           onChange={(e) => handleScoreChange(student.id, 'f1', e.target.value)}
                           placeholder="۰-۲۰"
-                          className="w-18 text-center font-bold font-mono bg-white border border-amber-300 rounded-md py-1 text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none text-xs sm:text-sm"
+                          className={`w-20 text-center font-mono text-xs sm:text-sm py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 ${scorePillClass(f1)}`}
                         />
                       </td>
 
@@ -552,10 +566,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                           step="0.25"
                           min="0"
                           max="20"
+                          disabled={!fieldOpen('c2')}
+                          title={!fieldOpen('c2') ? 'هنوز باز نشده' : undefined}
                           value={draft.c2 ?? ''}
                           onChange={(e) => handleScoreChange(student.id, 'c2', e.target.value)}
                           placeholder="۰-۲۰"
-                          className="w-18 text-center font-bold font-mono bg-white border border-emerald-200 rounded-md py-1 text-slate-800 focus:ring-2 focus:ring-emerald-400 outline-none text-xs sm:text-sm"
+                          className={`w-20 text-center font-mono text-xs sm:text-sm py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 ${scorePillClass(c2)}`}
                         />
                       </td>
 
@@ -566,27 +582,29 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                           step="0.25"
                           min="0"
                           max="20"
+                          disabled={!fieldOpen('f2')}
+                          title={!fieldOpen('f2') ? 'هنوز باز نشده' : undefined}
                           value={draft.f2 ?? ''}
                           onChange={(e) => handleScoreChange(student.id, 'f2', e.target.value)}
                           placeholder="۰-۲۰"
-                          className="w-18 text-center font-bold font-mono bg-white border border-emerald-300 rounded-md py-1 text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
+                          className={`w-20 text-center font-mono text-xs sm:text-sm py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 ${scorePillClass(f2)}`}
                         />
                       </td>
 
                       {/* Auto Calculated Annual Score */}
                       <td className="p-2.5 text-center bg-indigo-50/50">
-                        <span className={`font-mono font-bold text-sm ${
+                        <span className={`inline-block font-mono font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap ${
                           annual !== undefined
-                            ? annual >= 14 ? 'text-indigo-700' : annual >= 10 ? 'text-emerald-700' : 'text-rose-600'
-                            : 'text-slate-400'
+                            ? 'bg-indigo-50/60 border border-indigo-200 text-indigo-950'
+                            : 'bg-slate-100/70 border border-slate-200/70 text-slate-400'
                         }`}>
-                          {annual !== undefined ? toPersianDigits(annual) : '-'}
+                          {annual !== undefined ? toPersianDigits(annual) : '—'}
                         </span>
                       </td>
 
                       {/* Pass Status */}
                       <td className="p-2.5 text-center">
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${passClass}`}>
+                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${passClass}`}>
                           {passBadge}
                         </span>
                       </td>

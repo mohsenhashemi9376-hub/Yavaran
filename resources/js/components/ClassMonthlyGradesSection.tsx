@@ -1,5 +1,6 @@
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect, useMemo } from 'react';
+import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
 import { SchoolClass, Student, AcademicSubject, StudentAcademicGrade, MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey } from '../types';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
@@ -51,7 +52,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     academicGrades, 
     saveBatchAcademicGrades,
     currentUser,
-    isTeacher
+    isTeacher,
+    isGradePeriodOpen
   } = useSchool();
 
   const classStudents = useMemo(() => {
@@ -121,10 +123,17 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   }, [classData.id, selectedSubjectId, classStudents, academicGrades]);
 
   const currentSubject = academicSubjects.find((s) => s.id === selectedSubjectId);
+  const activeLocked = !isGradePeriodOpen(activePeriodKey);
+  const LockedBadge: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <span className={`inline-block px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap ${className}`}>
+      هنوز باز نشده
+    </span>
+  );
   const activePeriod = MONTHLY_EVALUATION_PERIODS.find((p) => p.key === activePeriodKey) || MONTHLY_EVALUATION_PERIODS[0];
 
   // Handle score change for a specific student and month
   const handleScoreChange = (studentId: string, periodKey: string, rawValue: string) => {
+    if (periodKey !== 'notes' && !isGradePeriodOpen(periodKey)) return;
     const val = toEnglishDigits(rawValue);
     if (periodKey !== 'notes' && val !== '') {
       const num = parseFloat(val);
@@ -142,6 +151,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Quick fill score for all students (e.g. 20, 19, clear)
   const handleQuickFill = (scoreVal: string) => {
+    if (!isGradePeriodOpen(activePeriodKey)) return;
     if (confirm(`آیا می‌خواهید نمره «${toPersianDigits(scoreVal || 'خالی')}» برای تمام دانش‌آموزان کلاس در این ماه ثبت شود؟`)) {
       setDraftGrades((prev) => {
         const updated = { ...prev };
@@ -383,24 +393,28 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             <div className="flex items-center gap-2 text-xs">
               <span className="text-slate-400 text-[11px]">درج سریع برای همه:</span>
               <button
+                disabled={activeLocked}
                 onClick={() => handleQuickFill('20')}
                 className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-bold text-[11px] hover:bg-emerald-100 transition-colors cursor-pointer"
               >
                 ۲۰
               </button>
               <button
+                disabled={activeLocked}
                 onClick={() => handleQuickFill('19')}
                 className="px-2.5 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg font-bold text-[11px] hover:bg-teal-100 transition-colors cursor-pointer"
               >
                 ۱۹
               </button>
               <button
+                disabled={activeLocked}
                 onClick={() => handleQuickFill('18')}
                 className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg font-bold text-[11px] hover:bg-sky-100 transition-colors cursor-pointer"
               >
                 ۱۸
               </button>
               <button
+                disabled={activeLocked}
                 onClick={() => handleQuickFill('')}
                 className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg font-bold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer"
               >
@@ -424,11 +438,21 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                       : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {title}
+                  <span>{title}</span>
+                  {!isGradePeriodOpen(period.key) && (
+                    <span className="mr-1.5 inline-block px-1.5 py-0.5 rounded-full bg-slate-200/70 text-slate-500 text-[9px] font-medium align-middle">بسته</span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {activeLocked && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs text-slate-600 flex items-center gap-2 flex-wrap">
+              <LockedBadge />
+              <span>ثبت نمره این بازه هنوز توسط معاونت آموزش فعال نشده است؛ فیلدها فقط‌خواندنی هستند.</span>
+            </div>
+          )}
 
           {/* Current Month Quick Stat Bar */}
           <div className="bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 border border-slate-200/80 rounded-2xl p-3 grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
@@ -549,27 +573,21 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                               min="0"
                               max="20"
                               value={scoreStr}
+                              disabled={activeLocked}
                               onChange={(e) => handleScoreChange(stu.id, activePeriodKey, e.target.value)}
                               placeholder="-"
-                              className="w-20 text-center font-bold text-sm py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white"
+                              className="w-20 text-center font-bold text-sm py-1.5 px-2 rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white disabled:bg-slate-100/70 disabled:text-slate-400 disabled:cursor-not-allowed"
                             />
                             <span className="text-slate-400 text-[11px] font-mono">/۲۰</span>
                           </div>
                         </td>
                         <td className="p-3 text-center">
                           {scoreNum !== undefined ? (
-                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                              scoreNum >= 17 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' :
-                              scoreNum >= 14 ? 'bg-sky-50 text-sky-700 border border-sky-200/60' :
-                              scoreNum >= 10 ? 'bg-amber-50 text-amber-700 border border-amber-200/60' :
-                              'bg-rose-50 text-rose-700 border border-rose-200/60'
-                            }`}>
-                              {scoreNum >= 17 ? 'عالی' :
-                               scoreNum >= 14 ? 'خوب' :
-                               scoreNum >= 10 ? 'متوسط' : 'نیازمند تلاش'}
+                            <span className={`px-3 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(scoreNum)}`}>
+                              {scoreLabel(scoreNum)}
                             </span>
                           ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-500">بدون نمره</span>
+                            <span className="px-3 py-1 rounded-xl text-[11px] bg-slate-100/70 border border-slate-200/70 text-slate-400 whitespace-nowrap">—</span>
                           )}
                         </td>
                         <td className="p-3">
@@ -623,19 +641,19 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <th className="p-2.5 sticky right-10 bg-slate-100 z-10">دانش‌آموز</th>
                   
                   {/* Term 1 Months */}
-                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر</th>
-                  <th className="p-2 text-center bg-amber-50/80">آبان</th>
-                  <th className="p-2 text-center bg-amber-50/80">آذر</th>
-                  <th className="p-2 text-center bg-amber-100/80 font-black">مستمر ۱</th>
-                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱</th>
+                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر{!isGradePeriodOpen('mehrContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-50/80">آبان{!isGradePeriodOpen('abanContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-50/80">آذر{!isGradePeriodOpen('azarContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-100/80 font-black">مستمر ۱{!isGradePeriodOpen('term1Continuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱{!isGradePeriodOpen('term1Final') && <LockedBadge className="block mt-0.5" />}</th>
 
                   {/* Term 2 Months */}
-                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اسفند</th>
-                  <th className="p-2 text-center bg-emerald-50/80">فروردین</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت</th>
-                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲</th>
-                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲</th>
+                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن{!isGradePeriodOpen('bahmanContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">اسفند{!isGradePeriodOpen('esfandContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">فروردین{!isGradePeriodOpen('farvardinContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت{!isGradePeriodOpen('ordibeheshtContinuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲{!isGradePeriodOpen('term2Continuous') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲{!isGradePeriodOpen('term2Final') && <LockedBadge className="block mt-0.5" />}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -659,16 +677,12 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                             min="0"
                             max="20"
                             value={val}
+                            disabled={!isGradePeriodOpen(period.key)}
+                            title={!isGradePeriodOpen(period.key) ? 'هنوز باز نشده' : undefined}
                             onChange={(e) => handleScoreChange(stu.id, period.key, e.target.value)}
                             placeholder="-"
-                            className={`w-14 text-center font-bold text-xs py-1 px-1 rounded border focus:ring-1 outline-none ${
-                              val !== '' 
-                                ? parseFloat(val) >= 17 
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                                  : parseFloat(val) >= 12
-                                    ? 'bg-blue-50 border-blue-300 text-blue-950'
-                                    : 'bg-rose-50 border-rose-300 text-rose-950'
-                                : 'bg-white border-slate-200'
+                            className={`w-14 text-center text-xs py-1 px-1 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                              val !== '' ? scorePillClass(parseFloat(val)) : 'bg-slate-100/70 border border-slate-200/70 text-slate-400'
                             }`}
                           />
                         </td>
