@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ChevronLeft, Menu, Sunrise, Check, Clock, UserX, BellRing, History, Pencil, Search } from 'lucide-react';
+import { ChevronLeft, Menu, Sunrise, Check, Clock, UserX, BellRing, History, Pencil, Search, X, ChevronDown, Save } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceRecord, Student } from '../types';
 import { getTodayShamsi, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
@@ -12,7 +12,14 @@ import {
   formatDelayText,
 } from '../utils/morningAttendance';
 
+export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
+
+const parseStatusFilter = (v?: string | null): MorningStatusFilter =>
+  v === 'present' || v === 'absent' || v === 'late' ? v : null;
+
 interface MorningAttendanceWorkspaceProps {
+  /** فیلتر وضعیت اولیه (از کارت‌های داشبورد یا پارامتر ?filter= آدرس) */
+  initialStatusFilter?: MorningStatusFilter;
   onBack: () => void;
   onOpenSidebar: () => void;
   onSelectStudent?: (student: Student) => void;
@@ -81,6 +88,89 @@ const DelayOverride: React.FC<{ minutes: number; onSave: (m: number) => void; co
   );
 };
 
+/** کادر موجه/غیرموجه و علت غیبت (فقط برای غایبین) */
+const AbsenceBox: React.FC<{
+  isExcused: boolean;
+  note: string;
+  onSave: (info: { isExcused?: boolean; absenceNote?: string }) => void;
+}> = ({ isExcused, note, onSave }) => {
+  const [text, setText] = useState(note);
+  const dirty = text.trim() !== note.trim();
+  const commit = () => {
+    if (dirty) onSave({ absenceNote: text.trim() });
+  };
+
+  return (
+    <div
+      className="bg-rose-50/40 border border-rose-100 rounded-xl p-2.5 mt-2 space-y-2 cursor-default"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-pressed={isExcused}
+          onClick={() => onSave({ isExcused: true })}
+          className={`px-3 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+            isExcused
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              : 'bg-white/70 text-slate-500 border-slate-200 hover:bg-emerald-50'
+          }`}
+        >
+          موجه
+        </button>
+        <button
+          type="button"
+          aria-pressed={!isExcused}
+          onClick={() => onSave({ isExcused: false })}
+          className={`px-3 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer ${
+            !isExcused
+              ? 'bg-rose-100 text-rose-800 border-rose-300'
+              : 'bg-white/70 text-slate-500 border-slate-200 hover:bg-rose-50'
+          }`}
+        >
+          غیرموجه
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') commit();
+          }}
+          placeholder="علت غیبت، شرح تماس با اولیاء یا شماره نامه موجه..."
+          className="flex-1 min-w-0 text-xs bg-white/80 border border-rose-100 focus:border-rose-300 rounded-lg px-2.5 py-1.5 outline-none text-slate-700"
+        />
+        <button
+          type="button"
+          onClick={commit}
+          aria-label="ذخیره یادداشت"
+          title="ذخیره"
+          className={`p-1.5 rounded-lg border transition cursor-pointer ${
+            dirty ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white/70 text-slate-400 border-slate-200'
+          }`}
+        >
+          {dirty ? <Save className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const ExcusedBadge: React.FC<{ excused: boolean }> = ({ excused }) => (
+  <span
+    className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+      excused ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+    }`}
+  >
+    {excused ? 'موجه' : 'غیرموجه'}
+  </span>
+);
+
 const AckButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     type="button"
@@ -93,6 +183,7 @@ const AckButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
 );
 
 export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProps> = ({
+  initialStatusFilter,
   onBack,
   onOpenSidebar,
   onSelectStudent,
@@ -104,12 +195,31 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     toggleMorningAttendance,
     setMorningDelayMinutes,
     acknowledgeMorningRecord,
+    setMorningAbsenceInfo,
   } = useSchool();
 
   const today = getTodayShamsi();
   const [filter, setFilter] = useState<MorningFilterKey>('all');
   const [search, setSearch] = useState('');
   const [showArchive, setShowArchive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<MorningStatusFilter>(() => {
+    if (initialStatusFilter) return initialStatusFilter;
+    try {
+      return parseStatusFilter(new URLSearchParams(window.location.search).get('filter'));
+    } catch {
+      return null;
+    }
+  });
+  const [openAbsenceBoxes, setOpenAbsenceBoxes] = useState<Set<string>>(new Set());
+  const toggleStatusFilter = (key: Exclude<MorningStatusFilter, null>) =>
+    setStatusFilter((cur) => (cur === key ? null : key));
+  const toggleAbsenceBox = (id: string) =>
+    setOpenAbsenceBoxes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const classById = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes]);
   const studentById = useMemo(() => new Map(students.map((s) => [s.id, s])), [students]);
@@ -122,18 +232,51 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     return map;
   }, [morningAttendance, today.formattedDate]);
 
-  // لیست دانش‌آموزان فیلترشده؛ همیشه الفبایی بر اساس نام خانوادگی
-  const visibleStudents = useMemo(() => {
+  // فیلتر ترکیبی: کلاس + جستجوی نام (مبنای شمارنده‌ها)؛ همیشه الفبایی بر اساس نام خانوادگی
+  const scopedStudents = useMemo(() => {
     const q = search.trim();
     return students
       .filter((s) => {
         const cls = classById.get(s.classId);
         if (filter !== 'all' && !(cls && classMatchesMorningFilter(cls, filter))) return false;
-        if (q && !`${s.firstName} ${s.lastName}`.includes(q)) return false;
+        if (q && !`${s.firstName} ${s.lastName}`.includes(q) && !`${s.lastName} ${s.firstName}`.includes(q)) return false;
         return true;
       })
       .sort(compareByLastName);
   }, [students, classById, filter, search]);
+
+  const statusOf = (s: Student): 'present' | 'absent' | 'late' => {
+    const rec = todayRecords.get(s.id);
+    if (rec?.status !== 'present') return 'absent';
+    return rec.delayMinutes > 0 ? 'late' : 'present';
+  };
+
+  const counts = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    scopedStudents.forEach((s) => {
+      const rec = todayRecords.get(s.id);
+      if (rec?.status === 'present') {
+        present++;
+        if (rec.delayMinutes > 0) late++;
+      } else absent++;
+    });
+    return { present, absent, late };
+  }, [scopedStudents, todayRecords]);
+
+  // «حاضر» شامل متأخرها هم می‌شود (حضور ثبت شده)؛ «متأخر» فقط حاضرهای دارای delay_minutes > 0
+  const visibleStudents = useMemo(
+    () =>
+      scopedStudents.filter((s) => {
+        if (!statusFilter) return true;
+        const st = statusOf(s);
+        if (statusFilter === 'present') return st === 'present' || st === 'late';
+        return st === statusFilter;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scopedStudents, statusFilter, todayRecords]
+  );
 
   const visibleIds = useMemo(() => new Set(visibleStudents.map((s) => s.id)), [visibleStudents]);
 
@@ -149,7 +292,6 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     rec: MorningAttendanceRecord;
   }[];
 
-  const presentCount = visibleStudents.filter((s) => todayRecords.get(s.id)?.status === 'present').length;
   const needsAttention = activeAbsentees.length + activeDelays.length;
 
   // آرشیو: همه موارد تأییدشده (غیبت یا تأخیر) در همه روزها
@@ -238,15 +380,34 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-          <span className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-            حاضر {toPersianDigits(presentCount)}
-          </span>
-          <span className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
-            غایب {toPersianDigits(visibleStudents.length - presentCount)}
-          </span>
-          <span className="px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-            متأخر {toPersianDigits(visibleStudents.filter((s) => (todayRecords.get(s.id)?.delayMinutes || 0) > 0 && todayRecords.get(s.id)?.status === 'present').length)}
-          </span>
+          {([
+            ['present', 'حاضر', counts.present, 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100/70', 'ring-emerald-300 border-emerald-300 shadow-sm'],
+            ['absent', 'غایب', counts.absent, 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100/70', 'ring-rose-300 border-rose-300 shadow-sm'],
+            ['late', 'متأخر', counts.late, 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100/70', 'ring-amber-300 border-amber-300 shadow-sm'],
+          ] as const).map(([key, label, count, base, active]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={statusFilter === key}
+              onClick={() => toggleStatusFilter(key)}
+              title={statusFilter === key ? 'لغو فیلتر' : `فقط ${label}‌ها`}
+              className={`px-3 py-1.5 rounded-full border transition cursor-pointer ${base} ${
+                statusFilter === key ? `ring-2 ${active}` : ''
+              }`}
+            >
+              {label} {toPersianDigits(count)}
+            </button>
+          ))}
+          {statusFilter && (
+            <button
+              type="button"
+              onClick={() => setStatusFilter(null)}
+              className="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer inline-flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              <span>همه</span>
+            </button>
+          )}
           <div className="relative mr-auto w-full sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input
@@ -292,7 +453,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-extrabold truncate">
+                    <div className="text-sm font-extrabold whitespace-nowrap">
                       {student.lastName} {student.firstName}
                     </div>
                     <div className="text-[11px] opacity-70 mt-0.5 truncate">{classNameOf(student.classId)}</div>
@@ -305,6 +466,36 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                     {present ? 'حاضر' : 'غایب'}
                   </span>
                 </div>
+
+                {!present && (() => {
+                  const noteText = rec?.absenceNote || '';
+                  const open = openAbsenceBoxes.has(student.id) || statusFilter === 'absent' || Boolean(noteText);
+                  return (
+                    <>
+                      {!open && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAbsenceBox(student.id);
+                          }}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-rose-700/80 hover:text-rose-800 cursor-pointer"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                          <span>موجه/غیرموجه و علت غیبت</span>
+                        </button>
+                      )}
+                      {open && (
+                        <AbsenceBox
+                          key={`${student.id}-${noteText}`}
+                          isExcused={Boolean(rec?.isExcused)}
+                          note={noteText}
+                          onSave={(info) => setMorningAbsenceInfo(student, info)}
+                        />
+                      )}
+                    </>
+                  );
+                })()}
 
                 {present && rec && (
                   <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -429,14 +620,22 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                     transition={{ duration: 0.25 }}
                     className="border-b border-rose-100 last:border-0"
                   >
-                    <td className="px-4 py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => onSelectStudent?.(s)}
-                        className="font-bold text-slate-800 hover:text-rose-700 transition cursor-pointer text-right"
-                      >
-                        {s.lastName} {s.firstName}
-                      </button>
+                    <td className="px-4 py-2.5 whitespace-normal min-w-[220px]">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onSelectStudent?.(s)}
+                          className="font-bold text-slate-800 hover:text-rose-700 transition cursor-pointer text-right whitespace-nowrap"
+                        >
+                          {s.lastName} {s.firstName}
+                        </button>
+                        <ExcusedBadge excused={Boolean(todayRecords.get(s.id)?.isExcused)} />
+                      </div>
+                      {todayRecords.get(s.id)?.absenceNote && (
+                        <div className="mt-1.5 bg-rose-50/60 border border-rose-200/60 text-rose-900 text-xs p-2 rounded-lg">
+                          {todayRecords.get(s.id)?.absenceNote}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{classNameOf(s.classId)}</td>
                     <td className="px-4 py-2.5">

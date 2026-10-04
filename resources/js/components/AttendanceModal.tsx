@@ -425,12 +425,12 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4 z-50 sm:overflow-y-auto"
       dir="rtl"
     >
-      <div className="bg-white rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-3xl max-h-[94vh] flex flex-col overflow-hidden font-['Vazirmatn',sans-serif]">
+      <div className="bg-white sm:rounded-3xl shadow-2xl shadow-slate-900/10 w-full h-full min-h-screen sm:min-h-0 sm:h-auto max-w-3xl sm:max-h-[94vh] flex flex-col overflow-hidden font-['Vazirmatn',sans-serif]">
         {/* هدر */}
-        <div className="px-5 sm:px-6 pt-5 pb-3 space-y-3 shrink-0">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 space-y-3 shrink-0 max-h-[55vh] sm:max-h-none overflow-y-auto sm:overflow-visible bg-white z-10">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 flex-wrap min-w-0">
               <h2 className="text-lg font-extrabold text-slate-900">
@@ -557,7 +557,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         </div>
 
         {/* لیست دانش‌آموزان */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 border-t border-slate-100 space-y-2.5">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 pt-3 pb-24 sm:pb-3 border-t border-slate-100 space-y-2.5">
           {classStudents.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-400">دانش‌آموزی در این کلاس ثبت نشده است.</div>
           ) : (
@@ -576,7 +576,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
               return (
                 <div key={student.id} className={`rounded-2xl border p-3 transition ${tone}`}>
-                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-x-3 gap-y-2.5 flex-wrap">
                     <span className="hidden sm:block w-6 text-center text-xs font-bold opacity-50 shrink-0">{toPersianDigits(idx + 1)}</span>
 
                     {student.avatar ? (
@@ -592,7 +592,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                       onClick={() => onSelectStudent?.(student)}
                       className="flex-1 min-w-0 text-right cursor-pointer"
                     >
-                      <div className="text-sm font-extrabold truncate">
+                      <div className="text-sm font-extrabold whitespace-nowrap">
                         {student.lastName} {student.firstName}
                       </div>
                       {student.studentCode && (
@@ -600,7 +600,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                       )}
                     </button>
 
-                    <div className="flex items-center gap-1.5 shrink-0 mr-auto">
+                    <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto sm:mr-auto">
                       {status === 'late' && (
                         <span className="flex items-center gap-1">
                           <input
@@ -623,7 +623,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                         id={`btn-status-absent-${student.id}`}
                         aria-pressed={status === 'absent'}
                         onClick={() => toggleStatus(student.id, 'absent')}
-                        className={`px-3 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 ${
+                        className={`min-h-[40px] px-3.5 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 whitespace-nowrap ${
                           status === 'absent'
                             ? 'bg-rose-100 text-rose-800 border-rose-300'
                             : 'bg-white/70 text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-800 hover:border-rose-200'
@@ -637,7 +637,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                         id={`btn-status-late-${student.id}`}
                         aria-pressed={status === 'late'}
                         onClick={() => toggleStatus(student.id, 'late')}
-                        className={`px-3 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 ${
+                        className={`min-h-[40px] px-3.5 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 whitespace-nowrap ${
                           status === 'late'
                             ? 'bg-amber-100 text-amber-800 border-amber-300'
                             : 'bg-white/70 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-200'
@@ -652,14 +652,14 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                         onClick={() => openWarning(student)}
                         aria-label="ثبت اخطار کلاسی"
                         title={hasWarning ? 'ویرایش اخطار کلاسی' : 'ثبت اخطار کلاسی'}
-                        className={`px-3 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 ${
+                        className={`min-h-[40px] px-3.5 py-2 rounded-2xl text-xs font-extrabold border transition cursor-pointer inline-flex items-center gap-1 whitespace-nowrap ${
                           hasWarning
                             ? 'bg-violet-100 text-violet-900 border-violet-300'
                             : 'bg-violet-50 hover:bg-violet-100 text-violet-800 border-violet-200'
                         }`}
                       >
                         <ShieldAlert className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">{hasWarning ? 'اخطار ثبت شد' : 'ثبت اخطار'}</span>
+                        <span>{hasWarning ? 'اخطار ثبت شد' : 'ثبت اخطار'}</span>
                       </button>
 
                       <button
@@ -740,7 +740,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         </div>
 
         {/* فوتر */}
-        <div className="px-5 sm:px-6 py-4 border-t border-slate-100 flex items-center gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-white flex items-center gap-3 shrink-0">
           <button
             type="button"
             id="btn-save-attendance-session"

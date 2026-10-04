@@ -51,6 +51,10 @@ final class CollectionRegistry
     public static function ensureTable(string $table): bool
     {
         if (self::tableExists($table)) {
+            if ($table === 'morning_attendance') {
+                self::ensureMorningAttendanceColumns();
+            }
+
             return true;
         }
         if ($table !== 'morning_attendance') {
@@ -67,6 +71,8 @@ final class CollectionRegistry
                 $t->time('entry_time')->nullable();
                 $t->integer('delay_minutes')->default(0);
                 $t->boolean('is_acknowledged')->default(false)->index();
+                $t->boolean('is_excused')->nullable()->default(false);
+                $t->text('absence_note')->nullable();
                 $t->integer('sort_order')->default(0)->index();
                 $t->longText('data');
                 $t->timestamps();
@@ -79,6 +85,27 @@ final class CollectionRegistry
         unset(self::$schemaCache["t:$table"]);
 
         return self::tableExists($table);
+    }
+
+    /** افزودن خودکار ستون‌های is_excused و absence_note به جدول موجود (در صورت نبودن) */
+    private static function ensureMorningAttendanceColumns(): void
+    {
+        if (isset(self::$schemaCache['ma-cols'])) {
+            return;
+        }
+        self::$schemaCache['ma-cols'] = true;
+
+        try {
+            $schema = \Illuminate\Support\Facades\Schema::class;
+            if (! $schema::hasColumn('morning_attendance', 'is_excused')) {
+                $schema::table('morning_attendance', fn ($t) => $t->boolean('is_excused')->nullable()->default(false));
+            }
+            if (! $schema::hasColumn('morning_attendance', 'absence_note')) {
+                $schema::table('morning_attendance', fn ($t) => $t->text('absence_note')->nullable());
+            }
+            unset(self::$schemaCache['c:morning_attendance.is_excused'], self::$schemaCache['c:morning_attendance.absence_note']);
+        } catch (\Throwable) {
+        }
     }
 
     public static function columnExists(string $table, string $column): bool
@@ -195,7 +222,7 @@ final class CollectionRegistry
         $entry = $entry !== null && preg_match('/^([01]?\d|2[0-3]):[0-5]\d$/', $entry) ? $entry.':00' : null;
         $delay = isset($d->delayMinutes) && is_numeric($d->delayMinutes) ? max(0, min(1440, (int) $d->delayMinutes)) : 0;
 
-        return [
+        $columns = [
             'student_id' => self::str($d, 'studentId', 100) ?? '',
             'class_id' => self::str($d, 'classId', 100),
             'record_date' => self::str($d, 'date', 20) ?? '',
@@ -203,7 +230,18 @@ final class CollectionRegistry
             'entry_time' => $entry,
             'delay_minutes' => $delay,
             'is_acknowledged' => ! empty($d->isAcknowledged),
+            'is_excused' => ! empty($d->isExcused),
+            'absence_note' => self::str($d, 'absenceNote', 2000),
         ];
+
+        // سازگاری با جدول‌های ساخته‌شده پیش از افزودن ستون‌های موجه/یادداشت
+        foreach (['is_excused', 'absence_note'] as $optional) {
+            if (! self::columnExists('morning_attendance', $optional)) {
+                unset($columns[$optional]);
+            }
+        }
+
+        return $columns;
     }
 
     public static function str(object $d, string $prop, int $max): ?string

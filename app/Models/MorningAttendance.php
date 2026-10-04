@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $entry_time HH:MM:SS
  * @property int $delay_minutes
  * @property bool $is_acknowledged
+ * @property bool|null $is_excused موجه / غیرموجه
+ * @property string|null $absence_note علت غیبت یا شرح پیگیری
  */
 class MorningAttendance extends Model
 {
@@ -29,7 +31,7 @@ class MorningAttendance extends Model
 
     protected $fillable = [
         'id', 'student_id', 'class_id', 'record_date', 'status', 'entry_time',
-        'delay_minutes', 'is_acknowledged', 'data', 'sort_order',
+        'delay_minutes', 'is_acknowledged', 'is_excused', 'absence_note', 'data', 'sort_order',
     ];
 
     protected function casts(): array
@@ -37,6 +39,7 @@ class MorningAttendance extends Model
         return [
             'delay_minutes' => 'integer',
             'is_acknowledged' => 'boolean',
+            'is_excused' => 'boolean',
         ];
     }
 

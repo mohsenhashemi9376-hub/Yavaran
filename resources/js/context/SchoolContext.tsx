@@ -66,6 +66,8 @@ interface SchoolContextType {
   toggleMorningAttendance: (student: Student) => void;
   /** اصلاح دستی دقیقه تأخیر صبحگاه */
   setMorningDelayMinutes: (recordId: string, minutes: number) => void;
+  /** ثبت موجه/غیرموجه و علت غیبت صبحگاه */
+  setMorningAbsenceInfo: (student: Student, info: { isExcused?: boolean; absenceNote?: string }) => void;
   /** تأیید پیگیری غیبت/تأخیر (is_acknowledged = true) */
   acknowledgeMorningRecord: (student: Student, kind: 'absence' | 'delay') => void;
   schoolAbsences: SchoolAbsenceRecord[];
@@ -1119,6 +1121,35 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           : r
       )
     );
+  };
+
+  const setMorningAbsenceInfo = (student: Student, info: { isExcused?: boolean; absenceNote?: string }) => {
+    const today = getTodayShamsi();
+    const id = morningRecordId(today.formattedDate, student.id);
+    const nowIso = new Date().toISOString();
+    setMorningAttendance((prev) => {
+      const existing = prev.find((r) => r.id === id);
+      if (existing) {
+        return prev.map((r) => (r.id === id ? { ...r, ...info, updatedAt: nowIso } : r));
+      }
+      // غیبتِ ضمنی با ثبت موجه/یادداشت به رکورد غایب تبدیل می‌شود
+      const created: MorningAttendanceRecord = {
+        id,
+        studentId: student.id,
+        classId: student.classId,
+        date: today.formattedDate,
+        dayOfWeek: today.dayOfWeek,
+        status: 'absent',
+        delayMinutes: 0,
+        isAcknowledged: false,
+        isExcused: false,
+        ...info,
+        recordedBy: currentUser.name,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      return [created, ...prev];
+    });
   };
 
   const acknowledgeMorningRecord = (student: Student, _kind: 'absence' | 'delay') => {
@@ -2219,6 +2250,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleMorningAttendance,
         setMorningDelayMinutes,
         acknowledgeMorningRecord,
+        setMorningAbsenceInfo,
         addMorningDelaysBatch,
         addSchoolAbsence,
         updateSchoolAbsence,
