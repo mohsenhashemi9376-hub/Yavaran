@@ -28,44 +28,79 @@ import {
   PhoneCall
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { MorningAttendanceWorkspace } from './MorningAttendanceWorkspace';
+
+type AttendanceTab = 'morning' | 'sessions';
 
 interface AdminAttendanceWorkspaceProps {
   sessions: AttendanceSession[];
   classes: SchoolClass[];
-  delays?: MorningDelayRecord[];
-  schoolAbsences?: SchoolAbsenceRecord[];
-  students?: Student[];
   onBack: () => void;
   onOpenSidebar: () => void;
   onOpenNewAttendance: (classId?: string) => void;
-  onOpenAddDelay?: () => void;
-  onOpenAddAbsence?: () => void;
-  onDeleteDelay?: (id: string) => void;
-  onDeleteSchoolAbsence?: (id: string) => void;
-  initialTab?: 'sessions' | 'delays' | 'absences';
+  onSelectStudent?: (student: Student) => void;
+  /** نمایش تب «حضور و غیاب صبحگاه» (ناظم/معاون اجرایی) */
+  showMorning?: boolean;
+  initialTab?: AttendanceTab;
 }
+
+const AttendanceTabSwitch: React.FC<{
+  active: AttendanceTab;
+  onChange: (tab: AttendanceTab) => void;
+  sessionsCount: number;
+}> = ({ active, onChange, sessionsCount }) => (
+  <div className="flex items-center gap-2 overflow-x-auto" role="tablist">
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active === 'morning'}
+      onClick={() => onChange('morning')}
+      className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+        active === 'morning'
+          ? 'bg-emerald-100/70 text-emerald-900 border-emerald-300/80 shadow-sm'
+          : 'bg-slate-50/80 text-slate-700 hover:bg-slate-100 border-slate-200/70'
+      }`}
+    >
+      <Clock className="w-4 h-4" />
+      <span>حضور و غیاب صبحگاه</span>
+    </button>
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active === 'sessions'}
+      onClick={() => onChange('sessions')}
+      className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+        active === 'sessions'
+          ? 'bg-emerald-100/70 text-emerald-900 border-emerald-300/80 shadow-sm'
+          : 'bg-slate-50/80 text-slate-700 hover:bg-slate-100 border-slate-200/70'
+      }`}
+    >
+      <CheckCircle2 className="w-4 h-4" />
+      <span>جلسات کلاسی</span>
+      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono bg-white/70 text-slate-600">
+        {toPersianDigits(sessionsCount)}
+      </span>
+    </button>
+  </div>
+);
 
 export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> = ({
   sessions = [],
   classes = [],
-  delays = [],
-  schoolAbsences = [],
-  students = [],
   onBack,
   onOpenSidebar,
   onOpenNewAttendance,
-  onOpenAddDelay,
-  onOpenAddAbsence,
-  onDeleteDelay,
-  onDeleteSchoolAbsence,
-  initialTab = 'sessions',
+  onSelectStudent,
+  showMorning = true,
+  initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'sessions' | 'delays' | 'absences'>(initialTab);
-  
+  const [activeTab, setActiveTab] = useState<AttendanceTab>(
+    initialTab ?? (showMorning ? 'morning' : 'sessions')
+  );
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const [excusedFilter, setExcusedFilter] = useState<'all' | 'excused' | 'unexcused'>('all');
 
   const todayInfo = getTodayShamsi();
 
@@ -89,8 +124,6 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
   });
 
   const attendanceRate = totalPossible > 0 ? Math.round((totalAttended / totalPossible) * 100) : 100;
-  const safeDelays = Array.isArray(delays) ? delays : [];
-  const safeAbsences = Array.isArray(schoolAbsences) ? schoolAbsences : [];
 
   // Filter Sessions
   const filteredSessions = sessions.filter((s) => {
@@ -107,48 +140,6 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
       if (!matchesClass && !matchesTeacher && !matchesSubject && !matchesDate) {
         return false;
       }
-    }
-    return true;
-  });
-
-  // Filter Delays
-  const filteredDelays = safeDelays.filter((d) => {
-    const student = students.find((s) => s.id === d.studentId);
-    const cls = classes.find((c) => c.id === (d.classId || student?.classId));
-    const studentName = student ? `${student.firstName} ${student.lastName}` : (d.studentName || '');
-
-    if (classFilter && (d.classId !== classFilter && student?.classId !== classFilter)) return false;
-
-    if (excusedFilter === 'excused' && !d.isExcused) return false;
-    if (excusedFilter === 'unexcused' && d.isExcused) return false;
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      const matchesName = studentName.toLowerCase().includes(q);
-      const matchesReason = d.reason?.toLowerCase().includes(q);
-      const matchesDate = d.date.includes(q);
-      if (!matchesName && !matchesReason && !matchesDate) return false;
-    }
-    return true;
-  });
-
-  // Filter Absences
-  const filteredAbsences = safeAbsences.filter((a) => {
-    const student = students.find((s) => s.id === a.studentId);
-    const cls = classes.find((c) => c.id === (a.classId || student?.classId));
-    const studentName = student ? `${student.firstName} ${student.lastName}` : '';
-
-    if (classFilter && (a.classId !== classFilter && student?.classId !== classFilter)) return false;
-
-    if (excusedFilter === 'excused' && !a.isExcused) return false;
-    if (excusedFilter === 'unexcused' && a.isExcused) return false;
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      const matchesName = studentName.toLowerCase().includes(q);
-      const matchesReason = a.reason?.toLowerCase().includes(q);
-      const matchesDate = a.date.includes(q);
-      if (!matchesName && !matchesReason && !matchesDate) return false;
     }
     return true;
   });
@@ -182,49 +173,14 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
     XLSX.writeFile(wb, `Sessions_${todayInfo.formattedDate}.xlsx`);
   };
 
-  const exportDelaysToExcel = () => {
-    const rows = filteredDelays.map((d, idx) => {
-      const student = students.find((s) => s.id === d.studentId);
-      const cls = classes.find((c) => c.id === (d.classId || student?.classId));
-      return {
-        'ردیف': idx + 1,
-        'نام دانش‌آموز': student ? `${student.firstName} ${student.lastName}` : d.studentName || 'نامشخص',
-        'کلاس': cls?.name || 'نامشخص',
-        'تاریخ': d.date,
-        'روز هفته': d.dayOfWeek,
-        'ساعت ورود': d.arrivalTime || '-',
-        'میزان تأخیر (دقیقه)': d.delayMinutes || 0,
-        'وضعیت': d.isExcused ? 'موجه' : 'غیرموجه',
-        'علت': d.reason || '-',
-        'اقدام انضباطی': d.disciplinaryActionTaken || '-',
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'تأخیرهای ورود');
-    XLSX.writeFile(wb, `MorningDelays_${todayInfo.formattedDate}.xlsx`);
-  };
-
-  const exportAbsencesToExcel = () => {
-    const rows = filteredAbsences.map((a, idx) => {
-      const student = students.find((s) => s.id === a.studentId);
-      const cls = classes.find((c) => c.id === (a.classId || student?.classId));
-      return {
-        'ردیف': idx + 1,
-        'نام دانش‌آموز': student ? `${student.firstName} ${student.lastName}` : 'نامشخص',
-        'کلاس': cls?.name || 'نامشخص',
-        'تاریخ غیبت': a.date,
-        'روز هفته': a.dayOfWeek,
-        'وضعیت': a.isExcused ? 'موجه' : 'غیرموجه',
-        'علت غیبت': a.reason || '-',
-        'ثبت‌کننده': a.recordedBy || '-',
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'غیبت‌های مدرسه');
-    XLSX.writeFile(wb, `SchoolAbsences_${todayInfo.formattedDate}.xlsx`);
-  };
+  if (showMorning && activeTab === 'morning') {
+    return (
+      <div className="space-y-4" dir="rtl">
+        <AttendanceTabSwitch active={activeTab} onChange={setActiveTab} sessionsCount={sessions.length} />
+        <MorningAttendanceWorkspace onBack={onBack} onOpenSidebar={onOpenSidebar} onSelectStudent={onSelectStudent} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -264,35 +220,11 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
               </button>
             )}
 
-            {activeTab === 'delays' && onOpenAddDelay && (
-              <button
-                type="button"
-                onClick={onOpenAddDelay}
-                className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ثبت تأخیر ورود جدید</span>
-              </button>
-            )}
-
-            {activeTab === 'absences' && onOpenAddAbsence && (
-              <button
-                type="button"
-                onClick={onOpenAddAbsence}
-                className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ثبت غیبت مدرسه جدید</span>
-              </button>
-            )}
-
             {/* Excel export */}
             <button
               type="button"
               onClick={() => {
-                if (activeTab === 'sessions') exportSessionsToExcel();
-                else if (activeTab === 'delays') exportDelaysToExcel();
-                else exportAbsencesToExcel();
+                exportSessionsToExcel();
               }}
               className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
               title="خروجی اکسل"
@@ -327,87 +259,13 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">تأخیرهای ورود به مدرسه</div>
-              <div className="text-xl font-black text-amber-800 mt-0.5">
-                {toPersianDigits(safeDelays.length)} <span className="text-xs font-normal text-slate-500">مورد دیرکرد</span>
-              </div>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">غیبت‌های کل روز مدرسه</div>
-              <div className="text-xl font-black text-rose-700 mt-0.5">
-                {toPersianDigits(safeAbsences.length)} <span className="text-xs font-normal text-slate-500">مورد غیبت</span>
-              </div>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
-              <UserX className="w-4 h-4" />
-            </div>
-          </div>
         </div>
 
-        {/* 2. Unified Sub-Tabs (Step 4 & 12: Sessions, Delays, Absences) */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('sessions')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'sessions'
-                ? 'bg-teal-800 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>جلسات کلاسی</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-              activeTab === 'sessions' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {toPersianDigits(sessions.length)}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('delays')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'delays'
-                ? 'bg-amber-700 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>تأخیرهای ورود به مدرسه</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-              activeTab === 'delays' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {toPersianDigits(safeDelays.length)}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('absences')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'absences'
-                ? 'bg-rose-700 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <UserX className="w-4 h-4" />
-            <span>غیبت‌های مدرسه</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-              activeTab === 'absences' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {toPersianDigits(safeAbsences.length)}
-            </span>
-          </button>
-        </div>
+        {showMorning && (
+          <div className="pt-2 border-t border-slate-100">
+            <AttendanceTabSwitch active={activeTab} onChange={setActiveTab} sessionsCount={sessions.length} />
+          </div>
+        )}
 
         {/* Filters Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
@@ -415,11 +273,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
             <input
               type="text"
-              placeholder={
-                activeTab === 'sessions' 
-                  ? 'جستجو با نام درس، دبیر، کلاس یا تاریخ...'
-                  : 'جستجو با نام دانش‌آموز، علت یا تاریخ...'
-              }
+              placeholder="جستجو با نام درس، دبیر، کلاس یا تاریخ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-700 transition"
@@ -441,19 +295,6 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
             </select>
           </div>
 
-          {(activeTab === 'delays' || activeTab === 'absences') && (
-            <div>
-              <select
-                value={excusedFilter}
-                onChange={(e) => setExcusedFilter(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-700 transition cursor-pointer"
-              >
-                <option value="all">همه وضعیت‌ها (موجه و غیرموجه)</option>
-                <option value="excused">فقط موجه</option>
-                <option value="unexcused">فقط غیرموجه</option>
-              </select>
-            </div>
-          )}
         </div>
       </div>
 
@@ -526,160 +367,6 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                           )}
                         </td>
                         <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{s.lessonTopic || '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: MORNING DELAYS TABLE */}
-      {activeTab === 'delays' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          {filteredDelays.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 space-y-2">
-              <Clock className="w-10 h-10 mx-auto opacity-40 text-amber-600" />
-              <p className="text-xs font-bold text-slate-600">هیچ مورد تأخیر ورودی با این فیلتر ثبت نشده است.</p>
-              <p className="text-[11px] text-slate-400">از دکمه «ثبت تأخیر ورود جدید» برای ثبت دیرکرد صبحگاهی استفاده کنید.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="py-3.5 px-4">ردیف</th>
-                    <th className="py-3.5 px-4">نام دانش‌آموز</th>
-                    <th className="py-3.5 px-4">کلاس</th>
-                    <th className="py-3.5 px-4">تاریخ و روز</th>
-                    <th className="py-3.5 px-4 text-center">ساعت ورود</th>
-                    <th className="py-3.5 px-4 text-center">میزان تأخیر</th>
-                    <th className="py-3.5 px-4 text-center">وضعیت</th>
-                    <th className="py-3.5 px-4">علت دیرکرد</th>
-                    <th className="py-3.5 px-4 text-center">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {filteredDelays.map((d, idx) => {
-                    const student = students.find((s) => s.id === d.studentId);
-                    const cls = classes.find((c) => c.id === (d.classId || student?.classId));
-
-                    return (
-                      <tr key={d.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{toPersianDigits(idx + 1)}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900">
-                          {student ? `${student.firstName} ${student.lastName}` : (d.studentName || 'نامشخص')}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">{cls?.name || 'نامشخص'}</td>
-                        <td className="py-3 px-4 font-mono text-slate-600">
-                          {toPersianDigits(d.date)} <span className="text-[10px] text-slate-400">({d.dayOfWeek})</span>
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono font-bold text-slate-700">
-                          {d.arrivalTime ? toPersianDigits(d.arrivalTime) : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono font-bold text-amber-800">
-                          {toPersianDigits(d.delayMinutes || 0)} دقیقه
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {d.isExcused ? (
-                            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
-                              موجه
-                            </span>
-                          ) : (
-                            <span className="text-[10px] bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-bold">
-                              غیرموجه
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{d.reason || '-'}</td>
-                        <td className="py-3 px-4 text-center">
-                          {onDeleteDelay && (
-                            <button
-                              type="button"
-                              onClick={() => onDeleteDelay(d.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                              title="حذف این مورد تأخیر"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: SCHOOL ABSENCES TABLE */}
-      {activeTab === 'absences' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          {filteredAbsences.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 space-y-2">
-              <UserX className="w-10 h-10 mx-auto opacity-40 text-rose-600" />
-              <p className="text-xs font-bold text-slate-600">هیچ مورد غیبت مدرسه‌ای با این فیلتر ثبت نشده است.</p>
-              <p className="text-[11px] text-slate-400">از دکمه «ثبت غیبت مدرسه جدید» برای ثبت غیبت در دفتر مدرسه استفاده کنید.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="py-3.5 px-4">ردیف</th>
-                    <th className="py-3.5 px-4">نام دانش‌آموز</th>
-                    <th className="py-3.5 px-4">کلاس</th>
-                    <th className="py-3.5 px-4">تاریخ و روز</th>
-                    <th className="py-3.5 px-4 text-center">وضعیت غیبت</th>
-                    <th className="py-3.5 px-4">علت غیبت</th>
-                    <th className="py-3.5 px-4">ثبت‌کننده</th>
-                    <th className="py-3.5 px-4 text-center">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {filteredAbsences.map((a, idx) => {
-                    const student = students.find((s) => s.id === a.studentId);
-                    const cls = classes.find((c) => c.id === (a.classId || student?.classId));
-
-                    return (
-                      <tr key={a.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{toPersianDigits(idx + 1)}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900">
-                          {student ? `${student.firstName} ${student.lastName}` : 'نامشخص'}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">{cls?.name || 'نامشخص'}</td>
-                        <td className="py-3 px-4 font-mono text-slate-600">
-                          {toPersianDigits(a.date)} <span className="text-[10px] text-slate-400">({a.dayOfWeek})</span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {a.isExcused ? (
-                            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
-                              موجه
-                            </span>
-                          ) : (
-                            <span className="text-[10px] bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-full font-bold">
-                              غیرموجه
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{a.reason || '-'}</td>
-                        <td className="py-3 px-4 text-slate-500">{a.recordedBy || 'معاونت اجرایی'}</td>
-                        <td className="py-3 px-4 text-center">
-                          {onDeleteSchoolAbsence && (
-                            <button
-                              type="button"
-                              onClick={() => onDeleteSchoolAbsence(a.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                              title="حذف این مورد غیبت"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}

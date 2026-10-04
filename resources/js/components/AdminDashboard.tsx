@@ -29,8 +29,6 @@ import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
 import { CoachProfileModal } from './CoachProfileModal';
 import { AddDisciplineModal } from './AddDisciplineModal';
-import { MorningDelayModal } from './MorningDelayModal';
-import { SchoolAbsenceModal } from './SchoolAbsenceModal';
 import { QuickAddStudentModal } from './QuickAddStudentModal';
 import { ReportsModal } from './ReportsModal';
 import { SystemSettingsModal } from './SystemSettingsModal';
@@ -160,8 +158,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isQuickAddStudentOpen, setIsQuickAddStudentOpen] = useState(false);
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
-  const [isAddDelayModalOpen, setIsAddDelayModalOpen] = useState(false);
-  const [isAddAbsenceModalOpen, setIsAddAbsenceModalOpen] = useState(false);
   const [isAddDisciplineModalOpen, setIsAddDisciplineModalOpen] = useState(false);
   const [disciplineSelectedStudent, setDisciplineSelectedStudent] = useState<Student | null>(null);
 
@@ -775,32 +771,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     id="btn-quick-school-absence"
-                    onClick={() => setIsAddAbsenceModalOpen(true)}
+                    onClick={() => setCurrentFullScreenView('attendance')}
                     className="p-3.5 rounded-xl bg-white hover:bg-rose-50/70 border border-rose-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
                   >
                     <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:scale-105 transition">
                       <UserX className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-rose-950">ثبت غیبت مدرسه</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">عدم حضور در مدرسه</div>
+                      <div className="text-xs font-bold text-rose-950">حضور و غیاب صبحگاه</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">غیبت و تأخیر ورود</div>
                     </div>
                   </button>
 
-                  <button
-                    type="button"
-                    id="btn-quick-delay"
-                    onClick={() => setIsAddDelayModalOpen(true)}
-                    className="p-3.5 rounded-xl bg-white hover:bg-amber-50/70 border border-amber-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
-                  >
-                    <div className="p-2 rounded-lg bg-amber-100 text-amber-800 group-hover:scale-105 transition">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-amber-950">ثبت تأخیر ورود</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">دیر رسیدن به مدرسه</div>
-                    </div>
-                  </button>
 
                   <button
                     type="button"
@@ -949,32 +931,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     id="btn-quick-school-absence"
-                    onClick={() => setIsAddAbsenceModalOpen(true)}
+                    onClick={() => setCurrentFullScreenView('attendance')}
                     className="p-3.5 rounded-xl bg-white hover:bg-rose-50/70 border border-rose-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
                   >
                     <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:scale-105 transition">
                       <UserX className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-rose-950">ثبت غیبت روزانه</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">عدم حضور در مدرسه</div>
+                      <div className="text-xs font-bold text-rose-950">حضور و غیاب صبحگاه</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">غیبت و تأخیر ورود</div>
                     </div>
                   </button>
 
-                  <button
-                    type="button"
-                    id="btn-quick-delay"
-                    onClick={() => setIsAddDelayModalOpen(true)}
-                    className="p-3.5 rounded-xl bg-white hover:bg-amber-50/70 border border-amber-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
-                  >
-                    <div className="p-2 rounded-lg bg-amber-100 text-amber-800 group-hover:scale-105 transition">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-amber-950">ثبت تأخیر ورود</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">دیر رسیدن به مدرسه</div>
-                    </div>
-                  </button>
 
                   <button
                     type="button"
@@ -1135,32 +1103,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     id="btn-quick-school-absence"
-                    onClick={() => setIsAddAbsenceModalOpen(true)}
+                    onClick={() => setCurrentFullScreenView('attendance')}
                     className="p-3.5 rounded-xl bg-white hover:bg-rose-50/70 border border-rose-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
                   >
                     <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:scale-105 transition">
                       <UserX className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-rose-950">ثبت غیبت مدرسه</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">عدم حضور در مدرسه</div>
+                      <div className="text-xs font-bold text-rose-950">حضور و غیاب صبحگاه</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">غیبت و تأخیر ورود</div>
                     </div>
                   </button>
 
-                  <button
-                    type="button"
-                    id="btn-quick-delay"
-                    onClick={() => setIsAddDelayModalOpen(true)}
-                    className="p-3.5 rounded-xl bg-white hover:bg-amber-50/70 border border-amber-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
-                  >
-                    <div className="p-2 rounded-lg bg-amber-100 text-amber-800 group-hover:scale-105 transition">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-amber-950">ثبت تأخیر ورود</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">دیر رسیدن به مدرسه</div>
-                    </div>
-                  </button>
 
                   <button
                     type="button"
@@ -1313,7 +1267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* کارت ۴: غیبت‌های مدرسه (عدم حضور در مدرسه) */}
               <div
                 id="stat-card-absences"
-                onClick={() => setIsAddAbsenceModalOpen(true)}
+                onClick={() => setCurrentFullScreenView('attendance')}
                 className="p-4 rounded-xl bg-slate-50 hover:bg-rose-50/50 border border-slate-200/90 hover:border-rose-300 transition cursor-pointer flex flex-col justify-between group"
               >
                 <div className="flex items-center justify-between text-slate-500">
@@ -1679,16 +1633,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <AdminAttendanceWorkspace
           classes={classes}
           sessions={sessions}
-          delays={morningDelays}
-          schoolAbsences={schoolAbsences}
-          students={students}
           onBack={() => setCurrentFullScreenView(null)}
           onOpenSidebar={handleOpenSidebar}
           onOpenNewAttendance={onOpenNewAttendance}
-          onOpenAddDelay={() => setIsAddDelayModalOpen(true)}
-          onOpenAddAbsence={() => setIsAddAbsenceModalOpen(true)}
-          onDeleteDelay={deleteMorningDelay}
-          onDeleteSchoolAbsence={deleteSchoolAbsence}
+          onSelectStudent={(stu) => onSelectStudent?.(stu, 'attendance')}
         />
       )}
 
@@ -1696,17 +1644,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <AdminAttendanceWorkspace
           classes={classes}
           sessions={sessions}
-          delays={morningDelays}
-          schoolAbsences={schoolAbsences}
-          students={students}
-          initialTab="delays"
           onBack={() => setCurrentFullScreenView(null)}
           onOpenSidebar={handleOpenSidebar}
           onOpenNewAttendance={onOpenNewAttendance}
-          onOpenAddDelay={() => setIsAddDelayModalOpen(true)}
-          onOpenAddAbsence={() => setIsAddAbsenceModalOpen(true)}
-          onDeleteDelay={deleteMorningDelay}
-          onDeleteSchoolAbsence={deleteSchoolAbsence}
+          onSelectStudent={(stu) => onSelectStudent?.(stu, 'attendance')}
         />
       )}
 
@@ -1903,18 +1844,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isReportsModalOpen}
         onClose={() => setIsReportsModalOpen(false)}
         onOpenAcademicGrades={onOpenAcademicGrades}
-      />
-
-      {/* School Absence Modal (غیبت در مدرسه) */}
-      <SchoolAbsenceModal
-        isOpen={isAddAbsenceModalOpen}
-        onClose={() => setIsAddAbsenceModalOpen(false)}
-      />
-
-      {/* Morning Delay Modal (تأخیر ورود به مدرسه) */}
-      <MorningDelayModal
-        isOpen={isAddDelayModalOpen}
-        onClose={() => setIsAddDelayModalOpen(false)}
       />
 
       {/* Add Discipline Modal */}

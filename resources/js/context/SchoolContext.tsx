@@ -10,6 +10,7 @@ import {
   DisciplinaryNote, 
   DisciplinaryStatus, 
   MorningDelayRecord,
+  MorningAttendanceRecord,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -44,7 +45,8 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
-import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear } from '../utils/persianDate';
+import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
+import { delayFromEntryTime } from '../utils/morningAttendance';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 
 interface SchoolContextType {
@@ -59,6 +61,13 @@ interface SchoolContextType {
   academicSubjects: AcademicSubject[];
   academicGrades: StudentAcademicGrade[];
   morningDelays: MorningDelayRecord[];
+  morningAttendance: MorningAttendanceRecord[];
+  /** تغییر وضعیت با یک ضربه: غایب ⇄ حاضر (با ثبت خودکار ساعت ورود و محاسبه تأخیر نسبت به ۰۷:۰۰) */
+  toggleMorningAttendance: (student: Student) => void;
+  /** اصلاح دستی دقیقه تأخیر صبحگاه */
+  setMorningDelayMinutes: (recordId: string, minutes: number) => void;
+  /** تأیید پیگیری غیبت/تأخیر (is_acknowledged = true) */
+  acknowledgeMorningRecord: (student: Student, kind: 'absence' | 'delay') => void;
   schoolAbsences: SchoolAbsenceRecord[];
   observations: StudentObservation[];
   nurturingDossiers: Record<string, StudentNurturingDossier>;
@@ -282,6 +291,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [academicSubjects, setAcademicSubjects] = useState<AcademicSubject[]>([]);
   const [academicGrades, setAcademicGrades] = useState<StudentAcademicGrade[]>([]);
   const [morningDelays, setMorningDelays] = useState<MorningDelayRecord[]>([]);
+  const [morningAttendance, setMorningAttendance] = useState<MorningAttendanceRecord[]>([]);
   const [schoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
   const [observations, setObservations] = useState<StudentObservation[]>([]);
   const [nurturingDossiers, setNurturingDossiers] = useState<Record<string, StudentNurturingDossier>>({});
@@ -418,6 +428,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextSubjects = (d.academicSubjects || []) as unknown as AcademicSubject[];
     const nextAcademicGrades = (d.academicGrades || []) as unknown as StudentAcademicGrade[];
     const nextDelays = (d.morningDelays || []) as unknown as MorningDelayRecord[];
+    const nextMorningAttendance = (d.morningAttendance || []) as unknown as MorningAttendanceRecord[];
     const nextAbsences = (d.schoolAbsences || []) as unknown as SchoolAbsenceRecord[];
     const nextObservations = (d.observations || []) as unknown as StudentObservation[];
     const nextDossiers = rowsToDossiers(d.nurturingDossiers || []);
@@ -438,6 +449,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       academicSubjects: nextSubjects as unknown as SyncRow[],
       academicGrades: nextAcademicGrades as unknown as SyncRow[],
       morningDelays: nextDelays as unknown as SyncRow[],
+      morningAttendance: nextMorningAttendance as unknown as SyncRow[],
       schoolAbsences: nextAbsences as unknown as SyncRow[],
       observations: nextObservations as unknown as SyncRow[],
       nurturingDossiers: dossiersToRows(nextDossiers),
@@ -458,6 +470,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAcademicSubjects(nextSubjects);
     setAcademicGrades(nextAcademicGrades);
     setMorningDelays(nextDelays);
+    setMorningAttendance(nextMorningAttendance);
     setSchoolAbsences(nextAbsences);
     setObservations(nextObservations);
     setNurturingDossiers(nextDossiers);
@@ -485,6 +498,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAcademicSubjects([]);
     setAcademicGrades([]);
     setMorningDelays([]);
+    setMorningAttendance([]);
     setSchoolAbsences([]);
     setObservations([]);
     setNurturingDossiers({});
@@ -564,6 +578,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('academicSubjects', academicSubjects as unknown as SyncRow[]); }, [academicSubjects, syncEngine]);
   useEffect(() => { syncEngine.push('academicGrades', academicGrades as unknown as SyncRow[]); }, [academicGrades, syncEngine]);
   useEffect(() => { syncEngine.push('morningDelays', morningDelays as unknown as SyncRow[]); }, [morningDelays, syncEngine]);
+  useEffect(() => { syncEngine.push('morningAttendance', morningAttendance as unknown as SyncRow[]); }, [morningAttendance, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAbsences', schoolAbsences as unknown as SyncRow[]); }, [schoolAbsences, syncEngine]);
   useEffect(() => { syncEngine.push('observations', observations as unknown as SyncRow[]); }, [observations, syncEngine]);
   useEffect(() => { syncEngine.push('nurturingDossiers', dossiersToRows(nurturingDossiers)); }, [nurturingDossiers, syncEngine]);
@@ -930,6 +945,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // حذف کامل سوابق وابسته به دانش‌آموز
     setAcademicGrades((prev) => (prev.some((g) => g.studentId === id) ? prev.filter((g) => g.studentId !== id) : prev));
     setMorningDelays((prev) => (prev.some((d) => d.studentId === id) ? prev.filter((d) => d.studentId !== id) : prev));
+    setMorningAttendance((prev) => (prev.some((d) => d.studentId === id) ? prev.filter((d) => d.studentId !== id) : prev));
     setSchoolAbsences((prev) => (prev.some((a) => a.studentId === id) ? prev.filter((a) => a.studentId !== id) : prev));
     setObservations((prev) => (prev.some((o) => o.studentId === id) ? prev.filter((o) => o.studentId !== id) : prev));
     setCoachEvaluations((prev) => (prev.some((e) => e.studentId === id) ? prev.filter((e) => e.studentId !== id) : prev));
@@ -968,6 +984,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSessions([]);
     setAcademicGrades([]);
     setMorningDelays([]);
+    setMorningAttendance([]);
     setSchoolAbsences([]);
     setObservations([]);
     setNurturingDossiers({});
@@ -1046,6 +1063,93 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
     showToast('مورد انضباطی حذف شد.', 'info');
+  };
+
+  // ------------------------------------------------------------------
+  // حضور و غیاب صبحگاه (ناظم / معاون اجرایی)
+  // ------------------------------------------------------------------
+  const morningRecordId = (date: string, studentId: string) => `ma-${toEnglishDigits(date).replace(/\//g, '')}-${studentId}`;
+
+  const toggleMorningAttendance = (student: Student) => {
+    const today = getTodayShamsi();
+    const id = morningRecordId(today.formattedDate, student.id);
+    const now = tehranNow();
+    const nowIso = new Date().toISOString();
+    const entryTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    setMorningAttendance((prev) => {
+      const existing = prev.find((r) => r.id === id);
+      if (existing?.status === 'present') {
+        // بازگشت به «غایب»: ساعت ورود و تأخیر پاک می‌شود
+        return prev.map((r) =>
+          r.id === id
+            ? { ...r, status: 'absent', entryTime: undefined, delayMinutes: 0, delayManuallyAdjusted: false, isAcknowledged: false, acknowledgedAt: undefined, acknowledgedBy: undefined, updatedAt: nowIso }
+            : r
+        );
+      }
+      const present: MorningAttendanceRecord = {
+        ...(existing || {
+          id,
+          studentId: student.id,
+          classId: student.classId,
+          date: today.formattedDate,
+          dayOfWeek: today.dayOfWeek,
+          createdAt: nowIso,
+        }),
+        status: 'present',
+        entryTime,
+        delayMinutes: delayFromEntryTime(entryTime),
+        delayManuallyAdjusted: false,
+        isAcknowledged: false,
+        acknowledgedAt: undefined,
+        acknowledgedBy: undefined,
+        recordedBy: currentUser.name,
+        updatedAt: nowIso,
+      };
+      return existing ? prev.map((r) => (r.id === id ? present : r)) : [present, ...prev];
+    });
+  };
+
+  const setMorningDelayMinutes = (recordId: string, minutes: number) => {
+    const clean = Math.max(0, Math.min(600, Math.round(Number.isFinite(minutes) ? minutes : 0)));
+    setMorningAttendance((prev) =>
+      prev.map((r) =>
+        r.id === recordId
+          ? { ...r, delayMinutes: clean, delayManuallyAdjusted: true, updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
+  };
+
+  const acknowledgeMorningRecord = (student: Student, _kind: 'absence' | 'delay') => {
+    const today = getTodayShamsi();
+    const id = morningRecordId(today.formattedDate, student.id);
+    const nowIso = new Date().toISOString();
+    setMorningAttendance((prev) => {
+      const existing = prev.find((r) => r.id === id);
+      if (existing) {
+        return prev.map((r) =>
+          r.id === id ? { ...r, isAcknowledged: true, acknowledgedAt: nowIso, acknowledgedBy: currentUser.name, updatedAt: nowIso } : r
+        );
+      }
+      // غیبتِ ضمنی (هنوز رکوردی ندارد) با تأیید، به‌صورت رکورد غایبِ تأییدشده ثبت می‌شود
+      const created: MorningAttendanceRecord = {
+        id,
+        studentId: student.id,
+        classId: student.classId,
+        date: today.formattedDate,
+        dayOfWeek: today.dayOfWeek,
+        status: 'absent',
+        delayMinutes: 0,
+        isAcknowledged: true,
+        acknowledgedAt: nowIso,
+        acknowledgedBy: currentUser.name,
+        recordedBy: currentUser.name,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      return [created, ...prev];
+    });
   };
 
   // Morning Entrance Delays CRUD
@@ -1451,15 +1555,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       showToast('جلسه حضور و غیاب بروزرسانی شد.');
       return existingId;
     } else {
-      // Prevent duplicate session registration for same class, date, and bell period/time
+      // جلوگیری از ثبت تکراری: یک زنگ از یک درس در یک کلاس و تاریخ مشخص فقط یک‌بار ثبت می‌شود
+      const sameSubject = (s: AttendanceSession) =>
+        sessionData.subjectId && s.subjectId ? s.subjectId === sessionData.subjectId : s.subject === sessionData.subject;
       const duplicateSession = sessions.find(
         (s) =>
           s.classId === sessionData.classId &&
           s.date === sessionData.date &&
-          (
-            (sessionData.bellPeriodId && s.bellPeriodId === sessionData.bellPeriodId) ||
-            (sessionData.startTime && s.startTime === sessionData.startTime)
-          )
+          sameSubject(s) &&
+          (sessionData.periodNumber ?? 0) === (s.periodNumber ?? 0)
       );
 
       if (duplicateSession) {
@@ -1968,6 +2072,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setAcademicSubjects(INITIAL_ACADEMIC_SUBJECTS);
     setAcademicGrades(INITIAL_ACADEMIC_GRADES);
     setMorningDelays(INITIAL_MORNING_DELAYS);
+    setMorningAttendance([]);
     setObservations(INITIAL_OBSERVATIONS);
     setNurturingDossiers(INITIAL_NURTURING_DOSSIERS);
     setCoachEvaluations(INITIAL_COACH_EVALUATIONS);
@@ -2110,6 +2215,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addMorningDelay,
         updateMorningDelay,
         deleteMorningDelay,
+        morningAttendance,
+        toggleMorningAttendance,
+        setMorningDelayMinutes,
+        acknowledgeMorningRecord,
         addMorningDelaysBatch,
         addSchoolAbsence,
         updateSchoolAbsence,

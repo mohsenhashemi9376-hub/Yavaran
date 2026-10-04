@@ -13,6 +13,7 @@ export type CollectionKey =
   | 'academicSubjects'
   | 'academicGrades'
   | 'morningDelays'
+  | 'morningAttendance'
   | 'schoolAbsences'
   | 'observations'
   | 'nurturingDossiers'
@@ -33,6 +34,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'academicSubjects',
   'academicGrades',
   'morningDelays',
+  'morningAttendance',
   'schoolAbsences',
   'observations',
   'nurturingDossiers',

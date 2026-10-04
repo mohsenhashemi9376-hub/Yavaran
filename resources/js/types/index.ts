@@ -15,6 +15,10 @@ export interface DisciplinaryNote {
   recordedBy: string; // e.g. "معاون انضباطی"
   author?: string; // alias for recordedBy
   type: 'delay' | 'absence' | 'behavior' | 'uniform' | 'other';
+  source?: 'class_warning'; // اخطار ثبت‌شده توسط استاد در جلسه کلاسی
+  warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
+  subject?: string; // درس مربوط به اخطار کلاسی
+  sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)
 }
 
 export interface ClassDisciplinaryWarning {
@@ -23,6 +27,7 @@ export interface ClassDisciplinaryWarning {
   description: string;
   scoreDeduction: number;
   type: 'delay' | 'absence' | 'behavior' | 'uniform' | 'other';
+  kind?: string;
 }
 
 export interface TeachingAssignment {
@@ -122,6 +127,7 @@ export interface AttendanceSession {
   teacherId: string;
   teacherName: string;
   subject: string;
+  subjectId?: string; // شناسه درس تخصیص‌یافته (Subject-Class Assignment)
   date: string; // Shamsi format: "1404/08/15"
   dayOfWeek: string; // e.g. "شنبه", "یکشنبه"
   startTime?: string; // e.g. "08:00"
@@ -277,6 +283,25 @@ export interface MorningDelayRecord {
   isParentNotified?: boolean; // alias for parentContacted
   notes?: string;
   createdAt: string;
+}
+
+/** حضور و غیاب صبحگاه (ناظم / معاون اجرایی) — یک رکورد برای هر دانش‌آموز در هر روز */
+export interface MorningAttendanceRecord {
+  id: string;
+  studentId: string;
+  classId: string;
+  date: string; // Shamsi: "1404/08/15"
+  dayOfWeek: string;
+  status: 'present' | 'absent';
+  entryTime?: string; // ساعت ثبت حضور "HH:MM" (entry_time)
+  delayMinutes: number; // دقیقه تأخیر نسبت به ۰۷:۰۰ (delay_minutes)
+  delayManuallyAdjusted?: boolean;
+  isAcknowledged: boolean; // تأیید پیگیری (is_acknowledged)
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+  recordedBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SchoolAbsenceRecord {

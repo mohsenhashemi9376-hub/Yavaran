@@ -7,7 +7,9 @@ use App\Support\Digits;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use stdClass;
 
 /**
@@ -64,6 +66,10 @@ final class SyncService
                 $oldData = $oldRow ? $this->decode($oldRow->data, (string) $oldRow->id) : null;
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
+
+                if ($collection === 'sessions') {
+                    $this->validateSession($data, $item->id);
+                }
 
                 $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow) : [];
 
@@ -129,6 +135,46 @@ final class SyncService
             'password' => Hash::make($plain),
             'password_encrypted' => Crypt::encryptString($plain),
         ];
+    }
+
+    /**
+     * اعتبارسنجی جلسه کلاسی: مبحث تدریس‌شده اجباری است و یک زنگ برای یک درس در
+     * یک تاریخ نمی‌تواند دو بار ثبت شود.
+     */
+    private function validateSession(object $data, string $id): void
+    {
+        $topic = isset($data->lessonTopic) && is_scalar($data->lessonTopic) ? trim((string) $data->lessonTopic) : '';
+
+        Validator::make(['topic' => $topic], ['topic' => 'required|string|min:2'], [
+            'topic.required' => 'لطفاً مبحث تدریس‌شده این جلسه را وارد کنید',
+            'topic.min' => 'لطفاً مبحث تدریس‌شده این جلسه را وارد کنید',
+        ])->validate();
+
+        $period = isset($data->periodNumber) && is_numeric($data->periodNumber) ? (int) $data->periodNumber : null;
+        if ($period === null) {
+            return;
+        }
+
+        $subjectKey = isset($data->subjectId) && is_scalar($data->subjectId) && $data->subjectId !== ''
+            ? 'subjectId' : 'subject';
+        $subjectValue = (string) ($data->{$subjectKey} ?? '');
+
+        $rows = DB::table('attendance_sessions')
+            ->where('class_id', $data->classId ?? null)
+            ->where('session_date', $data->date ?? null)
+            ->where('id', '!=', $id)
+            ->pluck('data');
+
+        foreach ($rows as $json) {
+            $other = json_decode((string) $json, false);
+            if (is_object($other)
+                && (int) ($other->periodNumber ?? 0) === $period
+                && (string) ($other->{$subjectKey} ?? '') === $subjectValue) {
+                throw ValidationException::withMessages([
+                    'period' => 'حضور و غیاب این زنگ برای این درس در این تاریخ قبلاً ثبت شده است.',
+                ]);
+            }
+        }
     }
 
     private function decode(?string $json, string $id): object
