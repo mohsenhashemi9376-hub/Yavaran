@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, Menu, Sunrise, Check, Clock, UserX, BellRing, History, Pencil, Search, X, ChevronDown, Save } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceRecord, Student } from '../types';
-import { getTodayShamsi, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
+import { getTodayShamsi, tehranNow, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import {
   MORNING_FILTERS,
   MorningFilterKey,
@@ -211,6 +211,71 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     }
   });
   const [openAbsenceBoxes, setOpenAbsenceBoxes] = useState<Set<string>>(new Set());
+  // محافظت از لمس تصادفی: فقط «بج وضعیت» وضعیت را تغییر می‌دهد
+  const [revertConfirmId, setRevertConfirmId] = useState<string | null>(null);
+  const [undoToast, setUndoToast] = useState<{ student: Student; time: string } | null>(null);
+  const touchStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const revertTimer = useRef<number | undefined>(undefined);
+  const undoTimer = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(revertTimer.current);
+      window.clearTimeout(undoTimer.current);
+    },
+    []
+  );
+
+  const onBadgeTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY, moved: false };
+  };
+  const onBadgeTouchMove = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    const start = touchStart.current;
+    if (start && (Math.abs(t.clientX - start.x) > 8 || Math.abs(t.clientY - start.y) > 8)) start.moved = true;
+  };
+
+  const handleBadgeClick = (student: Student, present: boolean) => {
+    // کشیدن انگشت (اسکرول) هرگز به‌عنوان کلیک تلقی نمی‌شود
+    if (touchStart.current?.moved) {
+      touchStart.current = null;
+      return;
+    }
+    touchStart.current = null;
+
+    if (!present) {
+      // غایب ← حاضر: بدون دیالوگ، با امکان بازگردانی
+      const now = tehranNow();
+      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      toggleMorningAttendance(student);
+      setRevertConfirmId(null);
+      setUndoToast({ student, time });
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = window.setTimeout(() => setUndoToast(null), 5000);
+      return;
+    }
+
+    // حاضر ← غایب: نیازمند تأیید سریع
+    setRevertConfirmId(student.id);
+    window.clearTimeout(revertTimer.current);
+    revertTimer.current = window.setTimeout(() => setRevertConfirmId(null), 3000);
+  };
+
+  const confirmRevert = (student: Student) => {
+    window.clearTimeout(revertTimer.current);
+    setRevertConfirmId(null);
+    toggleMorningAttendance(student);
+  };
+
+  const undoPresent = () => {
+    if (!undoToast) return;
+    const rec = todayRecords.get(undoToast.student.id);
+    if (rec?.status === 'present') toggleMorningAttendance(undoToast.student);
+    window.clearTimeout(undoTimer.current);
+    setUndoToast(null);
+  };
+
   const toggleStatusFilter = (key: Exclude<MorningStatusFilter, null>) =>
     setStatusFilter((cur) => (cur === key ? null : key));
   const toggleAbsenceBox = (id: string) =>
@@ -435,17 +500,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
             return (
               <div
                 key={student.id}
-                role="button"
-                tabIndex={0}
-                aria-pressed={present}
-                onClick={() => toggleMorningAttendance(student)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggleMorningAttendance(student);
-                  }
-                }}
-                className={`rounded-2xl p-3.5 transition cursor-pointer select-none ${
+                className={`rounded-2xl p-3.5 transition ${
                   present
                     ? 'bg-emerald-50/70 border border-emerald-200/80 text-emerald-900'
                     : 'bg-rose-50/70 border border-rose-200/80 text-rose-900'
@@ -458,14 +513,51 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                     </div>
                     <div className="text-[11px] opacity-70 mt-0.5 truncate">{classNameOf(student.classId)}</div>
                   </div>
-                  <span
-                    className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                      present ? 'bg-emerald-100/80 text-emerald-700' : 'bg-rose-100/80 text-rose-700'
+                  <button
+                    type="button"
+                    aria-pressed={present}
+                    aria-label={present ? 'حاضر — برای بازگرداندن به غایب لمس کنید' : 'غایب — برای ثبت حضور لمس کنید'}
+                    onTouchStart={onBadgeTouchStart}
+                    onTouchMove={onBadgeTouchMove}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBadgeClick(student, present);
+                    }}
+                    className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer active:scale-95 ${
+                      present
+                        ? 'bg-emerald-100/80 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-rose-100/80 text-rose-700 border-rose-200 hover:bg-rose-100'
                     }`}
                   >
                     {present ? 'حاضر' : 'غایب'}
-                  </span>
+                  </button>
                 </div>
+
+                {present && revertConfirmId === student.id && (
+                  <div
+                    role="alertdialog"
+                    className="mt-2.5 bg-white/80 border border-rose-200 rounded-xl p-2.5 flex items-center gap-2 flex-wrap text-xs"
+                  >
+                    <span className="font-bold text-rose-800">آیا مایل به بازگرداندن وضعیت به غایب هستید؟</span>
+                    <button
+                      type="button"
+                      onClick={() => confirmRevert(student)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-200 font-bold cursor-pointer"
+                    >
+                      بله
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.clearTimeout(revertTimer.current);
+                        setRevertConfirmId(null);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 font-bold cursor-pointer"
+                    >
+                      انصراف
+                    </button>
+                  </div>
+                )}
 
                 {!present && (() => {
                   const noteText = rec?.absenceNote || '';
@@ -714,6 +806,26 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           )}
         </div>
       </div>
+
+      {undoToast && (
+        <div className="fixed bottom-20 sm:bottom-6 inset-x-3 sm:inset-x-auto sm:right-1/2 sm:translate-x-1/2 z-[70] flex justify-center pointer-events-none">
+          <div
+            role="status"
+            className="pointer-events-auto bg-emerald-50 border border-emerald-200 text-emerald-900 shadow-lg rounded-2xl px-4 py-3 flex items-center gap-3 text-xs sm:text-sm max-w-md"
+          >
+            <span className="font-bold">
+              حضور {undoToast.student.firstName} {undoToast.student.lastName} ثبت شد. (ورود {toPersianDigits(undoToast.time)})
+            </span>
+            <button
+              type="button"
+              onClick={undoPresent}
+              className="shrink-0 px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-extrabold cursor-pointer"
+            >
+              لغو / بازگردانی
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

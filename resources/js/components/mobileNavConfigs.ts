@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
   BookOpen, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
-  BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star,
+  BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
 
@@ -95,6 +95,7 @@ export const teacherMobileNav = () => ({
   more: [
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
+    { id: 'activities', label: 'فعالیت خارج مدرسه', icon: Clock },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },
   ] as MobileNavItem[],
 });

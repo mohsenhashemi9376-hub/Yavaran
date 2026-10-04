@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Sparkles,
   School,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 export type TeacherViewType = 
@@ -25,7 +26,8 @@ export type TeacherViewType =
   | 'grades'
   | 'report_cards'
   | 'reports'
-  | 'evaluations';
+  | 'evaluations'
+  | 'activities';
 
 interface TeacherSidebarNavProps {
   activeView: TeacherViewType;
@@ -112,6 +114,11 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
           id: 'reports',
           label: 'گزارش‌های آموزشی',
           icon: BarChart3,
+        },
+        {
+          id: 'activities',
+          label: 'فعالیت خارج مدرسه',
+          icon: Clock,
         },
         {
           id: 'evaluations',

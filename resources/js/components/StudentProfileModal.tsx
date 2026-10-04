@@ -10,15 +10,15 @@ import {
 import { useSchool } from '../context/SchoolContext';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { AddDisciplineModal } from './AddDisciplineModal';
-import { MorningDelayModal } from './MorningDelayModal';
-import { SchoolAbsenceModal } from './SchoolAbsenceModal';
 import { generateComprehensiveAcademicReport } from '../utils/academicAnalysis';
 import { exportStudentIndividualReportToExcel } from '../utils/excelExport';
 import { 
   toPersianDigits, 
   formatShamsiDisplay, 
+  formatShamsiWithWeekday,
   getTodayShamsi, 
-  getDayOfWeekFromShamsi 
+  getDayOfWeekFromShamsi,
+  toEnglishDigits
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
 import {
@@ -119,14 +119,12 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 
   // Sub-modals inside profile for direct actions
   const [isAddDisciplineOpen, setIsAddDisciplineOpen] = useState(false);
-  const [isAddDelayOpen, setIsAddDelayOpen] = useState(false);
-  const [isAddAbsenceOpen, setIsAddAbsenceOpen] = useState(false);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [smsText, setSmsText] = useState('');
   const [smsCopied, setSmsCopied] = useState(false);
 
   // Attendance tab sub-filter
-  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'absent' | 'late' | 'excused' | 'graded'>('all');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'absent' | 'late'>('all');
 
   // Edit form state
   const [editFirstName, setEditFirstName] = useState('');
@@ -190,6 +188,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         note: r.absenceNote || '',
         entryTime: r.entryTime,
         delayMinutes: r.delayMinutes,
+        recordedBy: r.recordedBy,
       }));
     const hasToday = (morningAttendance || []).some((r) => r.studentId === currentStudent.id && r.date === today);
     if (!hasToday) {
@@ -202,6 +201,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         note: '',
         entryTime: undefined,
         delayMinutes: 0,
+        recordedBy: '',
       });
     }
     return rows.sort((a, b) => b.date.localeCompare(a.date));
@@ -234,6 +234,93 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [classSessions, currentStudent]);
 
+  // سوابق یکپارچه غیبت و تأخیر: صبحگاه (سامانه جدید + دفترهای قدیمی) و کلاسی
+  const attendanceRecords = useMemo(() => {
+    type Row = {
+      id: string;
+      date: string;
+      kind: 'morning' | 'class';
+      eventLabel: string;
+      type: 'absent' | 'late';
+      isExcused: boolean;
+      entryTime?: string;
+      delayMinutes: number;
+      note: string;
+      recordedBy: string;
+    };
+    const rows: Row[] = [];
+
+    morningLogs.forEach((l) => {
+      if (l.status !== 'absent' && !(l.delayMinutes > 0)) return;
+      rows.push({
+        id: `ma-${l.id}`,
+        date: l.date,
+        kind: 'morning',
+        eventLabel: 'صبحگاه',
+        type: l.status === 'absent' ? 'absent' : 'late',
+        isExcused: l.status === 'absent' && l.isExcused,
+        entryTime: l.entryTime,
+        delayMinutes: l.status === 'absent' ? 0 : l.delayMinutes,
+        note: l.note,
+        recordedBy: l.recordedBy || '',
+      });
+    });
+    studentMorningDelays.forEach((d) =>
+      rows.push({
+        id: `md-${d.id}`,
+        date: d.date,
+        kind: 'morning',
+        eventLabel: 'صبحگاه',
+        type: 'late',
+        isExcused: false,
+        entryTime: d.arrivalTime,
+        delayMinutes: d.delayMinutes,
+        note: [d.reason, d.parentContacted ? 'تماس با اولیاء انجام شد' : ''].filter(Boolean).join(' • '),
+        recordedBy: d.recordedBy || '',
+      })
+    );
+    studentSchoolAbsences.forEach((a) =>
+      rows.push({
+        id: `sa-${a.id}`,
+        date: a.date,
+        kind: 'morning',
+        eventLabel: 'صبحگاه',
+        type: 'absent',
+        isExcused: Boolean(a.isExcused),
+        delayMinutes: 0,
+        note: [a.reason, a.parentContacted ? 'تماس با اولیاء انجام شد' : '', a.notes].filter(Boolean).join(' • '),
+        recordedBy: a.recordedBy || '',
+      })
+    );
+    sessionLogs.forEach((l) => {
+      if (l.status === 'present') return;
+      rows.push({
+        id: `cs-${l.session.id}`,
+        date: l.session.date,
+        kind: 'class',
+        eventLabel: `${l.session.subject}${l.session.bellPeriodName ? ` • ${l.session.bellPeriodName}` : ''}`,
+        type: l.status === 'late' ? 'late' : 'absent',
+        isExcused: l.status === 'excused',
+        delayMinutes: l.status === 'late' ? l.delayMinutes || 10 : 0,
+        note: l.note || '',
+        recordedBy: l.session.teacherName || '',
+      });
+    });
+    return rows.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
+  }, [morningLogs, studentMorningDelays, studentSchoolAbsences, sessionLogs]);
+
+  const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
+  const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
+  const filteredAttendanceRecords =
+    attendanceFilter === 'absent' ? attendanceAbsentRows : attendanceFilter === 'late' ? attendanceLateRows : attendanceRecords;
+
+  /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) */
+  const openAttendanceTab = (filter: 'all' | 'absent' | 'late') => {
+    setAttendanceFilter(filter);
+    setActiveTab('attendance');
+    setIsEditing(false);
+  };
+
   // Attendance Metrics
   const totalSessions = sessionLogs.length;
   const attendedCount = sessionLogs.filter((l) => l.status === 'present').length;
@@ -241,11 +328,13 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const excusedCount = sessionLogs.filter((l) => l.status === 'excused').length;
   const classLateCount = sessionLogs.filter((l) => l.status === 'late').length;
   const morningLateCount = studentMorningDelays.length;
+  const legacyAbsentCount = studentSchoolAbsences.filter((a) => !a.isExcused).length;
+  const legacyExcusedCount = studentSchoolAbsences.filter((a) => a.isExcused).length;
   const morningAbsentCount = morningLogs.filter((l) => l.status === 'absent' && !l.isExcused).length;
   const morningExcusedCount = morningLogs.filter((l) => l.status === 'absent' && l.isExcused).length;
   const morningAttendanceLateCount = morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0).length;
-  const totalAbsentCount = absentCount + morningAbsentCount;
-  const totalExcusedCount = excusedCount + morningExcusedCount;
+  const totalAbsentCount = absentCount + morningAbsentCount + legacyAbsentCount;
+  const totalExcusedCount = excusedCount + morningExcusedCount + legacyExcusedCount;
   const totalDelaysCount = classLateCount + morningLateCount + morningAttendanceLateCount;
   const scoresList = sessionLogs.filter((l) => l.score !== undefined);
 
@@ -396,16 +485,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     const ev = timelineEvents.find((e) => e.type === 'discipline');
     return ev ? { date: ev.date, title: ev.title } : null;
   }, [timelineEvents]);
-
-  // Filtered session logs for Attendance Tab
-  const filteredSessionLogs = useMemo(() => {
-    if (attendanceFilter === 'all') return sessionLogs;
-    if (attendanceFilter === 'absent') return sessionLogs.filter((l) => l.status === 'absent');
-    if (attendanceFilter === 'late') return sessionLogs.filter((l) => l.status === 'late');
-    if (attendanceFilter === 'excused') return sessionLogs.filter((l) => l.status === 'excused');
-    if (attendanceFilter === 'graded') return sessionLogs.filter((l) => l.score !== undefined);
-    return sessionLogs;
-  }, [sessionLogs, attendanceFilter]);
 
   if (!isOpen || !currentStudent) return null;
 
@@ -577,23 +656,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         </div>
 
         {/* ===================== عملیات سریع ===================== */}
-        <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-3 gap-3">
-          <button
-            id="btn-quick-add-absence"
-            onClick={() => setIsAddAbsenceOpen(true)}
-            className="h-16 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
-          >
-            <UserX className="w-6 h-6" />
-            <span>ثبت غیبت</span>
-          </button>
-          <button
-            id="btn-quick-add-delay"
-            onClick={() => setIsAddDelayOpen(true)}
-            className="h-16 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
-          >
-            <Clock className="w-6 h-6" />
-            <span>ثبت تأخیر</span>
-          </button>
+        <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-1 gap-3">
           <button
             id="btn-quick-add-discipline"
             onClick={() => setIsAddDisciplineOpen(true)}
@@ -606,7 +669,11 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
-          <div className="bg-white p-4 rounded-2xl shadow-xs">
+          <button
+            type="button"
+            onClick={() => openAttendanceTab('absent')}
+            className="text-right bg-white p-4 rounded-2xl shadow-xs border border-transparent hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
+          >
             <div className="text-slate-500 text-xs">غیبت</div>
             <div className={`text-2xl font-extrabold mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalAbsentCount)}
@@ -617,9 +684,13 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <div className="text-[11px] text-slate-400 mt-1">
               {latestAbsence ? `آخرین: ${formatShamsiDisplay(latestAbsence)}` : 'بدون غیبت'}
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white p-4 rounded-2xl shadow-xs">
+          <button
+            type="button"
+            onClick={() => openAttendanceTab('late')}
+            className="text-right bg-white p-4 rounded-2xl shadow-xs border border-transparent hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
+          >
             <div className="text-slate-500 text-xs">تأخیر</div>
             <div className={`text-2xl font-extrabold mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalDelaysCount)}
@@ -627,7 +698,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <div className="text-[11px] text-slate-400 mt-1">
               {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
             </div>
-          </div>
+          </button>
 
           <div className="bg-white p-4 rounded-2xl shadow-xs">
             <div className="text-slate-500 text-xs">موارد انضباطی</div>
@@ -705,7 +776,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>حضور و غیاب ({toPersianDigits(sessionLogs.length)})</span>
+              <span>حضور و غیاب ({toPersianDigits(attendanceRecords.length)})</span>
             </button>
 
             <button
@@ -1055,312 +1126,101 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           ======================================================================= */}
           {activeTab === 'attendance' && !isEditing && (
             <div className="space-y-4">
-              
-              {/* Filter & Action Toolbar */}
-              <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-slate-600 ml-1">فیلتر جلسات:</span>
+              {/* فیلترهای وضعیت */}
+              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
+                {([
+                  ['all', 'همه موارد', attendanceRecords.length, 'bg-slate-50 text-slate-800 border-slate-200 ring-slate-300'],
+                  ['absent', 'فقط غیبت‌ها', attendanceAbsentRows.length, 'bg-rose-50 text-rose-800 border-rose-200 ring-rose-300'],
+                  ['late', 'فقط تأخیرها', attendanceLateRows.length, 'bg-amber-50 text-amber-800 border-amber-200 ring-amber-300'],
+                ] as const).map(([key, label, count, cls]) => (
                   <button
-                    onClick={() => setAttendanceFilter('all')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      attendanceFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={attendanceFilter === key}
+                    onClick={() => setAttendanceFilter(key)}
+                    className={`px-4 py-2 rounded-2xl border text-xs font-bold transition cursor-pointer whitespace-nowrap ${cls} ${
+                      attendanceFilter === key ? 'ring-2 shadow-sm' : 'opacity-70 hover:opacity-100'
                     }`}
                   >
-                    همه ({toPersianDigits(sessionLogs.length)})
+                    {label} ({toPersianDigits(count)})
                   </button>
-                  <button
-                    onClick={() => setAttendanceFilter('absent')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      attendanceFilter === 'absent' ? 'bg-rose-600 text-white' : 'bg-white text-rose-700 hover:bg-rose-50 border border-rose-200'
-                    }`}
-                  >
-                    غیبت‌ها ({toPersianDigits(absentCount)})
-                  </button>
-                  <button
-                    onClick={() => setAttendanceFilter('late')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      attendanceFilter === 'late' ? 'bg-amber-500 text-white' : 'bg-white text-amber-700 hover:bg-amber-50 border border-amber-200'
-                    }`}
-                  >
-                    تأخیرها ({toPersianDigits(classLateCount)})
-                  </button>
-                  <button
-                    onClick={() => setAttendanceFilter('excused')}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      attendanceFilter === 'excused' ? 'bg-blue-600 text-white' : 'bg-white text-blue-700 hover:bg-blue-50 border border-blue-200'
-                    }`}
-                  >
-                    موجه‌ها ({toPersianDigits(excusedCount)})
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsAddAbsenceOpen(true)}
-                    className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 transition cursor-pointer flex items-center gap-1"
-                  >
-                    <UserX className="w-3.5 h-3.5 text-rose-600" />
-                    <span>ثبت غیبت مدرسه</span>
-                  </button>
-                  <button
-                    onClick={() => setIsAddDelayOpen(true)}
-                    className="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition cursor-pointer flex items-center gap-1"
-                  >
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>ثبت تأخیر ورود</span>
-                  </button>
-                </div>
+                ))}
               </div>
 
-              {/* سوابق حضور و غیاب صبحگاه */}
-              {morningLogs.length > 0 && (
-                <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
-                  <div className="px-3 py-2 bg-emerald-50/60 border-b border-emerald-100 text-xs font-bold text-emerald-900 flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px]">صبحگاه</span>
-                    <span>سوابق غیبت و تأخیر صبحگاه ({toPersianDigits(morningLogs.length)} مورد)</span>
-                  </div>
-                  <table className="w-full text-right text-xs">
+              {filteredAttendanceRecords.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                  {attendanceFilter === 'late'
+                    ? 'هیچ تأخیری برای این دانش‌آموز ثبت نشده است.'
+                    : attendanceFilter === 'absent'
+                      ? 'هیچ غیبتی برای این دانش‌آموز ثبت نشده است.'
+                      : 'سابقه‌ای برای این دانش‌آموز ثبت نشده است.'}
+                </div>
+              ) : (
+                <div className="w-full border border-slate-200 rounded-2xl overflow-x-auto shadow-2xs">
+                  <table className="w-full min-w-[750px] text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
                         <th className="p-3">تاریخ و روز</th>
-                        <th className="p-3">نوع</th>
-                        <th className="p-3 text-center">وضعیت</th>
-                        <th className="p-3 text-center">ساعت ورود / تأخیر</th>
+                        <th className="p-3">نوع رویداد</th>
+                        <th className="p-3">وضعیت</th>
                         <th className="p-3">توضیحات و علت</th>
+                        <th className="p-3">ثبت‌کننده</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {morningLogs.map((l) => (
-                        <tr key={l.id} className={l.status === 'absent' ? 'bg-rose-50/40' : 'bg-amber-50/40'}>
-                          <td className="p-3 font-mono text-slate-700">
-                            <div className="font-bold">{l.date}</div>
-                            <div className="text-[10px] text-slate-400 font-sans">{l.dayOfWeek}</div>
+                      {filteredAttendanceRecords.map((r) => (
+                        <tr key={r.id} className={r.type === 'absent' ? 'bg-rose-50/30' : 'bg-amber-50/30'}>
+                          <td className="p-3 font-bold text-slate-700">
+                            {formatShamsiWithWeekday(r.date)}
                           </td>
                           <td className="p-3">
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">صبحگاه</span>
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                r.kind === 'morning'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-sky-50 text-sky-700 border-sky-200'
+                              }`}
+                            >
+                              {r.kind === 'morning' ? 'صبحگاه' : `کلاسی (${r.eventLabel})`}
+                            </span>
                           </td>
-                          <td className="p-3 text-center">
-                            {l.status === 'absent' ? (
+                          <td className="p-3">
+                            {r.type === 'absent' ? (
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                                  l.isExcused
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                  r.isExcused
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : 'bg-rose-50 text-rose-700 border-rose-200'
                                 }`}
                               >
-                                {l.isExcused ? 'غایب موجه' : 'غایب غیرموجه'}
+                                {r.isExcused ? 'غایب موجه' : 'غایب غیرموجه'}
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                {formatDelayText(l.delayMinutes, 'صبحگاه')}
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                تأخیر
+                                {r.entryTime ? ` • ورود ${toPersianDigits(r.entryTime)}` : ''}
+                                {` • ${formatDelayText(r.delayMinutes)}`}
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-center font-mono text-slate-700">
-                            {l.entryTime ? `${toPersianDigits(l.entryTime)}` : '—'}
+                          <td className="p-3 whitespace-normal min-w-[220px]">
+                            {r.note ? (
+                              <div className="bg-slate-50 border border-slate-200 text-slate-700 text-[11px] leading-relaxed p-2 rounded-lg">{r.note}</div>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
                           </td>
-                          <td className="p-3 whitespace-normal min-w-[200px] text-slate-600 text-[11px]">
-                            {l.note || '—'}
-                          </td>
+                          <td className="p-3 text-slate-600">{r.recordedBy || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
-
-              {/* Class Sessions Table */}
-              {filteredSessionLogs.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-200 text-slate-400 text-xs">
-                  {attendanceFilter === 'absent' ? 'هیچ غیبتی برای این دانش‌آموز ثبت نشده است.' : 'جلسه‌ای با فیلتر انتخابی یافت نشد.'}
-                </div>
-              ) : (
-                <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
-                  <table className="w-full text-right text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <tr>
-                        <th className="p-3 w-10 text-center">ردیف</th>
-                        <th className="p-3">تاریخ و روز</th>
-                        <th className="p-3">درس و دبیر</th>
-                        <th className="p-3">مبحث تدریس</th>
-                        <th className="p-3 text-center">وضعیت حضور</th>
-                        <th className="p-3 text-center">نمره</th>
-                        <th className="p-3">توضیح / دلیل</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredSessionLogs.map((log, idx) => (
-                        <tr 
-                          key={log.session.id}
-                          className={`transition ${
-                            log.status === 'absent'
-                              ? 'bg-rose-50/60'
-                              : log.status === 'late'
-                                ? 'bg-amber-50/60'
-                                : log.status === 'excused'
-                                  ? 'bg-blue-50/60'
-                                  : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <td className="p-3 text-center text-slate-400 font-bold">
-                            {toPersianDigits(idx + 1)}
-                          </td>
-                          <td className="p-3 font-mono text-slate-700">
-                            <div className="font-bold">{log.session.date}</div>
-                            <div className="text-[10px] text-slate-400 font-sans">{log.session.dayOfWeek}</div>
-                          </td>
-                          <td className="p-3">
-                            <div className="font-bold text-slate-900">{log.session.subject}{log.session.bellPeriodName ? ` • ${log.session.bellPeriodName}` : ''}</div>
-                            <div className="text-[10px] text-slate-500">{log.session.teacherName}</div>
-                          </td>
-                          <td className="p-3 text-slate-700 max-w-[180px] truncate" title={log.session.lessonTopic}>
-                            {log.session.lessonTopic || '-'}
-                          </td>
-                          <td className="p-3 text-center">
-                            {log.status === 'present' && (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                حاضر
-                              </span>
-                            )}
-                            {log.status === 'absent' && (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                غایب غیرموجه
-                              </span>
-                            )}
-                            {log.status === 'late' && (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                                تاخیر ({toPersianDigits(log.delayMinutes || 10)}دقیقه)
-                              </span>
-                            )}
-                            {log.status === 'excused' && (
-                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                غیبت موجه
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3 text-center font-bold font-mono">
-                            {log.score !== undefined ? toPersianDigits(log.score) : '-'}
-                          </td>
-                          <td className="p-3 text-slate-600 text-[11px]">
-                            {log.note || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Sub-section: Morning Delays (دفتر تأخیرهای ورود به مدرسه) */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3 mt-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
-                      سوابق تأخیر در ورود به مدرسه ({toPersianDigits(studentMorningDelays.length)} مورد)
-                    </h4>
-                  </div>
-                  <button
-                    onClick={() => setIsAddDelayOpen(true)}
-                    className="text-xs font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>ثبت تأخیر جدید</span>
-                  </button>
-                </div>
-
-                {studentMorningDelays.length === 0 ? (
-                  <div className="text-center py-5 text-slate-400 text-xs">
-                    هنوز تأخیری در ورود به مدرسه برای این دانش‌آموز ثبت نشده است.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {studentMorningDelays.map((d) => (
-                      <div key={d.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                        <div>
-                          <div className="font-bold text-slate-800">
-                            {toPersianDigits(d.delayMinutes)} دقیقه تأخیر
-                            {d.reason && <span className="font-normal text-slate-500 mr-2">• دلیل: {d.reason}</span>}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                            تاریخ: {formatShamsiDisplay(d.date)} {d.parentContacted ? '• تماس با ولی انجام شد' : ''}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleDeleteDelay(d.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          title="حذف رکورد تأخیر"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sub-section: School Absences (دفتر غیبت‌های کل روز مدرسه) */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3 mt-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <UserX className="w-4 h-4 text-rose-600" />
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
-                      سوابق غیبت در کل روز مدرسه ({toPersianDigits(studentSchoolAbsences.length)} مورد)
-                    </h4>
-                  </div>
-                  <button
-                    onClick={() => setIsAddAbsenceOpen(true)}
-                    className="text-xs font-semibold text-rose-700 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>ثبت غیبت جدید</span>
-                  </button>
-                </div>
-
-                {studentSchoolAbsences.length === 0 ? (
-                  <div className="text-center py-5 text-slate-400 text-xs">
-                    هنوز غیبتی در مدرسه برای این دانش‌آموز ثبت نشده است.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {studentSchoolAbsences.map((a) => (
-                      <div key={a.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              a.isExcused ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
-                            }`}>
-                              {a.isExcused ? 'موجه' : 'غیرموجه'}
-                            </span>
-                            <span className="font-bold text-slate-800">
-                              {a.reason || (a.isExcused ? 'غیبت موجه با اطلاع قبلی' : 'غیبت بدون اطلاع')}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono mt-1">
-                            تاریخ: {formatShamsiDisplay(a.date)} {a.parentContacted ? '• تماس با ولی انجام شد' : ''}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleDeleteAbsence(a.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          title="حذف رکورد غیبت مدرسه"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
             </div>
           )}
 
-          {/* =======================================================================
-              TAB 4: پرونده و سوابق انضباطی (DISCIPLINE) - سیستم واحد
-          ======================================================================= */}
           {activeTab === 'discipline' && !isEditing && (
             <div className="space-y-4">
               
@@ -1617,20 +1477,6 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         initialStudent={currentStudent}
         students={students}
         classes={classes}
-      />
-
-      {/* 2. Morning Delay Modal (Unified System) */}
-      <MorningDelayModal
-        isOpen={isAddDelayOpen}
-        onClose={() => setIsAddDelayOpen(false)}
-        initialStudent={currentStudent}
-      />
-
-      {/* 3. School Absence Modal (غیبت در کل روز مدرسه) */}
-      <SchoolAbsenceModal
-        isOpen={isAddAbsenceOpen}
-        onClose={() => setIsAddAbsenceOpen(false)}
-        initialStudent={currentStudent}
       />
 
       {/* 3. SMS Dialog */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, DisciplinaryNote } from '../types';
-import { toPersianDigits, getTodayShamsi, formatShamsiDisplay, getDayOfWeekFromShamsi } from '../utils/persianDate';
+import { toPersianDigits, getTodayShamsi, formatShamsiWithWeekday, toEnglishDigits } from '../utils/persianDate';
 import { 
   ShieldAlert, 
   Search, 
@@ -10,7 +10,6 @@ import {
   FileSpreadsheet, 
   Trash2, 
   Eye, 
-  Award, 
   AlertTriangle, 
   FileText,
   Clock
@@ -25,9 +24,18 @@ interface FlatDisciplineItem {
   title: string;
   description: string;
   type: string;
+  category: DisciplineCategory;
   scoreDeduction?: number;
   recordedBy?: string;
 }
+
+/** دسته‌بندی مورد انضباطی: تذکر (بدون کسر نمره) یا اخطار / کسر نمره */
+type DisciplineCategory = 'warning' | 'penalty';
+
+const categoryOf = (note: Pick<DisciplinaryNote, 'title' | 'description' | 'scoreDeduction'>): DisciplineCategory => {
+  if ((note.scoreDeduction || 0) > 0) return 'penalty';
+  return /اخطار|کسر/.test(`${note.title || ''} ${note.description || ''}`) ? 'penalty' : 'warning';
+};
 
 interface AdminDisciplineWorkspaceProps {
   students: Student[];
@@ -76,18 +84,18 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
         title: note.title,
         description: note.description,
         type: note.type,
+        category: categoryOf(note),
         scoreDeduction: note.scoreDeduction || 0,
         recordedBy: note.recordedBy,
       });
     });
   });
 
-  allNotes.sort((a, b) => b.date.localeCompare(a.date));
+  allNotes.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
 
   // Stats
-  const positiveCount = allNotes.filter((n) => n.type === 'positive').length;
-  const warningCount = allNotes.filter((n) => n.type === 'warning').length;
-  const penaltyCount = allNotes.filter((n) => n.type === 'penalty').length;
+  const warningCount = allNotes.filter((n) => n.category === 'warning').length;
+  const penaltyCount = allNotes.filter((n) => n.category === 'penalty').length;
 
   // Filtered
   const filteredNotes = allNotes.filter((note) => {
@@ -95,7 +103,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
       return false;
     }
 
-    if (typeFilter !== 'all' && note.type !== typeFilter) {
+    if (typeFilter !== 'all' && note.category !== typeFilter) {
       return false;
     }
 
@@ -120,7 +128,8 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
       'دانش‌آموز': `${n.student.firstName} ${n.student.lastName}`,
       'کلاس': n.className,
       'تاریخ': n.date,
-      'نوع مورد': n.type === 'positive' ? 'تشویقی' : n.type === 'warning' ? 'تذکر انضباطی' : n.type === 'penalty' ? 'اخطار / کسر نمره' : 'یادداشت',
+      'نوع مورد': n.category === 'penalty' ? 'اخطار / کسر نمره' : 'تذکر انضباطی',
+      'کسر نمره': n.scoreDeduction || 0,
       'عنوان': n.title,
       'توضیحات': n.description,
       'ثبت‌کننده': n.recordedBy || 'معاونت انضباطی',
@@ -142,17 +151,17 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
               <span>پیشخوان اصلی</span>
               <span>/</span>
-              <span className="text-teal-800">موارد انضباطی و تشویقی</span>
+              <span className="text-teal-800">موارد انضباطی</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
               <ShieldAlert className="w-6 h-6 text-teal-800" />
-              <span>ثبت و مدیریت موارد انضباطی و تشویقی</span>
+              <span>ثبت و مدیریت موارد انضباطی</span>
               <span className="text-xs font-bold bg-teal-50 text-teal-800 px-2.5 py-1 rounded-full border border-teal-200">
                 {toPersianDigits(allNotes.length)} مورد ثبت‌شده
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              ثبت تشویق‌ها، تذکرات شفاهی، اخطارهای کتبی و کسر نمره در پرونده انضباطی.
+              ثبت تذکرات شفاهی، تذکرات کتبی، اخطارها و کسر نمره در پرونده انضباطی.
             </p>
           </div>
 
@@ -196,43 +205,36 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
           </div>
         </div>
 
-        {/* 3 کارت آمار سریع */}
+        {/* کارت‌های آماری تعاملی (فیلتر نوع مورد) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">تشویقی‌های ثبت‌شده</div>
-              <div className="text-xl font-black text-emerald-700 mt-0.5">
-                {toPersianDigits(positiveCount)} <span className="text-xs font-normal text-slate-500">مورد تشویق</span>
-              </div>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
-              <Award className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">تذکرات انضباطی</div>
-              <div className="text-xl font-black text-amber-700 mt-0.5">
-                {toPersianDigits(warningCount)} <span className="text-xs font-normal text-slate-500">تذکر</span>
-              </div>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div>
-              <div className="text-xs text-slate-500 font-medium">اخطارها و کسر نمره</div>
-              <div className="text-xl font-black text-rose-700 mt-0.5">
-                {toPersianDigits(penaltyCount)} <span className="text-xs font-normal text-slate-500">مورد اخطار</span>
-              </div>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
+          {([
+            ['warning', 'تذکرات انضباطی', warningCount, 'تذکر', AlertTriangle, 'bg-amber-50/80 border-amber-200/90 text-amber-900 ring-amber-300'],
+            ['penalty', 'اخطارها و کسر نمره', penaltyCount, 'مورد', ShieldAlert, 'bg-rose-50/80 border-rose-200/90 text-rose-900 ring-rose-300'],
+            ['all', 'کل موارد ثبت‌شده', allNotes.length, 'مورد', FileText, 'bg-slate-50 border-slate-200 text-slate-800 ring-slate-300'],
+          ] as const).map(([key, label, count, unit, Icon, cls]) => {
+            const active = typeFilter === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setTypeFilter(active && key !== 'all' ? 'all' : key)}
+                className={`p-3.5 rounded-2xl border text-right flex items-center justify-between transition cursor-pointer hover:shadow-sm ${cls} ${
+                  active ? 'ring-2 ring-offset-1 shadow-sm' : ''
+                }`}
+              >
+                <div>
+                  <div className="text-xs font-bold opacity-80">{label}</div>
+                  <div className="text-xl font-black mt-0.5">
+                    {toPersianDigits(count)} <span className="text-xs font-normal opacity-70">{unit}</span>
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center">
+                  <Icon className="w-4 h-4" />
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Filters */}
@@ -270,10 +272,8 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-teal-700 transition cursor-pointer"
             >
               <option value="all">تمام انواع موارد</option>
-              <option value="positive">تشویقی و تقدیر</option>
               <option value="warning">تذکر شفاهی / کتبی</option>
               <option value="penalty">اخطار و کسر نمره انضباط</option>
-              <option value="note">یادداشت اداری</option>
             </select>
           </div>
         </div>
@@ -295,7 +295,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
                   <th className="p-3.5 w-12 text-center">ردیف</th>
                   <th className="p-3.5">دانش‌آموز</th>
                   <th className="p-3.5">کلاس</th>
-                  <th className="p-3.5 font-mono text-center">تاریخ ثبت</th>
+                  <th className="p-3.5 text-center whitespace-nowrap">تاریخ ثبت</th>
                   <th className="p-3.5 text-center">نوع مورد</th>
                   <th className="p-3.5">عنوان و شرح</th>
                   <th className="p-3.5 text-center">ثبت‌کننده</th>
@@ -325,56 +325,33 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
                         </span>
                       </td>
 
-                      <td className="p-3.5 font-mono text-center text-slate-700">
-                        {toPersianDigits(item.date)}
-                        <div className="text-[10px] text-slate-400 font-sans">
-                          {getDayOfWeekFromShamsi(item.date)}
-                        </div>
+                      <td className="p-3.5 text-center text-slate-700 font-bold whitespace-nowrap">
+                        {formatShamsiWithWeekday(item.date)}
                       </td>
 
                       <td className="p-3.5 text-center">
                         <div className="flex flex-col items-center gap-1">
-                          {item.type === 'positive' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              تشویقی
-                            </span>
-                          ) : item.type === 'warning' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                              تذکر
-                            </span>
-                          ) : item.type === 'penalty' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                          {item.category === 'penalty' ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200 whitespace-nowrap">
                               اخطار / کسر نمره
                             </span>
-                          ) : item.type === 'delay' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                              تأخیر
-                            </span>
-                          ) : item.type === 'absence' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                              غیبت
-                            </span>
-                          ) : item.type === 'uniform' ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                              پوشش و آراستگی
-                            </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                              مورد انضباطی
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                              تذکر
                             </span>
                           )}
 
                           {item.scoreDeduction && item.scoreDeduction > 0 ? (
-                            <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md">
+                            <span className="text-[10px] font-bold text-rose-700 bg-rose-100/70 border border-rose-200 px-2 py-0.5 rounded-full whitespace-nowrap">
                               {toPersianDigits(item.scoreDeduction)} نمره کسر
                             </span>
                           ) : null}
                         </div>
                       </td>
 
-                      <td className="p-3.5">
+                      <td className="p-3.5 whitespace-normal min-w-[220px]">
                         <div className="font-bold text-slate-900">{item.title}</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5 max-w-sm">
+                        <div className="text-[11px] text-slate-500 mt-0.5 max-w-sm whitespace-normal">
                           {item.description}
                         </div>
                       </td>

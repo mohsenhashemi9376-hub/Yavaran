@@ -110,7 +110,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
         targetRole: 'everyone',
         authorName: `${currentUser.name} (${currentUser.roleTitle})`,
       });
-      showToast('ثبت موفق', 'بخشنامه برای کادر مدرسه ابلاغ شد.', 'success');
+      showToast('ثبت موفق', 'بخشنامه ابلاغ شد و اعلان آن برای اعضای مشمول ارسال گردید.', 'success');
     }
     setIsFormOpen(false);
   };
@@ -118,7 +118,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
   const remove = (a: SchoolAnnouncement) =>
     showConfirm({
       title: 'حذف بخشنامه؟',
-      message: `بخشنامه «${a.title}» برای همیشه حذف می‌شود.`,
+      message: `آیا از حذف این بخشنامه اطمینان دارید؟ بخشنامه «${a.title}» برای همیشه حذف می‌شود.`,
       confirmLabel: 'بله، حذف شود',
       cancelLabel: 'انصراف',
       isDangerous: true,

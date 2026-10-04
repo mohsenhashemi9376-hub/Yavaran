@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
 use App\Http\Controllers\MentorMessageController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
@@ -32,6 +33,14 @@ Route::prefix('api')->group(function (): void {
             Route::post('{message}/acknowledge', [MentorMessageController::class, 'acknowledge'])
                 ->whereNumber('message')
                 ->name('api.mentor-messages.acknowledge');
+        });
+        Route::prefix('notifications')->middleware('throttle:240,1')->group(function (): void {
+            Route::get('/', [NotificationController::class, 'index'])->name('api.notifications.index');
+            Route::post('/', [NotificationController::class, 'store'])->name('api.notifications.store');
+            Route::post('read-all', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
+            Route::post('{notification}/read', [NotificationController::class, 'read'])
+                ->whereNumber('notification')
+                ->name('api.notifications.read');
         });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')

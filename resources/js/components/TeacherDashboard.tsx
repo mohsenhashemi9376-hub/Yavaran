@@ -8,6 +8,7 @@ import { SessionDetailModal } from './SessionDetailModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
+import { TeacherActivitiesSection } from './TeacherActivitiesSection';
 import { 
   GraduationCap, 
   Users, 
@@ -995,6 +996,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
             </div>
           )}
+
+          {activeView === 'activities' && <TeacherActivitiesSection />}
 
           {/* VIEW 8: EVALUATIONS & NOTICES */}
           {activeView === 'evaluations' && (

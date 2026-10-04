@@ -9,6 +9,7 @@ import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnal
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
 import { AnnouncementsManagement } from './AnnouncementsManagement';
+import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
@@ -1274,6 +1275,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         )}
 
         {/* ========================================================================= */}
+        {currentView === 'activities' && (
+          <TeacherActivitiesReport
+            onBack={() => setCurrentView(null)}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+          />
+        )}
+
         {currentView === 'announcements' && (
           <AnnouncementsManagement
             onBack={() => setCurrentView(null)}

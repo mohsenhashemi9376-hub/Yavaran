@@ -29,6 +29,9 @@ final class AccessPolicy
     /** مجموعه‌های پرونده تربیتی (فقط تیم تربیتی) */
     private const NURTURING = ['observations', 'coachEvaluations', 'nurturingDossiers'];
 
+    /** فعالیت‌های خارج از مدرسه: هر معلم فقط رکوردهای خودش را می‌نویسد */
+    private const TEACHER_OWNED = ['teacherActivities'];
+
     private ?array $classIds = null;
 
     /** @var array<string, string|null> */
@@ -36,6 +39,11 @@ final class AccessPolicy
 
     public function __construct(private readonly User $user)
     {
+    }
+
+    public function userId(): string
+    {
+        return (string) $this->user->id;
     }
 
     public function isManager(): bool
@@ -116,6 +124,15 @@ final class AccessPolicy
             return;
         }
 
+        if (in_array($collection, self::TEACHER_OWNED, true)) {
+            if ($old !== null) {
+                $this->requireOwner($this->prop($old, 'teacherId'));
+            }
+            $this->requireOwner($this->prop($new, 'teacherId'));
+
+            return;
+        }
+
         if (in_array($collection, self::MANAGER_ONLY, true)) {
             $this->deny();
         }
@@ -181,6 +198,12 @@ final class AccessPolicy
         }
 
         if ($this->isManager()) {
+            return;
+        }
+
+        if (in_array($collection, self::TEACHER_OWNED, true)) {
+            $this->requireOwner($this->prop($old, 'teacherId'));
+
             return;
         }
 
@@ -284,6 +307,13 @@ final class AccessPolicy
         }
 
         return $this->classIds = array_values(array_unique($ids));
+    }
+
+    private function requireOwner(?string $teacherId): void
+    {
+        if ($teacherId === null || $teacherId !== $this->user->id) {
+            $this->deny('فقط ثبت‌کننده مجاز به تغییر این مورد است.');
+        }
     }
 
     private function requireClass(?string $classId): void

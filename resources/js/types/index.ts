@@ -552,3 +552,30 @@ export interface ComprehensiveExamRecord {
   scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
   updatedAt?: string;
 }
+
+/** فعالیت خارج از مدرسه معلم (ساعات کار اضافه) */
+export interface TeacherActivity {
+  id: string;
+  teacherId: string;
+  teacherName?: string;
+  date: string; // Shamsi: "1405/07/12"
+  title: string; // عنوان و شرح فعالیت
+  hours: number; // مثلاً 1.5
+  status: 'pending' | 'approved';
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/** اعلان کاربر (اطلاعیه مدیر / بخشنامه) */
+export interface AppNotification {
+  id: number;
+  title: string;
+  message: string;
+  type: 'announcement' | 'circular' | string;
+  priority: 'normal' | 'urgent' | string;
+  refId?: string | null;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string | null;
+  senderName?: string | null;
+}
