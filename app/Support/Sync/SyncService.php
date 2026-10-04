@@ -29,7 +29,7 @@ final class SyncService
         $policy = new AccessPolicy($user);
         $table = CollectionRegistry::table($collection);
 
-        if (! CollectionRegistry::tableExists($table)) {
+        if (! CollectionRegistry::ensureTable($table)) {
             abort(503, 'ساختار دیتابیس هنوز به‌روزرسانی نشده است. لطفاً فایل upgrade.sql را روی دیتابیس اجرا کنید.');
         }
 

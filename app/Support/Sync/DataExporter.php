@@ -33,7 +33,7 @@ final class DataExporter
      */
     private function rows(User $user, AccessPolicy $policy, string $collection, string $table): array
     {
-        if (! $policy->canRead($collection) || ! CollectionRegistry::tableExists($table)) {
+        if (! $policy->canRead($collection) || ! CollectionRegistry::ensureTable($table)) {
             return [];
         }
 

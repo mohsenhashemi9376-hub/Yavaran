@@ -114,7 +114,7 @@ export async function apiRequest<T = unknown>(method: 'GET' | 'POST', url: strin
   if (!response.ok) {
     // فقط پیام‌های فارسی سرور نمایش داده می‌شوند؛ پیام‌های پیش‌فرض انگلیسی فریم‌ورک با پیام فارسی جایگزین می‌شوند
     const serverMessage = data && typeof data.message === 'string' ? data.message.trim() : '';
-    const message = serverMessage && /[\u0600-\u06FF]/.test(serverMessage) && response.status < 500
+    const message = serverMessage && /[\u0600-\u06FF]/.test(serverMessage) && (response.status < 500 || response.status === 503)
       ? serverMessage
       : defaultMessage(response.status);
     const apiError = new ApiError(response.status, message);
