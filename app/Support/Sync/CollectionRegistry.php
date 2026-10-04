@@ -44,6 +44,43 @@ final class CollectionRegistry
         return self::$schemaCache["t:$table"] ??= \Illuminate\Support\Facades\Schema::hasTable($table);
     }
 
+    /**
+     * ساخت خودکار جدول حضور و غیاب صبحگاه در صورت اجرا نشدن upgrade.sql / migration
+     * (جلوگیری از خطای سرور روی دیتابیس‌های به‌روزنشده).
+     */
+    public static function ensureTable(string $table): bool
+    {
+        if (self::tableExists($table)) {
+            return true;
+        }
+        if ($table !== 'morning_attendance') {
+            return false;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Schema::create('morning_attendance', function ($t): void {
+                $t->string('id', 100)->primary();
+                $t->string('student_id', 100)->index();
+                $t->string('class_id', 100)->nullable()->index();
+                $t->string('record_date', 20)->index();
+                $t->string('status', 10)->default('absent');
+                $t->time('entry_time')->nullable();
+                $t->integer('delay_minutes')->default(0);
+                $t->boolean('is_acknowledged')->default(false)->index();
+                $t->integer('sort_order')->default(0)->index();
+                $t->longText('data');
+                $t->timestamps();
+                $t->unique(['student_id', 'record_date'], 'morning_attendance_student_date_unique');
+            });
+        } catch (\Throwable) {
+            // ممکن است هم‌زمان توسط درخواست دیگری ساخته شده باشد
+        }
+
+        unset(self::$schemaCache["t:$table"]);
+
+        return self::tableExists($table);
+    }
+
     public static function columnExists(string $table, string $column): bool
     {
         return self::$schemaCache["c:$table.$column"] ??= \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
