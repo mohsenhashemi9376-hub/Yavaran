@@ -150,6 +150,9 @@ CREATE TABLE `attendance_sessions` (
   `class_id` varchar(100) DEFAULT NULL,
   `teacher_id` varchar(100) DEFAULT NULL,
   `subject` varchar(191) DEFAULT NULL,
+  `subject_id` varchar(100) DEFAULT NULL,
+  `period_number` tinyint unsigned DEFAULT NULL,
+  `lesson_topic` varchar(255) DEFAULT NULL,
   `session_date` varchar(20) DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT 0,
   `data` longtext NOT NULL,
@@ -269,6 +272,32 @@ INSERT INTO `morning_delays` (`id`, `student_id`, `class_id`, `record_date`, `so
 ('md-5', 'stu-102-2', 'cls-102', '1404/08/17', 4, '{"id":"md-5","studentId":"stu-102-2","classId":"cls-102","date":"1404/08/17","dayOfWeek":"شنبه","arrivalTime":"07:40","delayMinutes":10,"reason":"مشکل وسیله نقلیه","isExcused":false,"recordedBy":"استاد تقوی (معاون انضباطی)","disciplinaryActionTaken":"تذکر شفاهی","createdAt":"2026-09-30T12:22:25.502Z"}', '2026-09-30 12:00:00', '2026-09-30 12:00:00'),
 ('md-6', 'stu-201-1', 'cls-201', '1404/08/15', 5, '{"id":"md-6","studentId":"stu-201-1","classId":"cls-201","date":"1404/08/15","dayOfWeek":"پنج‌شنبه","arrivalTime":"08:00","delayMinutes":30,"reason":"ترافیک ورودی اتوبان","isExcused":true,"recordedBy":"استاد تقوی (معاون انضباطی)","disciplinaryActionTaken":"تایید موجه بودن","createdAt":"2026-09-30T12:22:25.502Z"}', '2026-09-30 12:00:00', '2026-09-30 12:00:00'),
 ('md-7', 'stu-301-2', 'cls-301', '1404/08/19', 6, '{"id":"md-7","studentId":"stu-301-2","classId":"cls-301","date":"1404/08/19","dayOfWeek":"دوشنبه","arrivalTime":"07:50","delayMinutes":20,"reason":"خواب ماندن","isExcused":false,"recordedBy":"استاد تقوی (معاون انضباطی)","disciplinaryActionTaken":"کسر ۰.۵ نمره انضباط","createdAt":"2026-09-30T12:22:25.502Z"}', '2026-09-30 12:00:00', '2026-09-30 12:00:00');
+
+-- ------------------------------------------------------------
+-- جدول morning_attendance
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS `morning_attendance`;
+CREATE TABLE `morning_attendance` (
+  `id` varchar(100) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `record_date` varchar(20) NOT NULL,
+  `status` varchar(10) NOT NULL DEFAULT 'absent',
+  `entry_time` time DEFAULT NULL,
+  `delay_minutes` int NOT NULL DEFAULT 0,
+  `is_acknowledged` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `morning_attendance_student_date_unique` (`student_id`,`record_date`),
+  KEY `morning_attendance_student_id_index` (`student_id`),
+  KEY `morning_attendance_class_id_index` (`class_id`),
+  KEY `morning_attendance_record_date_index` (`record_date`),
+  KEY `morning_attendance_is_acknowledged_index` (`is_acknowledged`),
+  KEY `morning_attendance_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
 -- جدول school_absences
@@ -543,7 +572,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (2, '2026_10_01_000000_create_mentor_messages_tables', 1),
 (3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
 (4, '2026_10_03_000000_create_course_assignments_table', 1),
-(5, '2026_10_04_000000_add_permissions_to_users_table', 1);
+(5, '2026_10_04_000000_add_permissions_to_users_table', 1),
+(6, '2026_10_05_000000_create_morning_attendance_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

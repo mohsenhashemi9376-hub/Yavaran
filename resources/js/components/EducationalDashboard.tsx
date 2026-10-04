@@ -1709,11 +1709,10 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           <AdminAttendanceWorkspace
             sessions={sessions}
             classes={classes}
-            students={students}
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenNewAttendance={onOpenNewAttendance || (() => {})}
-            initialTab="sessions"
+            showMorning={false}
           />
         )}
 

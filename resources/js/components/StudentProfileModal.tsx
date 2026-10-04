@@ -1321,6 +1321,9 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                             <div className="font-bold text-slate-900 text-xs sm:text-sm">
                               {note.title}
                             </div>
+                            {note.source === 'class_warning' && (
+                              <span className="bg-violet-50 text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">اخطار کلاسی{note.subject ? ` • ${note.subject}` : ''}</span>
+                            )}
                             <div className="text-[11px] text-slate-400 font-mono mt-0.5">
                               تاریخ ثبت: {formatShamsiDisplay(note.date)} {note.recordedBy ? `• ثبت‌کننده: ${note.recordedBy}` : ''}
                             </div>

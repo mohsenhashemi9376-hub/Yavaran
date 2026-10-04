@@ -18,6 +18,7 @@ final class CollectionRegistry
         'academicSubjects' => 'academic_subjects',
         'academicGrades' => 'academic_grades',
         'morningDelays' => 'morning_delays',
+        'morningAttendance' => 'morning_attendance',
         'schoolAbsences' => 'school_absences',
         'observations' => 'student_observations',
         'nurturingDossiers' => 'nurturing_dossiers',
@@ -91,12 +92,17 @@ final class CollectionRegistry
                 'national_id' => self::str($d, 'nationalId', 30),
                 'student_code' => self::str($d, 'studentCode', 30),
             ],
-            'sessions' => [
+            'sessions' => array_filter([
                 'class_id' => self::str($d, 'classId', 100),
                 'teacher_id' => self::str($d, 'teacherId', 100),
                 'subject' => self::str($d, 'subject', 191),
                 'session_date' => self::str($d, 'date', 20),
-            ],
+                'subject_id' => self::str($d, 'subjectId', 100),
+                'period_number' => isset($d->periodNumber) && is_numeric($d->periodNumber) ? (int) $d->periodNumber : null,
+                'lesson_topic' => self::str($d, 'lessonTopic', 255),
+            ], static fn ($v, $k) => ! in_array($k, ['subject_id', 'period_number', 'lesson_topic'], true)
+                || self::columnExists('attendance_sessions', $k), ARRAY_FILTER_USE_BOTH),
+            'morningAttendance' => self::morningAttendanceColumns($d),
             'academicSubjects' => [
                 'name' => self::str($d, 'name', 191) ?? '',
                 'code' => self::str($d, 'code', 50),
@@ -143,6 +149,24 @@ final class CollectionRegistry
             ],
             default => [],
         };
+    }
+
+    /** @return array<string, mixed> */
+    private static function morningAttendanceColumns(object $d): array
+    {
+        $entry = self::str($d, 'entryTime', 8);
+        $entry = $entry !== null && preg_match('/^([01]?\d|2[0-3]):[0-5]\d$/', $entry) ? $entry.':00' : null;
+        $delay = isset($d->delayMinutes) && is_numeric($d->delayMinutes) ? max(0, min(1440, (int) $d->delayMinutes)) : 0;
+
+        return [
+            'student_id' => self::str($d, 'studentId', 100) ?? '',
+            'class_id' => self::str($d, 'classId', 100),
+            'record_date' => self::str($d, 'date', 20) ?? '',
+            'status' => ($d->status ?? null) === 'present' ? 'present' : 'absent',
+            'entry_time' => $entry,
+            'delay_minutes' => $delay,
+            'is_acknowledged' => ! empty($d->isAcknowledged),
+        ];
     }
 
     public static function str(object $d, string $prop, int $max): ?string

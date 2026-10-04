@@ -806,6 +806,9 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                                 <div key={note.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="font-bold text-slate-800">{note.title}</span>
+                                    {note.source === 'class_warning' && (
+                              <span className="bg-violet-50 text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">اخطار کلاسی{note.subject ? ` • ${note.subject}` : ''}</span>
+                            )}
                                     <span className="text-rose-600 font-mono font-bold text-[11px]">
                                       {note.scoreDeduction ? `-${toPersianDigits(note.scoreDeduction)} نمره` : 'بدون کسر نمره'}
                                     </span>

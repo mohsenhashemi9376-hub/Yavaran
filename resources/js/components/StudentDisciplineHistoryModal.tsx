@@ -506,6 +506,9 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900">{note.title}</span>
+                            {note.source === 'class_warning' && (
+                              <span className="bg-violet-50 text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">اخطار کلاسی{note.subject ? ` • ${note.subject}` : ''}</span>
+                            )}
                             <span className="text-slate-400 font-mono text-[11px]">{note.date}</span>
                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[10px]">
                               نوع: {note.type === 'delay' ? 'تاخیر مکرر' : note.type === 'absence' ? 'غیبت غیرموجه' : note.type === 'behavior' ? 'انضباط رفتاری' : note.type === 'uniform' ? 'پوشش و آراستگی' : 'سایر'}

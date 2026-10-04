@@ -24,7 +24,7 @@ final class AccessPolicy
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
-    private const CLASS_SCOPED = ['sessions', 'academicGrades', 'morningDelays', 'schoolAbsences'];
+    private const CLASS_SCOPED = ['sessions', 'academicGrades', 'morningDelays', 'schoolAbsences', 'morningAttendance'];
 
     /** مجموعه‌های پرونده تربیتی (فقط تیم تربیتی) */
     private const NURTURING = ['observations', 'coachEvaluations', 'nurturingDossiers'];
@@ -75,6 +75,7 @@ final class AccessPolicy
         'sessions' => 'manage-attendance',
         'morningDelays' => 'manage-attendance',
         'schoolAbsences' => 'manage-attendance',
+        'morningAttendance' => 'manage-attendance',
         'observations' => 'counseling-report',
         'coachEvaluations' => 'counseling-report',
         'nurturingDossiers' => 'counseling-report',

@@ -42,8 +42,6 @@ import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
 
 // Modals
-import { MorningDelayModal } from './MorningDelayModal';
-import { SchoolAbsenceModal } from './SchoolAbsenceModal';
 import { AddDisciplineModal } from './AddDisciplineModal';
 import { QuickAddStudentModal } from './QuickAddStudentModal';
 import { AddClassModal } from './AddClassModal';
@@ -104,12 +102,6 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   const currentView = deniedView ? null : rawView;
 
   // وضعیت‌های مربوط به مدال‌های عملیاتی
-  const [isDelayModalOpen, setIsDelayModalOpen] = useState(false);
-  const [delayModalStudent, setDelayModalStudent] = useState<Student | null>(null);
-  const [delayModalEditRecord, setDelayModalEditRecord] = useState<MorningDelayRecord | null>(null);
-
-  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
-  const [absenceModalStudent, setAbsenceModalStudent] = useState<Student | null>(null);
 
   const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
   const [disciplineModalStudent, setDisciplineModalStudent] = useState<Student | null>(null);
@@ -449,40 +441,18 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* اکشن ۱: ثبت غیبت مدرسه */}
+                  {/* اکشن ۱: حضور و غیاب صبحگاه */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setAbsenceModalStudent(null);
-                      setIsAbsenceModalOpen(true);
-                    }}
-                    className="p-4 rounded-xl border border-rose-200/80 bg-rose-50/50 hover:bg-rose-50 text-right transition flex items-center justify-between group cursor-pointer"
+                    onClick={() => setCurrentView('attendance')}
+                    className="p-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 hover:bg-emerald-50 text-right transition flex items-center justify-between group cursor-pointer"
                   >
                     <div className="space-y-1">
-                      <div className="text-xs font-bold text-rose-900">ثبت غیبت مدرسه</div>
-                      <div className="text-[11px] text-rose-700/80">غیبت کل روز دانش‌آموز</div>
+                      <div className="text-xs font-bold text-emerald-900">حضور و غیاب صبحگاه</div>
+                      <div className="text-[11px] text-emerald-700/80">غیبت و تأخیر ورود با یک لمس</div>
                     </div>
-                    <div className="w-9 h-9 rounded-xl bg-white border border-rose-200 text-rose-600 flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white transition shadow-2xs">
+                    <div className="w-9 h-9 rounded-xl bg-white border border-emerald-200 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition shadow-2xs">
                       <UserX className="w-4 h-4" />
-                    </div>
-                  </button>
-
-                  {/* اکشن ۲: ثبت تأخیر صبحگاهی */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDelayModalStudent(null);
-                      setDelayModalEditRecord(null);
-                      setIsDelayModalOpen(true);
-                    }}
-                    className="p-4 rounded-xl border border-amber-200/80 bg-amber-50/50 hover:bg-amber-50 text-right transition flex items-center justify-between group cursor-pointer"
-                  >
-                    <div className="space-y-1">
-                      <div className="text-xs font-bold text-amber-900">ثبت تأخیر صبحگاهی</div>
-                      <div className="text-[11px] text-amber-700/80">ورود بعد از ساعت شروع</div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-white border border-amber-200 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition shadow-2xs">
-                      <Clock className="w-4 h-4" />
                     </div>
                   </button>
 
@@ -772,23 +742,10 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
             <AdminAttendanceWorkspace
               classes={classes}
               sessions={sessions}
-              delays={safeMorningDelays}
-              schoolAbsences={safeSchoolAbsences}
-              students={students}
               onBack={() => setCurrentView(null)}
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
               onOpenNewAttendance={onOpenNewAttendance || (() => {})}
-              onOpenAddDelay={() => {
-                setDelayModalStudent(null);
-                setDelayModalEditRecord(null);
-                setIsDelayModalOpen(true);
-              }}
-              onOpenAddAbsence={() => {
-                setAbsenceModalStudent(null);
-                setIsAbsenceModalOpen(true);
-              }}
-              onDeleteDelay={deleteMorningDelay}
-              onDeleteSchoolAbsence={deleteSchoolAbsence}
+              onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
             />
           )}
 
@@ -927,32 +884,6 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           warnings: urgentNeedsCount,
           sessions: todaySessions.length,
         }}
-      />
-
-      {/* ========================================================================= */}
-      {/* مدال ۱: ثبت و ویرایش تأخیر ورود به مدرسه */}
-      {/* ========================================================================= */}
-      <MorningDelayModal
-        isOpen={isDelayModalOpen}
-        onClose={() => {
-          setIsDelayModalOpen(false);
-          setDelayModalStudent(null);
-          setDelayModalEditRecord(null);
-        }}
-        initialStudent={delayModalStudent}
-        editRecord={delayModalEditRecord}
-      />
-
-      {/* ========================================================================= */}
-      {/* مدال ۲: ثبت غیبت روزانه مدرسه */}
-      {/* ========================================================================= */}
-      <SchoolAbsenceModal
-        isOpen={isAbsenceModalOpen}
-        onClose={() => {
-          setIsAbsenceModalOpen(false);
-          setAbsenceModalStudent(null);
-        }}
-        initialStudent={absenceModalStudent}
       />
 
       {/* ========================================================================= */}
