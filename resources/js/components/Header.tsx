@@ -1,3 +1,4 @@
+import { NotificationBell } from './NotificationBell';
 import React, { useState, useEffect, useRef } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -318,68 +319,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* 4. اعلان‌ها (Notifications) */}
-            <div className="relative" ref={notifRef}>
-              <button
-                id="btn-header-notifications"
-                type="button"
-                onClick={() => {
-                  setShowNotifications(!showNotifications);
-                  setShowUserMenu(false);
-                  setMobileMenuOpen(false);
-                }}
-                className={`relative p-2 rounded-xl border transition cursor-pointer ${
-                  showNotifications
-                    ? 'bg-slate-100 border-slate-300 text-slate-900'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-                title="اعلانات و پیام‌ها"
-                aria-label="اعلانات"
-              >
-                <Bell className="w-4 h-4" />
-                {warningCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {toPersianDigits(warningCount)}
-                  </span>
-                )}
-              </button>
-
-              {showNotifications && (
-                <div className="absolute left-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-3 px-4 z-50 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                    <span className="text-xs font-bold text-slate-900">اعلانات مدرسه</span>
-                    {warningCount > 0 ? (
-                      <span className="text-[11px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
-                        {toPersianDigits(warningCount)} مورد نیازمند بررسی
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                        همه شاخص‌ها عادی
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 space-y-2 text-xs">
-                    {warningCount > 0 ? (
-                      <div className="p-2.5 rounded-xl bg-rose-50/80 border border-rose-100 text-rose-950 space-y-1">
-                        <div className="font-bold flex items-center gap-1.5 text-xs">
-                          <span className="w-2 h-2 rounded-full bg-rose-600 inline-block"></span>
-                          <span>اخطار غیبت دانش‌آموزان</span>
-                        </div>
-                        <p className="text-[11px] text-rose-800 leading-relaxed">
-                          {toPersianDigits(warningCount)} دانش‌آموز دارای ۲ جلسه غیبت یا بیشتر هستند.
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-slate-500 text-center py-3 text-[11px]">
-                        هیچ اخطار جدیدی برای نمایش وجود ندارد.
-                      </p>
-                    )}
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-[11px] text-center">
-                      سال تحصیلی {getActiveAcademicYear()} • دبیرستان دوره اول یاوران ولایت
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <NotificationBell warningCount={warningCount} />
 
             {/* 3. اطلاعات کاربر و منوی حساب (User Menu) */}
             <div className="relative" ref={userMenuRef}>

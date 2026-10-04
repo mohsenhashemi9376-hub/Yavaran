@@ -484,7 +484,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   >
                     <div className="space-y-1">
                       <div className="text-xs font-bold text-purple-900">ثبت مورد انضباطی</div>
-                      <div className="text-[11px] text-purple-700/80">اخطار، تشویق یا کسر نمره</div>
+                      <div className="text-[11px] text-purple-700/80">تذکر، اخطار یا کسر نمره</div>
                     </div>
                     <div className="w-9 h-9 rounded-xl bg-white border border-purple-200 text-purple-600 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition shadow-2xs">
                       <ShieldAlert className="w-4 h-4" />

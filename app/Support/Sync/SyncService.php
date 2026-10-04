@@ -3,6 +3,7 @@
 namespace App\Support\Sync;
 
 use App\Models\User;
+use App\Support\Notifier;
 use App\Support\Digits;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,10 @@ final class SyncService
                         'created_at' => $now,
                     ]);
                     $existing->put($item->id, (object) (['id' => $item->id, 'data' => $values['data']] + $extra));
+
+                    if ($collection === 'schoolAnnouncements') {
+                        $this->notifyCircular($policy, $data, $item->id);
+                    }
                 }
             }
         });
@@ -135,6 +140,41 @@ final class SyncService
             'password' => Hash::make($plain),
             'password_encrypted' => Crypt::encryptString($plain),
         ];
+    }
+
+    /** اعلان خودکار «بخشنامه جدید» برای اعضای مشمول */
+    private function notifyCircular(AccessPolicy $policy, object $data, string $id): void
+    {
+        $roles = [];
+        if (isset($data->targetRoles) && is_array($data->targetRoles) && $data->targetRoles !== []) {
+            $roles = array_values(array_filter($data->targetRoles, 'is_string'));
+        } else {
+            $roles = match ($data->targetRole ?? 'everyone') {
+                'coaches' => ['coach'],
+                'all_teachers' => ['teacher'],
+                default => [],
+            };
+        }
+
+        $query = DB::table('users')->where('is_active', true)->where('id', '!=', $policy->userId());
+        if ($roles !== []) {
+            $query->whereIn('role', $roles);
+        } else {
+            $query->whereIn('role', ['teacher', 'coach']);
+        }
+
+        $title = isset($data->title) && is_scalar($data->title) ? trim((string) $data->title) : '';
+        $content = isset($data->content) && is_scalar($data->content) ? trim((string) $data->content) : '';
+        $priority = ($data->priority ?? 'normal') === 'urgent' ? 'urgent' : 'normal';
+
+        Notifier::send($query->pluck('id')->all(), [
+            'sender_id' => $policy->userId(),
+            'title' => 'بخشنامه جدید',
+            'message' => "بخشنامه جدید با عنوان «{$title}» ثبت شد.".($content !== '' ? "\n\n".mb_substr($content, 0, 1500) : ''),
+            'type' => 'circular',
+            'priority' => $priority,
+            'ref_id' => $id,
+        ]);
     }
 
     /**

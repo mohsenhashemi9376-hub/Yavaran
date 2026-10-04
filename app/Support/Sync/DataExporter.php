@@ -39,7 +39,7 @@ final class DataExporter
 
         $query = DB::table($table)->orderBy('sort_order')->orderBy('id');
 
-        if ($collection === 'teacherEvaluations' && ! $policy->isManager()) {
+        if (in_array($collection, ['teacherEvaluations', 'teacherActivities'], true) && ! $policy->isManager()) {
             $query->where('teacher_id', $user->id);
         }
 

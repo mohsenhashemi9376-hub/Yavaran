@@ -234,7 +234,47 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (4, '2026_10_03_000000_create_course_assignments_table', 1),
 (5, '2026_10_04_000000_add_permissions_to_users_table', 1),
 (6, '2026_10_05_000000_create_morning_attendance_table', 1),
-(7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1);
+(7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
+(8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1);
+
+DROP TABLE IF EXISTS \`notifications\`;
+DROP TABLE IF EXISTS \`teacher_activities\`;
+CREATE TABLE \`notifications\` (
+  \`id\` bigint unsigned NOT NULL AUTO_INCREMENT,
+  \`sender_id\` varchar(100) DEFAULT NULL,
+  \`receiver_id\` varchar(100) NOT NULL,
+  \`title\` varchar(191) NOT NULL,
+  \`message\` text NOT NULL,
+  \`type\` varchar(30) NOT NULL DEFAULT 'announcement',
+  \`priority\` varchar(20) NOT NULL DEFAULT 'normal',
+  \`ref_id\` varchar(100) DEFAULT NULL,
+  \`is_read\` tinyint(1) NOT NULL DEFAULT 0,
+  \`read_at\` timestamp NULL DEFAULT NULL,
+  \`created_at\` timestamp NULL DEFAULT NULL,
+  \`updated_at\` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (\`id\`),
+  KEY \`notifications_sender_id_index\` (\`sender_id\`),
+  KEY \`notifications_receiver_id_index\` (\`receiver_id\`),
+  KEY \`notifications_receiver_read_index\` (\`receiver_id\`,\`is_read\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE \`teacher_activities\` (
+  \`id\` varchar(100) NOT NULL,
+  \`teacher_id\` varchar(100) NOT NULL,
+  \`date\` date NOT NULL,
+  \`activity_title\` text NOT NULL,
+  \`hours\` decimal(4,2) NOT NULL DEFAULT 0.00,
+  \`status\` varchar(20) NOT NULL DEFAULT 'approved',
+  \`sort_order\` int NOT NULL DEFAULT 0,
+  \`data\` longtext NOT NULL,
+  \`created_at\` timestamp NULL DEFAULT NULL,
+  \`updated_at\` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (\`id\`),
+  KEY \`teacher_activities_teacher_id_index\` (\`teacher_id\`),
+  KEY \`teacher_activities_date_index\` (\`date\`),
+  KEY \`teacher_activities_sort_order_index\` (\`sort_order\`),
+  CONSTRAINT \`teacher_activities_teacher_id_foreign\` FOREIGN KEY (\`teacher_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

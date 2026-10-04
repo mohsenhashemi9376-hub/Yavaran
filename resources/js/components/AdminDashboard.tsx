@@ -14,6 +14,8 @@ import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
+import { TeacherActivitiesReport } from './TeacherActivitiesReport';
+import { SendAnnouncementModal } from './SendAnnouncementModal';
 import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
 import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDelaysWorkspace } from './AdminDelaysWorkspace';
@@ -244,6 +246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
     [students, morningAttendance, todayInfo.formattedDate]
   );
+  const [isSendAnnouncementOpen, setIsSendAnnouncementOpen] = useState(false);
   const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);
   const openMorning = (f: MorningStatusFilter) => {
     setMorningFilter(f);
@@ -758,13 +761,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             id="section-quick-actions"
             className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4"
           >
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900">
-                اقدامات سریع
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {quickActionsSubtitle}
-              </p>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900">
+                  اقدامات سریع
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {quickActionsSubtitle}
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsSendAnnouncementOpen(true)}
+                  className="px-4 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-extrabold inline-flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                >
+                  <BellRing className="w-4 h-4" />
+                  <span>ارسال اطلاعیه جدید</span>
+                </button>
+              )}
             </div>
 
             <div className={isAdmin ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"}>
@@ -1070,7 +1085,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <ShieldAlert className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-purple-950">ثبت تشویق و رفتار</div>
+                      <div className="text-xs font-bold text-purple-950">ثبت مورد انضباطی</div>
                       <div className="text-[10px] text-slate-500 mt-0.5">امتیازات رفتاری</div>
                     </div>
                   </button>
@@ -1648,6 +1663,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
+      {currentFullScreenView === 'activities' && (
+        <TeacherActivitiesReport onBack={() => setCurrentFullScreenView(null)} onOpenSidebar={handleOpenSidebar} />
+      )}
+
       {currentFullScreenView === 'attendance' && (
         <AdminAttendanceWorkspace
           classes={classes}
@@ -1866,6 +1885,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onClose={() => setIsReportsModalOpen(false)}
         onOpenAcademicGrades={onOpenAcademicGrades}
       />
+
+      <SendAnnouncementModal isOpen={isSendAnnouncementOpen} onClose={() => setIsSendAnnouncementOpen(false)} />
 
       {/* Add Discipline Modal */}
       <AddDisciplineModal

@@ -135,6 +135,15 @@ export const formatShamsiDisplay = (shamsiDate: string): string => {
   return `${toPersianDigits(d)} ${monthName} ${toPersianDigits(y)}`;
 };
 
+/** «شنبه ۱۱ مهر ۱۴۰۵» — روز هفته + تاریخ کامل با اعداد فارسی */
+export const formatShamsiWithWeekday = (shamsiDate: string): string => {
+  if (!shamsiDate) return '';
+  const english = toEnglishDigits(shamsiDate);
+  const weekday = getDayOfWeekFromShamsi(english);
+  const display = formatShamsiDisplay(english);
+  return weekday === 'نامشخص' ? display : `${weekday} ${display}`;
+};
+
 /**
  * Get Day of Week from Shamsi date
  */
