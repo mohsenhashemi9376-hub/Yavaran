@@ -286,6 +286,8 @@ CREATE TABLE `morning_attendance` (
   `entry_time` time DEFAULT NULL,
   `delay_minutes` int NOT NULL DEFAULT 0,
   `is_acknowledged` tinyint(1) NOT NULL DEFAULT 0,
+  `is_excused` tinyint(1) DEFAULT 0,
+  `absence_note` text DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT 0,
   `data` longtext NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -573,7 +575,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
 (4, '2026_10_03_000000_create_course_assignments_table', 1),
 (5, '2026_10_04_000000_add_permissions_to_users_table', 1),
-(6, '2026_10_05_000000_create_morning_attendance_table', 1);
+(6, '2026_10_05_000000_create_morning_attendance_table', 1),
+(7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

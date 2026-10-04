@@ -28,7 +28,7 @@ import {
   PhoneCall
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { MorningAttendanceWorkspace } from './MorningAttendanceWorkspace';
+import { MorningAttendanceWorkspace, MorningStatusFilter } from './MorningAttendanceWorkspace';
 
 type AttendanceTab = 'morning' | 'sessions';
 
@@ -42,6 +42,8 @@ interface AdminAttendanceWorkspaceProps {
   /** نمایش تب «حضور و غیاب صبحگاه» (ناظم/معاون اجرایی) */
   showMorning?: boolean;
   initialTab?: AttendanceTab;
+  /** فیلتر وضعیت اولیه صفحه صبحگاه (غایب / متأخر / حاضر) */
+  initialStatusFilter?: MorningStatusFilter;
 }
 
 const AttendanceTabSwitch: React.FC<{
@@ -93,6 +95,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
   onSelectStudent,
   showMorning = true,
   initialTab,
+  initialStatusFilter,
 }) => {
   const [activeTab, setActiveTab] = useState<AttendanceTab>(
     initialTab ?? (showMorning ? 'morning' : 'sessions')
@@ -177,7 +180,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
     return (
       <div className="space-y-4" dir="rtl">
         <AttendanceTabSwitch active={activeTab} onChange={setActiveTab} sessionsCount={sessions.length} />
-        <MorningAttendanceWorkspace onBack={onBack} onOpenSidebar={onOpenSidebar} onSelectStudent={onSelectStudent} />
+        <MorningAttendanceWorkspace initialStatusFilter={initialStatusFilter} onBack={onBack} onOpenSidebar={onOpenSidebar} onSelectStudent={onSelectStudent} />
       </div>
     );
   }

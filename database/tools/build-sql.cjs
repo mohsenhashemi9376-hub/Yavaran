@@ -53,9 +53,9 @@ const tables = {
     keys: ['KEY `morning_delays_student_id_index` (`student_id`)', 'KEY `morning_delays_class_id_index` (`class_id`)', 'KEY `morning_delays_record_date_index` (`record_date`)'],
     extract: (d) => ({ student_id: s(d, 'studentId', 100), class_id: s(d, 'classId', 100), record_date: s(d, 'date', 20) }) },
   morningAttendance: { table: 'morning_attendance',
-    cols: ['`student_id` varchar(100) NOT NULL', '`class_id` varchar(100) DEFAULT NULL', '`record_date` varchar(20) NOT NULL', "`status` varchar(10) NOT NULL DEFAULT 'absent'", '`entry_time` time DEFAULT NULL', '`delay_minutes` int NOT NULL DEFAULT 0', '`is_acknowledged` tinyint(1) NOT NULL DEFAULT 0'],
+    cols: ['`student_id` varchar(100) NOT NULL', '`class_id` varchar(100) DEFAULT NULL', '`record_date` varchar(20) NOT NULL', "`status` varchar(10) NOT NULL DEFAULT 'absent'", '`entry_time` time DEFAULT NULL', '`delay_minutes` int NOT NULL DEFAULT 0', '`is_acknowledged` tinyint(1) NOT NULL DEFAULT 0', '`is_excused` tinyint(1) DEFAULT 0', '`absence_note` text DEFAULT NULL'],
     keys: ['UNIQUE KEY `morning_attendance_student_date_unique` (`student_id`,`record_date`)', 'KEY `morning_attendance_student_id_index` (`student_id`)', 'KEY `morning_attendance_class_id_index` (`class_id`)', 'KEY `morning_attendance_record_date_index` (`record_date`)', 'KEY `morning_attendance_is_acknowledged_index` (`is_acknowledged`)'],
-    extract: (d) => ({ student_id: s(d, 'studentId', 100) || '', class_id: s(d, 'classId', 100), record_date: s(d, 'date', 20) || '', status: d.status === 'present' ? 'present' : 'absent', entry_time: /^([01]?\d|2[0-3]):[0-5]\d$/.test(d.entryTime || '') ? d.entryTime + ':00' : null, delay_minutes: Math.max(0, Math.min(1440, parseInt(d.delayMinutes, 10) || 0)), is_acknowledged: d.isAcknowledged ? 1 : 0 }) },
+    extract: (d) => ({ student_id: s(d, 'studentId', 100) || '', class_id: s(d, 'classId', 100), record_date: s(d, 'date', 20) || '', status: d.status === 'present' ? 'present' : 'absent', entry_time: /^([01]?\d|2[0-3]):[0-5]\d$/.test(d.entryTime || '') ? d.entryTime + ':00' : null, delay_minutes: Math.max(0, Math.min(1440, parseInt(d.delayMinutes, 10) || 0)), is_acknowledged: d.isAcknowledged ? 1 : 0, is_excused: d.isExcused ? 1 : 0, absence_note: s(d, 'absenceNote', 2000) }) },
   schoolAbsences: { table: 'school_absences',
     cols: ['`student_id` varchar(100) DEFAULT NULL', '`class_id` varchar(100) DEFAULT NULL', '`record_date` varchar(20) DEFAULT NULL'],
     keys: ['KEY `school_absences_student_id_index` (`student_id`)', 'KEY `school_absences_class_id_index` (`class_id`)', 'KEY `school_absences_record_date_index` (`record_date`)'],
@@ -233,7 +233,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (3, '2026_10_02_000000_create_comprehensive_exams_table', 1),
 (4, '2026_10_03_000000_create_course_assignments_table', 1),
 (5, '2026_10_04_000000_add_permissions_to_users_table', 1),
-(6, '2026_10_05_000000_create_morning_attendance_table', 1);
+(6, '2026_10_05_000000_create_morning_attendance_table', 1),
+(7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

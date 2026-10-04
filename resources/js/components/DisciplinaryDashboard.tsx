@@ -1,6 +1,6 @@
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student, SchoolClass, DisciplinaryNote, MorningDelayRecord, User } from '../types';
 import { toPersianDigits, getTodayShamsi, formatShamsiDisplay, getDayOfWeekFromShamsi } from '../utils/persianDate';
@@ -34,6 +34,8 @@ import { ExecutiveSidebarNav, ExecutiveViewType } from './ExecutiveSidebarNav';
 import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
+import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
+import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
@@ -75,6 +77,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     classes, 
     sessions, 
     morningDelays,
+    morningAttendance,
     schoolAbsences,
     allTeachers,
     allCoaches,
@@ -146,6 +149,20 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   const todaySchoolAbsencesList = useMemo(() => {
     return safeSchoolAbsences.filter((a) => a.date === todayInfo.formattedDate);
   }, [safeSchoolAbsences, todayInfo.formattedDate]);
+
+  const morningToday = useMemo(
+    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
+    [students, morningAttendance, todayInfo.formattedDate]
+  );
+  const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);
+  const openMorning = (f: MorningStatusFilter) => {
+    setMorningFilter(f);
+    setCurrentView('attendance');
+  };
+
+  useEffect(() => {
+    if (rawView !== 'attendance') setMorningFilter(null);
+  }, [rawView]);
 
   const todaySessions = useMemo(() => {
     return (sessions || []).filter((s) => s.date === todayInfo.formattedDate);
@@ -367,8 +384,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 {/* کارت ۲: غایبان امروز */}
                 <button
                   type="button"
-                  onClick={() => setCurrentView('attendance')}
-                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-400 hover:shadow-sm transition text-right group cursor-pointer"
+                  onClick={() => openMorning('absent')}
+                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-400 hover:shadow-sm transition text-right group cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">غایبان امروز</span>
@@ -377,7 +394,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                     </div>
                   </div>
                   <div className="text-2xl font-black text-rose-700 mt-2 font-mono">
-                    {toPersianDigits(todaySchoolAbsencesList.length)}
+                    {toPersianDigits(morningToday.absent)}
                   </div>
                   <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
                     <span>مشاهده و ثبت غیبت‌ها</span>
@@ -388,8 +405,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 {/* کارت ۳: تأخیرهای امروز */}
                 <button
                   type="button"
-                  onClick={() => setCurrentView('attendance')}
-                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-400 hover:shadow-sm transition text-right group cursor-pointer"
+                  onClick={() => openMorning('late')}
+                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-400 hover:shadow-sm transition text-right group cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">تأخیرهای امروز</span>
@@ -398,7 +415,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                     </div>
                   </div>
                   <div className="text-2xl font-black text-amber-700 mt-2 font-mono">
-                    {toPersianDigits(todayMorningDelays.length)}
+                    {toPersianDigits(morningToday.late)}
                   </div>
                   <div className="text-[11px] text-amber-600 mt-1 flex items-center gap-1 font-medium">
                     <span>مشاهده دفتر تأخیر ورود</span>
@@ -740,6 +757,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {/* ========================================================================= */}
           {currentView === 'attendance' && (
             <AdminAttendanceWorkspace
+              initialStatusFilter={morningFilter}
               classes={classes}
               sessions={sessions}
               onBack={() => setCurrentView(null)}

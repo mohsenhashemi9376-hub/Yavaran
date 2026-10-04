@@ -20,6 +20,7 @@ import {
   getTodayShamsi, 
   getDayOfWeekFromShamsi 
 } from '../utils/persianDate';
+import { formatDelayText } from '../utils/morningAttendance';
 import {
   X,
   User,
@@ -91,6 +92,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     classes, 
     sessions, 
     morningDelays, 
+    morningAttendance,
     schoolAbsences,
     academicGrades, 
     academicSubjects, 
@@ -172,6 +174,39 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [schoolAbsences, currentStudent]);
 
+  // حضور و غیاب صبحگاه: رکوردهای ثبت‌شده + غیبت ضمنی امروز (حضور هنوز ثبت نشده)
+  const morningLogs = useMemo(() => {
+    if (!currentStudent) return [];
+    const today = getTodayShamsi().formattedDate;
+    const rows = (morningAttendance || [])
+      .filter((r) => r.studentId === currentStudent.id)
+      .filter((r) => r.status === 'absent' || r.delayMinutes > 0)
+      .map((r) => ({
+        id: r.id,
+        date: r.date,
+        dayOfWeek: r.dayOfWeek,
+        status: r.status,
+        isExcused: Boolean(r.isExcused),
+        note: r.absenceNote || '',
+        entryTime: r.entryTime,
+        delayMinutes: r.delayMinutes,
+      }));
+    const hasToday = (morningAttendance || []).some((r) => r.studentId === currentStudent.id && r.date === today);
+    if (!hasToday) {
+      rows.push({
+        id: `implicit-${today}`,
+        date: today,
+        dayOfWeek: getTodayShamsi().dayOfWeek,
+        status: 'absent',
+        isExcused: false,
+        note: '',
+        entryTime: undefined,
+        delayMinutes: 0,
+      });
+    }
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+  }, [morningAttendance, currentStudent]);
+
   // Attendance Sessions for this student's class
   const classSessions = useMemo(() => {
     if (!currentStudent) return [];
@@ -206,7 +241,12 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const excusedCount = sessionLogs.filter((l) => l.status === 'excused').length;
   const classLateCount = sessionLogs.filter((l) => l.status === 'late').length;
   const morningLateCount = studentMorningDelays.length;
-  const totalDelaysCount = classLateCount + morningLateCount;
+  const morningAbsentCount = morningLogs.filter((l) => l.status === 'absent' && !l.isExcused).length;
+  const morningExcusedCount = morningLogs.filter((l) => l.status === 'absent' && l.isExcused).length;
+  const morningAttendanceLateCount = morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0).length;
+  const totalAbsentCount = absentCount + morningAbsentCount;
+  const totalExcusedCount = excusedCount + morningExcusedCount;
+  const totalDelaysCount = classLateCount + morningLateCount + morningAttendanceLateCount;
   const scoresList = sessionLogs.filter((l) => l.score !== undefined);
 
   const attendanceRate = totalSessions > 0 
@@ -425,7 +465,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     const text = `سلام و احترام؛
 ولی محترم دانش‌آموز ${currentStudent.firstName} ${currentStudent.lastName}
 گزارش وضعیت مدرسه یاوران ولایت:
-• درصد حضور: ${toPersianDigits(attendanceRate)}٪ (غیبت غیرموجه: ${toPersianDigits(absentCount)} جلسه)
+• درصد حضور: ${toPersianDigits(attendanceRate)}٪ (غیبت غیرموجه: ${toPersianDigits(totalAbsentCount)} مورد)
 • مجموع تأخیرات: ${toPersianDigits(totalDelaysCount)} بار
 • نمره انضباط فعلی: ${toPersianDigits(disciplineScore)} از ۲۰
 ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(academicReport.annualGpa)}` : ''}
@@ -568,10 +608,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
           <div className="bg-white p-4 rounded-2xl shadow-xs">
             <div className="text-slate-500 text-xs">غیبت</div>
-            <div className={`text-2xl font-extrabold mt-1 ${absentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-              {toPersianDigits(absentCount)}
-              {excusedCount > 0 && (
-                <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(excusedCount)} موجه</span>
+            <div className={`text-2xl font-extrabold mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+              {toPersianDigits(totalAbsentCount)}
+              {totalExcusedCount > 0 && (
+                <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(totalExcusedCount)} موجه</span>
               )}
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
@@ -1072,13 +1112,70 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 </div>
               </div>
 
+              {/* سوابق حضور و غیاب صبحگاه */}
+              {morningLogs.length > 0 && (
+                <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+                  <div className="px-3 py-2 bg-emerald-50/60 border-b border-emerald-100 text-xs font-bold text-emerald-900 flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px]">صبحگاه</span>
+                    <span>سوابق غیبت و تأخیر صبحگاه ({toPersianDigits(morningLogs.length)} مورد)</span>
+                  </div>
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">تاریخ و روز</th>
+                        <th className="p-3">نوع</th>
+                        <th className="p-3 text-center">وضعیت</th>
+                        <th className="p-3 text-center">ساعت ورود / تأخیر</th>
+                        <th className="p-3">توضیحات و علت</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {morningLogs.map((l) => (
+                        <tr key={l.id} className={l.status === 'absent' ? 'bg-rose-50/40' : 'bg-amber-50/40'}>
+                          <td className="p-3 font-mono text-slate-700">
+                            <div className="font-bold">{l.date}</div>
+                            <div className="text-[10px] text-slate-400 font-sans">{l.dayOfWeek}</div>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">صبحگاه</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {l.status === 'absent' ? (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                                  l.isExcused
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}
+                              >
+                                {l.isExcused ? 'غایب موجه' : 'غایب غیرموجه'}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                {formatDelayText(l.delayMinutes, 'صبحگاه')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-mono text-slate-700">
+                            {l.entryTime ? `${toPersianDigits(l.entryTime)}` : '—'}
+                          </td>
+                          <td className="p-3 whitespace-normal min-w-[200px] text-slate-600 text-[11px]">
+                            {l.note || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* Class Sessions Table */}
               {filteredSessionLogs.length === 0 ? (
                 <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-200 text-slate-400 text-xs">
                   {attendanceFilter === 'absent' ? 'هیچ غیبتی برای این دانش‌آموز ثبت نشده است.' : 'جلسه‌ای با فیلتر انتخابی یافت نشد.'}
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
                   <table className="w-full text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
@@ -1113,7 +1210,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                             <div className="text-[10px] text-slate-400 font-sans">{log.session.dayOfWeek}</div>
                           </td>
                           <td className="p-3">
-                            <div className="font-bold text-slate-900">{log.session.subject}</div>
+                            <div className="font-bold text-slate-900">{log.session.subject}{log.session.bellPeriodName ? ` • ${log.session.bellPeriodName}` : ''}</div>
                             <div className="text-[10px] text-slate-500">{log.session.teacherName}</div>
                           </td>
                           <td className="p-3 text-slate-700 max-w-[180px] truncate" title={log.session.lessonTopic}>
@@ -1409,7 +1506,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <p>هنوز نمره رسمی برای این دانش‌آموز ثبت نشده است.</p>
                   </div>
                 ) : (
-                  <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                  <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
                     <table className="w-full text-right text-xs">
                       <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] sm:text-xs">
                         <tr>

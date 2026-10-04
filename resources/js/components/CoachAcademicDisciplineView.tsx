@@ -679,7 +679,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                   {academicSubjects.length === 0 ? (
                     <div className="text-center py-6 text-slate-400">درسی تعریف نشده است.</div>
                   ) : (
-                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                    <div className="border border-slate-200 rounded-2xl overflow-x-auto shadow-xs">
                       <table className="w-full text-right text-xs">
                         <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                           <tr>

@@ -438,7 +438,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
 
         {/* Grades Table */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
             <table className="w-full text-right border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 text-[11px] sm:text-xs">

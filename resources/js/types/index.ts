@@ -297,6 +297,8 @@ export interface MorningAttendanceRecord {
   delayMinutes: number; // دقیقه تأخیر نسبت به ۰۷:۰۰ (delay_minutes)
   delayManuallyAdjusted?: boolean;
   isAcknowledged: boolean; // تأیید پیگیری (is_acknowledged)
+  isExcused?: boolean; // غیبت موجه (is_excused)
+  absenceNote?: string; // علت غیبت / شرح تماس با اولیاء (absence_note)
   acknowledgedAt?: string;
   acknowledgedBy?: string;
   recordedBy: string;

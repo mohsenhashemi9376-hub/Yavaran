@@ -14,6 +14,8 @@ import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
+import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
+import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDelaysWorkspace } from './AdminDelaysWorkspace';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
@@ -61,7 +63,9 @@ import {
   BarChart3,
   ArrowLeft,
   HeartHandshake,
-  Settings
+  Settings,
+  Sunrise,
+  BellRing,
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
@@ -100,6 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     allCoaches,
     deleteClass,
     morningDelays,
+    morningAttendance,
     schoolAbsences,
     addMorningDelay,
     deleteMorningDelay,
@@ -235,6 +240,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return (schoolAbsences || []).filter((a) => a.date === todayInfo.formattedDate);
   }, [schoolAbsences, todayInfo.formattedDate]);
 
+  const morningToday = useMemo(
+    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
+    [students, morningAttendance, todayInfo.formattedDate]
+  );
+  const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);
+  const openMorning = (f: MorningStatusFilter) => {
+    setMorningFilter(f);
+    setCurrentFullScreenView('attendance');
+  };
+  useEffect(() => {
+    if (rawFullScreenView !== 'attendance' && rawFullScreenView !== 'delays') setMorningFilter(null);
+  }, [rawFullScreenView]);
   const totalDelaysCount = (morningDelays || []).length;
   const unexcusedDelays = useMemo(() => {
     return (morningDelays || []).filter((d) => d.isExcused === false);
@@ -382,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         title: `${toPersianDigits(todayDelays.length)} مورد تأخیر صبحگاهی ثبت‌شده امروز`,
         description: `مجموعاً ${toPersianDigits(totalMin)} دقیقه تأخیر ورود. نیازمند بررسی وضعیت موجه/غیرموجه و تماس با اولیاء.`,
         actionLabel: 'مشاهده تأخیرها',
-        onAction: () => setCurrentFullScreenView('delays'),
+        onAction: () => openMorning('late'),
         icon: Clock,
         badgeCount: todayDelays.length,
       });
@@ -393,7 +410,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         title: `${toPersianDigits(unexcusedDelays.length)} مورد تأخیر غیرموجه در پرونده‌ها`,
         description: 'تأخیرهای بدون عذر موجه نیازمند بررسی معاونت انضباطی جهت اقدام یا کسر نمره هستند.',
         actionLabel: 'بررسی تأخیرها',
-        onAction: () => setCurrentFullScreenView('delays'),
+        onAction: () => openMorning('late'),
         icon: Clock,
         badgeCount: unexcusedDelays.length,
       });
@@ -633,7 +650,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
 
-          {/* ۲. بخش نیازمند توجه (بالاترین اولویت بصری - پاسخ به: الان چه چیزی مهم است؟) */}
+          {/* ۲. بخش نیازمند توجه (برای مدیر مدرسه حذف شده؛ از کارت «موارد نیازمند توجه» در اقدامات سریع قابل دسترسی است) */}
+          {!isAdmin && (
           <div 
             id="section-needs-attention"
             className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4"
@@ -733,6 +751,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* ۳. اقدامات سریع (ساده، استاندارد و بدون سیستم‌های موازی) */}
           <div 
@@ -748,23 +767,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className={isAdmin ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"}>
               {/* اقدامات سفارشی بر اساس نقش کاربر (Role-Tailored Actions) */}
               {isAdmin ? (
                 <>
-                  {/* مدیر: مدیریت کاربران و تنظیمات */}
                   <button
                     type="button"
                     id="btn-quick-admin-settings"
                     onClick={() => setCurrentFullScreenView('settings')}
-                    className="p-3.5 rounded-xl bg-white hover:bg-teal-50/70 border border-teal-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
+                    className="relative p-4 rounded-2xl bg-teal-50/80 border border-teal-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    <div className="p-2 rounded-lg bg-teal-100 text-teal-800 group-hover:scale-105 transition">
+                    <div className="p-2.5 rounded-xl bg-white text-teal-600 shadow-sm group-hover:scale-105 transition">
                       <Settings className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-teal-950">مدیریت و کاربران</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">تنظیمات، پایه‌ها و کادر</div>
+                      <div className="text-xs font-bold text-teal-900">مدیریت و کاربران</div>
+                      <div className="text-[10px] text-teal-700/80 mt-0.5">تنظیمات، پایه‌ها و کادر</div>
                     </div>
                   </button>
 
@@ -772,30 +790,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="button"
                     id="btn-quick-school-absence"
                     onClick={() => setCurrentFullScreenView('attendance')}
-                    className="p-3.5 rounded-xl bg-white hover:bg-rose-50/70 border border-rose-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
+                    className="relative p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:scale-105 transition">
-                      <UserX className="w-5 h-5" />
+                    <div className="p-2.5 rounded-xl bg-white text-emerald-600 shadow-sm group-hover:scale-105 transition">
+                      <Sunrise className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-rose-950">حضور و غیاب صبحگاه</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">غیبت و تأخیر ورود</div>
+                      <div className="text-xs font-bold text-emerald-900">حضور و غیاب صبحگاه</div>
+                      <div className="text-[10px] text-emerald-700/80 mt-0.5">غیبت و تأخیر ورود</div>
                     </div>
                   </button>
 
-
                   <button
                     type="button"
-                    id="btn-quick-attendance"
-                    onClick={() => onOpenNewAttendance()}
-                    className="p-3.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white transition flex flex-col items-center justify-center text-center gap-2 group shadow-xs cursor-pointer"
+                    id="btn-quick-attention"
+                    onClick={() => setCurrentFullScreenView('warnings')}
+                    className="relative p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    <div className="p-2 rounded-lg bg-teal-700/80 group-hover:scale-105 transition">
-                      <CheckCircle2 className="w-5 h-5 text-white" />
+                    {needsAttentionItems.length > 0 && (
+                      <span className="absolute top-2.5 left-2.5 bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs px-2 py-0.5 rounded-full">
+                        {toPersianDigits(needsAttentionItems.length)} مورد
+                      </span>
+                    )}
+                    <div className="p-2.5 rounded-xl bg-white text-amber-600 shadow-sm group-hover:scale-105 transition">
+                      <BellRing className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold">حضور و غیاب کلاس</div>
-                      <div className="text-[10px] text-teal-100 mt-0.5">جلسات و زنگ کلاسی</div>
+                      <div className="text-xs font-bold text-amber-900">موارد نیازمند توجه و پیگیری</div>
+                      <div className="text-[10px] text-amber-700/80 mt-0.5">بررسی موارد نیازمند اقدام، تماس و مداخله</div>
                     </div>
                   </button>
 
@@ -803,14 +825,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="button"
                     id="btn-quick-discipline"
                     onClick={() => setIsAddDisciplineModalOpen(true)}
-                    className="p-3.5 rounded-xl bg-white hover:bg-purple-50/70 border border-purple-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
+                    className="relative p-4 rounded-2xl bg-purple-50/80 border border-purple-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700 group-hover:scale-105 transition">
+                    <div className="p-2.5 rounded-xl bg-white text-purple-600 shadow-sm group-hover:scale-105 transition">
                       <ShieldAlert className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-purple-950">ثبت مورد انضباطی</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">تذکر، اخطار، کسر نمره</div>
+                      <div className="text-xs font-bold text-purple-900">ثبت مورد انضباطی</div>
+                      <div className="text-[10px] text-purple-700/80 mt-0.5">تذکر، اخطار، کسر نمره</div>
                     </div>
                   </button>
 
@@ -818,16 +840,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="button"
                     id="btn-quick-reports"
                     onClick={() => setCurrentFullScreenView('reports')}
-                    className="p-3.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 transition flex flex-col items-center justify-center text-center gap-2 group cursor-pointer shadow-2xs"
+                    className="relative p-4 rounded-2xl bg-sky-50/80 border border-sky-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    <div className="p-2 rounded-lg bg-slate-100 text-slate-700 group-hover:scale-105 transition">
+                    <div className="p-2.5 rounded-xl bg-white text-sky-600 shadow-sm group-hover:scale-105 transition">
                       <FileSpreadsheet className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold">گزارش‌ها و خروجی</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">فایل اکسل و آمار</div>
+                      <div className="text-xs font-bold text-sky-900">گزارش‌ها و خروجی</div>
+                      <div className="text-[10px] text-sky-700/80 mt-0.5">فایل اکسل و آمار</div>
                     </div>
                   </button>
+
                 </>
               ) : isEducationalVice ? (
                 <>
@@ -1267,23 +1290,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* کارت ۴: غیبت‌های مدرسه (عدم حضور در مدرسه) */}
               <div
                 id="stat-card-absences"
-                onClick={() => setCurrentFullScreenView('attendance')}
-                className="p-4 rounded-xl bg-slate-50 hover:bg-rose-50/50 border border-slate-200/90 hover:border-rose-300 transition cursor-pointer flex flex-col justify-between group"
+                onClick={() => openMorning('absent')}
+                className="hover:scale-[1.01] p-4 rounded-xl bg-slate-50 hover:bg-rose-50/50 border border-slate-200/90 hover:border-rose-300 transition cursor-pointer flex flex-col justify-between group"
               >
                 <div className="flex items-center justify-between text-slate-500">
                   <span className="text-xs font-bold">
-                    {todaySchoolAbsences.length > 0 ? 'غیبت‌های مدرسه (امروز)' : 'کل غیبت‌های مدرسه'}
+                    غایبان امروز
                   </span>
                   <UserX className="w-4 h-4 text-slate-400 group-hover:text-rose-600 transition" />
                 </div>
                 <div className="mt-3">
                   <div className="text-xl sm:text-2xl font-black text-rose-700">
-                    {todaySchoolAbsences.length > 0 
-                      ? toPersianDigits(todaySchoolAbsences.length) 
-                      : toPersianDigits(schoolAbsences?.length || 0)}
+                    {toPersianDigits(morningToday.absent)}
                   </div>
                   <div className="text-[11px] text-rose-700 font-semibold mt-1 flex items-center gap-1">
-                    <span>ثبت یا پیگیری</span>
+                    <span>مشاهده و ثبت غیبت‌ها</span>
                     <ChevronLeft className="w-3 h-3" />
                   </div>
                 </div>
@@ -1292,23 +1313,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* کارت ۵: تأخیر ورود صبحگاه */}
               <div
                 id="stat-card-delays"
-                onClick={() => setCurrentFullScreenView('delays')}
-                className="p-4 rounded-xl bg-slate-50 hover:bg-amber-50/50 border border-slate-200/90 hover:border-amber-300 transition cursor-pointer flex flex-col justify-between group"
+                onClick={() => openMorning('late')}
+                className="hover:scale-[1.01] p-4 rounded-xl bg-slate-50 hover:bg-amber-50/50 border border-slate-200/90 hover:border-amber-300 transition cursor-pointer flex flex-col justify-between group"
               >
                 <div className="flex items-center justify-between text-slate-500">
                   <span className="text-xs font-bold">
-                    {todayDelays.length > 0 ? 'تأخیر ورود (امروز)' : 'کل تأخیرهای ورود'}
+                    تأخیرهای امروز
                   </span>
                   <Clock className="w-4 h-4 text-slate-400 group-hover:text-amber-700 transition" />
                 </div>
                 <div className="mt-3">
                   <div className="text-xl sm:text-2xl font-black text-amber-800">
-                    {todayDelays.length > 0 
-                      ? toPersianDigits(todayDelays.length) 
-                      : toPersianDigits(totalDelaysCount)}
+                    {toPersianDigits(morningToday.late)}
                   </div>
                   <div className="text-[11px] text-amber-800 font-semibold mt-1 flex items-center gap-1">
-                    <span>لیست تأخیرها</span>
+                    <span>مشاهده دفتر تأخیر ورود</span>
                     <ChevronLeft className="w-3 h-3" />
                   </div>
                 </div>
@@ -1633,6 +1652,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <AdminAttendanceWorkspace
           classes={classes}
           sessions={sessions}
+          initialStatusFilter={morningFilter}
           onBack={() => setCurrentFullScreenView(null)}
           onOpenSidebar={handleOpenSidebar}
           onOpenNewAttendance={onOpenNewAttendance}
@@ -1644,6 +1664,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <AdminAttendanceWorkspace
           classes={classes}
           sessions={sessions}
+          initialStatusFilter={morningFilter}
           onBack={() => setCurrentFullScreenView(null)}
           onOpenSidebar={handleOpenSidebar}
           onOpenNewAttendance={onOpenNewAttendance}

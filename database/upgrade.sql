@@ -62,3 +62,7 @@ ALTER TABLE `users` ADD COLUMN `permissions` json DEFAULT NULL AFTER `is_active`
 ALTER TABLE `attendance_sessions` ADD COLUMN `subject_id` varchar(100) DEFAULT NULL AFTER `subject`;
 ALTER TABLE `attendance_sessions` ADD COLUMN `period_number` tinyint unsigned DEFAULT NULL AFTER `subject_id`;
 ALTER TABLE `attendance_sessions` ADD COLUMN `lesson_topic` varchar(255) DEFAULT NULL AFTER `period_number`;
+
+-- موجه/غیرموجه و یادداشت علت غیبت صبحگاه (اگر خطای «Duplicate column» گرفتید یعنی از قبل وجود دارد؛ بی‌خطر است)
+ALTER TABLE `morning_attendance` ADD COLUMN `is_excused` tinyint(1) DEFAULT 0 AFTER `is_acknowledged`;
+ALTER TABLE `morning_attendance` ADD COLUMN `absence_note` text DEFAULT NULL AFTER `is_excused`;

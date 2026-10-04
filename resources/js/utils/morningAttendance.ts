@@ -51,3 +51,21 @@ export function compareByLastName(a: { lastName: string; firstName: string }, b:
     norm(a.lastName).localeCompare(norm(b.lastName), 'fa') || norm(a.firstName).localeCompare(norm(b.firstName), 'fa')
   );
 }
+
+/** آمار صبحگاه امروز: غایب = دانش‌آموزی که حضورش ثبت نشده؛ متأخر = حاضر با delay_minutes > 0 */
+export function getMorningTodayStats(
+  students: { id: string }[],
+  records: { studentId: string; date: string; status: string; delayMinutes: number }[],
+  todayDate: string
+): { absent: number; late: number; present: number } {
+  const presentIds = new Set<string>();
+  let late = 0;
+  records.forEach((r) => {
+    if (r.date === todayDate && r.status === 'present') {
+      presentIds.add(r.studentId);
+      if (r.delayMinutes > 0) late++;
+    }
+  });
+  const present = students.filter((s) => presentIds.has(s.id)).length;
+  return { absent: students.length - present, late, present };
+}
