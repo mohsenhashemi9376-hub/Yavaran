@@ -92,7 +92,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
   const school = useSchool();
   const isCoachUser = school.currentUser.role === 'coach';
   // مربی فقط کلاس‌های خودش را می‌بیند؛ مدیر و معاونین کل مدرسه را
-  const actualClasses = propClasses ?? (isCoachUser ? school.accessibleClasses : school.classes) ?? [];
+  const actualClasses = propClasses ?? (isCoachUser ? school.nurturingClasses : school.classes) ?? [];
   const sidebarClassIds = useMemo(() => new Set(actualClasses.map((c) => c.id)), [actualClasses]);
   const actualStudents = useMemo(() => {
     const list = propStudents ?? school.students;
