@@ -354,7 +354,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
             <div className="space-y-5">
               
               {/* Info grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 
                 {/* بخش کادر آموزشی و تربیتی */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
