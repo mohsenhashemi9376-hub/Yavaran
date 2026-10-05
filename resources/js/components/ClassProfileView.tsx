@@ -460,6 +460,9 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                           <div className="text-xs text-slate-600 truncate">
                             مبحث: <b>{sess.lessonTopic || 'بدون عنوان'}</b>
                           </div>
+                          <div className="text-xs text-slate-600 truncate" title={sess.homeworkDescription || ''}>
+                            تکلیف: <b>{sess.homeworkDescription?.trim() || 'تکلیفی داده نشده'}</b>
+                          </div>
                           <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100">
                             <span className="text-emerald-700 font-bold">{toPersianDigits(p)} حاضر</span>
                             <span className="text-rose-700 font-bold">{toPersianDigits(a)} غایب</span>
@@ -711,6 +714,10 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
 
                         <div className="text-xs text-slate-700">
                           مبحث درس: <b>{s.lessonTopic || 'بدون عنوان'}</b>
+                        </div>
+
+                        <div className="text-xs text-slate-700">
+                          تکلیف: <b>{s.homeworkDescription?.trim() || 'تکلیفی داده نشده'}</b>
                         </div>
 
                         <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-500">

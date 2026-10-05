@@ -25,6 +25,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { TaughtLessonsLog } from './TaughtLessonsLog';
 
 interface CoachAcademicDisciplineViewProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -359,6 +360,24 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               {toPersianDigits(aggregateStats.attentionCount)} دانش‌آموز
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* عنوان درس تدریس‌شده و تکلیف جلسات کلاس‌های مربی */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+        <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-teal-800" />
+          <span>درس‌های تدریس‌شده و تکالیف داده‌شده</span>
+        </h3>
+        <div className="max-h-80 overflow-y-auto">
+          <TaughtLessonsLog
+            sessions={sessions.filter((sess) =>
+              selectedClassId === 'all'
+                ? coachAccessibleClassIds.includes(sess.classId)
+                : sess.classId === selectedClassId
+            )}
+            showClassName={(id) => classes.find((c) => c.id === id)?.name}
+          />
         </div>
       </div>
 
