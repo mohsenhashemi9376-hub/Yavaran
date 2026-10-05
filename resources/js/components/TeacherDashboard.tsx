@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../lib/serverSync';
 import { CircularModal } from './CircularModal';
+import { CircularAlertCard } from './CircularAlertCard';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { useSchool } from '../context/SchoolContext';
 import { AppNotification, SchoolAnnouncement, SchoolClass, AttendanceSession, Student, StudentAttendanceRecord, QualitativeRating } from '../types';
@@ -108,6 +109,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     apiRequest('POST', `/api/notifications/${nid}/read`).catch(() => undefined);
   };
   const firstUnreadCircular = schoolAnnouncements.find((a) => unreadCirculars[a.id]);
+
+  // کادر وسط صفحه: بخشنامه‌های خوانده‌نشده یکی‌یکی نمایش داده می‌شوند تا استاد «متوجه شدم» بزند
+  const [dismissedCirculars, setDismissedCirculars] = useState<string[]>([]);
+  const pendingCirculars = schoolAnnouncements.filter((a) => unreadCirculars[a.id]);
+  const alertCircular = pendingCirculars.find((a) => !dismissedCirculars.includes(a.id)) || null;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Use strictly the teacher's permitted classes and sessions
@@ -1249,6 +1255,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         />
       )}
 
+      <CircularAlertCard
+        announcement={circularModal ? null : alertCircular}
+        position={{ index: alertCircular ? pendingCirculars.indexOf(alertCircular) + 1 : 0, total: pendingCirculars.length }}
+        onAcknowledge={acknowledgeCircular}
+        onDismiss={() => alertCircular && setDismissedCirculars((prev) => [...prev, alertCircular.id])}
+      />
       <CircularModal announcement={circularModal} onAcknowledge={acknowledgeCircular} onClose={() => setCircularModal(null)} />
     </div>
   );
