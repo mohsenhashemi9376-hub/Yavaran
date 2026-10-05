@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { apiRequest } from '../lib/serverSync';
+import { CircularModal } from './CircularModal';
 import { useSchool } from '../context/SchoolContext';
-import { SchoolClass, AttendanceSession, Student, StudentAttendanceRecord, QualitativeRating } from '../types';
+import { AppNotification, SchoolAnnouncement, SchoolClass, AttendanceSession, Student, StudentAttendanceRecord, QualitativeRating } from '../types';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { getUserGreeting } from '../utils/userRoles';
@@ -68,6 +70,40 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
+
+  // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
+  const [circularModal, setCircularModal] = useState<SchoolAnnouncement | null>(null);
+  const [unreadCirculars, setUnreadCirculars] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      apiRequest<{ notifications: AppNotification[] }>('GET', '/api/notifications')
+        .then((res) => {
+          if (!alive) return;
+          const map: Record<string, number> = {};
+          (res.notifications || []).forEach((n) => {
+            if (n.type === 'circular' && !n.isRead && n.refId) map[n.refId] = n.id;
+          });
+          setUnreadCirculars(map);
+        })
+        .catch(() => undefined);
+    load();
+    const t = window.setInterval(load, 60_000);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+    };
+  }, []);
+  const acknowledgeCircular = (a: SchoolAnnouncement) => {
+    const nid = unreadCirculars[a.id];
+    if (!nid) return;
+    setUnreadCirculars((prev) => {
+      const { [a.id]: _gone, ...rest } = prev;
+      return rest;
+    });
+    apiRequest('POST', `/api/notifications/${nid}/read`).catch(() => undefined);
+  };
+  const firstUnreadCircular = schoolAnnouncements.find((a) => unreadCirculars[a.id]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   // Use strictly the teacher's permitted classes and sessions
@@ -320,22 +356,37 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
               </div>
 
-              {/* School Announcements Active Notice Banner (if any) */}
+              {/* نوار اطلاعیه معاونت آموزش: فقط برای بخشنامه‌های خوانده‌نشده */}
               {(schoolAnnouncements || []).length > 0 && (
-                <div className="bg-violet-50 text-violet-950 rounded-xl px-3.5 py-2 border border-violet-200 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Bell className="w-4 h-4 text-violet-600 shrink-0" />
-                    <span className="text-[11px] font-bold text-violet-700 shrink-0">اطلاعیه معاونت آموزش:</span>
-                    <p className="text-xs font-bold truncate">{schoolAnnouncements[0].title}</p>
+                firstUnreadCircular ? (
+                  <div className="bg-violet-50 text-violet-950 rounded-xl px-3.5 py-2 border border-violet-200 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCircularModal(firstUnreadCircular)}
+                      className="flex items-center gap-2 min-w-0 flex-1 text-right cursor-pointer"
+                    >
+                      <Bell className="w-4 h-4 text-violet-600 shrink-0" />
+                      <span className="text-[11px] font-bold text-violet-700 shrink-0">اطلاعیه معاونت آموزش:</span>
+                      <p className="text-xs font-bold truncate">{firstUnreadCircular.title}</p>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('evaluations')}
+                      className="text-[11px] text-violet-800 hover:underline font-bold cursor-pointer shrink-0 flex items-center gap-0.5"
+                    >
+                      <span>همه ({toPersianDigits(schoolAnnouncements.length)})</span>
+                      <ChevronLeft className="w-3 h-3" />
+                    </button>
                   </div>
+                ) : (
                   <button
+                    type="button"
                     onClick={() => setActiveView('evaluations')}
-                    className="text-[11px] text-violet-800 hover:underline font-bold cursor-pointer shrink-0 flex items-center gap-0.5"
+                    className="w-full bg-slate-50 text-slate-500 rounded-xl px-3.5 py-1.5 border border-slate-200 flex items-center justify-between gap-3 text-[11px] font-bold cursor-pointer"
                   >
-                    <span>همه ({toPersianDigits(schoolAnnouncements.length)})</span>
-                    <ChevronLeft className="w-3 h-3" />
+                    <span className="flex items-center gap-2"><Bell className="w-3.5 h-3.5" />اطلاعیه‌ها (همه خوانده شده)</span>
+                    <span className="flex items-center gap-0.5">مشاهده ({toPersianDigits(schoolAnnouncements.length)})<ChevronLeft className="w-3 h-3" /></span>
                   </button>
-                </div>
+                )
               )}
 
               {/* SECTION: دروس و کلاس‌های تدریس (هر کارت = یک درس در یک کلاس) */}
@@ -1133,9 +1184,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           <h4 className="font-bold text-slate-900 text-sm">{ann.title}</h4>
                         </div>
 
-                        <p className="text-xs text-slate-600 leading-relaxed text-justify whitespace-pre-line">
+                        <p className="text-xs text-slate-600 leading-relaxed text-justify whitespace-pre-line line-clamp-4 break-words">
                           {ann.content}
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => setCircularModal(ann)}
+                          className="px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-[11px] font-bold cursor-pointer whitespace-nowrap"
+                        >
+                          مشاهده متن کامل{unreadCirculars[ann.id] ? ' • جدید' : ''}
+                        </button>
                         {(ann.attachments || []).map((f, i) => (
                           <a
                             key={i}
@@ -1177,6 +1235,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         />
       )}
 
+      <CircularModal announcement={circularModal} onAcknowledge={acknowledgeCircular} onClose={() => setCircularModal(null)} />
     </div>
   );
 };
