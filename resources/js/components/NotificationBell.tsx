@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, Megaphone, ScrollText, Send, X } from 'lucide-react';
+import { Bell, CheckCheck, CheckCircle2, Megaphone, ScrollText, Send, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
 import { AppNotification } from '../types';
@@ -25,12 +25,13 @@ interface Props {
 
 /** زنگوله اعلان‌ها: شمارنده خوانده‌نشده، دراور اعلان‌ها، پاپ‌آپ اعلان جدید */
 export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
-  const { currentUser, showToast } = useSchool();
+  const { currentUser } = useSchool();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<AppNotification | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<number[]>([]);
   const knownIds = useRef<Set<number> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -41,15 +42,14 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
       const known = knownIds.current;
       if (known === null) {
         knownIds.current = new Set(list.map((n) => n.id));
-        if (res.unread > 0) showToast(`${toPersianDigits(res.unread)} اعلان خوانده‌نشده دارید.`, 'info');
       } else {
         list
           .filter((n) => !n.isRead && !known.has(n.id))
           .forEach((n) => {
             known.add(n.id);
-            showToast(n.title, n.message.slice(0, 120), n.priority === 'urgent' ? 'error' : 'info');
+            // اعلان سیستم‌عامل فقط وقتی تب در پس‌زمینه است؛ در تب فعال کادر وسط صفحه نمایش داده می‌شود
             try {
-              if ('Notification' in window && Notification.permission === 'granted') {
+              if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
                 new Notification(n.title, { body: n.message.slice(0, 160), dir: 'rtl', lang: 'fa' });
               }
             } catch {
@@ -62,7 +62,7 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
     } catch {
       /* خطای شبکه: در نوبت بعدی دوباره تلاش می‌شود */
     }
-  }, [showToast]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -122,6 +122,19 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
   });
 
   const badge = unread + warningCount;
+
+  // بخشنامه‌ها برای استاد با کادر اختصاصی خودش نمایش داده می‌شود
+  const alertQueue = items.filter(
+    (n) => !n.isRead && !dismissed.includes(n.id) && !(currentUser.role === 'teacher' && n.type === 'circular'),
+  );
+  const alertItem = detail ? null : alertQueue[0] || null;
+
+  useEffect(() => {
+    if (!alertItem) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDismissed((prev) => [...prev, alertItem.id]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [alertItem]);
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -237,6 +250,67 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {alertItem && (
+        <div
+          className="fixed inset-0 z-[95] bg-slate-900/45 backdrop-blur-[3px] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          dir="rtl"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="notif-alert-title"
+        >
+          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className={`h-1.5 bg-gradient-to-l ${alertItem.priority === 'urgent' ? 'from-rose-500 to-orange-400' : 'from-emerald-600 to-teal-400'}`} />
+            <button
+              type="button"
+              onClick={() => setDismissed((prev) => [...prev, alertItem.id])}
+              aria-label="بستن موقت"
+              title="بستن (بعداً یادآوری می‌شود)"
+              className="absolute top-4 left-3 w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="px-5 pt-5 pb-4 text-center">
+              <div
+                className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center ${
+                  alertItem.priority === 'urgent' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+                }`}
+              >
+                {alertItem.type === 'circular' ? <ScrollText className="w-7 h-7" /> : <Megaphone className="w-7 h-7" />}
+              </div>
+              <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+                {alertItem.priority === 'urgent' && (
+                  <span className="px-2.5 py-0.5 rounded-full border text-[11px] font-bold bg-rose-100 text-rose-700 border-rose-200">فوری</span>
+                )}
+                <span className="text-[11px] text-slate-400">{formatWhen(alertItem.createdAt).date}</span>
+                {alertQueue.length > 1 && (
+                  <span className="text-[11px] font-bold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
+                    {toPersianDigits(1)} از {toPersianDigits(alertQueue.length)}
+                  </span>
+                )}
+              </div>
+              <h3 id="notif-alert-title" className="mt-2.5 text-base font-extrabold text-slate-900 leading-snug">
+                {alertItem.title}
+              </h3>
+              <div className="mt-2 max-h-52 overflow-y-auto text-[13px] leading-7 text-slate-600 whitespace-pre-line break-words text-right">
+                {alertItem.message}
+              </div>
+              {alertItem.senderName && <div className="mt-2 text-[11px] text-slate-400">{alertItem.senderName}</div>}
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                type="button"
+                onClick={() => markRead(alertItem)}
+                autoFocus
+                className="w-full h-12 rounded-2xl bg-gradient-to-l from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                <span>متوجه شدم</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
