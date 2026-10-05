@@ -24,7 +24,6 @@ import {
   BookOpen,
   Calendar,
   Layers,
-  Clock,
   UserCheck,
   UserX,
   Eye,
@@ -69,8 +68,9 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
     sessions, 
     allTeachers, 
     allCoaches,
+    academicSubjects,
+    getCourseTeacherId,
     updateStudent,
-    bellPeriods,
     currentUser
   } = useSchool();
   const canEditClass = currentUser?.role !== 'teacher';
@@ -102,16 +102,24 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
     .filter((s) => s.classId === classData.id)
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const assignedTeachers = allTeachers.filter((t) => 
-    classData.teacherIds?.includes(t.id) || t.assignedClassIds?.includes(classData.id)
-  );
+  // دبیران کلاس و دروس‌شان فقط از «برنامه دروس» گرفته می‌شود
+  const assignedTeachers = (() => {
+    const byTeacher = new Map<string, { id: string; name: string; subjects: string[] }>();
+    academicSubjects.forEach((sub) => {
+      const teacherId = getCourseTeacherId(classData.id, sub.id);
+      if (!teacherId) return;
+      const teacher = allTeachers.find((t) => t.id === teacherId);
+      if (!teacher) return;
+      const cur = byTeacher.get(teacherId) || { id: teacherId, name: teacher.name, subjects: [] };
+      cur.subjects.push(sub.name);
+      byTeacher.set(teacherId, cur);
+    });
+    return Array.from(byTeacher.values());
+  })();
 
   const assignedCoach = allCoaches.find((c) => 
     c.id === classData.coachId || c.assignedClassIds?.includes(classData.id)
   );
-
-  // Bell period info
-  const bellPeriod = bellPeriods.find(b => b.id === classData.defaultBellPeriodId);
 
   // Compute Today's Stats or Latest Session Stats
   const todayShamsi = getTodayShamsi();
@@ -346,7 +354,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
             <div className="space-y-5">
               
               {/* Info grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 
                 {/* بخش کادر آموزشی و تربیتی */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
@@ -388,48 +396,12 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                         <div className="flex flex-wrap gap-1.5">
                           {assignedTeachers.map((t) => (
                             <span key={t.id} className="bg-white border border-slate-200 text-slate-800 px-2 py-1 rounded-lg text-[11px] font-medium shadow-2xs">
-                              {t.name} <span className="text-[10px] text-slate-400">({t.subject || 'دبیر'})</span>
+                              {t.name} <span className="text-[10px] text-slate-400">({t.subjects.join('، ')})</span>
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* بخش ساعات مصوب و تنظیمات برگزاری */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-teal-800" />
-                      <span>ساعات و زنگ‌های مصوب کلاس</span>
-                    </h3>
-                    <button
-                      onClick={() => setIsEditClassModalOpen(true)}
-                      className="text-[11px] font-bold text-teal-800 hover:text-teal-900 cursor-pointer"
-                    >
-                      تغییر ساعت
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">زنگ مصوب پیش‌فرض:</span>
-                      <span className="font-bold text-slate-800">
-                        {bellPeriod ? `${bellPeriod.name} (${toPersianDigits(bellPeriod.startTime)} الی ${toPersianDigits(bellPeriod.endTime)})` : 'ساعت سفارشی'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">بازه زمانی برگزاری جلسات:</span>
-                      <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200">
-                        {toPersianDigits(classData.defaultStartTime || '07:45')} الی {toPersianDigits(classData.defaultEndTime || '09:15')}
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
-                      * هنگام ثبت حضور و غیاب توسط هر یک از دبیران، ساعت مصوب کلاسی به صورت خودکار اعمال می‌شود.
-                    </p>
                   </div>
                 </div>
 
@@ -487,6 +459,9 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                           </div>
                           <div className="text-xs text-slate-600 truncate">
                             مبحث: <b>{sess.lessonTopic || 'بدون عنوان'}</b>
+                          </div>
+                          <div className="text-xs text-slate-600 truncate" title={sess.homeworkDescription || ''}>
+                            تکلیف: <b>{sess.homeworkDescription?.trim() || 'تکلیفی داده نشده'}</b>
                           </div>
                           <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100">
                             <span className="text-emerald-700 font-bold">{toPersianDigits(p)} حاضر</span>
@@ -739,6 +714,10 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
 
                         <div className="text-xs text-slate-700">
                           مبحث درس: <b>{s.lessonTopic || 'بدون عنوان'}</b>
+                        </div>
+
+                        <div className="text-xs text-slate-700">
+                          تکلیف: <b>{s.homeworkDescription?.trim() || 'تکلیفی داده نشده'}</b>
                         </div>
 
                         <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-500">
