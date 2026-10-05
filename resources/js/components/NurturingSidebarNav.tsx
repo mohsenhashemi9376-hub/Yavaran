@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ChevronDown,
   ClipboardList,
+  BookOpen,
   Search
 } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
@@ -30,7 +31,8 @@ export type NurturingViewType =
   | 'attention' 
   | 'reports' 
   | 'settings'
-  | 'academic_and_discipline';
+  | 'academic_and_discipline'
+  | 'taught_lessons';
 
 export interface NurturingSidebarCounts {
   observations?: number;
@@ -209,6 +211,24 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           tooltip: 'ارزیابی شاخص‌های شش‌گانه رشد فردی',
           icon: Award,
           count: totalEvaluations > 0 ? totalEvaluations : undefined,
+        },
+      ],
+    },
+    {
+      id: 'education',
+      title: 'آموزش و انضباط',
+      items: [
+        {
+          id: 'academic_and_discipline',
+          label: 'آموزش و انضباط کلاس‌ها',
+          tooltip: 'نمای یکپارچه کارنامه، غیبت‌ها و نمرات',
+          icon: BookOpen,
+        },
+        {
+          id: 'taught_lessons',
+          label: 'درس‌های تدریس‌شده و تکالیف',
+          tooltip: 'عنوان درس هر جلسه و تکلیف داده‌شده توسط استاد',
+          icon: ClipboardList,
         },
       ],
     },

@@ -17,6 +17,7 @@ import {
   User
 } from '../types';
 import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
+import { TaughtLessonsView } from './TaughtLessonsView';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -908,6 +909,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'reports' && 'گزارش‌های تحلیلی رشد'}
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
+                {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
               </span>
             </div>
 
@@ -1217,6 +1219,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {currentView === 'academic_and_discipline' && (
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
+      {currentView === 'taught_lessons' && <TaughtLessonsView />}
 
       {/* ========================================================================= */}
       {/* SECTION 1: «مشاهده‌گری» (Observation Desk) */}

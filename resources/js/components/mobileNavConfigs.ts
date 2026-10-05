@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
-  BookOpen, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
+  BookOpen, ClipboardList, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
   BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
@@ -78,6 +78,8 @@ export const nurturingMobileNav = () => ({
     { id: 'attention', label: 'نیازمند توجه', icon: AlertTriangle },
   ] as MobileNavItem[],
   more: [
+    { id: 'academic_and_discipline', label: 'آموزش و انضباط', icon: BookOpen },
+    { id: 'taught_lessons', label: 'درس‌ها و تکالیف', icon: ClipboardList },
     { id: 'coachEvaluations', label: 'ارزیابی رشد', icon: Star },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
