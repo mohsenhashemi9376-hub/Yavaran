@@ -34,7 +34,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   const { 
     students, 
     classes, 
-    accessibleClasses, 
+    nurturingClasses, 
     academicSubjects, 
     academicGrades, 
     sessions, 
@@ -43,7 +43,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   } = useSchool();
 
   const [selectedClassId, setSelectedClassId] = useState<string>(
-    accessibleClasses.length > 0 ? accessibleClasses[0].id : 'all'
+    nurturingClasses.length > 0 ? nurturingClasses[0].id : 'all'
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'needs_attention' | 'top_academic' | 'discipline_warning'>('all');
@@ -67,8 +67,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
 
   // Filter students based on coach's accessible classes and search
   const coachAccessibleClassIds = useMemo(() => {
-    return accessibleClasses.map(c => c.id);
-  }, [accessibleClasses]);
+    return nurturingClasses.map(c => c.id);
+  }, [nurturingClasses]);
 
   const targetStudents = useMemo(() => {
     return students.filter(s => {
@@ -374,10 +374,10 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               onChange={(e) => setSelectedClassId(e.target.value)}
               className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              {accessibleClasses.length > 1 && (
-                <option value="all">همه کلاس‌های مربی ({toPersianDigits(accessibleClasses.length)} کلاس)</option>
+              {nurturingClasses.length > 1 && (
+                <option value="all">همه کلاس‌های مربی ({toPersianDigits(nurturingClasses.length)} کلاس)</option>
               )}
-              {accessibleClasses.map(c => (
+              {nurturingClasses.map(c => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

@@ -2790,7 +2790,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {classes.map((cls) => {
+                  {availableClasses.map((cls) => {
                     const clsStudents = students.filter((s) => s.classId === cls.id);
                     const clsObsCount = observations.filter((o) => clsStudents.some((s) => s.id === o.studentId)).length;
                     const clsEvalsCount = coachEvaluations.filter((e) => clsStudents.some((s) => s.id === e.studentId)).length;
