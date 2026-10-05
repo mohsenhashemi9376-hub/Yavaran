@@ -50,7 +50,7 @@ export const SchoolBrand: React.FC<SchoolBrandProps> = ({
       role={isInteractive ? 'button' : undefined}
       aria-label={`${schoolName} - سال تحصیلی ${toPersianDigits(academicYear)}`}
       title={isInteractive ? 'بازگشت به پیشخوان و صفحه اصلی سامانه' : schoolName}
-      className={`flex items-center gap-2.5 sm:gap-3 shrink-0 select-none ${
+      className={`flex items-center gap-2.5 sm:gap-3 min-w-0 sm:shrink-0 select-none ${
         isInteractive 
           ? 'cursor-pointer group hover:opacity-95 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700/50 rounded-xl p-1 -m-1' 
           : ''
