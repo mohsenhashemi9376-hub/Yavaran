@@ -71,8 +71,10 @@ import {
   CheckCircle,
   Settings,
   LayoutDashboard,
-  RotateCcw
+  RotateCcw,
+  NotebookPen,
 } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
 import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 
@@ -1788,9 +1790,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
                 <div className="space-y-2.5">
                   {observations.filter((o) => o.studentId === selectedStudentForObs.id).length === 0 ? (
-                    <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                      هنوز هیچ مشاهده‌ای برای این دانش‌آموز ثبت نگردیده است.
-                    </div>
+                    <EmptyState
+                      icon={NotebookPen}
+                      title="هنوز مشاهده‌ای ثبت نشده است"
+                      description="اولین مشاهده‌ی رفتاری این دانش‌آموز را از بالای همین پنجره ثبت کنید."
+                    />
                   ) : (
                     observations
                       .filter((o) => o.studentId === selectedStudentForObs.id)

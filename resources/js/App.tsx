@@ -425,8 +425,10 @@ const AuthGate: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-5 font-['Vazirmatn',sans-serif] p-6 text-center">
-      <YavaranLogo size="xl" />
+    <div className="min-h-screen flex flex-col items-center justify-center gap-5 font-['Vazirmatn',sans-serif] p-6 text-center" role="status" aria-live="polite">
+      <div className="yv-loader-logo">
+        <YavaranLogo size="xl" />
+      </div>
       <div className="text-sm font-black text-slate-800">مدرسه یاوران ولایت</div>
       {authStatus === 'offline' ? (
         <div className="space-y-3">
@@ -434,13 +436,16 @@ const AuthGate: React.FC = () => {
           <button
             type="button"
             onClick={() => reloadFromServer()}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-600/20 cursor-pointer"
+            className="yv-btn-primary px-5 py-2.5 text-white font-bold text-xs rounded-xl transition cursor-pointer"
           >
             تلاش مجدد
           </button>
         </div>
       ) : (
-        <div className="w-8 h-8 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+        <div className="space-y-2">
+          <div className="yv-loader-bar" />
+          <p className="text-xs text-slate-400">در حال آماده‌سازی سامانه…</p>
+        </div>
       )}
     </div>
   );
