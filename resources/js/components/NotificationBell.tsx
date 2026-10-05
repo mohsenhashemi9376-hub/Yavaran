@@ -5,7 +5,6 @@ import { apiRequest } from '../lib/serverSync';
 import { AppNotification } from '../types';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
 import { SendAnnouncementModal } from './SendAnnouncementModal';
-import { requestOpenTeacherEvaluations } from '../utils/appNav';
 
 const POLL_MS = 45_000;
 
@@ -30,7 +29,8 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
-  const [detail, setDetail] = useState<AppNotification | null>(null);
+  // اعلانی که کاربر از لیست انتخاب کرده و دوباره در کادر وسط صفحه نمایش داده می‌شود
+  const [shown, setShown] = useState<AppNotification | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [dismissed, setDismissed] = useState<number[]>([]);
   const knownIds = useRef<Set<number> | null>(null);
@@ -123,17 +123,21 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
   });
 
   const badge = unread + warningCount;
-  const canUseTeacherPanel = currentUser.role === 'teacher' || !!currentUser.isAlsoTeacher;
 
   // بخشنامه‌ها برای استاد با کادر اختصاصی خودش نمایش داده می‌شود
   const alertQueue = items.filter(
     (n) => !n.isRead && !dismissed.includes(n.id) && !(currentUser.role === 'teacher' && n.type === 'circular'),
   );
-  const alertItem = detail ? null : alertQueue[0] || null;
+  const alertItem = shown || alertQueue[0] || null;
+
+  const closeAlert = (n: AppNotification) => {
+    setShown(null);
+    setDismissed((prev) => [...prev, n.id]);
+  };
 
   useEffect(() => {
     if (!alertItem) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDismissed((prev) => [...prev, alertItem.id]);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeAlert(alertItem);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [alertItem]);
@@ -198,10 +202,8 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
                       key={n.id}
                       type="button"
                       onClick={() => {
-                        markRead(n);
+                        setShown(n);
                         setOpen(false);
-                        if (n.type === 'circular' && canUseTeacherPanel) requestOpenTeacherEvaluations();
-                        else setDetail(n);
                       }}
                       className={`w-full text-right p-3 rounded-2xl border transition cursor-pointer flex gap-2.5 ${
                         n.isRead
@@ -268,7 +270,7 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
             <div className={`h-1.5 bg-gradient-to-l ${alertItem.priority === 'urgent' ? 'from-rose-500 to-orange-400' : 'from-emerald-600 to-teal-400'}`} />
             <button
               type="button"
-              onClick={() => setDismissed((prev) => [...prev, alertItem.id])}
+              onClick={() => closeAlert(alertItem)}
               aria-label="بستن موقت"
               title="بستن (بعداً یادآوری می‌شود)"
               className="absolute top-4 left-3 w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
@@ -305,7 +307,10 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
             <div className="px-5 pb-5">
               <button
                 type="button"
-                onClick={() => markRead(alertItem)}
+                onClick={() => {
+                  markRead(alertItem);
+                  setShown(null);
+                }}
                 autoFocus
                 className="w-full h-12 rounded-2xl bg-gradient-to-l from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -313,31 +318,6 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
                 <span>متوجه شدم</span>
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {detail && (
-        <div className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" dir="rtl">
-          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="px-5 pt-5 pb-3 flex items-start gap-3 shrink-0">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-extrabold text-slate-900">{detail.title}</h3>
-                <div className="text-[11px] text-slate-400 mt-1">
-                  {formatWhen(detail.createdAt).date} • {formatWhen(detail.createdAt).time}
-                  {detail.senderName ? ` • ${detail.senderName}` : ''}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetail(null)}
-                aria-label="بستن"
-                className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center cursor-pointer shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="px-5 pb-6 overflow-y-auto text-sm text-slate-700 leading-loose whitespace-pre-line">{detail.message}</div>
           </div>
         </div>
       )}

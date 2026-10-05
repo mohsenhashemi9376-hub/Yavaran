@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { Header } from './components/Header';
-import { OPEN_TEACHER_EVALUATIONS_EVENT } from './utils/appNav';
 import { TeacherDashboard } from './components/TeacherDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
@@ -83,15 +82,6 @@ const MainApp: React.FC = () => {
       }
     }
   }, [currentUser.id, currentUser.role, isTeacher, isNurturingVice, isCoach, isDisciplinaryVice, isEducationalVice, isAdmin]);
-
-  // باز شدن «اعلانات و ارزیابی» از زنگوله اعلان‌ها (برای کاربرانی که پنل استادی دارند)
-  const canUseTeacherPanel = isTeacher || !!currentUser.isAlsoTeacher;
-  useEffect(() => {
-    if (!canUseTeacherPanel) return;
-    const open = () => setActiveTab('teacher');
-    window.addEventListener(OPEN_TEACHER_EVALUATIONS_EVENT, open);
-    return () => window.removeEventListener(OPEN_TEACHER_EVALUATIONS_EVENT, open);
-  }, [canUseTeacherPanel]);
 
   // Modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);

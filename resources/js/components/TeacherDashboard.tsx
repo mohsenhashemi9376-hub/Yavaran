@@ -12,7 +12,6 @@ import { SessionDetailModal } from './SessionDetailModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
-import { OPEN_TEACHER_EVALUATIONS_EVENT, consumePendingTeacherEvaluations } from '../utils/appNav';
 import { TeacherActivitiesSection } from './TeacherActivitiesSection';
 import { 
   GraduationCap, 
@@ -75,18 +74,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   } = useSchool();
 
   const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
-  const [activeView, setActiveView] = useState<TeacherViewType>(() =>
-    consumePendingTeacherEvaluations() ? 'evaluations' : 'dashboard',
-  );
-
-  // انتقال از زنگوله اعلان‌ها به «اعلانات و ارزیابی»
-  useEffect(() => {
-    const open = () => {
-      if (consumePendingTeacherEvaluations()) setActiveView('evaluations');
-    };
-    window.addEventListener(OPEN_TEACHER_EVALUATIONS_EVENT, open);
-    return () => window.removeEventListener(OPEN_TEACHER_EVALUATIONS_EVENT, open);
-  }, []);
+  const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
 
   // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
   const [circularModal, setCircularModal] = useState<SchoolAnnouncement | null>(null);
