@@ -25,6 +25,7 @@ import { YavaranLogo } from './components/YavaranLogo';
 import { SchoolClass, AttendanceSession, Student, User } from './types';
 import { GraduationCap, Sparkles, CheckCircle2, Shield, Calendar, Users, ShieldAlert, BookOpen } from 'lucide-react';
 import { getTodayShamsi } from './utils/persianDate';
+import { useLuxScope } from './context/ThemeContext';
 
 const MainApp: React.FC = () => {
   const { 
@@ -60,6 +61,10 @@ const MainApp: React.FC = () => {
     ? ['main', 'discipline', 'grades', ...(currentUser.isAlsoTeacher ? (['teacher'] as const) : [])]
     : [ownTab, ...(currentUser.isAlsoTeacher ? (['teacher'] as const) : [])];
   const effectiveTab = allowedTabs.includes(activeTab) ? activeTab : ownTab;
+
+  // ظاهر لوکس + حالت تاریک فعلاً فقط برای پنل معاونت آموزشی
+  const isEducationalPanel = !(isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher')) && !(isNurturingVice || isCoach || effectiveTab === 'nurture') && effectiveTab === 'grades';
+  useLuxScope(isEducationalPanel);
 
   // Auto-switch view tab when user actually changes accounts
   useEffect(() => {
@@ -409,6 +414,7 @@ const MainApp: React.FC = () => {
  */
 const AuthGate: React.FC = () => {
   const { authStatus, reloadFromServer } = useSchool();
+  useLuxScope(authStatus !== 'ready');
 
   if (authStatus === 'ready') {
     return <MainApp />;
@@ -416,7 +422,7 @@ const AuthGate: React.FC = () => {
 
   if (authStatus === 'guest') {
     return (
-      <div className="min-h-screen bg-slate-50 font-['Vazirmatn',sans-serif]">
+      <div className="min-h-screen font-['Vazirmatn',sans-serif]">
         <LoginModal isOpen onClose={() => undefined} />
       </div>
     );
