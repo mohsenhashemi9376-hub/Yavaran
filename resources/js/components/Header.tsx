@@ -9,6 +9,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { SupportModal } from './SupportModal';
 import { SystemSettingsModal } from './SystemSettingsModal';
 import { RolePanelSwitcher } from './RolePanelSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 import { 
   School, 
   ShieldAlert, 
@@ -317,6 +318,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </>
             )}
+
+            {/* تغییر تم روشن/تاریک — فقط در پنل‌هایی که ظاهر لوکس دارند نمایش داده می‌شود */}
+            <ThemeToggle className="yv-lux-only" />
 
             {/* 4. اعلان‌ها (Notifications) */}
             <NotificationBell warningCount={warningCount} />

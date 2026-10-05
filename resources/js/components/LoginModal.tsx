@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { YavaranLogo } from './YavaranLogo';
+import { ThemeToggle } from './ThemeToggle';
 import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -48,35 +49,39 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in"
+      className="yv-login fixed inset-0 flex items-center justify-center p-4 z-50 overflow-y-auto"
       dir="rtl"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 font-['Vazirmatn',sans-serif]">
-        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white p-6 relative">
+      <ThemeToggle className="yv-login__theme" />
+
+      <div className="yv-login__card w-full max-w-md font-['Vazirmatn',sans-serif] animate-in fade-in zoom-in-95 duration-300">
+        <div className="yv-login__hero text-white px-6 pt-8 pb-7 relative">
           <button
             type="button"
             onClick={onClose}
             aria-label="بستن"
-            className="absolute left-4 top-4 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="absolute left-4 top-4 p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="flex flex-col items-center text-center space-y-3">
-            <YavaranLogo size="lg" />
+          <div className="flex flex-col items-center text-center space-y-4 relative">
+            <div className="yv-login__logo">
+              <YavaranLogo size="lg" />
+            </div>
             <div>
-              <h3 className="text-lg font-black text-white">ورود به سامانه مدرسه یاوران ولایت</h3>
-              <p className="text-xs text-emerald-300 mt-0.5">
-                ورود دبیران، معاونین و مدیریت با نام کاربری و کلمه عبور
+              <h3 className="text-xl font-black text-white tracking-tight">مدرسه یاوران ولایت</h3>
+              <p className="text-xs text-teal-100/80 mt-1.5 leading-relaxed">
+                ورود به سامانه جامع مدیریت آموزشی، انضباطی و تربیتی
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 sm:p-7 space-y-5">
           {errorMsg && (
             <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-700 flex items-center gap-2 font-bold animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -86,10 +91,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
           <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="on">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">نام کاربری یا شماره همراه</label>
+              <label htmlFor="login-username" className="block text-xs font-bold text-slate-700 mb-1.5">نام کاربری یا شماره همراه</label>
               <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="login-username"
                   type="text"
                   required
                   autoFocus
@@ -103,10 +109,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">کلمه عبور</label>
+              <label htmlFor="login-password" className="block text-xs font-bold text-slate-700 mb-1.5">کلمه عبور</label>
               <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                <KeyRound className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="current-password"
@@ -119,6 +126,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
+                  aria-label={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -129,12 +137,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl transition shadow-md shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+              className="yv-btn-primary w-full py-3.5 text-white font-bold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-              <span>ورود امن به سامانه</span>
+              <span>{isSubmitting ? 'در حال ورود…' : 'ورود امن به سامانه'}</span>
             </button>
           </form>
+
+          <p className="text-center text-[11px] text-slate-400">اطلاعات شما به‌صورت رمزنگاری‌شده منتقل می‌شود.</p>
         </div>
       </div>
     </div>
