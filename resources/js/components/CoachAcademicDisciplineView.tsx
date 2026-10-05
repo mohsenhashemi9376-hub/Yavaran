@@ -22,7 +22,8 @@ import {
   TrendingUp, 
   Info,
   Layers,
-  Sparkles
+  Sparkles,
+  UserX
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -46,7 +47,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     nurturingClasses.length > 0 ? nurturingClasses[0].id : 'all'
   );
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'needs_attention' | 'top_academic' | 'discipline_warning'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'needs_attention' | 'top_academic' | 'discipline_warning' | 'absent' | 'delayed'>('all');
   const [detailModalStudent, setDetailModalStudent] = useState<Student | null>(null);
   const [modalActiveTab, setModalActiveTab] = useState<'grades' | 'discipline' | 'analysis'>('grades');
 
@@ -58,11 +59,6 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       return (s as any).name;
     }
     return `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'دانش‌آموز';
-  };
-
-  // Helper for student national code
-  const getStudentNationalCode = (s: Student) => {
-    return (s as any).nationalCode || s.nationalId || '---';
   };
 
   // Filter students based on coach's accessible classes and search
@@ -83,11 +79,9 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         const term = searchTerm.toLowerCase();
         const studentClass = classes.find(c => c.id === s.classId);
         const sName = getStudentFullName(s);
-        const sNational = getStudentNationalCode(s);
         const matchesName = sName.toLowerCase().includes(term);
-        const matchesNationalCode = sNational.includes(term);
         const matchesClassName = (studentClass?.name || '').toLowerCase().includes(term);
-        return matchesName || matchesNationalCode || matchesClassName;
+        return matchesName || matchesClassName;
       }
       return true;
     });
@@ -214,6 +208,12 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       if (filterType === 'discipline_warning') {
         return disc.isWarning;
       }
+      if (filterType === 'absent') {
+        return disc.totalAbsences > 0;
+      }
+      if (filterType === 'delayed') {
+        return disc.delays.length > 0;
+      }
       return true;
     });
   }, [targetStudents, filterType]);
@@ -226,6 +226,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     let totalAbs = 0;
     let totalDelaysCount = 0;
     let attentionCount = 0;
+    let absentStudents = 0;
+    let delayedStudents = 0;
 
     targetStudents.forEach(s => {
       const acad = getStudentAcademicData(s.id);
@@ -238,6 +240,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       }
       totalAbs += disc.totalAbsences;
       totalDelaysCount += disc.delays.length;
+      if (disc.totalAbsences > 0) absentStudents++;
+      if (disc.delays.length > 0) delayedStudents++;
       if (disc.isWarning || acad.hasFailingGrade || (acad.gpaAnnual !== null && acad.gpaAnnual < 14)) {
         attentionCount++;
       }
@@ -252,6 +256,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       totalAbs,
       totalDelaysCount,
       attentionCount,
+      absentStudents,
+      delayedStudents,
       totalStudents: targetStudents.length
     };
   }, [targetStudents]);
@@ -270,7 +276,6 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         'معدل نوبت اول': acad.gpaTerm1 !== null ? Number(acad.gpaTerm1.toFixed(2)) : 'ثبت نشده',
         'معدل نوبت دوم': acad.gpaTerm2 !== null ? Number(acad.gpaTerm2.toFixed(2)) : 'ثبت نشده',
         'معدل سالانه کل': acad.gpaAnnual !== null ? Number(acad.gpaAnnual.toFixed(2)) : 'ثبت نشده',
-        'نمره انضباط (از ۲۰)': disc.disciplineScore,
         'وضعیت انضباطی': disc.status === 'normal' ? 'عادی' : disc.status === 'verbal_warning' ? 'تذکر شفاهی' : disc.status === 'written_warning' ? 'تذکر کتبی' : 'احضار اولیا',
         'غیبت‌های غیرموجه': disc.unexcusedAbsences,
         'غیبت‌های موجه': disc.excusedAbsences,
@@ -289,74 +294,59 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   return (
     <div className="space-y-5 font-['Vazirmatn',sans-serif]">
       
-      {/* Top Banner: Read-Only Guard & Explanation */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-indigo-900/40 relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 rounded-full text-xs font-semibold text-indigo-200">
-              <Lock className="w-3.5 h-3.5 text-amber-300" />
-              <span>مشاهده اختصاصی مربی • حالت فقط‌خواندنی (Read-Only)</span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-black flex items-center gap-2">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-indigo-900/40">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-indigo-300" />
-              <span>کارنمای جامع آموزش و انضباط دانش‌آموزان کلاس</span>
+              <span>آموزش و انضباط دانش‌آموزان کلاس</span>
             </h2>
-            <p className="text-xs text-indigo-100/80 leading-relaxed max-w-3xl text-justify">
-              در این کادر، مربی محترم می‌تواند کلیه اطلاعات تحصیلی، نمرات امتحانات، غیبت‌ها، تاخیرهای ورود به مدرسه و وضعیت انضباطی دانش‌آموزان کلاس خود را به منظور پایش جامع و راهبری تربیتی مشاهده کند.
-            </p>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-indigo-200/90">
+              <Lock className="w-3 h-3 text-amber-300" />
+              فقط مشاهده
+            </span>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleExportExcel}
-              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              <span>خروجی اکسل مربی</span>
+              <span>اکسل</span>
             </button>
-
             <button
               onClick={() => window.print()}
-              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-4 h-4 text-sky-400" />
-              <span>چاپ گزارش</span>
+              <span>چاپ</span>
             </button>
           </div>
         </div>
 
-        {/* Aggregated Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-4 border-t border-white/10 text-xs">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4 pt-3.5 border-t border-white/10 text-xs">
           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-            <span className="text-[11px] text-indigo-200 block">دانش‌آموزان تحت پوشش:</span>
-            <span className="text-base font-black font-mono mt-0.5 block">{toPersianDigits(aggregateStats.totalStudents)} نفر</span>
+            <span className="text-[11px] text-indigo-200 block">دانش‌آموزان</span>
+            <span className="text-base font-black mt-0.5 block">{toPersianDigits(aggregateStats.totalStudents)} نفر</span>
           </div>
-
           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-            <span className="text-[11px] text-indigo-200 block">میانگین معدل تحصیلی:</span>
-            <span className="text-base font-black font-mono text-emerald-300 mt-0.5 block">
-              {aggregateStats.avgGpa !== '-' ? `${toPersianDigits(aggregateStats.avgGpa)} از ۲۰` : 'ثبت نشده'}
+            <span className="text-[11px] text-indigo-200 block">میانگین معدل</span>
+            <span className="text-base font-black text-emerald-300 mt-0.5 block">
+              {aggregateStats.avgGpa !== '-' ? toPersianDigits(aggregateStats.avgGpa) : 'ثبت نشده'}
             </span>
           </div>
-
           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-            <span className="text-[11px] text-indigo-200 block">میانگین نمره انضباط:</span>
-            <span className="text-base font-black font-mono text-amber-300 mt-0.5 block">
-              {toPersianDigits(aggregateStats.avgDiscipline)} از ۲۰
+            <span className="text-[11px] text-indigo-200 block">غیبت / تأخیر</span>
+            <span className="text-base font-black text-rose-300 mt-0.5 block">
+              {toPersianDigits(aggregateStats.totalAbs)} / {toPersianDigits(aggregateStats.totalDelaysCount)}
             </span>
           </div>
-
           <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-            <span className="text-[11px] text-indigo-200 block">مجموع غیبت و تاخیرها:</span>
-            <span className="text-base font-black font-mono text-rose-300 mt-0.5 block">
-              {toPersianDigits(aggregateStats.totalAbs)} غیبت / {toPersianDigits(aggregateStats.totalDelaysCount)} تاخیر
-            </span>
-          </div>
-
-          <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 col-span-2 sm:col-span-1">
-            <span className="text-[11px] text-indigo-200 block">نیازمند پیگیری و توجه:</span>
-            <span className="text-base font-black font-mono text-rose-400 mt-0.5 block">
-              {toPersianDigits(aggregateStats.attentionCount)} دانش‌آموز
+            <span className="text-[11px] text-indigo-200 block">نیازمند پیگیری</span>
+            <span className="text-base font-black text-rose-400 mt-0.5 block">
+              {toPersianDigits(aggregateStats.attentionCount)} نفر
             </span>
           </div>
         </div>
@@ -392,7 +382,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="جستجوی نام یا کدملی دانش‌آموز..."
+              placeholder="جستجوی نام دانش‌آموز..."
               className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {searchTerm && (
@@ -407,7 +397,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         </div>
 
         {/* Filter Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 text-xs font-bold shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
           <button
             onClick={() => setFilterType('all')}
             className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
@@ -432,6 +422,30 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
           </button>
 
           <button
+            onClick={() => setFilterType('absent')}
+            className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+              filterType === 'absent'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'bg-orange-50 hover:bg-orange-100 text-orange-800'
+            }`}
+          >
+            <UserX className="w-3.5 h-3.5" />
+            <span>دارای غیبت ({toPersianDigits(aggregateStats.absentStudents)})</span>
+          </button>
+
+          <button
+            onClick={() => setFilterType('delayed')}
+            className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+              filterType === 'delayed'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-amber-50 hover:bg-amber-100 text-amber-800'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>دارای تأخیر ({toPersianDigits(aggregateStats.delayedStudents)})</span>
+          </button>
+
+          <button
             onClick={() => setFilterType('top_academic')}
             className={`px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 ${
               filterType === 'top_academic'
@@ -440,7 +454,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             }`}
           >
             <Award className="w-3.5 h-3.5" />
-            <span>ممتازین درسی (معدل ۱۸+)</span>
+            <span>ممتاز (۱۸+)</span>
           </button>
         </div>
       </div>
@@ -453,139 +467,121 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold">
-                <tr>
-                  <th className="py-3 px-3.5 text-center w-12">ردیف</th>
-                  <th className="py-3 px-4">مشخصات دانش‌آموز</th>
-                  <th className="py-3 px-3 text-center">کلاس</th>
-                  <th className="py-3 px-3 text-center">معدل تحصیلی</th>
-                  <th className="py-3 px-3 text-center">نمره انضباط</th>
-                  <th className="py-3 px-3 text-center">غیبت‌ها</th>
-                  <th className="py-3 px-3 text-center">تاخیر صبحگاهی</th>
-                  <th className="py-3 px-3 text-center">تذکرات انضباطی</th>
-                  <th className="py-3 px-4 text-center">مشاهده وضعیت</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredStudents.map((student, idx) => {
-                  const studentClass = classes.find(c => c.id === student.classId);
-                  const acad = getStudentAcademicData(student.id);
-                  const disc = getStudentDisciplineData(student);
+          <table className="w-full table-fixed text-right text-xs">
+            <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold">
+              <tr>
+                <th className="py-3 px-2 text-center w-10 hidden sm:table-cell">#</th>
+                <th className="py-3 px-3">دانش‌آموز</th>
+                {selectedClassId === 'all' && <th className="py-3 px-2 text-center w-24 hidden md:table-cell">کلاس</th>}
+                <th className="py-3 px-2 text-center w-16 sm:w-20">معدل</th>
+                <th className="py-3 px-2 text-center w-20 sm:w-24">غیبت</th>
+                <th className="py-3 px-2 text-center w-20 sm:w-24">تأخیر</th>
+                <th className="py-3 px-2 text-center w-16 sm:w-20 hidden sm:table-cell">تذکر</th>
+                <th className="py-3 px-2 text-center w-12 sm:w-28"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredStudents.map((student, idx) => {
+                const studentClass = classes.find(c => c.id === student.classId);
+                const acad = getStudentAcademicData(student.id);
+                const disc = getStudentDisciplineData(student);
 
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition">
-                      {/* Row index */}
-                      <td className="py-3 px-3.5 text-center font-mono text-slate-400">
-                        {toPersianDigits(idx + 1)}
-                      </td>
+                return (
+                  <tr key={student.id} className="hover:bg-slate-50/80 transition">
+                    <td className="py-2.5 px-2 text-center text-slate-400 hidden sm:table-cell">
+                      {toPersianDigits(idx + 1)}
+                    </td>
 
-                      {/* Student Info */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                            {getStudentFullName(student).charAt(0)}
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block">{getStudentFullName(student)}</span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              کد ملی: {toPersianDigits(getStudentNationalCode(student))}
-                            </span>
-                          </div>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {getStudentFullName(student).charAt(0)}
                         </div>
-                      </td>
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-900 block truncate">{getStudentFullName(student)}</span>
+                          {selectedClassId === 'all' && <span className="text-[10px] text-slate-400 md:hidden">{studentClass?.name || '-'}</span>}
+                        </div>
+                      </div>
+                    </td>
 
-                      {/* Class */}
-                      <td className="py-3 px-3 text-center text-slate-700 font-medium">
-                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-[11px]">
+                    {selectedClassId === 'all' && (
+                      <td className="py-2.5 px-2 text-center hidden md:table-cell">
+                        <span className="bg-slate-100 px-2 py-1 rounded-lg text-[11px] text-slate-700 font-medium">
                           {studentClass?.name || '-'}
                         </span>
                       </td>
+                    )}
 
-                      {/* GPA */}
-                      <td className="py-3 px-3 text-center">
-                        {acad.gpaAnnual !== null ? (
-                          <span className={`inline-block font-mono font-extrabold text-xs px-2.5 py-1 rounded-lg border ${
-                            acad.gpaAnnual >= 18 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                            acad.gpaAnnual >= 15 ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                            acad.gpaAnnual >= 12 ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                            'bg-rose-50 text-rose-800 border-rose-200'
-                          }`}>
-                            {toPersianDigits(acad.gpaAnnual.toFixed(2))}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">ثبت نشده</span>
-                        )}
-                      </td>
-
-                      {/* Discipline Score */}
-                      <td className="py-3 px-3 text-center">
-                        <span className={`inline-block font-mono font-extrabold text-xs px-2.5 py-1 rounded-lg border ${
-                          disc.disciplineScore >= 19 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                          disc.disciplineScore >= 17 ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                    <td className="py-2.5 px-2 text-center">
+                      {acad.gpaAnnual !== null ? (
+                        <span className={`inline-block font-extrabold text-xs px-2 py-1 rounded-lg border ${
+                          acad.gpaAnnual >= 18 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                          acad.gpaAnnual >= 15 ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                          acad.gpaAnnual >= 12 ? 'bg-amber-50 text-amber-800 border-amber-200' :
                           'bg-rose-50 text-rose-800 border-rose-200'
                         }`}>
-                          {toPersianDigits(disc.disciplineScore)}
+                          {toPersianDigits(acad.gpaAnnual.toFixed(2))}
                         </span>
-                      </td>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
 
-                      {/* Absences */}
-                      <td className="py-3 px-3 text-center font-mono">
-                        {disc.totalAbsences > 0 ? (
-                          <span className="text-rose-700 font-bold text-xs bg-rose-50 px-2 py-0.5 rounded-md">
-                            {toPersianDigits(disc.totalAbsences)} جلسه
-                            {disc.unexcusedAbsences > 0 && (
-                              <span className="text-[10px] text-rose-500 block">({toPersianDigits(disc.unexcusedAbsences)} غیرموجه)</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-emerald-700 text-[11px] font-bold">بدون غیبت</span>
-                        )}
-                      </td>
-
-                      {/* Morning Delays */}
-                      <td className="py-3 px-3 text-center font-mono">
-                        {disc.delays.length > 0 ? (
-                          <span className="text-amber-800 font-bold text-xs bg-amber-50 px-2 py-0.5 rounded-md">
-                            {toPersianDigits(disc.delays.length)} بار
-                            <span className="text-[10px] text-amber-600 block">({toPersianDigits(disc.totalDelayMinutes)} دقیقه)</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">بدون تاخیر</span>
-                        )}
-                      </td>
-
-                      {/* Disciplinary Notes */}
-                      <td className="py-3 px-3 text-center font-mono">
-                        {disc.notesCount > 0 ? (
-                          <span className="text-rose-800 font-bold text-xs bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
-                            {toPersianDigits(disc.notesCount)} مورد
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">-</span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => {
-                            setDetailModalStudent(student);
-                            setModalActiveTab('grades');
-                          }}
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-bold transition flex items-center gap-1 mx-auto cursor-pointer"
+                    <td className="py-2.5 px-2 text-center">
+                      {disc.totalAbsences > 0 ? (
+                        <span
+                          className="inline-block text-rose-700 font-bold text-[11px] bg-rose-50 px-2 py-1 rounded-lg"
+                          title={`${toPersianDigits(disc.unexcusedAbsences)} غیرموجه`}
                         >
-                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>مشاهده ریز پرونده</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {toPersianDigits(disc.totalAbsences)} جلسه
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
+
+                    <td className="py-2.5 px-2 text-center">
+                      {disc.delays.length > 0 ? (
+                        <span
+                          className="inline-block text-amber-800 font-bold text-[11px] bg-amber-50 px-2 py-1 rounded-lg"
+                          title={`${toPersianDigits(disc.totalDelayMinutes)} دقیقه`}
+                        >
+                          {toPersianDigits(disc.delays.length)} بار
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
+
+                    <td className="py-2.5 px-2 text-center hidden sm:table-cell">
+                      {disc.notesCount > 0 ? (
+                        <span className="inline-block text-rose-800 font-bold text-[11px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
+                          {toPersianDigits(disc.notesCount)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
+
+                    <td className="py-2.5 px-2 text-center">
+                      <button
+                        onClick={() => {
+                          setDetailModalStudent(student);
+                          setModalActiveTab('grades');
+                        }}
+                        title="مشاهده ریز پرونده"
+                        aria-label="مشاهده ریز پرونده"
+                        className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                        <span className="hidden sm:inline">پرونده</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -608,7 +604,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                     </span>
                   </div>
                   <span className="text-xs text-slate-300 font-mono">
-                    کد ملی: {toPersianDigits(getStudentNationalCode(detailModalStudent))} • شماره تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
+                    شماره تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
                   </span>
                 </div>
               </div>
