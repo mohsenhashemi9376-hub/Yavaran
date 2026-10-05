@@ -43,6 +43,19 @@ final class DataExporter
             $query->where('teacher_id', $user->id);
         }
 
+        // دسترسی محدود (Scoped Access): مربی/دبیر فقط دانش‌آموزان و سوابق تربیتی کلاس‌های خود را دریافت می‌کند
+        if (! $policy->isManager()) {
+            $classIds = $policy->accessibleClassIds();
+            if ($collection === 'students' && $policy->isCoach()) {
+                $query->whereIn('class_id', $classIds);
+            } elseif (in_array($collection, ['observations', 'coachEvaluations', 'nurturingDossiers'], true)) {
+                $query->whereIn(
+                    'student_id',
+                    DB::table('students')->whereIn('class_id', $classIds)->select('id')
+                );
+            }
+        }
+
         if ($collection !== 'users') {
             return $query->pluck('data')
                 ->filter(static fn ($json) => is_string($json) && $json !== '')

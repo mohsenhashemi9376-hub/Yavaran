@@ -257,11 +257,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   onSelectStudent
 }) => {
   const { 
-    students, 
+    students: schoolStudents, 
     classes, 
-    observations, 
+    observations: schoolObservations, 
     nurturingDossiers, 
-    coachEvaluations,
+    coachEvaluations: schoolCoachEvaluations,
     saveCoachEvaluation,
     deleteCoachEvaluation,
     getStudentCoachEvaluations,
@@ -368,21 +368,41 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [summaryGrowth, setSummaryGrowth] = useState('');
 
   // Filtered classes (considering coach assignment if applicable)
+  // مربی فقط کلاس‌های خودش را می‌بیند (حتی اگر کلاسی نداشته باشد، به کل مدرسه دسترسی پیدا نمی‌کند)
   const availableClasses = useMemo(() => {
-    if (isCoach && accessibleClasses && accessibleClasses.length > 0) {
-      return accessibleClasses;
-    }
+    if (isCoach) return accessibleClasses || [];
     return classes;
   }, [isCoach, accessibleClasses, classes]);
+
+  const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
+
+  // دانش‌آموزان، مشاهدات و ارزیابی‌های مجاز (برای مدیر/معاون: کل مدرسه)
+  const students = useMemo(
+    () => (isCoach ? schoolStudents.filter((s) => allowedClassIds.has(s.classId)) : schoolStudents),
+    [isCoach, schoolStudents, allowedClassIds]
+  );
+  const scopedStudentIds = useMemo(() => new Set(students.map((s) => s.id)), [students]);
+  const observations = useMemo(
+    () => (isCoach ? schoolObservations.filter((o) => scopedStudentIds.has(o.studentId)) : schoolObservations),
+    [isCoach, schoolObservations, scopedStudentIds]
+  );
+  const coachEvaluations = useMemo(
+    () => (isCoach ? schoolCoachEvaluations.filter((e) => scopedStudentIds.has(e.studentId)) : schoolCoachEvaluations),
+    [isCoach, schoolCoachEvaluations, scopedStudentIds]
+  );
+
+  // مربی با یک کلاس: همان کلاس به‌صورت پیش‌فرض انتخاب می‌شود
+  useEffect(() => {
+    if (isCoach && availableClasses.length === 1 && selectedClassId !== availableClasses[0].id) {
+      setSelectedClassId(availableClasses[0].id);
+    } else if (isCoach && selectedClassId !== 'all' && !allowedClassIds.has(selectedClassId)) {
+      setSelectedClassId('all');
+    }
+  }, [isCoach, availableClasses, allowedClassIds, selectedClassId]);
 
   // Filtered students list
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
-      // If coach, only students in coach's classes
-      if (isCoach && availableClasses.length > 0) {
-        const isClassAllowed = availableClasses.some((c) => c.id === s.classId);
-        if (!isClassAllowed) return false;
-      }
 
       const matchClass = selectedClassId === 'all' || s.classId === selectedClassId;
       const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
@@ -393,19 +413,13 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         s.nationalId.includes(searchTerm);
       return matchClass && matchSearch;
     });
-  }, [students, selectedClassId, searchTerm, isCoach, availableClasses]);
+  }, [students, selectedClassId, searchTerm]);
 
   // Filtered Coach Evaluations
   const filteredCoachEvaluations = useMemo(() => {
     return coachEvaluations.filter((ev) => {
       const student = students.find((s) => s.id === ev.studentId);
       if (!student) return false;
-
-      // If coach, verify student is in accessible class
-      if (isCoach && availableClasses.length > 0) {
-        const isClassAllowed = availableClasses.some((c) => c.id === student.classId);
-        if (!isClassAllowed) return false;
-      }
 
       const matchClass = selectedClassId === 'all' || student.classId === selectedClassId;
       const matchPeriod = selectedPeriodFilter === 'all' || ev.period === selectedPeriodFilter;
@@ -420,7 +434,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
       return matchClass && matchPeriod && matchSearch;
     });
-  }, [coachEvaluations, students, isCoach, availableClasses, selectedClassId, selectedPeriodFilter, searchTerm]);
+  }, [coachEvaluations, students, selectedClassId, selectedPeriodFilter, searchTerm]);
 
   // Open Coach Evaluation Modal (New)
   const handleOpenNewCoachEval = (student?: Student) => {
@@ -488,7 +502,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
   // Statistics
   const totalObservationsCount = observations.length;
-  const studentsWithDossierCount = Object.keys(nurturingDossiers).length;
+  const studentsWithDossierCount = Object.keys(nurturingDossiers).filter(
+    (id) => !isCoach || scopedStudentIds.has(id)
+  ).length;
 
   // Students requiring attention / guidance in nurturing
   const attentionNeededStudents = useMemo(() => {
@@ -925,16 +941,18 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 <Filter className="w-3.5 h-3.5" />
                 فیلتر کلاس:
               </span>
-              <button
-                onClick={() => setSelectedClassId('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
-                  selectedClassId === 'all'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                همه کلاس‌ها ({toPersianDigits(filteredStudents.length)})
-              </button>
+              {!(isCoach && availableClasses.length === 1) && (
+                <button
+                  onClick={() => setSelectedClassId('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
+                    selectedClassId === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  همه کلاس‌ها ({toPersianDigits(filteredStudents.length)})
+                </button>
+              )}
               {availableClasses.map((cls) => {
                 const count = students.filter((s) => s.classId === cls.id).length;
                 const isSelected = selectedClassId === cls.id;
@@ -1387,7 +1405,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition cursor-pointer text-slate-800"
               >
-                <option value="all">همه کلاس‌ها ({toPersianDigits(students.length)})</option>
+                {!(isCoach && availableClasses.length === 1) && (
+                  <option value="all">همه کلاس‌ها ({toPersianDigits(students.length)})</option>
+                )}
                 {availableClasses.map((cls) => {
                   const count = students.filter((s) => s.classId === cls.id).length;
                   return (
@@ -1399,12 +1419,12 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </select>
 
               {/* Reset Filters button if any filter is active */}
-              {(searchTerm.trim() !== '' || selectedClassId !== 'all') && (
+              {(searchTerm.trim() !== '' || (selectedClassId !== 'all' && !(isCoach && availableClasses.length === 1))) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSearchTerm('');
-                    setSelectedClassId('all');
+                    setSelectedClassId(isCoach && availableClasses.length === 1 ? availableClasses[0].id : 'all');
                   }}
                   className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
                   title="پاک کردن فیلترها"
