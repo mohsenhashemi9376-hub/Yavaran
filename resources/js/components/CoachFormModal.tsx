@@ -45,9 +45,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
 
   // Multi-role state (Coach + Teacher)
-  const [isAlsoTeacher, setIsAlsoTeacher] = useState(false);
-  const [teachingSubject, setTeachingSubject] = useState('');
-  const [teachingClassIds, setTeachingClassIds] = useState<string[]>([]);
 
   // Validation & Error States
   const [errors, setErrors] = useState<{
@@ -70,9 +67,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
         setPassword(coach.password || '123');
         setIsActive(coach.isActive !== false);
         setSelectedClassIds(coach.assignedClassIds || []);
-        setIsAlsoTeacher(Boolean(coach.isAlsoTeacher));
-        setTeachingSubject(coach.teachingSubject || coach.subject || '');
-        setTeachingClassIds(coach.teachingClassIds || []);
       } else {
         setName('');
         setRoleTitle('مربی تربیتی یاوران ولایت');
@@ -81,9 +75,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
         setPassword('123');
         setIsActive(true);
         setSelectedClassIds([]);
-        setIsAlsoTeacher(false);
-        setTeachingSubject('');
-        setTeachingClassIds([]);
       }
       setErrors({});
       setDeleteError(null);
@@ -168,10 +159,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
           password: finalPassword,
           isActive,
           assignedClassIds: selectedClassIds,
-          isAlsoTeacher,
-          teachingSubject: isAlsoTeacher ? teachingSubject.trim() : undefined,
-          subject: isAlsoTeacher ? teachingSubject.trim() : coach.subject,
-          teachingClassIds: isAlsoTeacher ? teachingClassIds : [],
         });
         showToast('ویرایش موفق', `اطلاعات مربی «${trimmedName}» با موفقیت به‌روزرسانی شد.`, 'success');
       } else {
@@ -185,10 +172,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
           phone: finalPhone,
           isActive,
           assignedClassIds: selectedClassIds,
-          isAlsoTeacher,
-          teachingSubject: isAlsoTeacher ? teachingSubject.trim() : undefined,
-          subject: isAlsoTeacher ? teachingSubject.trim() : undefined,
-          teachingClassIds: isAlsoTeacher ? teachingClassIds : [],
         });
         showToast('ثبت موفق', `مربی جدید «${trimmedName}» با موفقیت تعریف شد.`, 'success');
       }
@@ -485,77 +468,6 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </div>
-
-          {/* ۵. نقش همزمان آموزشی (معلم درس) */}
-          <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-200/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-amber-700" />
-                <div>
-                  <label htmlFor="checkbox-coach-also-teacher" className="text-xs font-bold text-slate-900 cursor-pointer">
-                    فعال‌سازی نقش معلم (تدریس درس) برای این مربی
-                  </label>
-                  <p className="text-[11px] text-slate-500">
-                    امکان تدریس یک درس مشخص و دسترسی به حضور و غیاب کلاس‌های تخصیص‌یافته
-                  </p>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                id="checkbox-coach-also-teacher"
-                checked={isAlsoTeacher}
-                onChange={(e) => setIsAlsoTeacher(e.target.checked)}
-                className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
-              />
-            </div>
-
-            {isAlsoTeacher && (
-              <div className="pt-3 border-t border-amber-200/80 space-y-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    عنوان درس تدریسی *
-                  </label>
-                  <input
-                    type="text"
-                    value={teachingSubject}
-                    onChange={(e) => setTeachingSubject(e.target.value)}
-                    placeholder="مثلاً: ریاضی، دین و زندگی، فیزیک، قرآن..."
-                    className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 outline-hidden focus:ring-2 focus:ring-amber-500 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    کلاس‌های تدریس این درس (دسترسی به حضور و غیاب) *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 mt-1 max-h-36 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
-                    {classes.map((c) => (
-                      <label
-                        key={c.id}
-                        className={`p-2 rounded-lg border text-xs flex items-center gap-2 cursor-pointer transition ${
-                          teachingClassIds.includes(c.id)
-                            ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold'
-                            : 'bg-white border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={teachingClassIds.includes(c.id)}
-                          onChange={() => {
-                            setTeachingClassIds((prev) =>
-                              prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id]
-                            );
-                          }}
-                          className="w-3.5 h-3.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
-                        />
-                        <span className="truncate">{c.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>
