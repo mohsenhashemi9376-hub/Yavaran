@@ -5,7 +5,7 @@ const crypto = require('crypto');
 
 const seed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const outFile = process.argv[3];
-seed.workshops = seed.workshops || [{"id": "ws-medicine", "name": "طب", "category": "scientific", "studentIds": []}, {"id": "ws-social", "name": "روابط اجتماعی", "category": "scientific", "studentIds": []}, {"id": "ws-history", "name": "تاریخ", "category": "scientific", "studentIds": []}, {"id": "ws-technical", "name": "فنی", "category": "skill", "studentIds": []}, {"id": "ws-writing", "name": "نویسندگی", "category": "skill", "studentIds": []}, {"id": "ws-ai", "name": "هوش مصنوعی", "category": "skill", "studentIds": []}];
+seed.workshops = seed.workshops || [{"id": "ws-medicine", "name": "طب", "category": "scientific", "gradeLevel": 8, "studentIds": []}, {"id": "ws-social", "name": "روابط اجتماعی", "category": "scientific", "gradeLevel": 8, "studentIds": []}, {"id": "ws-history", "name": "تاریخ", "category": "scientific", "gradeLevel": 8, "studentIds": []}, {"id": "ws-technical", "name": "فنی", "category": "skill", "gradeLevel": 8, "studentIds": []}, {"id": "ws-writing", "name": "نویسندگی", "category": "skill", "gradeLevel": 8, "studentIds": []}, {"id": "ws-ai", "name": "هوش مصنوعی", "category": "skill", "gradeLevel": 8, "studentIds": []}, {"id": "ws9-medicine", "name": "طب", "category": "scientific", "gradeLevel": 9, "studentIds": []}, {"id": "ws9-social", "name": "روابط اجتماعی", "category": "scientific", "gradeLevel": 9, "studentIds": []}, {"id": "ws9-history", "name": "تاریخ", "category": "scientific", "gradeLevel": 9, "studentIds": []}, {"id": "ws9-technical", "name": "فنی", "category": "skill", "gradeLevel": 9, "studentIds": []}, {"id": "ws9-writing", "name": "نویسندگی", "category": "skill", "gradeLevel": 9, "studentIds": []}, {"id": "ws9-ai", "name": "هوش مصنوعی", "category": "skill", "gradeLevel": 9, "studentIds": []}];
 seed.gradePeriods = seed.gradePeriods || [{"id": "mehrContinuous", "code": "mehrContinuous", "name": "مستمر مهر", "isActive": true}, {"id": "abanContinuous", "code": "abanContinuous", "name": "مستمر آبان", "isActive": false}, {"id": "azarContinuous", "code": "azarContinuous", "name": "مستمر آذر", "isActive": false}, {"id": "term1Continuous", "code": "term1Continuous", "name": "مستمر دی", "isActive": false}, {"id": "term1Final", "code": "term1Final", "name": "پایانی نوبت اول (دی)", "isActive": false}, {"id": "bahmanContinuous", "code": "bahmanContinuous", "name": "مستمر بهمن", "isActive": false}, {"id": "esfandContinuous", "code": "esfandContinuous", "name": "مستمر اسفند", "isActive": false}, {"id": "farvardinContinuous", "code": "farvardinContinuous", "name": "مستمر فروردین", "isActive": false}, {"id": "ordibeheshtContinuous", "code": "ordibeheshtContinuous", "name": "مستمر اردیبهشت", "isActive": false}, {"id": "term2Continuous", "code": "term2Continuous", "name": "مستمر ترم دوم (خرداد)", "isActive": false}, {"id": "term2Final", "code": "term2Final", "name": "پایانی نوبت دوم (خرداد)", "isActive": false}];
 
 const q = (v) => {
@@ -87,9 +87,9 @@ const tables = {
     keys: ['KEY `grade_periods_code_index` (`code`)'],
     extract: (d) => ({ name: s(d, 'name', 100) || '', code: s(d, 'code', 50) || '', is_active: d.isActive ? 1 : 0, deadline: null }) },
   workshops: { table: 'workshops',
-    cols: ["`name` varchar(100) NOT NULL DEFAULT ''", "`type` varchar(20) NOT NULL DEFAULT 'workshop'", "`category` varchar(20) NOT NULL DEFAULT 'scientific'", '`teacher_id` varchar(100) DEFAULT NULL'],
+    cols: ["`name` varchar(100) NOT NULL DEFAULT ''", "`type` varchar(20) NOT NULL DEFAULT 'workshop'", "`category` varchar(20) NOT NULL DEFAULT 'scientific'", '`grade_level` tinyint NOT NULL DEFAULT 8', '`teacher_id` varchar(100) DEFAULT NULL'],
     keys: ['KEY `workshops_teacher_id_index` (`teacher_id`)'],
-    extract: (d) => ({ name: s(d, 'name', 100) || '', type: 'workshop', category: d.category === 'skill' ? 'skill' : 'scientific', teacher_id: s(d, 'teacherId', 100) }) },
+    extract: (d) => ({ name: s(d, 'name', 100) || '', type: 'workshop', category: d.category === 'skill' ? 'skill' : 'scientific', grade_level: d.gradeLevel === 9 ? 9 : 8, teacher_id: s(d, 'teacherId', 100) }) },
   settings: { table: 'school_settings', cols: [], keys: [], extract: () => ({}) },
 };
 
@@ -248,7 +248,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
 (9, '2026_10_08_000000_create_grade_periods_table', 1),
 (10, '2026_10_09_000000_create_workshops_table', 1),
-(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1);
+(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1),
+(12, '2026_10_11_000000_add_grade_level_to_workshops', 1);
 
 DROP TABLE IF EXISTS \`notifications\`;
 DROP TABLE IF EXISTS \`teacher_activities\`;

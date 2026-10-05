@@ -57,6 +57,9 @@ final class CollectionRegistry
             if ($table === 'morning_attendance') {
                 self::ensureMorningAttendanceColumns();
             }
+            if ($table === 'workshops') {
+                self::ensureWorkshopGradeLevel();
+            }
 
             return true;
         }
@@ -67,19 +70,13 @@ final class CollectionRegistry
                     $t->string('name', 100)->default('');
                     $t->string('type', 20)->default('workshop');
                     $t->string('category', 20)->default('scientific');
+                    $t->unsignedTinyInteger('grade_level')->default(8)->index();
                     $t->string('teacher_id', 100)->nullable()->index();
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
                 });
-                $now = now();
-                foreach ([['ws-medicine', 'طب', 'scientific'], ['ws-social', 'روابط اجتماعی', 'scientific'], ['ws-history', 'تاریخ', 'scientific'], ['ws-technical', 'فنی', 'skill'], ['ws-writing', 'نویسندگی', 'skill'], ['ws-ai', 'هوش مصنوعی', 'skill']] as $i => [$id, $name, $cat]) {
-                    \Illuminate\Support\Facades\DB::table('workshops')->insertOrIgnore([
-                        'id' => $id, 'name' => $name, 'type' => 'workshop', 'category' => $cat, 'sort_order' => $i,
-                        'data' => json_encode(['id' => $id, 'name' => $name, 'category' => $cat, 'studentIds' => []], JSON_UNESCAPED_UNICODE),
-                        'created_at' => $now, 'updated_at' => $now,
-                    ]);
-                }
+                self::seedWorkshops();
             } catch (\Throwable) {
             }
             unset(self::$schemaCache["t:$table"]);
@@ -185,6 +182,50 @@ final class CollectionRegistry
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+        }
+    }
+
+    /** ۱۲ کارگاه: ۶ کارگاه پایه هشتم (شناسه‌های قدیمی) و ۶ کارگاه پایه نهم */
+    private static function seedWorkshops(): void
+    {
+        $defs = [['medicine', 'طب', 'scientific'], ['social', 'روابط اجتماعی', 'scientific'], ['history', 'تاریخ', 'scientific'], ['technical', 'فنی', 'skill'], ['writing', 'نویسندگی', 'skill'], ['ai', 'هوش مصنوعی', 'skill']];
+        $now = now();
+        $hasGrade = \Illuminate\Support\Facades\Schema::hasColumn('workshops', 'grade_level');
+        foreach ([8, 9] as $gi => $grade) {
+            foreach ($defs as $i => [$slug, $name, $cat]) {
+                $id = $grade === 8 ? "ws-$slug" : "ws9-$slug";
+                $row = [
+                    'id' => $id, 'name' => $name, 'type' => 'workshop', 'category' => $cat, 'sort_order' => $gi * 6 + $i,
+                    'data' => json_encode(['id' => $id, 'name' => $name, 'category' => $cat, 'gradeLevel' => $grade, 'studentIds' => []], JSON_UNESCAPED_UNICODE),
+                    'created_at' => $now, 'updated_at' => $now,
+                ];
+                if ($hasGrade) {
+                    $row['grade_level'] = $grade;
+                }
+                \Illuminate\Support\Facades\DB::table('workshops')->insertOrIgnore($row);
+            }
+        }
+    }
+
+    /** ارتقای جدول workshops موجود: ستون grade_level + کارگاه‌های پایه نهم */
+    private static function ensureWorkshopGradeLevel(): void
+    {
+        if (isset(self::$schemaCache['ws-grade'])) {
+            return;
+        }
+        self::$schemaCache['ws-grade'] = true;
+
+        try {
+            $schema = \Illuminate\Support\Facades\Schema::class;
+            if (! $schema::hasColumn('workshops', 'grade_level')) {
+                $schema::table('workshops', fn ($t) => $t->unsignedTinyInteger('grade_level')->default(8)->after('category'));
+                \Illuminate\Support\Facades\DB::table('workshops')->where('id', 'like', 'ws-%')->update(['grade_level' => 8]);
+                unset(self::$schemaCache['c:workshops.grade_level']);
+            }
+            if (! \Illuminate\Support\Facades\DB::table('workshops')->where('id', 'like', 'ws9-%')->exists()) {
+                self::seedWorkshops();
+            }
+        } catch (\Throwable) {
         }
     }
 
@@ -315,12 +356,13 @@ final class CollectionRegistry
                 'is_active' => ! empty($d->isActive),
                 'deadline' => \App\Support\Jalali::shamsiToDate(self::str($d, 'deadline', 20)),
             ],
-            'workshops' => [
+            'workshops' => array_filter([
                 'name' => self::str($d, 'name', 100) ?? '',
                 'type' => 'workshop',
                 'category' => ($d->category ?? null) === 'skill' ? 'skill' : 'scientific',
+                'grade_level' => ((int) ($d->gradeLevel ?? 8)) === 9 ? 9 : 8,
                 'teacher_id' => self::str($d, 'teacherId', 100),
-            ],
+            ], static fn ($v, $k) => $k !== 'grade_level' || self::columnExists('workshops', 'grade_level'), ARRAY_FILTER_USE_BOTH),
             'teacherActivities' => [
                 'teacher_id' => self::str($d, 'teacherId', 100) ?? '',
                 'date' => \App\Support\Jalali::shamsiToDate(self::str($d, 'date', 20)) ?? now()->toDateString(),
