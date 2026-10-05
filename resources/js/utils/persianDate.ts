@@ -209,7 +209,7 @@ export const shamsiStringToDate = (shamsiDate: string): Date => {
 /**
  * Returns the Shamsi week range (Saturday to Wednesday/Thursday) containing a Shamsi date
  */
-export const getShamsiWeekRange = (shamsiDate: string) => {
+const computeWeekBounds = (shamsiDate: string) => {
   const date = shamsiStringToDate(shamsiDate);
   const dayIndex = date.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
   // In Iran: Sat is 0, Sun is 1, Mon is 2, Tue is 3, Wed is 4, Thu is 5, Fri is 6
@@ -224,9 +224,15 @@ export const getShamsiWeekRange = (shamsiDate: string) => {
   const friday = new Date(saturday);
   friday.setDate(saturday.getDate() + 6);
 
-  const satStr = dateToShamsiString(saturday);
-  const wedStr = dateToShamsiString(wednesday);
-  const friStr = dateToShamsiString(friday);
+  return {
+    satStr: dateToShamsiString(saturday),
+    wedStr: dateToShamsiString(wednesday),
+    friStr: dateToShamsiString(friday),
+  };
+};
+
+export const getShamsiWeekRange = (shamsiDate: string) => {
+  const { satStr, wedStr, friStr } = computeWeekBounds(shamsiDate);
 
   const satParts = parseShamsi(satStr);
   const wedParts = parseShamsi(wedStr);
@@ -249,8 +255,8 @@ export const getShamsiWeekRange = (shamsiDate: string) => {
  */
 export const isDateInCurrentWeek = (shamsiDate: string): boolean => {
   const today = getTodayShamsi();
-  const currentWeek = getShamsiWeekRange(today.formattedDate);
-  return shamsiDate >= currentWeek.startDate && shamsiDate <= currentWeek.endOfWeekDate;
+  const currentWeek = computeWeekBounds(today.formattedDate);
+  return shamsiDate >= currentWeek.satStr && shamsiDate <= currentWeek.friStr;
 };
 
 /**
