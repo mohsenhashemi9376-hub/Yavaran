@@ -5,6 +5,7 @@ import { apiRequest } from '../lib/serverSync';
 import { AppNotification } from '../types';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
 import { SendAnnouncementModal } from './SendAnnouncementModal';
+import { requestOpenTeacherEvaluations } from '../utils/appNav';
 
 const POLL_MS = 45_000;
 
@@ -122,6 +123,7 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
   });
 
   const badge = unread + warningCount;
+  const canUseTeacherPanel = currentUser.role === 'teacher' || !!currentUser.isAlsoTeacher;
 
   // بخشنامه‌ها برای استاد با کادر اختصاصی خودش نمایش داده می‌شود
   const alertQueue = items.filter(
@@ -196,9 +198,10 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
                       key={n.id}
                       type="button"
                       onClick={() => {
-                        setDetail(n);
                         markRead(n);
                         setOpen(false);
+                        if (n.type === 'circular' && canUseTeacherPanel) requestOpenTeacherEvaluations();
+                        else setDetail(n);
                       }}
                       className={`w-full text-right p-3 rounded-2xl border transition cursor-pointer flex gap-2.5 ${
                         n.isRead

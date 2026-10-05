@@ -353,9 +353,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>{userGreeting.greeting}</span>
                     <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180 text-teal-800' : ''}`} />
                   </div>
-                  <div className="text-[10px] text-teal-800 font-semibold truncate max-w-[130px]">
-                    {userGreeting.roleLabel}
-                  </div>
                   {currentUser.role === 'coach' && currentUser.isAlsoTeacher && (
                     <div className="text-[9px] text-slate-500 font-bold mt-0.5 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
