@@ -259,6 +259,8 @@ export interface Workshop {
   id: string;
   name: string;
   category: 'scientific' | 'skill';
+  gradeLevel: 8 | 9; // پایه برگزاری؛ کارگاه‌های هشتم و نهم کاملاً مستقل‌اند
+  capacity?: number; // ظرفیت مستقل هر کارگاه
   teacherId?: string;
   teacherName?: string;
   day?: string; // روز برگزاری

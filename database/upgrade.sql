@@ -160,3 +160,14 @@ INSERT IGNORE INTO `workshops` (`id`, `name`, `type`, `category`, `teacher_id`, 
 
 -- تکلیف جلسه درسی (اگر خطای «Duplicate column» گرفتید یعنی از قبل وجود دارد؛ بی‌خطر است)
 ALTER TABLE `attendance_sessions` ADD COLUMN `homework` TEXT NULL AFTER `lesson_topic`;
+
+-- جداسازی کارگاه‌های پایه هشتم و نهم (اگر خطای «Duplicate column» گرفتید یعنی از قبل وجود دارد؛ بی‌خطر است)
+ALTER TABLE `workshops` ADD COLUMN `grade_level` TINYINT NOT NULL DEFAULT 8 AFTER `category`;
+UPDATE `workshops` SET `grade_level` = 8 WHERE `id` IN ('ws-medicine','ws-social','ws-history','ws-technical','ws-writing','ws-ai');
+INSERT IGNORE INTO `workshops` (`id`, `name`, `type`, `category`, `grade_level`, `teacher_id`, `sort_order`, `data`, `created_at`, `updated_at`) VALUES
+('ws9-medicine', 'طب', 'workshop', 'scientific', 9, NULL, 6, '{"id":"ws9-medicine","name":"طب","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-social', 'روابط اجتماعی', 'workshop', 'scientific', 9, NULL, 7, '{"id":"ws9-social","name":"روابط اجتماعی","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-history', 'تاریخ', 'workshop', 'scientific', 9, NULL, 8, '{"id":"ws9-history","name":"تاریخ","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-technical', 'فنی', 'workshop', 'skill', 9, NULL, 9, '{"id":"ws9-technical","name":"فنی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-writing', 'نویسندگی', 'workshop', 'skill', 9, NULL, 10, '{"id":"ws9-writing","name":"نویسندگی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-ai', 'هوش مصنوعی', 'workshop', 'skill', 9, NULL, 11, '{"id":"ws9-ai","name":"هوش مصنوعی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW());

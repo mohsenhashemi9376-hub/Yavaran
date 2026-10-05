@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../lib/serverSync';
 import { CircularModal } from './CircularModal';
+import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { useSchool } from '../context/SchoolContext';
 import { AppNotification, SchoolAnnouncement, SchoolClass, AttendanceSession, Student, StudentAttendanceRecord, QualitativeRating } from '../types';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -388,6 +389,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </button>
                 )
               )}
+
+              <MyWorkshopsSection />
 
               {/* SECTION: دروس و کلاس‌های تدریس (هر کارت = یک درس در یک کلاس) */}
               <div className="space-y-3">

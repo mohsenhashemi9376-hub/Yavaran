@@ -581,7 +581,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
 (9, '2026_10_08_000000_create_grade_periods_table', 1),
 (10, '2026_10_09_000000_create_workshops_table', 1),
-(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1);
+(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1),
+(12, '2026_10_11_000000_add_grade_level_to_workshops', 1);
 
 -- ------------------------------------------------------------
 -- جداول notifications و teacher_activities
@@ -666,6 +667,7 @@ CREATE TABLE `workshops` (
   `name` varchar(100) NOT NULL DEFAULT '',
   `type` varchar(20) NOT NULL DEFAULT 'workshop',
   `category` varchar(20) NOT NULL DEFAULT 'scientific',
+  `grade_level` tinyint NOT NULL DEFAULT 8,
   `teacher_id` varchar(100) DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT 0,
   `data` longtext NOT NULL,
@@ -676,13 +678,19 @@ CREATE TABLE `workshops` (
   KEY `workshops_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `workshops` (`id`, `name`, `type`, `category`, `teacher_id`, `sort_order`, `data`, `created_at`, `updated_at`) VALUES
-('ws-medicine', 'طب', 'workshop', 'scientific', NULL, 0, '{"id":"ws-medicine","name":"طب","category":"scientific","studentIds":[]}', NOW(), NOW()),
-('ws-social', 'روابط اجتماعی', 'workshop', 'scientific', NULL, 1, '{"id":"ws-social","name":"روابط اجتماعی","category":"scientific","studentIds":[]}', NOW(), NOW()),
-('ws-history', 'تاریخ', 'workshop', 'scientific', NULL, 2, '{"id":"ws-history","name":"تاریخ","category":"scientific","studentIds":[]}', NOW(), NOW()),
-('ws-technical', 'فنی', 'workshop', 'skill', NULL, 3, '{"id":"ws-technical","name":"فنی","category":"skill","studentIds":[]}', NOW(), NOW()),
-('ws-writing', 'نویسندگی', 'workshop', 'skill', NULL, 4, '{"id":"ws-writing","name":"نویسندگی","category":"skill","studentIds":[]}', NOW(), NOW()),
-('ws-ai', 'هوش مصنوعی', 'workshop', 'skill', NULL, 5, '{"id":"ws-ai","name":"هوش مصنوعی","category":"skill","studentIds":[]}', NOW(), NOW());
+INSERT INTO `workshops` (`id`, `name`, `type`, `category`, `grade_level`, `teacher_id`, `sort_order`, `data`, `created_at`, `updated_at`) VALUES
+('ws-medicine', 'طب', 'workshop', 'scientific', 8, NULL, 0, '{"id":"ws-medicine","name":"طب","category":"scientific","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws-social', 'روابط اجتماعی', 'workshop', 'scientific', 8, NULL, 1, '{"id":"ws-social","name":"روابط اجتماعی","category":"scientific","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws-history', 'تاریخ', 'workshop', 'scientific', 8, NULL, 2, '{"id":"ws-history","name":"تاریخ","category":"scientific","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws-technical', 'فنی', 'workshop', 'skill', 8, NULL, 3, '{"id":"ws-technical","name":"فنی","category":"skill","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws-writing', 'نویسندگی', 'workshop', 'skill', 8, NULL, 4, '{"id":"ws-writing","name":"نویسندگی","category":"skill","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws-ai', 'هوش مصنوعی', 'workshop', 'skill', 8, NULL, 5, '{"id":"ws-ai","name":"هوش مصنوعی","category":"skill","gradeLevel":8,"studentIds":[]}', NOW(), NOW()),
+('ws9-medicine', 'طب', 'workshop', 'scientific', 9, NULL, 6, '{"id":"ws9-medicine","name":"طب","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-social', 'روابط اجتماعی', 'workshop', 'scientific', 9, NULL, 7, '{"id":"ws9-social","name":"روابط اجتماعی","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-history', 'تاریخ', 'workshop', 'scientific', 9, NULL, 8, '{"id":"ws9-history","name":"تاریخ","category":"scientific","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-technical', 'فنی', 'workshop', 'skill', 9, NULL, 9, '{"id":"ws9-technical","name":"فنی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-writing', 'نویسندگی', 'workshop', 'skill', 9, NULL, 10, '{"id":"ws9-writing","name":"نویسندگی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
+('ws9-ai', 'هوش مصنوعی', 'workshop', 'skill', 9, NULL, 11, '{"id":"ws9-ai","name":"هوش مصنوعی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

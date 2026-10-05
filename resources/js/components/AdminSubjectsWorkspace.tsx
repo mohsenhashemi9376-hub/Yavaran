@@ -38,7 +38,7 @@ export const AdminSubjectsWorkspace: React.FC<AdminSubjectsWorkspaceProps> = ({
       <div className="flex gap-2 overflow-x-auto" role="tablist">
         {([
           ['official', 'دروس رسمی و کلاسی', null],
-          ['workshops', 'کارگاه‌های انتخابی (هشتم و نهم)', '۶ کارگاه'],
+          ['workshops', 'کارگاه‌های انتخابی (هشتم و نهم)', '۱۲ کارگاه'],
         ] as const).map(([key, label, badge]) => (
           <button
             key={key}
