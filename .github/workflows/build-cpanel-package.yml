@@ -72,36 +72,20 @@ jobs:
           cd dist/yavaran
           zip -qr ../upload/deploy.zip . -x "*.git*" "node_modules/*"
           cd ../..
-          cp deploy/deploy-extract.php dist/upload/deploy-extract.php
           ls -la dist/upload
 
-      - name: 🚀 آپلود deploy.zip روی هاست (FTP)
-        # فقط deploy.zip و اسکریپت اکسترکت ارسال می‌شود (دو فایل به جای هزاران فایل)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/upload/
-          server-dir: ./public_html/
-          timeout: 120000
-          exclude: |
-            **/*
-            !deploy.zip
-            !deploy-extract.php
-
-      - name: 📦 اکسترکت خودکار روی هاست
+      - name: 🚀 آپلود و اکسترکت بسته روی هاست (HTTPS)
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          set -e
-          HOST="${SITE_URL:-$FTP_SERVER}"
-          HOST="${HOST#https://}"; HOST="${HOST#http://}"; HOST="${HOST%%/*}"
-          RESP=$(curl -sS --fail --max-time 300 --get --data-urlencode "token=${DEPLOY_TOKEN}" "https://${HOST}/deploy-extract.php")
-          echo "$RESP"
-          echo "$RESP" | grep -q '^ok'
+          echo "در حال آپلود و استخراج بسته روی هاست از طریق HTTPS..."
+          response=$(curl -s -S --max-time 600 -F "package=@dist/upload/deploy.zip" "https://yavaranscl.ir/deploy-extract.php?token=${DEPLOY_TOKEN}")
+          echo "پاسخ سرور: $response"
+          if [[ "$response" != *"ok"* ]]; then
+            echo "استقرار با خطا مواجه شد!"
+            exit 1
+          fi
+          echo "دیپلوی با موفقیت انجام شد."
 
   smoke-test:
     needs: build
