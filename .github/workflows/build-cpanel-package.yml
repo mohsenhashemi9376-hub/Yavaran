@@ -65,18 +65,43 @@ jobs:
             dist/database.sql
           retention-days: 30
 
-      - name: 🚀 استقرار خودکار روی هاست (FTP Deploy)
+      - name: Pack deploy.zip
+        run: |
+          set -e
+          mkdir -p dist/upload
+          cd dist/yavaran
+          zip -qr ../upload/deploy.zip . -x "*.git*" "node_modules/*"
+          cd ../..
+          cp deploy/deploy-extract.php dist/upload/deploy-extract.php
+          ls -la dist/upload
+
+      - name: 🚀 آپلود deploy.zip روی هاست (FTP)
+        # فقط deploy.zip و اسکریپت اکسترکت ارسال می‌شود (دو فایل به جای هزاران فایل)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/yavaran/
-          server-dir: ./
+          local-dir: ./dist/upload/
+          server-dir: ./public_html/
+          timeout: 120000
           exclude: |
-            **/.git*
-            **/.git*/**
-            .env
+            **/*
+            !deploy.zip
+            !deploy-extract.php
+
+      - name: 📦 اکسترکت خودکار روی هاست
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          set -e
+          HOST="${SITE_URL:-$FTP_SERVER}"
+          HOST="${HOST#https://}"; HOST="${HOST#http://}"; HOST="${HOST%%/*}"
+          RESP=$(curl -sS --fail --max-time 300 --get --data-urlencode "token=${DEPLOY_TOKEN}" "https://${HOST}/deploy-extract.php")
+          echo "$RESP"
+          echo "$RESP" | grep -q '^ok'
 
   smoke-test:
     needs: build
