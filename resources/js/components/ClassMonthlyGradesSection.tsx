@@ -1,6 +1,7 @@
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect, useMemo } from 'react';
 import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
+import { summarizeActivity, formatActivitySummary, PERIOD_MONTH } from '../utils/classroomActivity';
 import { SchoolClass, Student, AcademicSubject, StudentAcademicGrade, MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey } from '../types';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
@@ -53,7 +54,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     saveBatchAcademicGrades,
     currentUser,
     isTeacher,
-    isGradePeriodOpen
+    isGradePeriodOpen,
+    sessions
   } = useSchool();
 
   const classStudents = useMemo(() => {
@@ -564,6 +566,19 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                               فرزند {stu.fatherName}
                             </div>
                           )}
+                          {(() => {
+                            const sum = summarizeActivity(sessions, stu.id, {
+                              classId: classData.id,
+                              subjectId: selectedSubjectId,
+                              subjectName: currentSubject?.name,
+                              month: PERIOD_MONTH[activePeriodKey],
+                            });
+                            return sum.total > 0 ? (
+                              <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold whitespace-nowrap" title="خلاصه فعالیت و تکالیف کلاسی این ماه">
+                                {formatActivitySummary(sum)}
+                              </span>
+                            ) : null;
+                          })()}
                         </td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">

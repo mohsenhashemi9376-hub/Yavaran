@@ -111,6 +111,8 @@ export interface SchoolClass {
   defaultBellPeriodId?: string; // زنگ پیش‌فرض (مثلاً: bell-1)
 }
 
+export type ClassroomActivity = 'excellent' | 'done' | 'incomplete';
+
 export interface StudentAttendanceRecord {
   studentId: string;
   status: AttendanceStatus;
@@ -118,6 +120,7 @@ export interface StudentAttendanceRecord {
   note?: string;
   score?: number; // 0 to 20 continuous score
   homeworkStatus?: HomeworkStatus;
+  classroomActivity?: ClassroomActivity | null; // ارزیابی سریع فعالیت/تکلیف امروز (پیش‌فرض: بدون ارزیابی)
   disciplinaryWarning?: ClassDisciplinaryWarning;
 }
 
@@ -249,6 +252,18 @@ export interface MonthlyPeriodInfo {
   term: 1 | 2;
   semester?: 1 | 2;
   order: number;
+}
+
+/** کارگاه انتخابی علمی یا مهارتی (هشتم و نهم) */
+export interface Workshop {
+  id: string;
+  name: string;
+  category: 'scientific' | 'skill';
+  teacherId?: string;
+  teacherName?: string;
+  day?: string; // روز برگزاری
+  period?: string; // زنگ برگزاری
+  studentIds: string[];
 }
 
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */

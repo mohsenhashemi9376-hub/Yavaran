@@ -29,6 +29,7 @@ final class CollectionRegistry
         'courseAssignments' => 'course_assignments',
         'teacherActivities' => 'teacher_activities',
         'gradePeriods' => 'grade_periods',
+        'workshops' => 'workshops',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -58,6 +59,32 @@ final class CollectionRegistry
             }
 
             return true;
+        }
+        if ($table === 'workshops') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('workshops', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('name', 100)->default('');
+                    $t->string('type', 20)->default('workshop');
+                    $t->string('category', 20)->default('scientific');
+                    $t->string('teacher_id', 100)->nullable()->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+                $now = now();
+                foreach ([['ws-medicine', 'طب', 'scientific'], ['ws-social', 'روابط اجتماعی', 'scientific'], ['ws-history', 'تاریخ', 'scientific'], ['ws-technical', 'فنی', 'skill'], ['ws-writing', 'نویسندگی', 'skill'], ['ws-ai', 'هوش مصنوعی', 'skill']] as $i => [$id, $name, $cat]) {
+                    \Illuminate\Support\Facades\DB::table('workshops')->insertOrIgnore([
+                        'id' => $id, 'name' => $name, 'type' => 'workshop', 'category' => $cat, 'sort_order' => $i,
+                        'data' => json_encode(['id' => $id, 'name' => $name, 'category' => $cat, 'studentIds' => []], JSON_UNESCAPED_UNICODE),
+                        'created_at' => $now, 'updated_at' => $now,
+                    ]);
+                }
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
         }
         if ($table === 'grade_periods') {
             try {
@@ -238,7 +265,8 @@ final class CollectionRegistry
                 'subject_id' => self::str($d, 'subjectId', 100),
                 'period_number' => isset($d->periodNumber) && is_numeric($d->periodNumber) ? (int) $d->periodNumber : null,
                 'lesson_topic' => self::str($d, 'lessonTopic', 255),
-            ], static fn ($v, $k) => ! in_array($k, ['subject_id', 'period_number', 'lesson_topic'], true)
+                'homework' => self::str($d, 'homeworkDescription', 5000),
+            ], static fn ($v, $k) => ! in_array($k, ['subject_id', 'period_number', 'lesson_topic', 'homework'], true)
                 || self::columnExists('attendance_sessions', $k), ARRAY_FILTER_USE_BOTH),
             'morningAttendance' => self::morningAttendanceColumns($d),
             'academicSubjects' => [
@@ -286,6 +314,12 @@ final class CollectionRegistry
                 'code' => self::str($d, 'code', 50) ?? (self::str($d, 'id', 50) ?? ''),
                 'is_active' => ! empty($d->isActive),
                 'deadline' => \App\Support\Jalali::shamsiToDate(self::str($d, 'deadline', 20)),
+            ],
+            'workshops' => [
+                'name' => self::str($d, 'name', 100) ?? '',
+                'type' => 'workshop',
+                'category' => ($d->category ?? null) === 'skill' ? 'skill' : 'scientific',
+                'teacher_id' => self::str($d, 'teacherId', 100),
             ],
             'teacherActivities' => [
                 'teacher_id' => self::str($d, 'teacherId', 100) ?? '',

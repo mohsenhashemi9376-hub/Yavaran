@@ -11,7 +11,7 @@ import {
 import { getTodayShamsi, getDayOfWeekFromShamsi, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { compareByLastName } from '../utils/morningAttendance';
-import { X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
+import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -425,12 +425,12 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4 z-50 sm:overflow-y-auto"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-start justify-center p-0 sm:p-4 z-50 w-full min-h-screen overflow-y-auto overscroll-contain"
       dir="rtl"
     >
-      <div className="bg-white sm:rounded-3xl shadow-2xl shadow-slate-900/10 w-full h-full min-h-screen sm:min-h-0 sm:h-auto max-w-3xl sm:max-h-[94vh] flex flex-col overflow-hidden font-['Vazirmatn',sans-serif]">
+      <div className="bg-white sm:rounded-3xl shadow-2xl shadow-slate-900/10 w-full min-h-screen sm:min-h-0 sm:my-auto max-w-3xl flex flex-col font-['Vazirmatn',sans-serif]">
         {/* هدر */}
-        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 space-y-3 shrink-0 max-h-[55vh] sm:max-h-none overflow-y-auto sm:overflow-visible bg-white z-10">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 space-y-3 bg-white sm:rounded-t-3xl">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 flex-wrap min-w-0">
               <h2 className="text-lg font-extrabold text-slate-900">
@@ -519,34 +519,30 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             />
             {topicError && <p className="mt-1.5 text-[11px] font-bold text-rose-700">{topicError}</p>}
 
-            {showSessionNotes ? (
-              <div className="grid sm:grid-cols-2 gap-2 mt-2">
-                <input
-                  id="textarea-homework"
-                  type="text"
-                  value={homeworkDescription}
-                  onChange={(e) => setHomeworkDescription(e.target.value)}
-                  placeholder="تکلیف جلسه آینده"
-                  className={fieldBase}
-                />
-                <input
-                  id="textarea-session-notes"
-                  type="text"
-                  value={sessionNotes}
-                  onChange={(e) => setSessionNotes(e.target.value)}
-                  placeholder="یادداشت کلی جلسه"
-                  className={fieldBase}
-                />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowSessionNotes(true)}
-                className="mt-1.5 text-[11px] font-bold text-slate-400 hover:text-emerald-700 transition cursor-pointer"
-              >
-                + تکلیف و یادداشت جلسه
-              </button>
-            )}
+          </div>
+
+          <div>
+            <label htmlFor="textarea-homework" className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700 mb-1.5">
+              <NotebookPen className="w-3.5 h-3.5 text-sky-600" />
+              <span>تکلیف جلسه</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium whitespace-nowrap">(اختیاری)</span>
+            </label>
+            <textarea
+              id="textarea-homework"
+              rows={2}
+              value={homeworkDescription}
+              onChange={(e) => setHomeworkDescription(e.target.value)}
+              placeholder="مثلاً: حل تمرینات صفحه ۴۲ کتاب، یا مطالعه فصل سوم جهت کوئیز..."
+              className="w-full text-sm bg-slate-50/80 focus:bg-white border border-slate-200 focus:border-teal-400 rounded-xl px-4 py-2.5 text-slate-900 outline-none transition resize-none"
+            />
+            <input
+              id="textarea-session-notes"
+              type="text"
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="یادداشت کلی جلسه (اختیاری)"
+              className={`${fieldBase} mt-2`}
+            />
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] font-bold flex-wrap">
@@ -557,7 +553,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         </div>
 
         {/* لیست دانش‌آموزان */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 pt-3 pb-24 sm:pb-3 border-t border-slate-100 space-y-2.5">
+        <div className="px-3 sm:px-4 pt-3 pb-28 border-t border-slate-100 space-y-2.5">
           {classStudents.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-400">دانش‌آموزی در این کلاس ثبت نشده است.</div>
           ) : (
@@ -676,6 +672,32 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
+                  {status !== 'absent' && (
+                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">فعالیت و تکلیف امروز:</span>
+                      {([
+                        ['excellent', '⭐ عالی', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+                        ['done', 'انجام‌شده', 'bg-sky-50 text-sky-700 border-sky-200'],
+                        ['incomplete', 'ناقص / انجام‌نشده', 'bg-rose-50 text-rose-700 border-rose-200'],
+                      ] as const).map(([key, label, cls]) => {
+                        const active = rec.classroomActivity === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => patchRecord(student.id, { classroomActivity: active ? null : key })}
+                            className={`min-h-[36px] px-3 rounded-xl border text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${cls} ${
+                              active ? 'ring-2 ring-offset-1 ring-current shadow-sm' : 'opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {hasWarning && rec.disciplinaryWarning && (
                     <div className="mt-2 flex items-center gap-2 text-[11px] font-bold text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-3 py-1.5">
                       <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
@@ -740,7 +762,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         </div>
 
         {/* فوتر */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-white flex items-center gap-3 shrink-0">
+        <div className="sticky bottom-0 z-20 px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-white/95 backdrop-blur flex items-center gap-3 sm:rounded-b-3xl" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <button
             type="button"
             id="btn-save-attendance-session"

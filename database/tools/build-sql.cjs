@@ -5,6 +5,7 @@ const crypto = require('crypto');
 
 const seed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const outFile = process.argv[3];
+seed.workshops = seed.workshops || [{"id": "ws-medicine", "name": "طب", "category": "scientific", "studentIds": []}, {"id": "ws-social", "name": "روابط اجتماعی", "category": "scientific", "studentIds": []}, {"id": "ws-history", "name": "تاریخ", "category": "scientific", "studentIds": []}, {"id": "ws-technical", "name": "فنی", "category": "skill", "studentIds": []}, {"id": "ws-writing", "name": "نویسندگی", "category": "skill", "studentIds": []}, {"id": "ws-ai", "name": "هوش مصنوعی", "category": "skill", "studentIds": []}];
 seed.gradePeriods = seed.gradePeriods || [{"id": "mehrContinuous", "code": "mehrContinuous", "name": "مستمر مهر", "isActive": true}, {"id": "abanContinuous", "code": "abanContinuous", "name": "مستمر آبان", "isActive": false}, {"id": "azarContinuous", "code": "azarContinuous", "name": "مستمر آذر", "isActive": false}, {"id": "term1Continuous", "code": "term1Continuous", "name": "مستمر دی", "isActive": false}, {"id": "term1Final", "code": "term1Final", "name": "پایانی نوبت اول (دی)", "isActive": false}, {"id": "bahmanContinuous", "code": "bahmanContinuous", "name": "مستمر بهمن", "isActive": false}, {"id": "esfandContinuous", "code": "esfandContinuous", "name": "مستمر اسفند", "isActive": false}, {"id": "farvardinContinuous", "code": "farvardinContinuous", "name": "مستمر فروردین", "isActive": false}, {"id": "ordibeheshtContinuous", "code": "ordibeheshtContinuous", "name": "مستمر اردیبهشت", "isActive": false}, {"id": "term2Continuous", "code": "term2Continuous", "name": "مستمر ترم دوم (خرداد)", "isActive": false}, {"id": "term2Final", "code": "term2Final", "name": "پایانی نوبت دوم (خرداد)", "isActive": false}];
 
 const q = (v) => {
@@ -40,9 +41,9 @@ const tables = {
     keys: ['KEY `students_class_id_index` (`class_id`)', 'KEY `students_national_id_index` (`national_id`)', 'KEY `students_name_index` (`last_name`,`first_name`)'],
     extract: (d) => ({ class_id: s(d, 'classId', 100), first_name: s(d, 'firstName', 100) || '', last_name: s(d, 'lastName', 100) || '', national_id: s(d, 'nationalId', 30), student_code: s(d, 'studentCode', 30) }) },
   sessions: { table: 'attendance_sessions',
-    cols: ['`class_id` varchar(100) DEFAULT NULL', '`teacher_id` varchar(100) DEFAULT NULL', '`subject` varchar(191) DEFAULT NULL', '`subject_id` varchar(100) DEFAULT NULL', '`period_number` tinyint unsigned DEFAULT NULL', '`lesson_topic` varchar(255) DEFAULT NULL', '`session_date` varchar(20) DEFAULT NULL'],
+    cols: ['`class_id` varchar(100) DEFAULT NULL', '`teacher_id` varchar(100) DEFAULT NULL', '`subject` varchar(191) DEFAULT NULL', '`subject_id` varchar(100) DEFAULT NULL', '`period_number` tinyint unsigned DEFAULT NULL', '`lesson_topic` varchar(255) DEFAULT NULL', '`homework` text DEFAULT NULL', '`session_date` varchar(20) DEFAULT NULL'],
     keys: ['KEY `attendance_sessions_class_id_index` (`class_id`)', 'KEY `attendance_sessions_teacher_id_index` (`teacher_id`)', 'KEY `attendance_sessions_session_date_index` (`session_date`)'],
-    extract: (d) => ({ class_id: s(d, 'classId', 100), teacher_id: s(d, 'teacherId', 100), subject: s(d, 'subject', 191), subject_id: s(d, 'subjectId', 100), period_number: Number.isFinite(Number(d.periodNumber)) && d.periodNumber != null ? Number(d.periodNumber) : null, lesson_topic: s(d, 'lessonTopic', 255), session_date: s(d, 'date', 20) }) },
+    extract: (d) => ({ class_id: s(d, 'classId', 100), teacher_id: s(d, 'teacherId', 100), subject: s(d, 'subject', 191), subject_id: s(d, 'subjectId', 100), period_number: Number.isFinite(Number(d.periodNumber)) && d.periodNumber != null ? Number(d.periodNumber) : null, lesson_topic: s(d, 'lessonTopic', 255), homework: s(d, 'homeworkDescription', 5000), session_date: s(d, 'date', 20) }) },
   academicSubjects: { table: 'academic_subjects', cols: ["`name` varchar(191) NOT NULL DEFAULT ''", '`code` varchar(50) DEFAULT NULL'], keys: [],
     extract: (d) => ({ name: s(d, 'name', 191) || '', code: s(d, 'code', 50) }) },
   academicGrades: { table: 'academic_grades',
@@ -85,6 +86,10 @@ const tables = {
     cols: ["`name` varchar(100) NOT NULL DEFAULT ''", '`code` varchar(50) NOT NULL', '`is_active` tinyint(1) NOT NULL DEFAULT 0', '`deadline` date DEFAULT NULL'],
     keys: ['KEY `grade_periods_code_index` (`code`)'],
     extract: (d) => ({ name: s(d, 'name', 100) || '', code: s(d, 'code', 50) || '', is_active: d.isActive ? 1 : 0, deadline: null }) },
+  workshops: { table: 'workshops',
+    cols: ["`name` varchar(100) NOT NULL DEFAULT ''", "`type` varchar(20) NOT NULL DEFAULT 'workshop'", "`category` varchar(20) NOT NULL DEFAULT 'scientific'", '`teacher_id` varchar(100) DEFAULT NULL'],
+    keys: ['KEY `workshops_teacher_id_index` (`teacher_id`)'],
+    extract: (d) => ({ name: s(d, 'name', 100) || '', type: 'workshop', category: d.category === 'skill' ? 'skill' : 'scientific', teacher_id: s(d, 'teacherId', 100) }) },
   settings: { table: 'school_settings', cols: [], keys: [], extract: () => ({}) },
 };
 
@@ -241,7 +246,9 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (6, '2026_10_05_000000_create_morning_attendance_table', 1),
 (7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
 (8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
-(9, '2026_10_08_000000_create_grade_periods_table', 1);
+(9, '2026_10_08_000000_create_grade_periods_table', 1),
+(10, '2026_10_09_000000_create_workshops_table', 1),
+(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1);
 
 DROP TABLE IF EXISTS \`notifications\`;
 DROP TABLE IF EXISTS \`teacher_activities\`;
