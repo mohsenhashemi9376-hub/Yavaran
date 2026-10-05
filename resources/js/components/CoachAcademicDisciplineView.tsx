@@ -276,7 +276,6 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         'معدل نوبت اول': acad.gpaTerm1 !== null ? Number(acad.gpaTerm1.toFixed(2)) : 'ثبت نشده',
         'معدل نوبت دوم': acad.gpaTerm2 !== null ? Number(acad.gpaTerm2.toFixed(2)) : 'ثبت نشده',
         'معدل سالانه کل': acad.gpaAnnual !== null ? Number(acad.gpaAnnual.toFixed(2)) : 'ثبت نشده',
-        'نمره انضباط (از ۲۰)': disc.disciplineScore,
         'وضعیت انضباطی': disc.status === 'normal' ? 'عادی' : disc.status === 'verbal_warning' ? 'تذکر شفاهی' : disc.status === 'written_warning' ? 'تذکر کتبی' : 'احضار اولیا',
         'غیبت‌های غیرموجه': disc.unexcusedAbsences,
         'غیبت‌های موجه': disc.excusedAbsences,
