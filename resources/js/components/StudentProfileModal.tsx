@@ -21,6 +21,7 @@ import {
   toEnglishDigits
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
+import { summarizeActivity } from '../utils/classroomActivity';
 import {
   X,
   User,
@@ -1126,6 +1127,25 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           ======================================================================= */}
           {activeTab === 'attendance' && !isEditing && (
             <div className="space-y-4">
+              {/* خلاصه فعالیت و تکالیف کلاسی */}
+              {(() => {
+                const sum = summarizeActivity(sessions, currentStudent.id, { classId: currentStudent.classId });
+                return (
+                  <div className="bg-sky-50/50 border border-sky-200/80 rounded-2xl p-3.5 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-extrabold text-sky-900 whitespace-nowrap">فعالیت و تکالیف کلاسی:</span>
+                    {sum.total === 0 ? (
+                      <span className="text-[11px] text-slate-500">هنوز ارزیابی روزانه‌ای ثبت نشده است.</span>
+                    ) : (
+                      <>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap">⭐ {toPersianDigits(sum.excellent)} عالی</span>
+                        <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold whitespace-nowrap">{toPersianDigits(sum.done)} انجام‌شده</span>
+                        <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold whitespace-nowrap">{toPersianDigits(sum.incomplete)} ناقص</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* فیلترهای وضعیت */}
               <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
                 {([

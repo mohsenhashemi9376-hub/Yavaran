@@ -16,6 +16,7 @@ import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
 import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { SendAnnouncementModal } from './SendAnnouncementModal';
+import { EarlyWarningDossier, EarlyWarningPill, useEarlyWarnings } from './EarlyWarningDossier';
 import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
 import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDelaysWorkspace } from './AdminDelaysWorkspace';
@@ -247,6 +248,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     [students, morningAttendance, todayInfo.formattedDate]
   );
   const [isSendAnnouncementOpen, setIsSendAnnouncementOpen] = useState(false);
+  const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);
+  const earlyWarnings = useEarlyWarnings();
   const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);
   const openMorning = (f: MorningStatusFilter) => {
     setMorningFilter(f);
@@ -770,6 +773,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {quickActionsSubtitle}
                 </p>
               </div>
+              <div className="flex items-center gap-2 flex-wrap">
+              <EarlyWarningPill onClick={() => setIsEarlyWarningOpen(true)} />
               {isAdmin && (
                 <button
                   type="button"
@@ -780,6 +785,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span>ارسال اطلاعیه جدید</span>
                 </button>
               )}
+              </div>
             </div>
 
             <div className={isAdmin ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"}>
@@ -819,12 +825,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     id="btn-quick-attention"
-                    onClick={() => setCurrentFullScreenView('warnings')}
+                    onClick={() => setIsEarlyWarningOpen(true)}
                     className="relative p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 transition-all hover:-translate-y-1 hover:shadow-md shadow-xs flex flex-col items-center justify-center text-center gap-2.5 group cursor-pointer"
                   >
-                    {needsAttentionItems.length > 0 && (
+                    {earlyWarnings.length > 0 && (
                       <span className="absolute top-2.5 left-2.5 bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs px-2 py-0.5 rounded-full">
-                        {toPersianDigits(needsAttentionItems.length)} مورد
+                        {toPersianDigits(earlyWarnings.length)} مورد
                       </span>
                     )}
                     <div className="p-2.5 rounded-xl bg-white text-amber-600 shadow-sm group-hover:scale-105 transition">
@@ -1886,6 +1892,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onOpenAcademicGrades={onOpenAcademicGrades}
       />
 
+      <EarlyWarningDossier isOpen={isEarlyWarningOpen} onClose={() => setIsEarlyWarningOpen(false)} onSelectStudent={onSelectStudent} />
       <SendAnnouncementModal isOpen={isSendAnnouncementOpen} onClose={() => setIsSendAnnouncementOpen(false)} />
 
       {/* Add Discipline Modal */}

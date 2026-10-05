@@ -35,6 +35,7 @@ import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
 import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
+import { EarlyWarningDossier, EarlyWarningPill } from './EarlyWarningDossier';
 import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
@@ -154,6 +155,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
     [students, morningAttendance, todayInfo.formattedDate]
   );
+  const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);
   const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);
   const openMorning = (f: MorningStatusFilter) => {
     setMorningFilter(f);
@@ -454,7 +456,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                       دسترسی سریع امور روزانه
                     </h2>
                   </div>
-                  <span className="text-xs text-slate-400">انجام سریع‌ترین اقدامات کاری</span>
+                  <EarlyWarningPill onClick={() => setIsEarlyWarningOpen(true)} />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -903,6 +905,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           sessions: todaySessions.length,
         }}
       />
+
+      <EarlyWarningDossier isOpen={isEarlyWarningOpen} onClose={() => setIsEarlyWarningOpen(false)} onSelectStudent={onSelectStudent} />
 
       {/* ========================================================================= */}
       {/* مدال ۳: ثبت مورد انضباطی */}

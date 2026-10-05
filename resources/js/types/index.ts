@@ -111,6 +111,8 @@ export interface SchoolClass {
   defaultBellPeriodId?: string; // زنگ پیش‌فرض (مثلاً: bell-1)
 }
 
+export type ClassroomActivity = 'excellent' | 'done' | 'incomplete';
+
 export interface StudentAttendanceRecord {
   studentId: string;
   status: AttendanceStatus;
@@ -118,6 +120,7 @@ export interface StudentAttendanceRecord {
   note?: string;
   score?: number; // 0 to 20 continuous score
   homeworkStatus?: HomeworkStatus;
+  classroomActivity?: ClassroomActivity | null; // ارزیابی سریع فعالیت/تکلیف امروز (پیش‌فرض: بدون ارزیابی)
   disciplinaryWarning?: ClassDisciplinaryWarning;
 }
 

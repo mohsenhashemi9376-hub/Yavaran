@@ -676,6 +676,32 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
+                  {status !== 'absent' && (
+                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">فعالیت و تکلیف امروز:</span>
+                      {([
+                        ['excellent', '⭐ عالی', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+                        ['done', 'انجام‌شده', 'bg-sky-50 text-sky-700 border-sky-200'],
+                        ['incomplete', 'ناقص / انجام‌نشده', 'bg-rose-50 text-rose-700 border-rose-200'],
+                      ] as const).map(([key, label, cls]) => {
+                        const active = rec.classroomActivity === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => patchRecord(student.id, { classroomActivity: active ? null : key })}
+                            className={`min-h-[36px] px-3 rounded-xl border text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${cls} ${
+                              active ? 'ring-2 ring-offset-1 ring-current shadow-sm' : 'opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {hasWarning && rec.disciplinaryWarning && (
                     <div className="mt-2 flex items-center gap-2 text-[11px] font-bold text-violet-800 bg-violet-50 border border-violet-200 rounded-xl px-3 py-1.5">
                       <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
