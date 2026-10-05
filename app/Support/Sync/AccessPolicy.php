@@ -34,6 +34,8 @@ final class AccessPolicy
 
     private ?array $classIds = null;
 
+    private ?array $nurturingIds = null;
+
     /** @var array<string, string|null> */
     private array $studentClassCache = [];
 
@@ -315,6 +317,43 @@ final class AccessPolicy
         return $this->classIds = array_values(array_unique($ids));
     }
 
+    /**
+     * کلاس‌های تحت مسئولیت تربیتی کاربر: برای مربی فقط کلاس‌های انتسابی خودش
+     * (نه کلاس‌هایی که صرفاً در آن‌ها تدریس می‌کند).
+     *
+     * @return array<int, string>
+     */
+    public function nurturingClassIds(): array
+    {
+        if (! $this->isCoach()) {
+            return $this->accessibleClassIds();
+        }
+        if ($this->nurturingIds !== null) {
+            return $this->nurturingIds;
+        }
+
+        $profile = $this->user->profile();
+        $ids = [];
+        if (isset($profile->assignedClassIds) && is_array($profile->assignedClassIds)) {
+            foreach ($profile->assignedClassIds as $id) {
+                if (is_string($id)) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        foreach (DB::table('school_classes')->get(['id', 'data']) as $row) {
+            $class = json_decode((string) $row->data, false);
+            $coachIds = is_object($class) && isset($class->coachIds) && is_array($class->coachIds) ? $class->coachIds : [];
+            $coachId = is_object($class) && isset($class->coachId) ? $class->coachId : null;
+            if ($coachId === $this->user->id || in_array($this->user->id, $coachIds, true)) {
+                $ids[] = (string) $row->id;
+            }
+        }
+
+        return $this->nurturingIds = array_values(array_unique($ids));
+    }
+
     /** معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش مجاز به تغییر نمره است */
     private function requireOpenGradePeriods(?object $old, object $new): void
     {
@@ -363,7 +402,10 @@ final class AccessPolicy
             $this->studentClassCache[$studentId] = DB::table('students')->where('id', $studentId)->value('class_id');
         }
 
-        $this->requireClass($this->studentClassCache[$studentId]);
+        $classId = $this->studentClassCache[$studentId];
+        if ($classId === null || $classId === '' || ! in_array($classId, $this->nurturingClassIds(), true)) {
+            $this->deny('شما به اطلاعات این کلاس دسترسی ندارید.');
+        }
     }
 
     private function studentIdOf(string $collection, object $record): ?string

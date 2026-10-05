@@ -136,6 +136,8 @@ interface SchoolContextType {
   isAdminOrVice: boolean;
   isVicePrincipal: boolean;
   accessibleClasses: SchoolClass[];
+  /** کلاس‌های تحت مسئولیت تربیتی مربی (بدون کلاس‌هایی که فقط درس می‌دهد) */
+  nurturingClasses: SchoolClass[];
   accessibleSessions: AttendanceSession[];
   teachingAccessibleClasses: SchoolClass[];
   teachingAccessibleSessions: AttendanceSession[];
@@ -730,6 +732,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             (currentUser.teachingClassIds && currentUser.teachingClassIds.includes(c.id)) ||
             c.teacherIds.includes(currentUser.id)
           ))
+      )
+    : classes;
+
+  const nurturingClasses = isCoach
+    ? classes.filter(
+        (c) =>
+          (currentUser.assignedClassIds || []).includes(c.id) ||
+          c.coachId === currentUser.id ||
+          (c.coachIds || []).includes(currentUser.id)
       )
     : classes;
 
@@ -2321,6 +2332,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isAdminOrVice,
         isVicePrincipal,
         accessibleClasses,
+        nurturingClasses,
         accessibleSessions,
         teachingAccessibleClasses,
         teachingAccessibleSessions,

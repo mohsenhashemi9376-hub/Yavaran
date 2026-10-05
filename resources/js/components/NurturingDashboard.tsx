@@ -277,7 +277,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     isNurturingVice,
     isCoach,
     isAdmin,
-    accessibleClasses,
+    nurturingClasses,
     allCoaches,
     allUsers
   } = useSchool();
@@ -370,9 +370,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   // Filtered classes (considering coach assignment if applicable)
   // مربی فقط کلاس‌های خودش را می‌بیند (حتی اگر کلاسی نداشته باشد، به کل مدرسه دسترسی پیدا نمی‌کند)
   const availableClasses = useMemo(() => {
-    if (isCoach) return accessibleClasses || [];
+    if (isCoach) return nurturingClasses || [];
     return classes;
-  }, [isCoach, accessibleClasses, classes]);
+  }, [isCoach, nurturingClasses, classes]);
 
   const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
 
@@ -2790,7 +2790,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {classes.map((cls) => {
+                  {availableClasses.map((cls) => {
                     const clsStudents = students.filter((s) => s.classId === cls.id);
                     const clsObsCount = observations.filter((o) => clsStudents.some((s) => s.id === o.studentId)).length;
                     const clsEvalsCount = coachEvaluations.filter((e) => clsStudents.some((s) => s.id === e.studentId)).length;
