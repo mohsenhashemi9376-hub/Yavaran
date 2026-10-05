@@ -387,3 +387,63 @@ html[data-theme="dark"][data-lux] .yv-bottom-nav button.text-emerald-800 { color
   html[data-theme="dark"] .yv-header .yv-theme-toggle .yv-theme-toggle__thumb { position: static; transform: none; box-shadow: none; background: transparent; width: auto; height: auto; }
   html[data-lux] .yv-header .flex.items-center.shrink-0 { gap: 0.375rem; }
 }
+
+/* ==========================================================================
+   مرحله ۳ — وضعیت خالی، اسکلت بارگذاری، صفحه خطا، حرکت ورود کارت‌ها
+   ========================================================================== */
+
+/* وضعیت خالی */
+.yv-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; padding: 2.25rem 1rem; }
+.yv-empty__icon {
+  width: 3.5rem; height: 3.5rem; border-radius: 1.25rem; display: flex; align-items: center; justify-content: center; margin-bottom: 0.25rem;
+  color: var(--color-teal-700);
+  background: radial-gradient(circle at 30% 20%, #fff, color-mix(in oklab, var(--color-teal-500) 14%, #fff));
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-teal-500) 8%, transparent), 0 10px 24px -12px rgb(15 118 110 / 0.5);
+}
+.yv-empty--emerald .yv-empty__icon { color: var(--color-emerald-700); }
+.yv-empty--amber .yv-empty__icon { color: var(--color-amber-700); background: radial-gradient(circle at 30% 20%, #fff, color-mix(in oklab, var(--color-amber-500) 16%, #fff)); }
+.yv-empty__title { font-weight: 900; font-size: 0.9rem; color: var(--color-slate-800); }
+.yv-empty__desc { font-size: 0.75rem; line-height: 1.9; color: var(--color-slate-500); max-width: 24rem; }
+.yv-empty__action { margin-top: 0.5rem; padding: 0.6rem 1.25rem; color: #fff; font-size: 0.75rem; font-weight: 700; border-radius: 0.85rem; cursor: pointer; }
+html[data-theme="dark"] .yv-empty__icon { background: radial-gradient(circle at 30% 20%, #1d3533, #10201f); color: var(--color-teal-300); box-shadow: 0 0 0 6px rgb(45 212 191 / 0.07), 0 10px 24px -12px rgb(0 0 0 / 0.7); }
+html[data-theme="dark"] .yv-empty--amber .yv-empty__icon { color: var(--color-amber-300); }
+
+/* اسکلت بارگذاری */
+.yv-skeleton {
+  background: linear-gradient(100deg, rgb(15 118 110 / 0.07) 30%, rgb(15 118 110 / 0.16) 50%, rgb(15 118 110 / 0.07) 70%) 0 0 / 220% 100%;
+  animation: yv-shimmer 1.6s ease-in-out infinite;
+}
+html[data-theme="dark"] .yv-skeleton { background-image: linear-gradient(100deg, rgb(255 255 255 / 0.04) 30%, rgb(255 255 255 / 0.10) 50%, rgb(255 255 255 / 0.04) 70%); }
+@keyframes yv-shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+/* صفحه بارگذاری اولیه */
+.yv-loader-logo { padding: 1rem; border-radius: 2rem; background: color-mix(in oklab, var(--yv-surface) 80%, transparent); box-shadow: 0 20px 50px -20px rgb(15 118 110 / 0.5), 0 0 0 1px rgb(201 164 92 / 0.25); animation: yv-breathe 2.4s ease-in-out infinite; }
+@keyframes yv-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.yv-loader-bar { width: 9rem; height: 0.3rem; border-radius: 9999px; margin: 0 auto; overflow: hidden; position: relative; background: rgb(15 118 110 / 0.15); }
+.yv-loader-bar::after { content: ""; position: absolute; inset-block: 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--color-teal-500), var(--yv-gold)); animation: yv-bar 1.3s ease-in-out infinite; }
+@keyframes yv-bar { from { inset-inline-start: -40%; } to { inset-inline-start: 100%; } }
+
+/* صفحه خطا */
+.yv-error-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.25rem;
+  padding: 2.5rem 1.5rem; border-radius: 1.75rem; background: var(--yv-surface);
+  border: 1px solid rgb(244 63 94 / 0.22); box-shadow: var(--yv-shadow-card);
+  background-image: radial-gradient(28rem 12rem at 50% -20%, rgb(244 63 94 / 0.08), transparent 70%);
+}
+.yv-error-card__icon { width: 4rem; height: 4rem; border-radius: 1.5rem; display: flex; align-items: center; justify-content: center; color: var(--color-rose-600); background: color-mix(in oklab, var(--color-rose-500) 10%, var(--yv-surface)); box-shadow: 0 0 0 7px rgb(244 63 94 / 0.07); }
+
+/* ورود نرم کارت‌ها هنگام باز شدن صفحه */
+@keyframes yv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+html[data-lux] main .grid > :nth-child(-n+8) { animation: yv-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-lux] main .grid > :nth-child(2) { animation-delay: 0.04s; }
+html[data-lux] main .grid > :nth-child(3) { animation-delay: 0.08s; }
+html[data-lux] main .grid > :nth-child(4) { animation-delay: 0.12s; }
+html[data-lux] main .grid > :nth-child(5) { animation-delay: 0.16s; }
+html[data-lux] main .grid > :nth-child(6) { animation-delay: 0.2s; }
+html[data-lux] main .grid > :nth-child(7) { animation-delay: 0.24s; }
+html[data-lux] main .grid > :nth-child(8) { animation-delay: 0.28s; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-lux] main .grid > *, .yv-skeleton, .yv-loader-logo, .yv-loader-bar::after { animation: none !important; }
+}
+html[data-theme="dark"] .yv-empty__title { color: #e7f2f0; }
+html[data-theme="dark"] .yv-empty__desc { color: #8fa9a6; }

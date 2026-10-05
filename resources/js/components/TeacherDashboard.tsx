@@ -35,9 +35,12 @@ import {
   ShieldCheck, 
   TrendingUp, 
   ArrowUpRight,
+  CalendarCheck,
+  SearchX,
   Check
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
+import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
 
 interface TeacherDashboardProps {
@@ -504,9 +507,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
 
                 {teacherSessions.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-xs">
-                    هنوز هیچ جلسه کلاسی ثبت نشده است.
-                  </div>
+                  <EmptyState
+                    icon={CalendarCheck}
+                    title="هنوز جلسه‌ای ثبت نشده است"
+                    description="با ثبت اولین حضور و غیاب، سوابق جلسات این‌جا نمایش داده می‌شود."
+                  />
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-right">
@@ -716,9 +721,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               {/* Table */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                 {filteredSessions.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 text-xs">
-                    موردی یافت نشد.
-                  </div>
+                  <EmptyState
+                    icon={SearchX}
+                    title="موردی پیدا نشد"
+                    description="فیلترها را تغییر دهید یا جست‌وجو را پاک کنید."
+                  />
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-right">
@@ -1170,8 +1177,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
 
                 {(schoolAnnouncements || []).length === 0 ? (
-                  <div className="bg-white rounded-2xl p-6 text-center border border-slate-200 text-slate-400 text-xs">
-                    در حال حاضر اطلاعیه جدیدی برای شما وجود ندارد.
+                  <div className="bg-white rounded-2xl border border-slate-200">
+                    <EmptyState
+                      icon={Bell}
+                      title="اطلاعیه‌ی جدیدی ندارید"
+                      description="اطلاعیه‌های معاونت آموزش از همین‌جا به شما می‌رسد."
+                    />
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

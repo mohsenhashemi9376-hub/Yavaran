@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, RotateCcw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -47,33 +47,48 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render(): ReactNode {
     if (this.state.hasError) {
+      const detail = this.state.error?.message;
       return (
-        <div
-          dir="rtl"
-          role="alert"
-          className="p-6 sm:p-8 bg-white border border-rose-200 rounded-3xl shadow-sm my-4 text-right flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in duration-200"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs">
-            <AlertTriangle className="w-6 h-6" />
+        <div dir="rtl" role="alert" className="yv-error-card my-4">
+          <div className="yv-error-card__icon">
+            <AlertTriangle className="w-7 h-7" />
           </div>
 
-          <div className="space-y-1.5 max-w-md">
-            <h3 className="text-base font-bold text-slate-900">
+          <div className="space-y-2 max-w-md">
+            <h3 className="text-lg font-black text-slate-900">
               {this.props.fallbackTitle || 'دریافت این بخش با مشکل مواجه شد'}
             </h3>
-            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              مشکلی در بارگذاری این قسمت پیش آمده است. سایر بخش‌های سامانه فعال هستند و اطلاعات شما محفوظ است.
+            <p className="text-sm text-slate-500 leading-7">
+              نگران نباشید؛ اطلاعات شما محفوظ است و سایر بخش‌های سامانه کار می‌کنند.
+              ابتدا «تلاش دوباره» را بزنید. اگر مشکل ماند، صفحه را دوباره بارگذاری کنید.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={this.handleRetry}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 shadow-xs"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>تلاش دوباره</span>
-          </button>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={this.handleRetry}
+              className="yv-btn-primary px-5 py-2.5 text-white text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>تلاش دوباره</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl border border-slate-200 transition cursor-pointer flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>بارگذاری مجدد صفحه</span>
+            </button>
+          </div>
+
+          {detail && (
+            <details className="text-[11px] text-slate-400 max-w-md w-full">
+              <summary className="cursor-pointer select-none hover:text-slate-600">جزئیات فنی (برای پشتیبانی)</summary>
+              <pre dir="ltr" className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-left whitespace-pre-wrap break-words">{detail}</pre>
+            </details>
+          )}
         </div>
       );
     }
