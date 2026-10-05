@@ -90,14 +90,27 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
   onSelectStudent,
 }) => {
   const school = useSchool();
-  const actualStudents = propStudents ?? school.students;
-  const actualClasses = propClasses ?? school.accessibleClasses ?? school.classes;
-  const actualObservations = propObservations ?? school.observations;
+  const isCoachUser = school.currentUser.role === 'coach';
+  // مربی فقط کلاس‌های خودش را می‌بیند؛ مدیر و معاونین کل مدرسه را
+  const actualClasses = propClasses ?? (isCoachUser ? school.accessibleClasses : school.classes) ?? [];
+  const sidebarClassIds = useMemo(() => new Set(actualClasses.map((c) => c.id)), [actualClasses]);
+  const actualStudents = useMemo(() => {
+    const list = propStudents ?? school.students;
+    return isCoachUser ? list.filter((s) => sidebarClassIds.has(s.classId)) : list;
+  }, [propStudents, school.students, isCoachUser, sidebarClassIds]);
+  const actualObservations = useMemo(() => {
+    const list = propObservations ?? school.observations;
+    if (!isCoachUser) return list;
+    const ids = new Set(actualStudents.map((s) => s.id));
+    return list.filter((o) => ids.has(o.studentId));
+  }, [propObservations, school.observations, isCoachUser, actualStudents]);
 
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [isStudentObsExpanded, setIsStudentObsExpanded] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
+  const singleClassId = isCoachUser && actualClasses.length === 1 ? actualClasses[0].id : null;
+  const effectiveClassFilter = singleClassId ?? (sidebarClassIds.has(selectedClassFilter) ? selectedClassFilter : 'all');
 
   const totalObservations = counts?.observations ?? actualObservations.length ?? 0;
   const totalDossiers = counts?.dossiers ?? 0;
@@ -124,8 +137,8 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
     if (!actualStudents || actualStudents.length === 0) return [];
 
     let list = actualStudents;
-    if (selectedClassFilter !== 'all') {
-      list = list.filter((s) => s.classId === selectedClassFilter);
+    if (effectiveClassFilter !== 'all') {
+      list = list.filter((s) => s.classId === effectiveClassFilter);
     }
 
     const query = studentSearchTerm.trim().toLowerCase();
@@ -144,7 +157,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
       }
       return a.lastName.localeCompare(b.lastName, 'fa');
     });
-  }, [actualStudents, selectedClassFilter, studentSearchTerm, studentObservationCounts]);
+  }, [actualStudents, effectiveClassFilter, studentSearchTerm, studentObservationCounts]);
 
   // ساختار استاندارد و خلوت منوی معاونت تربیتی و پرورشی:
   // ۱. خانه (داشبورد)
@@ -455,16 +468,16 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
                       </div>
 
                       {/* فیلتر کلاس در صورت وجود بیش از یک کلاس */}
-                      {actualClasses && actualClasses.length > 1 && (
+                      {actualClasses && (actualClasses.length > 1 || singleClassId) && (
                         <div className="flex items-center gap-1.5">
                           <label htmlFor="sidebar-student-obs-class-filter" className="text-[10px] text-slate-500 font-bold shrink-0">کلاس:</label>
                           <select
                             id="sidebar-student-obs-class-filter"
-                            value={selectedClassFilter}
+                            value={effectiveClassFilter}
                             onChange={(e) => setSelectedClassFilter(e.target.value)}
                             className="w-full text-[10px] font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-600 text-slate-700 cursor-pointer"
                           >
-                            <option value="all">همه کلاس‌ها</option>
+                            {!singleClassId && <option value="all">همه کلاس‌ها</option>}
                             {actualClasses.map((cls) => (
                               <option key={cls.id} value={cls.id}>
                                 {cls.name}
