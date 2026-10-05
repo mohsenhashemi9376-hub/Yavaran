@@ -62,10 +62,6 @@ const MainApp: React.FC = () => {
     : [ownTab, ...(currentUser.isAlsoTeacher ? (['teacher'] as const) : [])];
   const effectiveTab = allowedTabs.includes(activeTab) ? activeTab : ownTab;
 
-  // ظاهر لوکس + حالت تاریک فعلاً فقط برای پنل معاونت آموزشی
-  const isEducationalPanel = !(isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher')) && !(isNurturingVice || isCoach || effectiveTab === 'nurture') && effectiveTab === 'grades';
-  useLuxScope(isEducationalPanel);
-
   // Auto-switch view tab when user actually changes accounts
   useEffect(() => {
     if (prevUserIdRef.current !== currentUser.id) {
@@ -414,7 +410,7 @@ const MainApp: React.FC = () => {
  */
 const AuthGate: React.FC = () => {
   const { authStatus, reloadFromServer } = useSchool();
-  useLuxScope(authStatus !== 'ready');
+  useLuxScope(true); // ظاهر لوکس و حالت تاریک برای همه صفحه‌ها و نقش‌ها
 
   if (authStatus === 'ready') {
     return <MainApp />;

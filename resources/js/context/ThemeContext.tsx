@@ -24,8 +24,7 @@ const ThemeContext = createContext<ThemeContextValue>({ theme: 'light', toggleTh
 
 /**
  * تم روشن/تاریک. انتخاب کاربر ذخیره می‌شود و روی <html> به‌صورت data-theme قرار می‌گیرد.
- * ظاهر «لوکس» (data-lux) فعلاً فقط برای صفحه ورود و پنل معاونت آموزشی فعال است؛
- * هر صفحه‌ای با useLuxScope آن را روشن می‌کند.
+ * ظاهر «لوکس» (data-lux) برای همه صفحه‌ها و نقش‌ها فعال است (useLuxScope).
  */
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<ThemeMode>(readStored);
