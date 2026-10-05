@@ -265,7 +265,8 @@ final class CollectionRegistry
                 'subject_id' => self::str($d, 'subjectId', 100),
                 'period_number' => isset($d->periodNumber) && is_numeric($d->periodNumber) ? (int) $d->periodNumber : null,
                 'lesson_topic' => self::str($d, 'lessonTopic', 255),
-            ], static fn ($v, $k) => ! in_array($k, ['subject_id', 'period_number', 'lesson_topic'], true)
+                'homework' => self::str($d, 'homeworkDescription', 5000),
+            ], static fn ($v, $k) => ! in_array($k, ['subject_id', 'period_number', 'lesson_topic', 'homework'], true)
                 || self::columnExists('attendance_sessions', $k), ARRAY_FILTER_USE_BOTH),
             'morningAttendance' => self::morningAttendanceColumns($d),
             'academicSubjects' => [

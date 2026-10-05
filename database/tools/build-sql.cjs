@@ -41,9 +41,9 @@ const tables = {
     keys: ['KEY `students_class_id_index` (`class_id`)', 'KEY `students_national_id_index` (`national_id`)', 'KEY `students_name_index` (`last_name`,`first_name`)'],
     extract: (d) => ({ class_id: s(d, 'classId', 100), first_name: s(d, 'firstName', 100) || '', last_name: s(d, 'lastName', 100) || '', national_id: s(d, 'nationalId', 30), student_code: s(d, 'studentCode', 30) }) },
   sessions: { table: 'attendance_sessions',
-    cols: ['`class_id` varchar(100) DEFAULT NULL', '`teacher_id` varchar(100) DEFAULT NULL', '`subject` varchar(191) DEFAULT NULL', '`subject_id` varchar(100) DEFAULT NULL', '`period_number` tinyint unsigned DEFAULT NULL', '`lesson_topic` varchar(255) DEFAULT NULL', '`session_date` varchar(20) DEFAULT NULL'],
+    cols: ['`class_id` varchar(100) DEFAULT NULL', '`teacher_id` varchar(100) DEFAULT NULL', '`subject` varchar(191) DEFAULT NULL', '`subject_id` varchar(100) DEFAULT NULL', '`period_number` tinyint unsigned DEFAULT NULL', '`lesson_topic` varchar(255) DEFAULT NULL', '`homework` text DEFAULT NULL', '`session_date` varchar(20) DEFAULT NULL'],
     keys: ['KEY `attendance_sessions_class_id_index` (`class_id`)', 'KEY `attendance_sessions_teacher_id_index` (`teacher_id`)', 'KEY `attendance_sessions_session_date_index` (`session_date`)'],
-    extract: (d) => ({ class_id: s(d, 'classId', 100), teacher_id: s(d, 'teacherId', 100), subject: s(d, 'subject', 191), subject_id: s(d, 'subjectId', 100), period_number: Number.isFinite(Number(d.periodNumber)) && d.periodNumber != null ? Number(d.periodNumber) : null, lesson_topic: s(d, 'lessonTopic', 255), session_date: s(d, 'date', 20) }) },
+    extract: (d) => ({ class_id: s(d, 'classId', 100), teacher_id: s(d, 'teacherId', 100), subject: s(d, 'subject', 191), subject_id: s(d, 'subjectId', 100), period_number: Number.isFinite(Number(d.periodNumber)) && d.periodNumber != null ? Number(d.periodNumber) : null, lesson_topic: s(d, 'lessonTopic', 255), homework: s(d, 'homeworkDescription', 5000), session_date: s(d, 'date', 20) }) },
   academicSubjects: { table: 'academic_subjects', cols: ["`name` varchar(191) NOT NULL DEFAULT ''", '`code` varchar(50) DEFAULT NULL'], keys: [],
     extract: (d) => ({ name: s(d, 'name', 191) || '', code: s(d, 'code', 50) }) },
   academicGrades: { table: 'academic_grades',
@@ -247,7 +247,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
 (8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
 (9, '2026_10_08_000000_create_grade_periods_table', 1),
-(10, '2026_10_09_000000_create_workshops_table', 1);
+(10, '2026_10_09_000000_create_workshops_table', 1),
+(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1);
 
 DROP TABLE IF EXISTS \`notifications\`;
 DROP TABLE IF EXISTS \`teacher_activities\`;

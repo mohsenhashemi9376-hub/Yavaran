@@ -168,6 +168,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
         'غائبین': abs,
         'تأخیرها': lts,
         'مبحث تدریس': s.lessonTopic || '-',
+        'تکلیف جلسه': s.homeworkDescription || '-',
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -324,6 +325,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                     <th className="py-3.5 px-4 text-center">غائبین</th>
                     <th className="py-3.5 px-4 text-center">تأخیرها</th>
                     <th className="py-3.5 px-4">مبحث تدریس</th>
+                    <th className="py-3.5 px-4">تکلیف جلسه</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -370,6 +372,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                           )}
                         </td>
                         <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{s.lessonTopic || '-'}</td>
+                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate" title={s.homeworkDescription}>{s.homeworkDescription || '-'}</td>
                       </tr>
                     );
                   })}

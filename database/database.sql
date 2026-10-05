@@ -153,6 +153,7 @@ CREATE TABLE `attendance_sessions` (
   `subject_id` varchar(100) DEFAULT NULL,
   `period_number` tinyint unsigned DEFAULT NULL,
   `lesson_topic` varchar(255) DEFAULT NULL,
+  `homework` text DEFAULT NULL,
   `session_date` varchar(20) DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT 0,
   `data` longtext NOT NULL,
@@ -579,7 +580,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (7, '2026_10_06_000000_add_absence_fields_to_morning_attendance', 1),
 (8, '2026_10_07_000000_create_notifications_and_teacher_activities_tables', 1),
 (9, '2026_10_08_000000_create_grade_periods_table', 1),
-(10, '2026_10_09_000000_create_workshops_table', 1);
+(10, '2026_10_09_000000_create_workshops_table', 1),
+(11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1);
 
 -- ------------------------------------------------------------
 -- جداول notifications و teacher_activities

@@ -157,3 +157,6 @@ INSERT IGNORE INTO `workshops` (`id`, `name`, `type`, `category`, `teacher_id`, 
 ('ws-technical', 'فنی', 'workshop', 'skill', NULL, 3, '{"id":"ws-technical","name":"فنی","category":"skill","studentIds":[]}', NOW(), NOW()),
 ('ws-writing', 'نویسندگی', 'workshop', 'skill', NULL, 4, '{"id":"ws-writing","name":"نویسندگی","category":"skill","studentIds":[]}', NOW(), NOW()),
 ('ws-ai', 'هوش مصنوعی', 'workshop', 'skill', NULL, 5, '{"id":"ws-ai","name":"هوش مصنوعی","category":"skill","studentIds":[]}', NOW(), NOW());
+
+-- تکلیف جلسه درسی (اگر خطای «Duplicate column» گرفتید یعنی از قبل وجود دارد؛ بی‌خطر است)
+ALTER TABLE `attendance_sessions` ADD COLUMN `homework` TEXT NULL AFTER `lesson_topic`;
