@@ -13,6 +13,7 @@ import {
   MorningAttendanceRecord,
   TeacherActivity,
   GradePeriod,
+  Workshop,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -50,6 +51,7 @@ import {
 import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { buildGradePeriodList } from '../utils/gradePeriods';
+import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 
 interface SchoolContextType {
@@ -85,6 +87,8 @@ interface SchoolContextType {
   teacherActivities: TeacherActivity[];
   /** فهرست کامل بازه‌های ثبت نمره (فعال/قفل) */
   gradePeriods: GradePeriod[];
+  workshops: Workshop[];
+  updateWorkshop: (id: string, patch: Partial<Omit<Workshop, 'id'>>) => void;
   setGradePeriodActive: (code: string, isActive: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
   isGradePeriodOpen: (code: string) => boolean;
@@ -316,6 +320,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([]);
   const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
+  const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
+  const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
   // ------------------------------------------------------------------
@@ -456,6 +462,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextCourseAssignments = (d.courseAssignments || []) as unknown as CourseAssignment[];
     const nextTeacherActivities = (d.teacherActivities || []) as unknown as TeacherActivity[];
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
+    const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -479,6 +486,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       courseAssignments: nextCourseAssignments as unknown as SyncRow[],
       teacherActivities: nextTeacherActivities as unknown as SyncRow[],
       gradePeriods: nextGradePeriods as unknown as SyncRow[],
+      workshops: nextWorkshops as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -502,6 +510,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCourseAssignments(nextCourseAssignments);
     setTeacherActivities(nextTeacherActivities);
     setStoredGradePeriods(nextGradePeriods);
+    setStoredWorkshops(nextWorkshops);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -532,6 +541,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCourseAssignments([]);
     setTeacherActivities([]);
     setStoredGradePeriods([]);
+    setStoredWorkshops([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -612,6 +622,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('schoolAnnouncements', schoolAnnouncements as unknown as SyncRow[]); }, [schoolAnnouncements, syncEngine]);
   useEffect(() => { syncEngine.push('courseAssignments', courseAssignments as unknown as SyncRow[]); }, [courseAssignments, syncEngine]);
   useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
+  useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
   useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
@@ -1250,6 +1261,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const exists = prev.some((p) => (p.code || p.id) === code);
       const next: GradePeriod = { ...base, isActive };
       return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
+    });
+  };
+
+  const updateWorkshop = (id: string, patch: Partial<Omit<Workshop, 'id'>>) => {
+    const base = workshops.find((w) => w.id === id);
+    if (!base) return;
+    setStoredWorkshops((prev) => {
+      const exists = prev.some((w) => w.id === id);
+      return exists ? prev.map((w) => (w.id === id ? { ...w, ...patch } : w)) : [...prev, { ...base, ...patch }];
     });
   };
 
@@ -2329,6 +2349,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setMorningAbsenceInfo,
         teacherActivities,
         gradePeriods,
+        workshops,
+        updateWorkshop,
         setGradePeriodActive,
         isGradePeriodOpen,
         addTeacherActivity,

@@ -133,3 +133,27 @@ INSERT IGNORE INTO `grade_periods` (`id`, `name`, `code`, `is_active`, `deadline
 ('ordibeheshtContinuous', 'مستمر اردیبهشت', 'ordibeheshtContinuous', 0, NULL, 8, '{"id":"ordibeheshtContinuous","code":"ordibeheshtContinuous","name":"مستمر اردیبهشت","isActive":false}', NOW(), NOW()),
 ('term2Continuous', 'مستمر ترم دوم (خرداد)', 'term2Continuous', 0, NULL, 9, '{"id":"term2Continuous","code":"term2Continuous","name":"مستمر ترم دوم (خرداد)","isActive":false}', NOW(), NOW()),
 ('term2Final', 'پایانی نوبت دوم (خرداد)', 'term2Final', 0, NULL, 10, '{"id":"term2Final","code":"term2Final","name":"پایانی نوبت دوم (خرداد)","isActive":false}', NOW(), NOW());
+
+-- کارگاه‌های انتخابی علمی و مهارتی (۶ کارگاه اولیه)
+CREATE TABLE IF NOT EXISTS `workshops` (
+  `id` varchar(100) NOT NULL,
+  `name` varchar(100) NOT NULL DEFAULT '',
+  `type` varchar(20) NOT NULL DEFAULT 'workshop',
+  `category` varchar(20) NOT NULL DEFAULT 'scientific',
+  `teacher_id` varchar(100) DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `workshops_teacher_id_index` (`teacher_id`),
+  KEY `workshops_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `workshops` (`id`, `name`, `type`, `category`, `teacher_id`, `sort_order`, `data`, `created_at`, `updated_at`) VALUES
+('ws-medicine', 'طب', 'workshop', 'scientific', NULL, 0, '{"id":"ws-medicine","name":"طب","category":"scientific","studentIds":[]}', NOW(), NOW()),
+('ws-social', 'روابط اجتماعی', 'workshop', 'scientific', NULL, 1, '{"id":"ws-social","name":"روابط اجتماعی","category":"scientific","studentIds":[]}', NOW(), NOW()),
+('ws-history', 'تاریخ', 'workshop', 'scientific', NULL, 2, '{"id":"ws-history","name":"تاریخ","category":"scientific","studentIds":[]}', NOW(), NOW()),
+('ws-technical', 'فنی', 'workshop', 'skill', NULL, 3, '{"id":"ws-technical","name":"فنی","category":"skill","studentIds":[]}', NOW(), NOW()),
+('ws-writing', 'نویسندگی', 'workshop', 'skill', NULL, 4, '{"id":"ws-writing","name":"نویسندگی","category":"skill","studentIds":[]}', NOW(), NOW()),
+('ws-ai', 'هوش مصنوعی', 'workshop', 'skill', NULL, 5, '{"id":"ws-ai","name":"هوش مصنوعی","category":"skill","studentIds":[]}', NOW(), NOW());

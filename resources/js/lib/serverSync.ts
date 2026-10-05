@@ -24,6 +24,7 @@ export type CollectionKey =
   | 'courseAssignments'
   | 'teacherActivities'
   | 'gradePeriods'
+  | 'workshops'
   | 'grades'
   | 'settings';
 
@@ -47,6 +48,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'courseAssignments',
   'teacherActivities',
   'gradePeriods',
+  'workshops',
   'grades',
   'settings',
 ];
