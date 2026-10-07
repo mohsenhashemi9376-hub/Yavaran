@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { studentFullName } from '../utils/studentName';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, MorningDelayRecord, StudentAttendanceRecord } from '../types';
@@ -24,9 +25,38 @@ import {
   Info,
   Layers,
   Sparkles,
-  UserX
+  UserX,
+  CalendarDays,
+  BellRing
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+interface AbsenceDay {
+  date: string;
+  excused: boolean;
+  parts: { label: string; daily: boolean; excused: boolean; note?: string }[];
+}
+
+interface AbsenceLateItem {
+  id: string;
+  date: string;
+  delayMinutes: number;
+  reason: string;
+  isExcused: boolean;
+  label: string;
+}
+
+type DetailKind = 'absence' | 'delay' | 'note';
+
+const AVATAR_GRADIENTS = [
+  'from-indigo-600 to-blue-500',
+  'from-emerald-600 to-teal-500',
+  'from-rose-500 to-pink-500',
+  'from-amber-500 to-orange-500',
+  'from-violet-600 to-fuchsia-500',
+  'from-sky-600 to-cyan-500',
+];
+const avatarGradient = (id: string) => AVATAR_GRADIENTS[Array.from(id).reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_GRADIENTS.length];
 
 interface CoachAcademicDisciplineViewProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -41,6 +71,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     academicGrades, 
     sessions, 
     morningDelays, 
+    morningAttendance,
+    schoolAbsences,
     currentUser 
   } = useSchool();
 
@@ -50,9 +82,17 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'needs_attention' | 'top_academic' | 'discipline_warning' | 'absent' | 'delayed'>('all');
   const [detailModalStudent, setDetailModalStudent] = useState<Student | null>(null);
+  const [detail, setDetail] = useState<{ student: Student; kind: DetailKind } | null>(null);
   const [modalActiveTab, setModalActiveTab] = useState<'grades' | 'discipline' | 'analysis'>('grades');
 
   const todayInfo = getTodayShamsi();
+
+  useEffect(() => {
+    if (!detail) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDetail(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detail]);
 
   // Helper for student full name
   const getStudentFullName = (s: Student) => {
@@ -151,33 +191,94 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
 
   // Helper to compute student disciplinary & attendance summary
   const getStudentDisciplineData = (student: Student) => {
-    // 1. Session absences
-    let unexcusedAbsences = 0;
-    let excusedAbsences = 0;
+    // 1. غیبت‌ها: هر «روز غیبت» یک‌بار شمرده می‌شود (غیبت روزانه/صبحگاه + غیبت زنگ‌های کلاسی)؛ موجه و غیرموجه هر دو
+    const dayMap = new Map<string, AbsenceDay>();
+    const dayOf = (date: string): AbsenceDay => {
+      let d = dayMap.get(date);
+      if (!d) {
+        d = { date, excused: false, parts: [] };
+        dayMap.set(date, d);
+      }
+      return d;
+    };
 
-    sessions.forEach(sess => {
-      if (sess.classId === student.classId && sess.records) {
-        let rec: StudentAttendanceRecord | undefined;
-        if (Array.isArray(sess.records)) {
-          rec = (sess.records as any[]).find((r: any) => r.studentId === student.id);
-        } else if (typeof sess.records === 'object') {
-          rec = sess.records[student.id];
-        }
+    (morningAttendance || []).forEach((r) => {
+      if (r.studentId === student.id && r.status === 'absent') {
+        dayOf(r.date).parts.push({ label: 'غیبت صبحگاه', daily: true, excused: !!r.isExcused, note: r.absenceNote });
+      }
+    });
+    (schoolAbsences || []).forEach((r) => {
+      if (r.studentId !== student.id) return;
+      const day = dayOf(r.date);
+      if (day.parts.some((p) => p.daily)) return; // همان روز قبلاً از حضور صبحگاه ثبت شده
+      day.parts.push({ label: 'غیبت روزانه', daily: true, excused: !!r.isExcused, note: r.reason || r.notes });
+    });
 
-        if (rec) {
-          if (rec.status === 'absent') unexcusedAbsences++;
-          else if (rec.status === 'excused') excusedAbsences++;
-        }
+    const classLates: AbsenceLateItem[] = [];
+    sessions.forEach((sess) => {
+      if (sess.classId !== student.classId || !sess.records) return;
+      let rec: StudentAttendanceRecord | undefined;
+      if (Array.isArray(sess.records)) {
+        rec = (sess.records as any[]).find((r: any) => r.studentId === student.id);
+      } else if (typeof sess.records === 'object') {
+        rec = sess.records[student.id];
+      }
+      if (!rec) return;
+      const what = `${sess.subject || 'کلاس'}${sess.periodNumber ? ` • زنگ ${toPersianDigits(sess.periodNumber)}` : ''}`;
+      if (rec.status === 'absent' || rec.status === 'excused') {
+        dayOf(sess.date).parts.push({ label: what, daily: false, excused: rec.status === 'excused', note: rec.note });
+      } else if (rec.status === 'late' && (rec.delayMinutes || 0) > 0) {
+        classLates.push({
+          id: `sess-${sess.id}`,
+          date: sess.date,
+          delayMinutes: rec.delayMinutes || 0,
+          reason: rec.note || '',
+          isExcused: false,
+          label: `تأخیر کلاسی • ${what}`,
+        });
       }
     });
 
-    // 2. Morning delays
-    const delays = (morningDelays || []).filter(d => d.studentId === student.id);
+    const absenceDays: AbsenceDay[] = Array.from(dayMap.values())
+      .filter((d) => d.parts.length > 0)
+      .map((d) => {
+        const daily = d.parts.find((p) => p.daily);
+        return { ...d, excused: daily ? daily.excused : d.parts.every((p) => p.excused) };
+      })
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const excusedAbsences = absenceDays.filter((d) => d.excused).length;
+    const unexcusedAbsences = absenceDays.length - excusedAbsences;
+
+    // 2. تأخیرها: دفتر تأخیر + حضور صبحگاه با تأخیر + تأخیر زنگ‌های کلاسی
+    const logged = (morningDelays || []).filter((d) => d.studentId === student.id);
+    const loggedDates = new Set(logged.map((d) => d.date));
+    const delays: AbsenceLateItem[] = [
+      ...logged.map((d) => ({
+        id: d.id,
+        date: d.date,
+        delayMinutes: d.delayMinutes || 0,
+        reason: d.reason || '',
+        isExcused: !!d.isExcused,
+        label: 'تأخیر ورود صبحگاه',
+      })),
+      ...(morningAttendance || [])
+        .filter((r) => r.studentId === student.id && r.status === 'present' && (r.delayMinutes || 0) > 0 && !loggedDates.has(r.date))
+        .map((r) => ({
+          id: `ma-${r.id}`,
+          date: r.date,
+          delayMinutes: r.delayMinutes || 0,
+          reason: r.entryTime ? `ورود ${r.entryTime}` : '',
+          isExcused: false,
+          label: 'تأخیر ورود صبحگاه',
+        })),
+      ...classLates,
+    ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     const totalDelayMinutes = delays.reduce((acc, d) => acc + (d.delayMinutes || 0), 0);
 
     // 3. Disciplinary score & notes
     const disciplineScore = typeof student.disciplineScore === 'number' ? student.disciplineScore : 20;
-    const notesCount = (student.disciplinaryNotes || []).length;
+    const notes = [...(student.disciplinaryNotes || [])].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const notesCount = notes.length;
     const isWarning = disciplineScore < 18 || unexcusedAbsences >= 3 || delays.length >= 4;
 
     return {
@@ -185,10 +286,11 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       status: student.disciplinaryStatus || 'normal',
       unexcusedAbsences,
       excusedAbsences,
-      totalAbsences: unexcusedAbsences + excusedAbsences,
+      totalAbsences: absenceDays.length,
+      absenceDays,
       delays,
       totalDelayMinutes,
-      notes: student.disciplinaryNotes || [],
+      notes,
       notesCount,
       isWarning
     };
@@ -469,7 +571,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <table className="w-full table-fixed text-right text-xs">
-            <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold">
+            <thead className="bg-gradient-to-l from-indigo-50 via-slate-50 to-sky-50 text-slate-700 border-b border-slate-200 font-extrabold">
               <tr>
                 <th className="py-3 px-2 text-center w-10 hidden sm:table-cell">#</th>
                 <th className="py-3 px-3">دانش‌آموز</th>
@@ -487,15 +589,27 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                 const acad = getStudentAcademicData(student.id);
                 const disc = getStudentDisciplineData(student);
 
+                const hasProblem = disc.isWarning || acad.hasFailingGrade;
+                const hasEvent = disc.totalAbsences > 0 || disc.delays.length > 0 || disc.notesCount > 0;
+                const rowTone = hasProblem
+                  ? 'bg-rose-50/70 hover:bg-rose-100/60 shadow-[inset_-4px_0_0_0_#f43f5e]'
+                  : hasEvent
+                  ? 'bg-amber-50/60 hover:bg-amber-100/50 shadow-[inset_-4px_0_0_0_#f59e0b]'
+                  : acad.gpaAnnual !== null && acad.gpaAnnual >= 18
+                  ? 'bg-emerald-50/70 hover:bg-emerald-100/60 shadow-[inset_-4px_0_0_0_#10b981]'
+                  : idx % 2 === 0
+                  ? 'bg-sky-50/40 hover:bg-sky-50 shadow-[inset_-4px_0_0_0_#7dd3fc]'
+                  : 'bg-white hover:bg-indigo-50/40 shadow-[inset_-4px_0_0_0_#c7d2fe]';
+
                 return (
-                  <tr key={student.id} className="hover:bg-slate-50/80 transition">
+                  <tr key={student.id} className={`${rowTone} transition`}>
                     <td className="py-2.5 px-2 text-center text-slate-400 hidden sm:table-cell">
                       {toPersianDigits(idx + 1)}
                     </td>
 
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${avatarGradient(student.id)} text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm ring-2 ring-white`}>
                           {getStudentFullName(student).charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -528,37 +642,61 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                       )}
                     </td>
 
-                    <td className="py-2.5 px-2 text-center">
+                    <td className="py-2 px-2 text-center">
                       {disc.totalAbsences > 0 ? (
-                        <span
-                          className="inline-block text-rose-700 font-bold text-[11px] bg-rose-50 px-2 py-1 rounded-lg"
-                          title={`${toPersianDigits(disc.unexcusedAbsences)} غیرموجه`}
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ student, kind: 'absence' })}
+                          title="مشاهده ریز غیبت‌ها"
+                          className="group inline-flex flex-col items-center gap-0.5 cursor-pointer"
                         >
-                          {toPersianDigits(disc.totalAbsences)} جلسه
-                        </span>
+                          <span className="inline-flex items-center gap-1 text-rose-700 font-extrabold text-[11px] bg-rose-100 group-hover:bg-rose-200 border border-rose-200 px-2.5 py-1 rounded-lg transition">
+                            <UserX className="w-3 h-3" />
+                            {toPersianDigits(disc.totalAbsences)} روز
+                          </span>
+                          {disc.excusedAbsences > 0 && (
+                            <span className="text-[10px] font-bold text-emerald-700">
+                              {toPersianDigits(disc.excusedAbsences)} موجه
+                            </span>
+                          )}
+                        </button>
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
                     </td>
 
-                    <td className="py-2.5 px-2 text-center">
+                    <td className="py-2 px-2 text-center">
                       {disc.delays.length > 0 ? (
-                        <span
-                          className="inline-block text-amber-800 font-bold text-[11px] bg-amber-50 px-2 py-1 rounded-lg"
-                          title={`${toPersianDigits(disc.totalDelayMinutes)} دقیقه`}
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ student, kind: 'delay' })}
+                          title="مشاهده ریز تأخیرها"
+                          className="group inline-flex flex-col items-center gap-0.5 cursor-pointer"
                         >
-                          {toPersianDigits(disc.delays.length)} بار
-                        </span>
+                          <span className="inline-flex items-center gap-1 text-amber-800 font-extrabold text-[11px] bg-amber-100 group-hover:bg-amber-200 border border-amber-200 px-2.5 py-1 rounded-lg transition">
+                            <Clock className="w-3 h-3" />
+                            {toPersianDigits(disc.delays.length)} بار
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-700">
+                            مجموع {toPersianDigits(disc.totalDelayMinutes)} دقیقه
+                          </span>
+                        </button>
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
                     </td>
 
-                    <td className="py-2.5 px-2 text-center hidden sm:table-cell">
+                    <td className="py-2 px-2 text-center hidden sm:table-cell">
                       {disc.notesCount > 0 ? (
-                        <span className="inline-block text-rose-800 font-bold text-[11px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() => setDetail({ student, kind: 'note' })}
+                          title="مشاهده ریز تذکرها"
+                          className="inline-flex items-center gap-1 text-violet-800 font-extrabold text-[11px] bg-violet-100 hover:bg-violet-200 border border-violet-200 px-2.5 py-1 rounded-lg cursor-pointer transition"
+                        >
+                          <BellRing className="w-3 h-3" />
                           {toPersianDigits(disc.notesCount)}
-                        </span>
+                        </button>
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
@@ -585,6 +723,158 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
           </table>
         </div>
       )}
+
+      {/* ریز اطلاعات هر ستون (غیبت / تأخیر / تذکر) در کادر وسط صفحه */}
+      {detail && (() => {
+        const d = getStudentDisciplineData(detail.student);
+        const theme = {
+          absence: { title: 'ریز غیبت‌ها', bar: 'from-rose-600 to-orange-400', icon: UserX, chip: 'bg-rose-50 text-rose-700 border-rose-200' },
+          delay: { title: 'ریز تأخیرها', bar: 'from-amber-500 to-yellow-400', icon: Clock, chip: 'bg-amber-50 text-amber-800 border-amber-200' },
+          note: { title: 'ریز تذکرها و اخطارها', bar: 'from-violet-600 to-fuchsia-400', icon: BellRing, chip: 'bg-violet-50 text-violet-800 border-violet-200' },
+        }[detail.kind];
+        const Icon = theme.icon;
+        const empty = <div className="py-8 text-center text-xs text-slate-400">موردی ثبت نشده است.</div>;
+        return createPortal(
+          <div
+            className="fixed inset-0 z-[200] h-[100dvh] w-screen bg-slate-900/55 backdrop-blur-[4px] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.target === e.currentTarget && setDetail(null)}
+          >
+            <div className="relative w-full max-w-md max-h-[86dvh] flex flex-col bg-white rounded-[26px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className={`h-2 shrink-0 bg-gradient-to-l ${theme.bar}`} />
+              <div className="px-5 pt-4 pb-3 flex items-center gap-3 shrink-0">
+                <span className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${theme.chip}`}>
+                  <Icon className="w-5 h-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-black text-slate-900">{theme.title}</div>
+                  <div className="text-xs text-slate-500 truncate">{getStudentFullName(detail.student)}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetail(null)}
+                  aria-label="بستن"
+                  className="w-9 h-9 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="px-5 pb-2 flex items-center gap-2 flex-wrap shrink-0 text-[11px] font-bold">
+                {detail.kind === 'absence' && (
+                  <>
+                    <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">{toPersianDigits(d.totalAbsences)} روز غیبت</span>
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{toPersianDigits(d.excusedAbsences)} موجه</span>
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">{toPersianDigits(d.unexcusedAbsences)} غیرموجه</span>
+                  </>
+                )}
+                {detail.kind === 'delay' && (
+                  <>
+                    <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">{toPersianDigits(d.delays.length)} بار تأخیر</span>
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">مجموع {toPersianDigits(d.totalDelayMinutes)} دقیقه</span>
+                  </>
+                )}
+                {detail.kind === 'note' && (
+                  <>
+                    <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-800 border border-violet-200">{toPersianDigits(d.notesCount)} مورد</span>
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                      نمره انضباط {toPersianDigits(d.disciplineScore)} از ۲۰
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <div className="px-5 pb-4 flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2">
+                {detail.kind === 'absence' &&
+                  (d.absenceDays.length === 0 ? empty : d.absenceDays.map((day) => (
+                    <div key={day.date} className={`rounded-2xl border p-3 ${day.excused ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-800 font-mono">
+                          <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+                          {toPersianDigits(day.date)}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${day.excused ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                          {day.excused ? 'موجه' : 'غیرموجه'}
+                        </span>
+                      </div>
+                      <ul className="mt-1.5 space-y-0.5">
+                        {day.parts.map((p, i) => (
+                          <li key={i} className="text-[11px] text-slate-600 flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-700">{p.label}</span>
+                            {p.excused && !day.excused && <span className="text-emerald-700">(موجه)</span>}
+                            {p.note && <span className="text-slate-500">— {p.note}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )))}
+
+                {detail.kind === 'delay' &&
+                  (d.delays.length === 0 ? empty : d.delays.map((x) => (
+                    <div key={x.id} className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-800 font-mono">
+                          <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+                          {toPersianDigits(x.date)}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-extrabold">
+                          {toPersianDigits(x.delayMinutes)} دقیقه
+                        </span>
+                      </div>
+                      <div className="mt-1.5 text-[11px] text-slate-600 flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-700">{x.label}</span>
+                        <span className={x.isExcused ? 'text-emerald-700' : 'text-rose-700'}>({x.isExcused ? 'موجه' : 'غیرموجه'})</span>
+                        {x.reason && <span className="text-slate-500">— {x.reason}</span>}
+                      </div>
+                    </div>
+                  )))}
+
+                {detail.kind === 'note' &&
+                  (d.notes.length === 0 ? empty : d.notes.map((n) => (
+                    <div key={n.id} className="rounded-2xl border border-violet-200 bg-violet-50/50 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-800">{n.title}</span>
+                        <span className="text-[10px] font-extrabold font-mono text-rose-600">
+                          {n.scoreDeduction ? `-${toPersianDigits(n.scoreDeduction)} نمره` : 'بدون کسر نمره'}
+                        </span>
+                      </div>
+                      {n.description && <p className="mt-1 text-[11px] leading-6 text-slate-600">{n.description}</p>}
+                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>{n.recordedBy || 'معاونت انضباطی'}</span>
+                        <span className="font-mono">{toPersianDigits(n.date)}</span>
+                      </div>
+                    </div>
+                  )))}
+              </div>
+
+              <div className="px-5 pb-5 pt-2 shrink-0 border-t border-slate-100 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetailModalStudent(detail.student);
+                    setModalActiveTab('discipline');
+                    setDetail(null);
+                  }}
+                  className="flex-1 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer transition"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>مشاهده پرونده کامل</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetail(null)}
+                  className="h-11 px-5 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                >
+                  بستن
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* Read-Only Modal: Full Academic & Disciplinary Detail */}
       {detailModalStudent && (
@@ -772,9 +1062,12 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                           </div>
 
                           <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-center">
-                            <span className="text-rose-600 text-[11px] block">غیبت‌های کلاسی:</span>
+                            <span className="text-rose-600 text-[11px] block">غیبت‌ها (روزانه و کلاسی):</span>
                             <span className="text-xl font-black font-mono text-rose-800 mt-1 block">
-                              {toPersianDigits(disc.totalAbsences)} جلسه ({toPersianDigits(disc.unexcusedAbsences)} غیرموجه)
+                              {toPersianDigits(disc.totalAbsences)} روز
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-500 block mt-0.5">
+                              {toPersianDigits(disc.excusedAbsences)} موجه • {toPersianDigits(disc.unexcusedAbsences)} غیرموجه
                             </span>
                           </div>
 
@@ -784,6 +1077,43 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                               {toPersianDigits(disc.delays.length)} بار ({toPersianDigits(disc.totalDelayMinutes)} دقیقه)
                             </span>
                           </div>
+                        </div>
+
+                        {/* List of Absences (موجه و غیرموجه) */}
+                        <div className="space-y-2">
+                          <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                            <UserX className="w-4 h-4 text-rose-600" />
+                            <span>جزئیات غیبت‌ها:</span>
+                          </h4>
+                          {disc.absenceDays.length === 0 ? (
+                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-center text-xs">
+                              بدون غیبت ثبت‌شده.
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {disc.absenceDays.map((day) => (
+                                <div
+                                  key={day.date}
+                                  className={`rounded-xl border p-2.5 text-xs ${day.excused ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'}`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-mono font-bold text-slate-800">{toPersianDigits(day.date)}</span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${day.excused ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                      {day.excused ? 'غیبت موجه' : 'غیرموجه'}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-slate-600 space-y-0.5">
+                                    {day.parts.map((p, i) => (
+                                      <div key={i}>
+                                        <span className="font-bold text-slate-700">{p.label}</span>
+                                        {p.note ? <span className="text-slate-500"> — {p.note}</span> : null}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* List of Disciplinary Notes */}
