@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Digits;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
+use App\Support\SecurityAlerts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +50,7 @@ class AuthController extends Controller
 
         if (! $user || ! $user->password || ! password_verify($password, $user->password)) {
             RateLimiter::hit($throttleKey, 60);
+            SecurityAlerts::failedLogin($user);
 
             return response()->json([
                 'success' => false,
@@ -98,8 +100,33 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm(); // ورود موفق = تأیید رمز
+        SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);
+    }
+
+    /** خروج از همه‌ی دستگاه‌های دیگر (نشست‌های دیگر با تغییر هش رمز نامعتبر می‌شوند)؛ نشست جاری باقی می‌ماند */
+    public function logoutOtherDevices(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate(['password' => ['required', 'string', 'max:191']]);
+        $plain = trim(Digits::toEnglish($data['password']));
+
+        $key = 'logout-others:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['success' => false, 'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره تلاش کنید.'], 429);
+        }
+        if (! $user->password || ! password_verify($plain, $user->password)) {
+            RateLimiter::hit($key, 900);
+
+            return response()->json(['success' => false, 'message' => 'رمز عبور اشتباه است.'], 422);
+        }
+        RateLimiter::clear($key);
+
+        Auth::guard('web')->logoutOtherDevices($plain);
+
+        return response()->json(['success' => true, 'message' => 'از همه‌ی دستگاه‌های دیگر خارج شدید.']);
     }
 
     /** تأیید مجدد رمز عبور برای ورود به بخش‌های محرمانه (پرونده‌های تربیتی) */
@@ -111,6 +138,8 @@ class AuthController extends Controller
 
         $key = 'confirm-password:'.$user->id;
         if (RateLimiter::tooManyAttempts($key, 5)) {
+            SecurityAlerts::lockout($user, 'تأیید مجدد رمز');
+
             return response()->json([
                 'success' => false,
                 'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره تلاش کنید.',
@@ -143,6 +172,7 @@ class AuthController extends Controller
 
         $throttleKey = 'tfa-login:'.$pending['user_id'].'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            SecurityAlerts::lockout(User::query()->find($pending['user_id']), 'کد ورود دومرحله‌ای');
             $request->session()->forget('two_factor');
 
             return response()->json([
@@ -165,6 +195,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm();
+        SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);
     }

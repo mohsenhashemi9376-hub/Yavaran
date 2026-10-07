@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\NurturingRecordResource;
 use App\Models\Student;
 use App\Support\NurturingAudit;
+use App\Support\SecurityAlerts;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -24,6 +25,7 @@ class NurturingRecordController extends Controller
 
         abort_if($student->nurturingRecord === null, 404, 'برای این دانش‌آموز پرونده تربیتی ثبت نشده است.');
         NurturingAudit::log(request()->user(), 'view', 'nurturingDossiers', (string) $student->getKey(), (string) $student->nurturingRecord->getKey());
+        SecurityAlerts::afterRecordView(request()->user());
 
         return new NurturingRecordResource($student->nurturingRecord);
     }

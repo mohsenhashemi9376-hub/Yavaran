@@ -30,6 +30,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const { currentUser, classes, reloadFromServer, showToast, security } = useSchool();
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const [logoutOthersOpen, setLogoutOthersOpen] = useState(false);
+  const [logoutOthersPassword, setLogoutOthersPassword] = useState('');
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -239,6 +241,51 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* خروج از همه‌ی دستگاه‌های دیگر */}
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-black text-slate-800">خروج از دستگاه‌های دیگر</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">اگر فکر می‌کنید حساب شما در دستگاه دیگری باز مانده یا لو رفته، همه‌ی نشست‌های دیگر را ببندید.</div>
+              </div>
+              {!logoutOthersOpen && (
+                <button type="button" onClick={() => setLogoutOthersOpen(true)} className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold cursor-pointer whitespace-nowrap">
+                  خروج از بقیه
+                </button>
+              )}
+            </div>
+            {logoutOthersOpen && (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!logoutOthersPassword) return;
+                  try {
+                    await apiRequest('POST', '/api/auth/logout-others', { password: toEnglishDigits(logoutOthersPassword) });
+                    showToast('از همه‌ی دستگاه‌های دیگر خارج شدید.', 'success');
+                    setLogoutOthersOpen(false);
+                    setLogoutOthersPassword('');
+                  } catch (err) {
+                    showToast(err instanceof ApiError ? err.message : 'خطا در انجام عملیات.', 'error');
+                  }
+                }}
+              >
+                <input
+                  type="password"
+                  autoFocus
+                  autoComplete="current-password"
+                  dir="ltr"
+                  value={logoutOthersPassword}
+                  onChange={(e) => setLogoutOthersPassword(e.target.value)}
+                  placeholder="رمز عبور فعلی"
+                  className="flex-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+                />
+                <button type="submit" disabled={!logoutOthersPassword} className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-xs font-bold cursor-pointer">تأیید</button>
+                <button type="button" onClick={() => setLogoutOthersOpen(false)} className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold cursor-pointer">انصراف</button>
+              </form>
+            )}
+          </div>
 
           {/* ورود دومرحله‌ای */}
           <div className={`p-3.5 rounded-xl border flex items-center gap-3 ${security.twoFactorEnabled ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>

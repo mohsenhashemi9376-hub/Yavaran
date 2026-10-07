@@ -19,6 +19,12 @@ return [
     'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
 
     /*
+     * ساعت مدرسه (به وقت تهران)؛ دسترسی کاربران پرونده‌های تربیتی خارج از این بازه هشدار می‌دهد.
+     */
+    'nurturing_hours_start' => (int) env('NURTURING_HOURS_START', 6),
+    'nurturing_hours_end' => (int) env('NURTURING_HOURS_END', 20),
+
+    /*
      * Content-Security-Policy: enforce | report-only | off
      */
     'csp_mode' => env('CSP_MODE', 'enforce'),

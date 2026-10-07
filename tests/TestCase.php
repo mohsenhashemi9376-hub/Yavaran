@@ -25,6 +25,17 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * در آزمون‌ها چند کاربر پشت‌سرهم با یک نشست کار می‌کنند؛ هش رمز ذخیره‌شده‌ی نشست (AuthenticateSession)
+     * هنگام تعویض کاربر پاک می‌شود، همان‌طور که در محیط واقعی هر نشست مال یک کاربر است.
+     */
+    public function actingAs(\Illuminate\Contracts\Auth\Authenticatable $user, $guard = null)
+    {
+        $this->app['session.store']->forget('password_hash_web');
+
+        return parent::actingAs($user, $guard);
+    }
+
+    /**
      * ساخت کاربر آزمایشی با نقش مشخص (رمز پیش‌فرض آزمون: «Str0ng-Pass!» تا اجباری تغییر رمز فعال نشود).
      *
      * @param  array<string, mixed>  $attrs

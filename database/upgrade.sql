@@ -223,3 +223,18 @@ ALTER TABLE `users` ADD COLUMN `must_change_password` tinyint(1) NOT NULL DEFAUL
 -- نویسنده‌ی مشاهده‌گری (برای مخفی بودن مشاهده‌های معاون تربیتی از مربی). اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
 -- مشاهده‌های قدیمی بدون نویسنده برای مربی مخفی و برای معاون تربیتی قابل مشاهده می‌مانند.
 ALTER TABLE `student_observations` ADD COLUMN `author_id` varchar(100) NULL, ADD COLUMN `author_role` varchar(40) NULL, ADD KEY `student_observations_author_id_index` (`author_id`);
+
+-- دستگاه‌های شناخته‌شده‌ی ورود (هشدار ورود از دستگاه جدید)
+CREATE TABLE IF NOT EXISTS `login_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `ua_hash` varchar(64) NOT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT NULL,
+  `last_seen_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `login_devices_user_ua_unique` (`user_id`, `ua_hash`),
+  KEY `login_devices_user_id_index` (`user_id`),
+  KEY `login_devices_last_seen_at_index` (`last_seen_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

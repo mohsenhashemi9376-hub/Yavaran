@@ -28,7 +28,7 @@ Route::prefix('api')->group(function (): void {
         ->middleware('throttle:30,1')
         ->name('api.login.two-factor');
 
-    Route::middleware(['auth', 'password.changed'])->group(function (): void {
+    Route::middleware(['auth', \Illuminate\Session\Middleware\AuthenticateSession::class, 'password.changed'])->group(function (): void {
         Route::prefix('two-factor')->middleware('throttle:30,1')->group(function (): void {
             Route::get('/', [TwoFactorController::class, 'status'])->name('api.two-factor.status');
             Route::post('setup', [TwoFactorController::class, 'setup'])->name('api.two-factor.setup');
@@ -38,6 +38,9 @@ Route::prefix('api')->group(function (): void {
         Route::post('auth/confirm-password', [AuthController::class, 'confirmPassword'])
             ->middleware('throttle:20,1')
             ->name('api.confirm-password');
+        Route::post('auth/logout-others', [AuthController::class, 'logoutOtherDevices'])
+            ->middleware('throttle:10,1')
+            ->name('api.logout-others');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
         Route::post('profile', [ProfileController::class, 'update'])
             ->middleware('throttle:20,1')
@@ -61,6 +64,9 @@ Route::prefix('api')->group(function (): void {
         Route::get('students/{student}/nurturing-record', [NurturingRecordController::class, 'show'])
             ->middleware('throttle:120,1')
             ->name('api.students.nurturing-record');
+        Route::get('nurturing-audit/review', [NurturingAuditController::class, 'review'])
+            ->middleware('throttle:60,1')
+            ->name('api.nurturing-audit.review');
         Route::get('nurturing-audit', [NurturingAuditController::class, 'index'])
             ->middleware('throttle:60,1')
             ->name('api.nurturing-audit');
