@@ -66,9 +66,9 @@ final class DataExporter
             $query = $sensitive::query()->orderBy('sort_order')->orderBy('id');
             if ($sensitive === StudentObservation::class) {
                 StudentObservation::ensureAuthorColumns();
-                // مربی فقط مشاهده‌های ثبت‌شده توسط مربیان را می‌بیند، نه مشاهده‌های معاون تربیتی
+                // مربی فقط مشاهده‌هایی را می‌بیند که خودش نوشته است (نه معاون تربیتی، نه مربی دیگر)
                 if ($user->role === 'coach') {
-                    $query->where('author_role', 'coach');
+                    $query->where('author_id', $user->id);
                 }
             }
             $scope = app(NurturingRecordPolicy::class)->scopeStudentIds($user);

@@ -61,7 +61,7 @@ class NurturingBootstrapScopeTest extends TestCase
 
     public function test_coach_receives_only_assigned_class_records(): void
     {
-        $coach = $this->makeUser('coach', [], ['assignedClassIds' => ['cls-mine']]);
+        $coach = $this->makeUser('coach', ['id' => 'coach-writer'], ['assignedClassIds' => ['cls-mine']]);
         $this->enableTwoFactor($coach);
 
         $data = $this->bootstrapAs($coach);

@@ -108,13 +108,50 @@ class ObservationAuthorshipTest extends TestCase
         $this->assertStringNotContainsString('راز-معاون-تربیتی', $body);
     }
 
-    public function test_coach_can_see_observations_written_by_other_coaches_in_assigned_classes(): void
+    public function test_coach_does_not_see_observations_of_other_coaches_even_in_the_same_class(): void
     {
         $other = $this->makeUser('coach', [], ['assignedClassIds' => ['cls-1']]);
         $this->enableTwoFactor($other);
-        $this->save($other, [$this->obs('o-other')])->assertOk();
+        $this->save($other, [$this->obs('o-other', 'راز-مربی-دیگر')])->assertOk();
+        $this->save($this->coach, [$this->obs('o-mine')])->assertOk();
 
-        $this->assertSame(['o-other'], $this->visibleIds($this->coach));
+        $this->assertSame(['o-mine'], $this->visibleIds($this->coach));
+        $this->assertSame(['o-other'], $this->visibleIds($other));
+        $this->assertSame(['o-mine', 'o-other'], $this->visibleIds($this->vice));
+        $this->assertStringNotContainsString('راز-مربی-دیگر', $this->actingAs($this->coach)->getJson('/api/bootstrap')->getContent());
+    }
+
+    public function test_coach_loses_access_to_own_old_observations_when_reassigned_to_another_class(): void
+    {
+        $this->save($this->coach, [$this->obs('o-mine')])->assertOk();
+        $this->makeClass('cls-2');
+        $this->makeStudent('stu-2', 'cls-2');
+        $profile = json_decode((string) DB::table('users')->where('id', $this->coach->id)->value('data'), true);
+        $profile['assignedClassIds'] = ['cls-2'];
+        DB::table('users')->where('id', $this->coach->id)->update(['data' => json_encode($profile)]);
+        $this->coach->refresh();
+
+        $this->assertSame([], $this->visibleIds($this->coach));
+        $this->save($this->coach, [$this->obs('o-mine', 'تغییر')])->assertForbidden();
+    }
+
+    public function test_coach_cannot_read_dossiers_or_observations_of_other_classes(): void
+    {
+        $this->makeClass('cls-2');
+        $this->makeStudent('stu-2', 'cls-2');
+        $this->makeDossier('stu-2', ['note' => 'پرونده-کلاس-دیگر']);
+        $this->makeDossier('stu-1', ['note' => 'پرونده-کلاس-من']);
+        (new StudentObservation)->forceFill([
+            'id' => 'o-foreign', 'student_id' => 'stu-2', 'sort_order' => 0, 'author_id' => $this->coach->id, 'author_role' => 'coach',
+            'data' => json_encode(['id' => 'o-foreign', 'studentId' => 'stu-2', 'content' => 'مشاهده-کلاس-دیگر']),
+        ])->save();
+
+        $body = $this->actingAs($this->coach)->getJson('/api/bootstrap')->assertOk()->getContent();
+
+        $this->assertStringContainsString('پرونده-کلاس-من', $body);
+        $this->assertStringNotContainsString('پرونده-کلاس-دیگر', $body);
+        $this->assertStringNotContainsString('مشاهده-کلاس-دیگر', $body);
+        $this->actingAs($this->coach)->getJson('/api/students/stu-2/nurturing-record')->assertForbidden();
     }
 
     public function test_legacy_observations_without_author_are_hidden_from_coach_but_visible_to_vice(): void
@@ -216,8 +253,15 @@ class ObservationAuthorshipTest extends TestCase
         $coach = Gate::forUser($this->coach);
         $vice = Gate::forUser($this->vice);
 
+        $otherCoach = new StudentObservation;
+        $otherCoach->student_id = 'stu-1';
+        $otherCoach->author_id = 'someone-else';
+        $otherCoach->author_role = 'coach';
+
         $this->assertFalse($coach->allows('view', $byVice));
+        $this->assertFalse($coach->allows('view', $otherCoach));
         $this->assertTrue($coach->allows('view', $byCoach));
+        $this->assertTrue($vice->allows('view', $otherCoach));
         $this->assertTrue($vice->allows('view', $byVice));
         $this->assertTrue($vice->allows('view', $byCoach));
         $this->assertTrue($coach->allows('update', $byCoach));

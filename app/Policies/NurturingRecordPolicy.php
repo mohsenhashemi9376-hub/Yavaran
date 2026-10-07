@@ -130,13 +130,13 @@ class NurturingRecordPolicy
     }
 
     /**
-     * مشاهده‌گری‌های معاون تربیتی برای مربی قابل مشاهده نیست (و مشاهده‌های بدون نویسنده‌ی مشخص هم، به‌صورت محافظه‌کارانه).
-     * معاون تربیتی همه‌ی مشاهده‌ها (از جمله مشاهده‌های مربیان) را می‌بیند.
+     * مربی فقط مشاهده‌هایی را می‌بیند که خودش نوشته است؛ مشاهده‌های معاون تربیتی، مربیان دیگر و مشاهده‌های
+     * بدون نویسنده‌ی مشخص برایش قابل مشاهده نیست. معاون تربیتی همه‌ی مشاهده‌ها را می‌بیند.
      */
     private function observationVisibility(User $user, NurturingRecord $record): Response
     {
-        if ($record instanceof StudentObservation && $user->role === 'coach' && $record->author_role !== 'coach') {
-            return $this->deny('این مشاهده‌گری توسط معاون تربیتی ثبت شده و برای مربی قابل مشاهده نیست.');
+        if ($record instanceof StudentObservation && $user->role === 'coach' && $record->author_id !== $user->id) {
+            return $this->deny('هر مربی فقط مشاهده‌گری‌هایی را می‌بیند که خودش ثبت کرده است.');
         }
 
         return Response::allow();
