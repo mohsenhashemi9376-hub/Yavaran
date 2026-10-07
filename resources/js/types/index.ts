@@ -270,6 +270,19 @@ export interface Workshop {
   studentIds: string[];
 }
 
+/** امانات و لوازم مدرسه: وسیله‌ای که به فردی تحویل داده می‌شود و باید برگردانده شود */
+export interface LoanItem {
+  id: string;
+  itemName: string;
+  loanDate: string; // تاریخ تحویل (شمسی YYYY/MM/DD)
+  recipientName: string; // نام تحویل‌گیرنده
+  note?: string;
+  returned: boolean; // «تحویل گرفتم» — وسیله برگشته است
+  returnedDate?: string; // تاریخ بازگشت (شمسی)
+  createdAt: string;
+  createdBy?: string;
+}
+
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */
 export interface GradePeriod {
   id: string; // = code

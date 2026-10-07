@@ -90,6 +90,10 @@ const tables = {
     cols: ["`name` varchar(100) NOT NULL DEFAULT ''", "`type` varchar(20) NOT NULL DEFAULT 'workshop'", "`category` varchar(20) NOT NULL DEFAULT 'scientific'", '`grade_level` tinyint NOT NULL DEFAULT 8', '`teacher_id` varchar(100) DEFAULT NULL'],
     keys: ['KEY `workshops_teacher_id_index` (`teacher_id`)'],
     extract: (d) => ({ name: s(d, 'name', 100) || '', type: 'workshop', category: d.category === 'skill' ? 'skill' : 'scientific', grade_level: d.gradeLevel === 9 ? 9 : 8, teacher_id: s(d, 'teacherId', 100) }) },
+  loanItems: { table: 'loan_items',
+    cols: ["`item_name` varchar(191) NOT NULL DEFAULT ''", "`recipient_name` varchar(191) NOT NULL DEFAULT ''", '`loan_date` varchar(20) DEFAULT NULL', '`is_returned` tinyint(1) NOT NULL DEFAULT 0'],
+    keys: ['KEY `loan_items_loan_date_index` (`loan_date`)', 'KEY `loan_items_is_returned_index` (`is_returned`)'],
+    extract: (d) => ({ item_name: s(d, 'itemName', 191) || '', recipient_name: s(d, 'recipientName', 191) || '', loan_date: s(d, 'loanDate', 20), is_returned: d.returned ? 1 : 0 }) },
   settings: { table: 'school_settings', cols: [], keys: [], extract: () => ({}) },
 };
 
@@ -249,7 +253,8 @@ INSERT INTO \`migrations\` (\`id\`, \`migration\`, \`batch\`) VALUES
 (9, '2026_10_08_000000_create_grade_periods_table', 1),
 (10, '2026_10_09_000000_create_workshops_table', 1),
 (11, '2026_10_10_000000_add_homework_to_attendance_sessions', 1),
-(12, '2026_10_11_000000_add_grade_level_to_workshops', 1);
+(12, '2026_10_11_000000_add_grade_level_to_workshops', 1),
+(13, '2026_10_12_000000_create_loan_items_table', 1);
 
 DROP TABLE IF EXISTS \`notifications\`;
 DROP TABLE IF EXISTS \`teacher_activities\`;

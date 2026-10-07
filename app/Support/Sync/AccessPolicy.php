@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -74,6 +74,11 @@ final class AccessPolicy
             return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
         }
 
+        // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
+        if ($collection === 'loanItems') {
+            return $this->isManager() && $this->user->hasPermission('manage-loans');
+        }
+
         if ($collection === 'nurturingDossiers') {
             // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
             return (($this->isManager() && ! $this->isAdmin()) || $this->isCoach())
@@ -98,6 +103,7 @@ final class AccessPolicy
         'courseAssignments' => 'manage-curriculum',
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
+        'loanItems' => 'manage-loans',
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',

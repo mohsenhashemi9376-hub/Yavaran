@@ -30,6 +30,7 @@ final class CollectionRegistry
         'teacherActivities' => 'teacher_activities',
         'gradePeriods' => 'grade_periods',
         'workshops' => 'workshops',
+        'loanItems' => 'loan_items',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -77,6 +78,24 @@ final class CollectionRegistry
                     $t->timestamps();
                 });
                 self::seedWorkshops();
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'loan_items') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('loan_items', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('item_name', 191)->default('');
+                    $t->string('recipient_name', 191)->default('');
+                    $t->string('loan_date', 20)->nullable()->index();
+                    $t->boolean('is_returned')->default(false)->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
             } catch (\Throwable) {
             }
             unset(self::$schemaCache["t:$table"]);
@@ -364,6 +383,12 @@ final class CollectionRegistry
                 'grade_level' => ((int) ($d->gradeLevel ?? 8)) === 9 ? 9 : 8,
                 'teacher_id' => self::str($d, 'teacherId', 100),
             ], static fn ($v, $k) => $k !== 'grade_level' || self::columnExists('workshops', 'grade_level'), ARRAY_FILTER_USE_BOTH),
+            'loanItems' => [
+                'item_name' => self::str($d, 'itemName', 191) ?? '',
+                'recipient_name' => self::str($d, 'recipientName', 191) ?? '',
+                'loan_date' => self::str($d, 'loanDate', 20),
+                'is_returned' => ! empty($d->returned),
+            ],
             'teacherActivities' => [
                 'teacher_id' => self::str($d, 'teacherId', 100) ?? '',
                 'date' => \App\Support\Jalali::shamsiToDate(self::str($d, 'date', 20)) ?? now()->toDateString(),

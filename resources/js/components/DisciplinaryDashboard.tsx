@@ -57,6 +57,8 @@ import { EditCoachModal } from './EditCoachModal';
 import { CoachProfileModal } from './CoachProfileModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { executiveMobileNav, HOME } from './mobileNavConfigs';
+import { LoansWorkspace } from './LoansWorkspace';
+import { LOAN_ALERT_DAYS, overdueLoans } from '../utils/loans';
 import { studentFullName } from '../utils/studentName';
 
 interface DisciplinaryDashboardProps {
@@ -90,6 +92,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     deleteSchoolAbsence,
     allUsers,
     schoolSettings,
+    loanItems,
+    showToast,
   } = useSchool();
 
   const disciplinaryViceName =
@@ -249,6 +253,26 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
 
   const urgentNeedsCount = urgentNeedsList.length;
 
+  // امانات و لوازم: وسایلی که بیش از ۲ روز برنگشته‌اند
+  const overdueLoanList = useMemo(
+    () => overdueLoans(loanItems, todayInfo.formattedDate),
+    [loanItems, todayInfo.formattedDate]
+  );
+  const overdueLoanCount = overdueLoanList.length;
+
+  // هشدار یک‌بارِ هر نشست هنگام ورود
+  useEffect(() => {
+    if (overdueLoanCount === 0) return;
+    try {
+      if (sessionStorage.getItem('loans-overdue-alerted') === String(overdueLoanCount)) return;
+      sessionStorage.setItem('loans-overdue-alerted', String(overdueLoanCount));
+    } catch {
+      /* ignore */
+    }
+    showToast(`${toPersianDigits(overdueLoanCount)} وسیله بیش از ${toPersianDigits(LOAN_ALERT_DAYS)} روز است برگردانده نشده (امانات و لوازم).`, 'error');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overdueLoanCount]);
+
   // تابع باز کردن دیالوگ پیامک با متن پیش‌فرض هوشمند
   const handleOpenSms = (
     student: Student, 
@@ -310,6 +334,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               coaches: allCoaches.length,
               warnings: urgentNeedsCount,
               sessions: todaySessions.length,
+              loans: overdueLoanCount,
             }}
           />
         </div>
@@ -323,6 +348,33 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
           {currentView === null && (
             <div className="space-y-6 animate-in fade-in" id="executive-dashboard-home">
+
+              {/* هشدار امانات و لوازمِ بازنگشته */}
+              {overdueLoanCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('loans')}
+                  className="w-full text-right rounded-2xl border border-rose-200 bg-gradient-to-l from-rose-50 to-white p-4 flex items-center gap-3.5 cursor-pointer hover:border-rose-300 transition"
+                  role="alert"
+                >
+                  <span className="w-11 h-11 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 animate-pulse">
+                    <AlertTriangle className="w-5 h-5" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-black text-rose-800">
+                      {toPersianDigits(overdueLoanCount)} وسیله بیش از {toPersianDigits(LOAN_ALERT_DAYS)} روز است برگردانده نشده
+                    </span>
+                    <span className="block text-xs text-rose-700/90 mt-1 truncate">
+                      {overdueLoanList.slice(0, 3).map((l) => `${l.itemName} (${l.recipientName})`).join('، ')}
+                      {overdueLoanCount > 3 ? ' و ...' : ''}
+                    </span>
+                  </span>
+                  <span className="text-xs font-extrabold text-rose-700 flex items-center gap-1 shrink-0">
+                    <span>امانات و لوازم</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </span>
+                </button>
+              )}
               
               {/* ۱. هدر پیشخوان معاونت اجرایی */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
@@ -770,6 +822,14 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
             />
           )}
 
+          {/* امانات و لوازم (currentView === 'loans') */}
+          {currentView === 'loans' && (
+            <LoansWorkspace
+              onBack={() => setCurrentView(null)}
+              onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            />
+          )}
+
           {/* ========================================================================= */}
           {/* حالت ۵: ثبت مورد انضباطی (currentView === 'discipline') */}
           {/* ========================================================================= */}
@@ -879,7 +939,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
       {/* سایدبار کشویی دستگاه‌های همراه (Mobile / Tablet Drawer) */}
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = executiveMobileNav({ warnings: urgentNeedsCount });
+        const nav = executiveMobileNav({ warnings: urgentNeedsCount, loans: overdueLoanCount });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -904,6 +964,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           coaches: allCoaches.length,
           warnings: urgentNeedsCount,
           sessions: todaySessions.length,
+          loans: overdueLoanCount,
         }}
       />
 
