@@ -12,6 +12,7 @@ import { getTodayShamsi, getDayOfWeekFromShamsi, toPersianDigits, toEnglishDigit
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -589,7 +590,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                       className="flex-1 min-w-0 text-right cursor-pointer"
                     >
                       <div className="text-sm font-extrabold whitespace-nowrap">
-                        {student.lastName} {student.firstName}
+                        {studentFullName(student)}
                       </div>
                       {student.studentCode && (
                         <div className="text-[11px] opacity-60 truncate">کد دانش‌آموزی: {toPersianDigits(student.studentCode)}</div>
@@ -789,7 +790,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl shadow-slate-900/10 overflow-hidden">
             <div className="px-6 pt-6 pb-2 flex items-center justify-between">
               <h3 className="text-base font-extrabold text-slate-900">
-                اخطار کلاسی: {warningStudent.firstName} {warningStudent.lastName}
+                اخطار کلاسی: {studentFullName(warningStudent)}
               </h3>
               <button
                 type="button"

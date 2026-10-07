@@ -3,6 +3,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Student, SchoolAbsenceRecord } from '../types';
 import { toPersianDigits, getTodayShamsi, getDayOfWeekFromShamsi } from '../utils/persianDate';
 import { UserX, X, Search, Calendar, AlertCircle, Loader2 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface SchoolAbsenceModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export const SchoolAbsenceModal: React.FC<SchoolAbsenceModalProps> = ({
 
   // Student filtering
   const filteredStudents = students.filter((stu) => {
-    const fullName = `${stu.firstName} ${stu.lastName}`.toLowerCase();
+    const fullName = `${studentFullName(stu)}`.toLowerCase();
     const code = (stu.studentCode || '').toLowerCase();
     const searchLower = studentSearch.toLowerCase().trim();
     if (!searchLower) return true;
@@ -98,7 +99,7 @@ export const SchoolAbsenceModal: React.FC<SchoolAbsenceModalProps> = ({
       (a) => a.studentId === selectedStudentId && a.date === cleanDate && (!editRecord || a.id !== editRecord.id)
     );
     if (isDuplicate) {
-      setErrorMessage(`برای دانش‌آموز «${selectedStudent.firstName} ${selectedStudent.lastName}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً سند غیبت مدرسه ثبت شده است.`);
+      setErrorMessage(`برای دانش‌آموز «${studentFullName(selectedStudent)}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً سند غیبت مدرسه ثبت شده است.`);
       return;
     }
 
@@ -223,7 +224,7 @@ export const SchoolAbsenceModal: React.FC<SchoolAbsenceModalProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-rose-600' : 'bg-slate-300'}`} />
-                        <span>{stu.firstName} {stu.lastName}</span>
+                        <span>{studentFullName(stu)}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 flex items-center gap-2">
                         {stuClass && (
@@ -246,7 +247,7 @@ export const SchoolAbsenceModal: React.FC<SchoolAbsenceModalProps> = ({
             {selectedStudent && (
               <div className="mt-1 flex items-center justify-between text-xs bg-rose-50/70 border border-rose-200/80 px-3 py-1.5 rounded-lg text-rose-900">
                 <span className="font-bold">
-                  انتخاب شده: {selectedStudent.firstName} {selectedStudent.lastName}
+                  انتخاب شده: {studentFullName(selectedStudent)}
                 </span>
                 {selectedStudentClass && (
                   <span className="text-[11px] text-rose-700">

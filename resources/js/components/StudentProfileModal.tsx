@@ -55,6 +55,7 @@ import {
   Info,
   Loader2
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades';
 
@@ -543,7 +544,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 
   const handleOpenSms = () => {
     const text = `سلام و احترام؛
-ولی محترم دانش‌آموز ${currentStudent.firstName} ${currentStudent.lastName}
+ولی محترم دانش‌آموز ${studentFullName(currentStudent)}
 گزارش وضعیت مدرسه یاوران ولایت:
 • درصد حضور: ${toPersianDigits(attendanceRate)}٪ (غیبت غیرموجه: ${toPersianDigits(totalAbsentCount)} مورد)
 • مجموع تأخیرات: ${toPersianDigits(totalDelaysCount)} بار
@@ -595,7 +596,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </div>
             <div className="min-w-0">
               <h2 className="text-xl font-extrabold text-slate-900 truncate">
-                {currentStudent.firstName} {currentStudent.lastName}
+                {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
                 {studentClass && (
@@ -914,7 +915,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-slate-400 text-[11px]">نام و نام خانوادگی</div>
                       <div className="font-bold text-slate-800 text-sm mt-1">
-                        {currentStudent.firstName} {currentStudent.lastName}
+                        {studentFullName(currentStudent)}
                       </div>
                     </div>
 
@@ -1079,7 +1080,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         onClick={() =>
                           showConfirm({
                             title: 'حذف کامل دانش‌آموز',
-                            message: `آیا از حذف «${currentStudent.firstName} ${currentStudent.lastName}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
+                            message: `آیا از حذف «${studentFullName(currentStudent)}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
                             confirmLabel: 'حذف دانش‌آموز',
                             cancelLabel: 'انصراف',
                             isDangerous: true,
@@ -1350,7 +1351,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               {/* Interactive Growth Trend Chart */}
               <StudentGrowthChart 
                 grades={studentAcademicGrades} 
-                studentName={`${currentStudent.firstName} ${currentStudent.lastName}`} 
+                studentName={`${studentFullName(currentStudent)}`} 
               />
 
               {/* 4-Period Official Grade Sheet */}
@@ -1518,7 +1519,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
             <div className="p-5 space-y-4">
               <div className="text-xs text-slate-600">
-                گیرنده: <strong>{currentStudent.firstName} {currentStudent.lastName}</strong> (شماره: <span className="font-mono">{currentStudent.parentPhone || 'ثبت نشده'}</span>)
+                گیرنده: <strong>{studentFullName(currentStudent)}</strong> (شماره: <span className="font-mono">{currentStudent.parentPhone || 'ثبت نشده'}</span>)
               </div>
 
               <textarea

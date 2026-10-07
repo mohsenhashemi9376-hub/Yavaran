@@ -23,6 +23,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface SessionDetailModalProps {
   isOpen: boolean;
@@ -94,7 +95,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
 
   // Filter student list
   const filteredStudents = classStudents.filter((stu) => {
-    const fullName = `${stu.firstName} ${stu.lastName} ${stu.studentCode}`.toLowerCase();
+    const fullName = `${studentFullName(stu)} ${stu.studentCode}`.toLowerCase();
     if (searchTerm.trim() && !fullName.includes(searchTerm.trim().toLowerCase())) {
       return false;
     }
@@ -126,7 +127,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       return {
         'ردیف': idx + 1,
         'کد دانش‌آموزی': stu.studentCode,
-        'نام و نام خانوادگی': `${stu.firstName} ${stu.lastName}`,
+        'نام و نام خانوادگی': `${studentFullName(stu)}`,
         'نام پدر': stu.fatherName || '-',
         'وضعیت حضور': statusTitle,
         'دقایق تاخیر': status === 'late' ? rec?.delayMinutes || 15 : 0,
@@ -432,7 +433,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                               }}
                               className="font-bold text-slate-900 hover:text-emerald-700 transition cursor-pointer text-right"
                             >
-                              {stu.firstName} {stu.lastName}
+                              {studentFullName(stu)}
                             </button>
                             <div className="text-[10px] text-slate-400">
                               فرزند {stu.fatherName || '-'}

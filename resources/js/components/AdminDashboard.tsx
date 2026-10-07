@@ -72,6 +72,7 @@ import {
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
+import { studentFullName } from '../utils/studentName';
 
 interface AdminDashboardProps {
   onOpenNewClass: () => void;
@@ -523,7 +524,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       list.push({
         id: `act-del-${del.id}`,
         type: 'delay',
-        title: `ثبت تأخیر ورود ${student ? `${student.firstName} ${student.lastName}` : 'دانش‌آموز'}`,
+        title: `ثبت تأخیر ورود ${student ? `${studentFullName(student)}` : 'دانش‌آموز'}`,
         description: `${toPersianDigits(del.delayMinutes)} دقیقه تأخیر (${del.reason || (del.isExcused ? 'موجه' : 'غیرموجه')}) • ثبت توسط ${del.recordedBy || 'معاونت'}`,
         date: del.date,
         timeBadge: del.arrivalTime || 'صبحگاه',
@@ -540,7 +541,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         list.push({
           id: `act-disc-${note.id}-${student.id}`,
           type: 'discipline',
-          title: `ثبت مورد انضباطی برای ${student.firstName} ${student.lastName}`,
+          title: `ثبت مورد انضباطی برای ${studentFullName(student)}`,
           description: `${note.title} • کسر ${toPersianDigits(note.scoreDeduction)} نمره • ثبت توسط ${note.recordedBy || 'معاونت انضباطی'}`,
           date: note.date,
           timeBadge: 'انضباطی',

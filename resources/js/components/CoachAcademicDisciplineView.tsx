@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { studentFullName } from '../utils/studentName';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, MorningDelayRecord, StudentAttendanceRecord } from '../types';
 import { toPersianDigits, getTodayShamsi, formatShamsiDisplay } from '../utils/persianDate';
@@ -58,7 +59,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     if ((s as any).name && typeof (s as any).name === 'string') {
       return (s as any).name;
     }
-    return `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'دانش‌آموز';
+    return studentFullName(s) || 'دانش‌آموز';
   };
 
   // Filter students based on coach's accessible classes and search

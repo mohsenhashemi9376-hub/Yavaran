@@ -29,6 +29,7 @@ import {
   Trash2,
   BookOpen
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface CoachProfileModalProps {
   isOpen: boolean;
@@ -111,7 +112,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
       if (selectedClassFilter !== 'all' && s.classId !== selectedClassFilter) return false;
       if (studentSearch.trim()) {
         const q = studentSearch.trim().toLowerCase();
-        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+        const fullName = `${studentFullName(s)}`.toLowerCase();
         const nid = s.nationalId || '';
         return fullName.includes(q) || nid.includes(q);
       }
@@ -686,7 +687,7 @@ export const CoachProfileModal: React.FC<CoachProfileModalProps> = ({
                             </div>
                             <div>
                               <div className="font-bold text-slate-900 text-xs">
-                                {stu.firstName} {stu.lastName}
+                                {studentFullName(stu)}
                               </div>
                               <div className="text-[10px] text-slate-500">
                                 {stuClass?.name || 'کلاس نامشخص'}

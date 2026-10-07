@@ -30,6 +30,7 @@ import {
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceWorkspace, MorningStatusFilter } from './MorningAttendanceWorkspace';
+import { studentFullName } from '../utils/studentName';
 
 type AttendanceTab = 'morning' | 'sessions';
 
@@ -409,7 +410,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                                 .filter((r) => r.status === expanded.kind)
                                 .map((r) => {
                                   const stu = students.find((x) => x.id === r.studentId);
-                                  const name = stu ? `${stu.firstName} ${stu.lastName}`.trim() : 'دانش‌آموز حذف‌شده';
+                                  const name = stu ? `${studentFullName(stu)}`.trim() : 'دانش‌آموز حذف‌شده';
                                   const tone =
                                     expanded.kind === 'absent'
                                       ? 'bg-white text-rose-800 border-rose-200'

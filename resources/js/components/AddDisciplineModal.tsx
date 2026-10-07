@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 export interface AddDisciplineModalProps {
   isOpen: boolean;
@@ -108,7 +109,7 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
       }
       if (studentSearch.trim()) {
         const query = studentSearch.trim().toLowerCase();
-        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+        const fullName = `${studentFullName(s)}`.toLowerCase();
         const code = (s.studentCode || '').toLowerCase();
         const nationalId = (s.nationalId || '').toLowerCase();
         return fullName.includes(query) || code.includes(query) || nationalId.includes(query);
@@ -294,7 +295,7 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
                   </div>
                   <div>
                     <div className="font-bold text-slate-900 text-xs sm:text-sm">
-                      {selectedStudent.firstName} {selectedStudent.lastName}
+                      {studentFullName(selectedStudent)}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
                       {selectedStudentClass ? selectedStudentClass.name : 'کلاس نامشخص'}
@@ -382,7 +383,7 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
                           >
                             <div>
                               <div className="font-bold text-slate-900 group-hover:text-purple-900">
-                                {st.firstName} {st.lastName}
+                                {studentFullName(st)}
                               </div>
                               <div className="text-[11px] text-slate-400 mt-0.5">
                                 {stClass ? stClass.name : 'کلاس نامشخص'}

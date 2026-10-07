@@ -34,6 +34,7 @@ import {
   Phone
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface DelayAnalyticsViewProps {
   onOpenNewDelayModal: (student?: Student) => void;
@@ -189,7 +190,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter((item) => {
-        const fullName = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+        const fullName = `${studentFullName(item.student)}`.toLowerCase();
         const code = item.student.studentCode.toLowerCase();
         const nationalId = (item.student.nationalId || '').toLowerCase();
         return fullName.includes(q) || code.includes(q) || nationalId.includes(q);
@@ -269,7 +270,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
 
       return {
         'ردیف': idx + 1,
-        'نام و نام خانوادگی': `${item.student.firstName} ${item.student.lastName}`,
+        'نام و نام خانوادگی': `${studentFullName(item.student)}`,
         'کد دانش‌آموزی': item.student.studentCode,
         'کلاس': item.studentClass?.name || '-',
         'تعداد دفعات تاخیر': item.delayCount,
@@ -586,7 +587,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
               >
                 <div>
                   <div className="font-bold text-xs text-slate-900">
-                    {item.student.firstName} {item.student.lastName}
+                    {studentFullName(item.student)}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
                     {item.studentClass?.name} • {toPersianDigits(item.delayCount)} بار تاخیر ({toPersianDigits(item.totalMinutes)} دقیقه)
@@ -595,7 +596,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
 
                 <button
                   onClick={() => {
-                    const smsText = `اولیا گرامی دانش‌آموز ${item.student.firstName} ${item.student.lastName}؛ فرزند شما در این ${periodType === 'weekly' ? 'هفته' : 'ماه'} مجموعاً ${toPersianDigits(item.delayCount)} بار و به میزان ${toPersianDigits(item.totalMinutes)} دقیقه تاخیر در ورود داشته است. لطفاً جهت بررسی به دفتر انضباطی مراجعه فرمایید. - دبیرستان یاوران ولایت`;
+                    const smsText = `اولیا گرامی دانش‌آموز ${studentFullName(item.student)}؛ فرزند شما در این ${periodType === 'weekly' ? 'هفته' : 'ماه'} مجموعاً ${toPersianDigits(item.delayCount)} بار و به میزان ${toPersianDigits(item.totalMinutes)} دقیقه تاخیر در ورود داشته است. لطفاً جهت بررسی به دفتر انضباطی مراجعه فرمایید. - دبیرستان یاوران ولایت`;
                     onOpenSmsModal(item.student, smsText);
                   }}
                   className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
@@ -674,11 +675,11 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
                               className="font-bold text-slate-900 hover:text-teal-800 hover:underline transition cursor-pointer text-right"
                               title="مشاهده پرونده و مشخصات کامل دانش‌آموز"
                             >
-                              {item.student.firstName} {item.student.lastName}
+                              {studentFullName(item.student)}
                             </button>
                           ) : (
                             <div className="font-bold text-slate-900">
-                              {item.student.firstName} {item.student.lastName}
+                              {studentFullName(item.student)}
                             </div>
                           )}
                         </td>
@@ -785,7 +786,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
                             {/* SMS */}
                             <button
                               onClick={() => {
-                                const smsText = `اولیا گرامی دانش‌آموز ${item.student.firstName} ${item.student.lastName}؛ فرزند شما در این ${periodType === 'weekly' ? 'هفته' : 'ماه'} مجموعاً ${toPersianDigits(item.delayCount)} بار و به میزان ${toPersianDigits(item.totalMinutes)} دقیقه تاخیر در ورود داشته است. لطفاً جهت بررسی به دفتر انضباطی مراجعه فرمایید. - دبیرستان یاوران ولایت`;
+                                const smsText = `اولیا گرامی دانش‌آموز ${studentFullName(item.student)}؛ فرزند شما در این ${periodType === 'weekly' ? 'هفته' : 'ماه'} مجموعاً ${toPersianDigits(item.delayCount)} بار و به میزان ${toPersianDigits(item.totalMinutes)} دقیقه تاخیر در ورود داشته است. لطفاً جهت بررسی به دفتر انضباطی مراجعه فرمایید. - دبیرستان یاوران ولایت`;
                                 onOpenSmsModal(item.student, smsText);
                               }}
                               className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition cursor-pointer"
@@ -808,7 +809,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
                                 <div className="font-bold text-xs text-amber-900 flex items-center gap-2">
                                   <Clock className="w-4 h-4 text-amber-600" />
                                   <span>
-                                    ریز سوابق تاخیر {item.student.firstName} {item.student.lastName} در این بازه ({toPersianDigits(item.delays.length)} مورد):
+                                    ریز سوابق تاخیر {studentFullName(item.student)} در این بازه ({toPersianDigits(item.delays.length)} مورد):
                                   </span>
                                 </div>
                                 <span className="text-[11px] text-slate-500">

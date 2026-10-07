@@ -53,6 +53,7 @@ import { delayFromEntryTime } from '../utils/morningAttendance';
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
+import { studentFullName, normalizeStudentName, compareStudents, splitListName } from '../utils/studentName';
 
 interface SchoolContextType {
   currentUser: User;
@@ -306,7 +307,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [rawClasses, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
+  const [rawStudents, setStudents] = useState<Student[]>([]);
+  // نمایش یکسان: نام‌های ثبت‌گروهی قدیمی اصلاح و همه‌جا الفبایی (نام خانوادگی، نام) مرتب می‌شود
+  const students = useMemo<Student[]>(
+    () => rawStudents.map(normalizeStudentName).sort(compareStudents),
+    [rawStudents]
+  );
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [academicSubjects, setAcademicSubjects] = useState<AcademicSubject[]>([]);
   const [academicGrades, setAcademicGrades] = useState<StudentAcademicGrade[]>([]);
@@ -610,7 +616,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('grades', grades as unknown as SyncRow[]); }, [grades, syncEngine]);
   useEffect(() => { syncEngine.push('users', rawUsers as unknown as SyncRow[]); }, [rawUsers, syncEngine]);
   useEffect(() => { syncEngine.push('classes', rawClasses as unknown as SyncRow[]); }, [rawClasses, syncEngine]);
-  useEffect(() => { syncEngine.push('students', students as unknown as SyncRow[]); }, [students, syncEngine]);
+  useEffect(() => { syncEngine.push('students', rawStudents as unknown as SyncRow[]); }, [rawStudents, syncEngine]);
   useEffect(() => { syncEngine.push('sessions', sessions as unknown as SyncRow[]); }, [sessions, syncEngine]);
   useEffect(() => { syncEngine.push('academicSubjects', academicSubjects as unknown as SyncRow[]); }, [academicSubjects, syncEngine]);
   useEffect(() => { syncEngine.push('academicGrades', academicGrades as unknown as SyncRow[]); }, [academicGrades, syncEngine]);
@@ -919,7 +925,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId: '' } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» از کلاس خارج شد (سوابق و پرونده در سامانه حفظ گردید).`, 'info');
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» از کلاس خارج شد (سوابق و پرونده در سامانه حفظ گردید).`, 'info');
   };
 
   const transferStudentClass = (studentId: string, newClassId: string) => {
@@ -928,7 +934,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId: newClassId } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» منتقل شد.`);
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» منتقل شد.`);
   };
 
   const assignStudentToClass = (studentId: string, classId: string) => {
@@ -937,7 +943,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» اضافه شد.`);
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» اضافه شد.`);
   };
 
   const addStudent = (newStudent: Omit<Student, 'id'>): string => {
@@ -950,7 +956,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       disciplinaryNotes: newStudent.disciplinaryNotes ?? [],
     };
     setStudents((prev) => [...prev, student]);
-    showToast(`دانش‌آموز «${newStudent.firstName} ${newStudent.lastName}» با موفقیت ثبت شد.`);
+    showToast(`دانش‌آموز «${studentFullName(newStudent)}» با موفقیت ثبت شد.`);
     return id;
   };
 
@@ -959,9 +965,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .map((name) => name.trim())
       .filter((name) => name.length > 0)
       .map((fullName, idx) => {
-        const parts = fullName.split(' ');
-        const firstName = parts[0] || 'دانش‌آموز';
-        const lastName = parts.slice(1).join(' ') || `شماره ${idx + 1}`;
+        // فهرست کلاسی: «نام‌خانوادگی نام» ← آخرین کلمه نام، بقیه نام خانوادگی
+        const split = splitListName(fullName);
+        const firstName = split.firstName || 'دانش‌آموز';
+        const lastName = split.lastName || `شماره ${idx + 1}`;
         const randomCode = Math.floor(10000000 + Math.random() * 90000000).toString();
         return {
           id: `stu-${Date.now()}-${idx}`,
@@ -970,6 +977,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           nationalId: `00${randomCode}`,
           firstName,
           lastName,
+          nameFormat: 'v2',
           parentPhone: '09120000000',
           disciplineScore: 20,
           disciplinaryStatus: 'normal',
@@ -1016,7 +1024,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     showToast(
       target
-        ? `دانش‌آموز «${target.firstName} ${target.lastName}» و تمام سوابق او حذف شد.`
+        ? `دانش‌آموز «${studentFullName(target)}» و تمام سوابق او حذف شد.`
         : 'دانش‌آموز با موفقیت حذف شد.',
       'info'
     );
@@ -1305,7 +1313,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const id = `md-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const targetStudent = students.find((s) => s.id === delayData.studentId);
-    const studentName = delayData.studentName || (targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : undefined);
+    const studentName = delayData.studentName || (targetStudent ? `${studentFullName(targetStudent)}` : undefined);
 
     const newRecord: MorningDelayRecord = {
       ...delayData,

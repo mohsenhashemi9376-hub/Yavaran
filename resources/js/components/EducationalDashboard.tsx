@@ -68,6 +68,7 @@ import {
 import * as XLSX from 'xlsx';
 import { MobileBottomNav } from './MobileBottomNav';
 import { educationalMobileNav, HOME } from './mobileNavConfigs';
+import { studentFullName } from '../utils/studentName';
 
 interface EducationalDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
@@ -206,7 +207,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
   // فیلتر دانش‌آموزان در جدول ثبت نمره
   const filteredStudents = classStudents.filter(s => {
-    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+    const fullName = `${studentFullName(s)}`.toLowerCase();
     const code = s.studentCode?.toLowerCase() || '';
     const matchSearch = !searchQuery || fullName.includes(searchQuery.toLowerCase()) || code.includes(searchQuery);
     if (!matchSearch) return false;
@@ -423,7 +424,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           const ann = g ? calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final) : undefined;
           data.push({
             'کلاس': c.name,
-            'نام دانش‌آموز': `${stu.firstName} ${stu.lastName}`,
+            'نام دانش‌آموز': `${studentFullName(stu)}`,
             'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
             'نام درس': sub.name,
             'مستمر ۱': g?.term1Continuous !== undefined ? g.term1Continuous : '',
@@ -450,7 +451,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
     const rows = clsStudentsData.map((item, idx) => ({
       'ردیف': idx + 1,
-      'نام و نام خانوادگی': `${item.student.firstName} ${item.student.lastName}`,
+      'نام و نام خانوادگی': `${studentFullName(item.student)}`,
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
       'معدل کل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
@@ -1066,7 +1067,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                                 onClick={() => onSelectStudent(stu, 'grades')}
                                 className="font-bold text-slate-900 hover:text-teal-800 hover:underline transition text-right cursor-pointer"
                               >
-                                {stu.firstName} {stu.lastName}
+                                {studentFullName(stu)}
                               </button>
                               <div className="text-[10px] text-slate-400 font-mono">
                                 {stu.studentCode || stu.nationalId || ''}
@@ -1316,7 +1317,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   if (reportCardClassId !== 'all' && item.classId !== reportCardClassId) return false;
                   if (!reportCardSearch) return true;
                   const q = reportCardSearch.trim().toLowerCase();
-                  const name = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+                  const name = `${studentFullName(item.student)}`.toLowerCase();
                   const code = item.student.nationalId || item.student.studentCode || '';
                   return name.includes(q) || code.includes(q);
                 })
@@ -1342,7 +1343,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                                 onClick={() => onSelectStudent(item.student, 'grades')}
                                 className="font-bold text-slate-900 hover:text-teal-800 transition text-right text-sm hover:underline cursor-pointer"
                               >
-                                {item.student.firstName} {item.student.lastName}
+                                {studentFullName(item.student)}
                               </button>
                               <div className="text-[11px] text-slate-400">
                                 کلاس {item.className} • کد: {item.student.studentCode || item.student.nationalId || '-'}
@@ -1533,7 +1534,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                         if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
                         if (!warningSearch) return true;
                         const q = warningSearch.trim().toLowerCase();
-                        const name = `${item.student.firstName} ${item.student.lastName}`.toLowerCase();
+                        const name = `${studentFullName(item.student)}`.toLowerCase();
                         return name.includes(q) || item.student.parentPhone.includes(q);
                       })
                       .map((item, idx) => (
@@ -1547,7 +1548,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                               onClick={() => onSelectStudent(item.student, 'grades')}
                               className="hover:text-teal-800 hover:underline transition cursor-pointer"
                             >
-                              {item.student.firstName} {item.student.lastName}
+                              {studentFullName(item.student)}
                             </button>
                           </td>
                           <td className="p-3 text-slate-600">
@@ -1643,7 +1644,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <span className="font-bold text-sm">
-                نمودار رشد و پیشرفت تحصیلی • {selectedStudentForChart.firstName} {selectedStudentForChart.lastName}
+                نمودار رشد و پیشرفت تحصیلی • {studentFullName(selectedStudentForChart)}
               </span>
               <button
                 type="button"
@@ -1656,7 +1657,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             <div className="p-5">
               <StudentGrowthChart
                 grades={academicGrades.filter(g => g.studentId === selectedStudentForChart.id)}
-                studentName={`${selectedStudentForChart.firstName} ${selectedStudentForChart.lastName}`}
+                studentName={`${studentFullName(selectedStudentForChart)}`}
               />
             </div>
           </div>

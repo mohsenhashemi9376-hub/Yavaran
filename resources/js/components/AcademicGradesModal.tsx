@@ -23,6 +23,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface AcademicGradesModalProps {
   isOpen: boolean;
@@ -135,7 +136,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
 
   const filteredStudents = classStudents.filter(s => {
     if (!searchQuery) return true;
-    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+    const fullName = `${studentFullName(s)}`.toLowerCase();
     const code = s.studentCode.toLowerCase();
     return fullName.includes(searchQuery.toLowerCase()) || code.includes(searchQuery);
   });
@@ -255,7 +256,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
       return {
         'ردیف': idx + 1,
         'کد دانش‌آموزی': stu.studentCode,
-        'نام و نام خانوادگی': `${stu.firstName} ${stu.lastName}`,
+        'نام و نام خانوادگی': `${studentFullName(stu)}`,
         'نام پدر': stu.fatherName || '-',
         'مستمر نوبت اول': c1 !== undefined ? c1 : '',
         'پایانی نوبت اول': f1 !== undefined ? f1 : '',
@@ -513,11 +514,11 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                             className="font-semibold text-slate-800 hover:text-teal-800 hover:underline transition cursor-pointer text-right block whitespace-nowrap"
                             title="مشاهده پرونده کامل دانش‌آموز"
                           >
-                            {student.firstName} {student.lastName}
+                            {studentFullName(student)}
                           </button>
                         ) : (
                           <div className="font-bold text-slate-900">
-                            {student.firstName} {student.lastName}
+                            {studentFullName(student)}
                           </div>
                         )}
                         {student.fatherName && (

@@ -12,6 +12,7 @@ import {
   UserCheck 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface WarningItem {
   student: Student;
@@ -38,7 +39,7 @@ export const AdminWarningsWorkspace: React.FC<AdminWarningsWorkspaceProps> = ({
   const filteredWarnings = warnings.filter((w) => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return true;
-    const fullName = `${w.student.firstName} ${w.student.lastName}`.toLowerCase();
+    const fullName = `${studentFullName(w.student)}`.toLowerCase();
     return (
       fullName.includes(q) ||
       w.className.toLowerCase().includes(q) ||
@@ -49,7 +50,7 @@ export const AdminWarningsWorkspace: React.FC<AdminWarningsWorkspaceProps> = ({
   const exportWarningsToExcel = () => {
     const rows = filteredWarnings.map((w, idx) => ({
       'ردیف': idx + 1,
-      'نام و نام خانوادگی': `${w.student.firstName} ${w.student.lastName}`,
+      'نام و نام خانوادگی': `${studentFullName(w.student)}`,
       'کلاس': w.className,
       'تعداد کل غیبت‌ها': w.absentCount,
       'شماره تماس اولیاء': w.student.parentPhone,
@@ -152,7 +153,7 @@ export const AdminWarningsWorkspace: React.FC<AdminWarningsWorkspaceProps> = ({
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">
-                        {item.student.firstName} {item.student.lastName}
+                        {studentFullName(item.student)}
                       </h4>
                       <div className="text-xs text-slate-500 mt-0.5 font-medium">
                         کلاس: {item.className}

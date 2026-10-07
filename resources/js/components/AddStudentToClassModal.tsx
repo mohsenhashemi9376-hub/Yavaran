@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface AddStudentToClassModalProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
   // Filter students from the entire school
   const filteredStudents = searchTerm.trim().length > 0 
     ? students.filter((s) => {
-        const full = `${s.firstName} ${s.lastName} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase();
+        const full = `${studentFullName(s)} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase();
         return full.includes(searchTerm.toLowerCase().trim());
       })
     : [];
@@ -70,7 +71,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
       try {
         setIsSubmitting(true);
         assignStudentToClass(stu.id, classData.id);
-        showToast('افزودن دانش‌آموز', `دانش‌آموز «${stu.firstName} ${stu.lastName}» به کلاس اضافه شد.`, 'success');
+        showToast('افزودن دانش‌آموز', `دانش‌آموز «${studentFullName(stu)}» به کلاس اضافه شد.`, 'success');
         onClose();
       } catch (err) {
         console.error('Assign student error:', err);
@@ -88,7 +89,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
     try {
       setIsSubmitting(true);
       transferStudentClass(studentToTransfer.id, classData.id);
-      showToast('انتقال دانش‌آموز', `دانش‌آموز «${studentToTransfer.firstName} ${studentToTransfer.lastName}» با حفظ سوابق به ${classData.name} منتقل شد.`, 'success');
+      showToast('انتقال دانش‌آموز', `دانش‌آموز «${studentFullName(studentToTransfer)}» با حفظ سوابق به ${classData.name} منتقل شد.`, 'success');
       setStudentToTransfer(null);
       onClose();
     } catch (err) {
@@ -264,7 +265,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                     <span>انتقال دانش‌آموز بین کلاس‌ها</span>
                   </div>
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    دانش‌آموز <b>{studentToTransfer.firstName} {studentToTransfer.lastName}</b> در حال حاضر در{' '}
+                    دانش‌آموز <b>{studentFullName(studentToTransfer)}</b> در حال حاضر در{' '}
                     <b>{classes.find((c) => c.id === studentToTransfer.classId)?.name || 'کلاس دیگری'}</b> عضو است.
                   </p>
                   <p className="text-[11px] text-amber-700">
@@ -317,7 +318,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                           >
                             <div>
                               <div className="font-bold text-xs text-slate-900">
-                                {stu.firstName} {stu.lastName}
+                                {studentFullName(stu)}
                               </div>
                               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
                                 {stu.studentCode && <span>کد: {toPersianDigits(stu.studentCode)}</span>}
@@ -521,7 +522,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  نام و نام خانوادگی دانش‌آموزان (هر دانش‌آموز در یک خط):
+                  نام و نام خانوادگی دانش‌آموزان (هر دانش‌آموز در یک خط، به‌صورت «نام‌خانوادگی نام»):
                 </label>
                 <textarea
                   rows={6}

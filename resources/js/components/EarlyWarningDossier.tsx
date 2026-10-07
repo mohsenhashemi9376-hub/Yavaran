@@ -4,6 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Student } from '../types';
 import { computeEarlyWarnings, WARNING_BADGE_CLASS } from '../utils/earlyWarning';
 import { toPersianDigits } from '../utils/persianDate';
+import { studentFullName } from '../utils/studentName';
 
 /** فهرست زنده دانش‌آموزان نیازمند مداخله (سیستم هشدار زودهنگام) */
 export function useEarlyWarnings() {
@@ -62,7 +63,7 @@ export const EarlyWarningDossier: React.FC<ModalProps> = ({ isOpen, onClose, onS
               <div key={w.student.id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="min-w-0 sm:w-56 shrink-0">
                   <div className="font-extrabold text-slate-900 text-sm whitespace-nowrap">
-                    {w.student.lastName} {w.student.firstName}
+                    {studentFullName(w.student)}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5 whitespace-nowrap">{w.className}</div>
                 </div>

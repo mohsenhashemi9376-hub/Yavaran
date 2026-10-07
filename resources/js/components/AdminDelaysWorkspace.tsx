@@ -16,6 +16,7 @@ import {
   Users
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface AdminDelaysWorkspaceProps {
   delays?: MorningDelayRecord[];
@@ -53,7 +54,7 @@ export const AdminDelaysWorkspace: React.FC<AdminDelaysWorkspaceProps> = ({
   const filteredDelays = safeDelays.filter((d) => {
     const student = students.find((s) => s.id === d.studentId);
     const cls = classes.find((c) => c.id === (d.classId || student?.classId));
-    const studentName = student ? `${student.firstName} ${student.lastName}` : (d.studentName || '');
+    const studentName = student ? `${studentFullName(student)}` : (d.studentName || '');
 
     if (classFilter && (d.classId !== classFilter && student?.classId !== classFilter)) {
       return false;
@@ -78,7 +79,7 @@ export const AdminDelaysWorkspace: React.FC<AdminDelaysWorkspaceProps> = ({
       const cls = classes.find((c) => c.id === (d.classId || student?.classId));
       return {
         'ردیف': idx + 1,
-        'نام دانش‌آموز': student ? `${student.firstName} ${student.lastName}` : d.studentName || 'نامشخص',
+        'نام دانش‌آموز': student ? `${studentFullName(student)}` : d.studentName || 'نامشخص',
         'کلاس': cls?.name || 'نامشخص',
         'تاریخ': d.date,
         'روز هفته': getDayOfWeekFromShamsi(d.date),
@@ -254,7 +255,7 @@ export const AdminDelaysWorkspace: React.FC<AdminDelaysWorkspaceProps> = ({
                 {filteredDelays.map((delay, idx) => {
                   const student = students.find((s) => s.id === delay.studentId);
                   const cls = classes.find((c) => c.id === (delay.classId || student?.classId));
-                  const studentName = student ? `${student.firstName} ${student.lastName}` : (delay.studentName || 'دانش‌آموز');
+                  const studentName = student ? `${studentFullName(student)}` : (delay.studentName || 'دانش‌آموز');
 
                   return (
                     <tr key={delay.id} className="hover:bg-slate-50/80 transition">

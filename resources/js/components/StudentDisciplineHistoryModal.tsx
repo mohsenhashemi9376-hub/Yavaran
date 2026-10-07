@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   ChevronLeft
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface StudentDisciplineHistoryModalProps {
   isOpen: boolean;
@@ -127,7 +128,7 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg sm:text-xl font-bold text-white">
-                  پرونده سوابق انضباطی: {student.firstName} {student.lastName}
+                  پرونده سوابق انضباطی: {studentFullName(student)}
                 </h3>
                 <span className="text-xs bg-white/10 text-slate-200 border border-white/20 px-2.5 py-0.5 rounded-full">
                   {studentClass?.name || 'کلاس نامشخص'}
@@ -402,7 +403,7 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
 
                 {onOpenSms && (
                   <button
-                    onClick={() => onOpenSms(student, `ولی محترم دانش‌آموز ${student.firstName} ${student.lastName}؛ فرزند شما دارای ${unexcusedAbsenceCount} جلسه غیبت در مدرسه می‌باشد. لطفاً جهت پیگیری آموزشی با معاونت تماس حاصل فرمایید.`)}
+                    onClick={() => onOpenSms(student, `ولی محترم دانش‌آموز ${studentFullName(student)}؛ فرزند شما دارای ${unexcusedAbsenceCount} جلسه غیبت در مدرسه می‌باشد. لطفاً جهت پیگیری آموزشی با معاونت تماس حاصل فرمایید.`)}
                     className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />

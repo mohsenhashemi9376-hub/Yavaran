@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface FlatDisciplineItem {
   noteId: string;
@@ -109,7 +110,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
 
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
-      const studentName = `${note.student.firstName} ${note.student.lastName}`.toLowerCase();
+      const studentName = `${studentFullName(note.student)}`.toLowerCase();
       const matchesName = studentName.includes(q);
       const matchesTitle = note.title.toLowerCase().includes(q);
       const matchesDesc = note.description.toLowerCase().includes(q);
@@ -125,7 +126,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
   const exportDisciplineToExcel = () => {
     const rows = filteredNotes.map((n, idx) => ({
       'ردیف': idx + 1,
-      'دانش‌آموز': `${n.student.firstName} ${n.student.lastName}`,
+      'دانش‌آموز': `${studentFullName(n.student)}`,
       'کلاس': n.className,
       'تاریخ': n.date,
       'نوع مورد': n.category === 'penalty' ? 'اخطار / کسر نمره' : 'تذکر انضباطی',
@@ -312,7 +313,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
 
                       <td className="p-3.5">
                         <div className="font-bold text-slate-900">
-                          {item.student.firstName} {item.student.lastName}
+                          {studentFullName(item.student)}
                         </div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                           نمره انضباط فعلی: {toPersianDigits(item.student.disciplineScore ?? 20)}

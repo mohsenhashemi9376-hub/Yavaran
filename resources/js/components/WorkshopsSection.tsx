@@ -5,6 +5,7 @@ import { Workshop } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
 import { compareByLastName } from '../utils/morningAttendance';
 import { WORKSHOP_DAYS, WORKSHOP_PERIODS, gradeLevelOfClass } from '../utils/workshops';
+import { studentFullName } from '../utils/studentName';
 
 const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = ({ workshop, onClose }) => {
   const { students, classes, workshops, updateWorkshop, showToast } = useSchool();
@@ -25,7 +26,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
       students
         // فقط دانش‌آموزان کلاس‌های همین پایه
         .filter((s) => gradeLevelOfClass(classById.get(s.classId)) === workshop.gradeLevel)
-        .filter((s) => !query.trim() || `${s.firstName} ${s.lastName}`.includes(query.trim()) || `${s.lastName} ${s.firstName}`.includes(query.trim()))
+        .filter((s) => !query.trim() || `${studentFullName(s)}`.includes(query.trim()) || `${studentFullName(s)}`.includes(query.trim()))
         .sort(compareByLastName),
     [students, classById, workshop.gradeLevel, query]
   );
@@ -105,7 +106,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
                 <label key={s.id} className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-slate-50/80 text-sm">
                   <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} className="w-4 h-4 accent-emerald-600" />
                   <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">
-                    {s.lastName} {s.firstName}
+                    {studentFullName(s)}
                   </span>
                   <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
                   {other && (

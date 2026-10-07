@@ -15,6 +15,7 @@ import {
   BarChart3,
   Award
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface MonthlySummaryModalProps {
   isOpen: boolean;
@@ -267,7 +268,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                         className="font-bold text-slate-900 hover:text-indigo-600 hover:underline text-right cursor-pointer"
                         title="مشاهده کارنامه و پرونده دانش‌آموز"
                       >
-                        {item.student.firstName} {item.student.lastName}
+                        {studentFullName(item.student)}
                       </button>
                       <div className="text-[11px] text-rose-600 font-semibold mt-0.5">
                         {toPersianDigits(item.absentCount)} جلسه غیبت غیرموجه
@@ -346,7 +347,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                             <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold">
                               {item.student.firstName[0]}
                             </div>
-                            <span>{item.student.firstName} {item.student.lastName}</span>
+                            <span>{studentFullName(item.student)}</span>
                           </button>
                         </td>
                         <td className="p-3 font-mono text-slate-600 text-center">

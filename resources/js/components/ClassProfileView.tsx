@@ -39,6 +39,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface ClassProfileViewProps {
   classData: SchoolClass;
@@ -142,7 +143,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
 
   // Filtered students for student tab
   const filteredStudents = classStudents.filter((s) => 
-    `${s.firstName} ${s.lastName} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase().includes(studentSearch.toLowerCase().trim())
+    `${studentFullName(s)} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase().includes(studentSearch.toLowerCase().trim())
   );
 
   // Helper for student attendance percentage
@@ -565,7 +566,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                                 title="مشاهده پرونده کامل دانش‌آموز"
                               >
                                 <div className="font-bold text-slate-900 group-hover:text-teal-800 group-hover:underline transition text-xs sm:text-sm">
-                                  {stu.firstName} {stu.lastName}
+                                  {studentFullName(stu)}
                                 </div>
                                 {stu.fatherName && (
                                   <div className="text-[10px] text-slate-400 mt-0.5">

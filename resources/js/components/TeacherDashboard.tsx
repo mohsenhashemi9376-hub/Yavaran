@@ -43,6 +43,7 @@ import {
 import { MobileBottomNav } from './MobileBottomNav';
 import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
+import { studentFullName } from '../utils/studentName';
 
 interface TeacherDashboardProps {
   onOpenNewAttendance: (classId?: string, subject?: string) => void;
@@ -950,7 +951,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                               <tr key={std.id} className="hover:bg-slate-50/80 transition">
                                 <td className="p-3 font-mono text-slate-400">{toPersianDigits(idx + 1)}</td>
                                 <td className="p-3 font-bold text-slate-900">
-                                  {std.firstName} {std.lastName}
+                                  {studentFullName(std)}
                                 </td>
                                 <td className="p-3 font-mono text-slate-600" dir="ltr">{std.nationalId || '-'}</td>
                                 <td className="p-3 font-mono text-slate-600" dir="ltr">{std.studentCode || '-'}</td>

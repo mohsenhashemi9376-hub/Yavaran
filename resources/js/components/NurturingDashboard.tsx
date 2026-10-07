@@ -78,6 +78,7 @@ import {
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
 import { nurturingMobileNav, HOME } from './mobileNavConfigs';
+import { studentFullName } from '../utils/studentName';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -406,7 +407,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     return students.filter((s) => {
 
       const matchClass = selectedClassId === 'all' || s.classId === selectedClassId;
-      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+      const fullName = `${studentFullName(s)}`.toLowerCase();
       const matchSearch = 
         !searchTerm.trim() ||
         fullName.includes(searchTerm.toLowerCase()) ||
@@ -424,7 +425,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
       const matchClass = selectedClassId === 'all' || student.classId === selectedClassId;
       const matchPeriod = selectedPeriodFilter === 'all' || ev.period === selectedPeriodFilter;
-      const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+      const fullName = `${studentFullName(student)}`.toLowerCase();
       const matchSearch = 
         !searchTerm.trim() ||
         fullName.includes(searchTerm.toLowerCase()) ||
@@ -1172,7 +1173,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="font-bold text-slate-900 text-xs">
-                          {student.firstName} {student.lastName}
+                          {studentFullName(student)}
                         </div>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
                           کلاس {studentClass?.name || '-'}
@@ -1259,7 +1260,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition">
-                          {student.firstName} {student.lastName}
+                          {studentFullName(student)}
                         </h3>
                         <div className="text-[11px] text-slate-500">
                           {getStudentClassName(student.classId)}
@@ -1467,7 +1468,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     {/* Student Name & Class */}
                     <div>
                       <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition">
-                        {student.firstName} {student.lastName}
+                        {studentFullName(student)}
                       </h3>
                       <div className="text-xs text-slate-500 mt-1 font-medium">
                         {getStudentClassName(student.classId)}
@@ -1558,7 +1559,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black text-slate-900">
-                    پرونده تربیتی: {selectedDossierStudent.firstName} {selectedDossierStudent.lastName}
+                    پرونده تربیتی: {studentFullName(selectedDossierStudent)}
                   </h2>
                   <span className="text-xs font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
                     {getStudentClassName(selectedDossierStudent.classId)}
@@ -1658,7 +1659,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    مشاهده‌گری رفتاری: {selectedStudentForObs.firstName} {selectedStudentForObs.lastName}
+                    مشاهده‌گری رفتاری: {studentFullName(selectedStudentForObs)}
                   </h3>
                   <p className="text-xs text-emerald-300">
                     {getStudentClassName(selectedStudentForObs.classId)} | ثبت یادداشت‌های تربیتی
@@ -1988,7 +1989,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-black text-slate-900 text-sm">
-                              {student.firstName} {student.lastName}
+                              {studentFullName(student)}
                             </h3>
                             <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">
                               {getStudentClassName(student.classId)}
@@ -2113,7 +2114,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`آیا از حذف ارزیابی رشدی «${student.firstName} ${student.lastName}» در دوره ${ev.period} اطمینان دارید؟`)) {
+                            if (confirm(`آیا از حذف ارزیابی رشدی «${studentFullName(student)}» در دوره ${ev.period} اطمینان دارید؟`)) {
                               deleteCoachEvaluation(ev.id);
                             }
                           }}
@@ -2153,7 +2154,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-black text-white">{cfg.title}</h3>
                         <span className="text-xs text-indigo-300 font-bold">
-                          ({selectedDossierStudent.firstName} {selectedDossierStudent.lastName})
+                          ({studentFullName(selectedDossierStudent)})
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 mt-0.5">{cfg.subtitle}</p>
@@ -2586,7 +2587,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900 text-sm">
-                              {student.firstName} {student.lastName}
+                              {studentFullName(student)}
                             </h4>
                             <div className="text-[11px] text-slate-500">
                               کلاس {studentClass?.name || '-'} • کد: {student.studentCode}
@@ -2954,7 +2955,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     <option value="">-- انتخاب دانش‌آموز --</option>
                     {filteredStudents.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.firstName} {s.lastName} ({getStudentClassName(s.classId)}) - کدملی: {s.nationalId}
+                        {studentFullName(s)} ({getStudentClassName(s.classId)}) - کدملی: {s.nationalId}
                       </option>
                     ))}
                   </select>

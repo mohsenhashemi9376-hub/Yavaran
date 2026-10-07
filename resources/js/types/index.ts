@@ -74,6 +74,8 @@ export interface Student {
   nationalId: string;
   firstName: string;
   lastName: string;
+  /** 'v2': نام و نام‌خانوادگی هنگام ثبت گروهی به‌درستی تفکیک شده است */
+  nameFormat?: 'v2';
   fatherName?: string;
   parentPhone: string;
   fatherPhone?: string; // alias for parentPhone

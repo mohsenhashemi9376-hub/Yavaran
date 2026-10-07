@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student } from '../types';
 import { X, ArrowRightLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface TransferStudentModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       setIsSubmitting(true);
       const targetClass = classes.find(c => c.id === selectedTargetClassId);
       transferStudentClass(student.id, selectedTargetClassId);
-      showToast('انتقال کلاس', `دانش‌آموز «${student.firstName} ${student.lastName}» به کلاس «${targetClass?.name || 'جدید'}» منتقل شد.`, 'success');
+      showToast('انتقال کلاس', `دانش‌آموز «${studentFullName(student)}» به کلاس «${targetClass?.name || 'جدید'}» منتقل شد.`, 'success');
       onClose();
       setSelectedTargetClassId('');
       setErrorText(null);
@@ -80,7 +81,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">دانش‌آموز:</span>
-              <span className="font-bold text-slate-900">{student.firstName} {student.lastName}</span>
+              <span className="font-bold text-slate-900">{studentFullName(student)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">کلاس فعلی:</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student } from '../types';
 import { X, UserMinus, ShieldCheck, Loader2 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface RemoveStudentFromClassModalProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export const RemoveStudentFromClassModal: React.FC<RemoveStudentFromClassModalPr
     try {
       setIsSubmitting(true);
       removeStudentFromClass(student.id);
-      showToast('خروج از کلاس', `دانش‌آموز «${student.firstName} ${student.lastName}» از کلاس ${classData.name} خارج شد.`, 'info');
+      showToast('خروج از کلاس', `دانش‌آموز «${studentFullName(student)}» از کلاس ${classData.name} خارج شد.`, 'info');
       onClose();
     } catch (err) {
       console.error('Error removing student from class:', err);
@@ -65,7 +66,7 @@ export const RemoveStudentFromClassModal: React.FC<RemoveStudentFromClassModalPr
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">دانش‌آموز:</span>
-              <span className="font-bold text-slate-900">{student.firstName} {student.lastName}</span>
+              <span className="font-bold text-slate-900">{studentFullName(student)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">کلاس جاری:</span>
