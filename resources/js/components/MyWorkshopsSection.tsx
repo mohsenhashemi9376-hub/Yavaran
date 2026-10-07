@@ -45,7 +45,6 @@ export const MyWorkshopsSection: React.FC = () => {
                 <div className="font-bold text-slate-900 text-sm">{workshopTitle(w)}</div>
               </div>
               <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-3 flex-wrap">
-                <span className="whitespace-nowrap">{w.day || 'روز ثبت نشده'} • {w.period || 'زنگ ثبت نشده'}</span>
                 <span className="whitespace-nowrap">{toPersianDigits(roster(w).length)} نفر</span>
               </div>
             </button>
