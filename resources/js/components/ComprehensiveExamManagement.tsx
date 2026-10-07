@@ -4,6 +4,7 @@ import { EXAM_SUBJECTS, ExamSubjectKey, ComprehensiveExamRecord } from '../types
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -60,7 +61,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     () =>
       students
         .filter((s) => s.classId === classId)
-        .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fa')),
+        ,
     [students, classId]
   );
 
@@ -357,7 +358,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                     <tr key={st.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-3 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</td>
                       <td className="p-3 font-semibold text-slate-800 whitespace-nowrap">
-                        {st.firstName} {st.lastName}
+                        {studentFullName(st)}
                       </td>
                       {activeSubjects.map((s) => {
                         const v = draft[st.id]?.[s.key];
@@ -370,7 +371,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                               value={toPersianDigits((v ?? '').replace('.', '٫'))}
                               onChange={(e) => setScore(st.id, s.key, e.target.value)}
                               placeholder="—"
-                              aria-label={`${s.label} ${st.firstName} ${st.lastName}`}
+                              aria-label={`${s.label} ${studentFullName(st)}`}
                               aria-invalid={bad}
                               title={bad ? 'نمره باید بین ۰ تا ۲۰ باشد' : undefined}
                               className={`w-16 text-center rounded-xl py-2 outline-none transition focus:ring-4 focus:ring-emerald-100 ${

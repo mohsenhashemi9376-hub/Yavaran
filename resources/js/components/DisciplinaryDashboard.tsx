@@ -57,6 +57,9 @@ import { EditCoachModal } from './EditCoachModal';
 import { CoachProfileModal } from './CoachProfileModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { executiveMobileNav, HOME } from './mobileNavConfigs';
+import { LoansWorkspace } from './LoansWorkspace';
+import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
+import { studentFullName } from '../utils/studentName';
 
 interface DisciplinaryDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
@@ -248,6 +251,9 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
 
   const urgentNeedsCount = urgentNeedsList.length;
 
+  // امانات و لوازم: وسایل بازنگشته (با هشدار یک‌بارِ هر نشست)
+  const { count: overdueLoanCount } = useOverdueLoans();
+
   // تابع باز کردن دیالوگ پیامک با متن پیش‌فرض هوشمند
   const handleOpenSms = (
     student: Student, 
@@ -264,7 +270,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     }
 
     const parentName = student.fatherName ? `جناب آقای ${student.fatherName}` : 'ولی محترم دانش‌آموز';
-    const fullName = `${student.firstName} ${student.lastName}`;
+    const fullName = `${studentFullName(student)}`;
 
     if (type === 'absence') {
       setSmsCustomText(
@@ -309,6 +315,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               coaches: allCoaches.length,
               warnings: urgentNeedsCount,
               sessions: todaySessions.length,
+              loans: overdueLoanCount,
             }}
           />
         </div>
@@ -322,6 +329,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
           {currentView === null && (
             <div className="space-y-6 animate-in fade-in" id="executive-dashboard-home">
+
+              <LoanOverdueBanner onOpen={() => setCurrentView('loans')} />
               
               {/* ۱. هدر پیشخوان معاونت اجرایی */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
@@ -592,7 +601,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                                   onClick={() => onSelectStudent(item.student, 'discipline')}
                                   className="text-xs font-black text-slate-900 hover:text-teal-800 transition cursor-pointer text-right"
                                 >
-                                  {item.student.firstName} {item.student.lastName}
+                                  {studentFullName(item.student)}
                                 </button>
                                 <span className="text-[11px] text-slate-400 font-medium">
                                   ({studentClass?.name || 'کلاس نامشخص'})
@@ -678,7 +687,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                           <div className="flex items-center gap-2">
                             <Clock className="w-3.5 h-3.5 text-amber-700" />
                             <span className="font-bold text-slate-900">
-                              تأخیر {stu ? `${stu.firstName} ${stu.lastName}` : 'دانش‌آموز'}
+                              تأخیر {stu ? `${studentFullName(stu)}` : 'دانش‌آموز'}
                             </span>
                             <span className="text-amber-800 font-mono">
                               ({toPersianDigits(d.delayMinutes)} دقیقه)
@@ -699,7 +708,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                           <div className="flex items-center gap-2">
                             <UserX className="w-3.5 h-3.5 text-rose-700" />
                             <span className="font-bold text-slate-900">
-                              غیبت کل روز {stu ? `${stu.firstName} ${stu.lastName}` : 'دانش‌آموز'}
+                              غیبت کل روز {stu ? `${studentFullName(stu)}` : 'دانش‌آموز'}
                             </span>
                             {a.reason && <span className="text-slate-500">• {a.reason}</span>}
                           </div>
@@ -766,6 +775,14 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
               onOpenNewAttendance={onOpenNewAttendance || (() => {})}
               onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
+            />
+          )}
+
+          {/* امانات و لوازم (currentView === 'loans') */}
+          {currentView === 'loans' && (
+            <LoansWorkspace
+              onBack={() => setCurrentView(null)}
+              onOpenSidebar={() => setIsMobileSidebarOpen(true)}
             />
           )}
 
@@ -878,7 +895,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
       {/* سایدبار کشویی دستگاه‌های همراه (Mobile / Tablet Drawer) */}
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = executiveMobileNav({ warnings: urgentNeedsCount });
+        const nav = executiveMobileNav({ warnings: urgentNeedsCount, loans: overdueLoanCount });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -903,6 +920,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           coaches: allCoaches.length,
           warnings: urgentNeedsCount,
           sessions: todaySessions.length,
+          loans: overdueLoanCount,
         }}
       />
 
@@ -1031,7 +1049,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
                 <div>
                   <div className="font-bold text-slate-900">
-                    گیرنده: ولی دانش‌آموز {smsStudent.firstName} {smsStudent.lastName}
+                    گیرنده: ولی دانش‌آموز {studentFullName(smsStudent)}
                   </div>
                   <div className="text-slate-500 font-mono text-[11px] mt-0.5">
                     شماره همراه: {smsStudent.parentPhone || 'ثبت نشده'}
@@ -1177,7 +1195,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               <div className="bg-slate-50 border border-slate-300 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="text-slate-500">نام دانش‌آموز:</span>
-                  <div className="font-bold text-slate-900 mt-0.5">{printStudent.firstName} {printStudent.lastName}</div>
+                  <div className="font-bold text-slate-900 mt-0.5">{studentFullName(printStudent)}</div>
                 </div>
                 <div>
                   <span className="text-slate-500">نام پدر:</span>

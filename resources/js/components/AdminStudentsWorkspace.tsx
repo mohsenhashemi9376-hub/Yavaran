@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import * as XLSX from 'xlsx';
+import { studentFullName } from '../utils/studentName';
 
 interface AdminStudentsWorkspaceProps {
   students: Student[];
@@ -50,7 +51,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
   const handleDeleteStudent = (student: Student) => {
     showConfirm({
       title: 'حذف کامل دانش‌آموز',
-      message: `آیا از حذف «${student.firstName} ${student.lastName}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
+      message: `آیا از حذف «${studentFullName(student)}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
       confirmLabel: 'حذف دانش‌آموز',
       cancelLabel: 'انصراف',
       isDangerous: true,
@@ -78,7 +79,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
   // Filter students
   const filteredStudents = students.filter((student) => {
     const studentClass = classes.find((c) => c.id === student.classId);
-    const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+    const fullName = `${studentFullName(student)}`.toLowerCase();
     const metrics = getStudentMetrics(student.id, student.classId);
 
     // Search query
@@ -116,7 +117,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
       const metrics = getStudentMetrics(s.id, s.classId);
       return {
         'ردیف': idx + 1,
-        'نام و نام خانوادگی': `${s.firstName} ${s.lastName}`,
+        'نام و نام خانوادگی': `${studentFullName(s)}`,
         'کلاس': cls?.name || 'نامشخص',
         'پایه': cls?.grade || '-',
         'کد دانش‌آموزی': s.studentCode || '-',
@@ -291,7 +292,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                           </div>
                           <div>
                             <span className="font-bold text-slate-900 group-hover:text-teal-800 group-hover:underline transition text-xs sm:text-sm">
-                              {student.firstName} {student.lastName}
+                              {studentFullName(student)}
                             </span>
                           </div>
                         </button>
@@ -383,7 +384,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                       className="flex-1 min-w-0 text-right cursor-pointer"
                     >
                       <div className="text-base font-extrabold text-slate-900 leading-snug break-words">
-                        {student.firstName} {student.lastName}
+                        {studentFullName(student)}
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800">

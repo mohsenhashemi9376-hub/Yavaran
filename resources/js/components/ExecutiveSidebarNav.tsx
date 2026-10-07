@@ -11,6 +11,7 @@ import {
   HeartHandshake, 
   AlertTriangle,
   FileSpreadsheet, 
+  Package,
   Settings,
   X, 
   ChevronLeft,
@@ -24,6 +25,7 @@ export type ExecutiveViewType =
   | 'classes' 
   | 'attendance' 
   | 'discipline' 
+  | 'loans' 
   | 'teachers' 
   | 'coaches' 
   | 'warnings' 
@@ -38,6 +40,8 @@ export interface ExecutiveSidebarCounts {
   warnings?: number;
   delays?: number;
   sessions?: number;
+  /** امانات و لوازمِ سررسیدگذشته */
+  loans?: number;
 }
 
 interface ExecutiveSidebarNavProps {
@@ -87,6 +91,7 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
   const totalCoaches = counts?.coaches ?? 0;
   const totalWarnings = counts?.warnings ?? 0;
   const totalSessions = counts?.sessions ?? 0;
+  const overdueLoanCount = counts?.loans ?? 0;
 
   // ۶ گروه مشخص و استاندارد مطابق با نیازهای کاری روزمره معاونت اجرایی:
   // ۱. خانه (داشبورد)
@@ -144,6 +149,14 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
           label: 'ثبت مورد انضباطی',
           tooltip: 'ثبت مورد انضباطی',
           icon: ShieldAlert,
+        },
+        {
+          id: 'loans',
+          label: 'امانات و لوازم',
+          tooltip: 'امانات و لوازم',
+          icon: Package,
+          count: overdueLoanCount > 0 ? overdueLoanCount : undefined,
+          isWarning: true,
         },
       ],
     },

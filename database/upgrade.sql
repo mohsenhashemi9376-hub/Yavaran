@@ -171,3 +171,20 @@ INSERT IGNORE INTO `workshops` (`id`, `name`, `type`, `category`, `grade_level`,
 ('ws9-technical', 'فنی', 'workshop', 'skill', 9, NULL, 9, '{"id":"ws9-technical","name":"فنی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
 ('ws9-writing', 'نویسندگی', 'workshop', 'skill', 9, NULL, 10, '{"id":"ws9-writing","name":"نویسندگی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW()),
 ('ws9-ai', 'هوش مصنوعی', 'workshop', 'skill', 9, NULL, 11, '{"id":"ws9-ai","name":"هوش مصنوعی","category":"skill","gradeLevel":9,"studentIds":[]}', NOW(), NOW());
+
+-- امانات و لوازم مدرسه (تحویل و تحویل‌گیری وسایل)
+CREATE TABLE IF NOT EXISTS `loan_items` (
+  `id` varchar(100) NOT NULL,
+  `item_name` varchar(191) NOT NULL DEFAULT '',
+  `recipient_name` varchar(191) NOT NULL DEFAULT '',
+  `loan_date` varchar(20) DEFAULT NULL,
+  `is_returned` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `loan_items_loan_date_index` (`loan_date`),
+  KEY `loan_items_is_returned_index` (`is_returned`),
+  KEY `loan_items_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

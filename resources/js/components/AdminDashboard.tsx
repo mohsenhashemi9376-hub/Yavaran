@@ -72,6 +72,9 @@ import {
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
+import { LoansWorkspace } from './LoansWorkspace';
+import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
+import { studentFullName } from '../utils/studentName';
 
 interface AdminDashboardProps {
   onOpenNewClass: () => void;
@@ -131,6 +134,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [isAdmin, isDisciplinaryVice, isEducationalVice, isNurturingVice]);
 
   // Navigation: Layer 1 (Dashboard = null) vs Layer 3 (FullScreenView)
+  const { count: overdueLoanCount } = useOverdueLoans();
   const [rawFullScreenView, setCurrentFullScreenView] = useState<FullScreenView | null>(null);
   const deniedFullScreenView = rawFullScreenView && !canAccessSection(currentUser, rawFullScreenView);
   const currentFullScreenView = deniedFullScreenView ? null : rawFullScreenView;
@@ -523,7 +527,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       list.push({
         id: `act-del-${del.id}`,
         type: 'delay',
-        title: `ثبت تأخیر ورود ${student ? `${student.firstName} ${student.lastName}` : 'دانش‌آموز'}`,
+        title: `ثبت تأخیر ورود ${student ? `${studentFullName(student)}` : 'دانش‌آموز'}`,
         description: `${toPersianDigits(del.delayMinutes)} دقیقه تأخیر (${del.reason || (del.isExcused ? 'موجه' : 'غیرموجه')}) • ثبت توسط ${del.recordedBy || 'معاونت'}`,
         date: del.date,
         timeBadge: del.arrivalTime || 'صبحگاه',
@@ -540,7 +544,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         list.push({
           id: `act-disc-${note.id}-${student.id}`,
           type: 'discipline',
-          title: `ثبت مورد انضباطی برای ${student.firstName} ${student.lastName}`,
+          title: `ثبت مورد انضباطی برای ${studentFullName(student)}`,
           description: `${note.title} • کسر ${toPersianDigits(note.scoreDeduction)} نمره • ثبت توسط ${note.recordedBy || 'معاونت انضباطی'}`,
           date: note.date,
           timeBadge: 'انضباطی',
@@ -580,6 +584,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               warnings: schoolWarningList.length,
               delays: morningDelays.length,
               sessions: sessions.length,
+              loans: overdueLoanCount,
             }}
           />
         </div>
@@ -593,6 +598,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {deniedFullScreenView && <AccessDeniedNotice onClose={() => setCurrentFullScreenView(null)} />}
           {currentFullScreenView === null && (
             <div className="space-y-6" id="admin-main-dashboard-view">
+
+              <LoanOverdueBanner onOpen={() => setCurrentFullScreenView('loans')} />
           
           {/* ۱. هدر اصلی داشبورد (ساده، کارآمد و جهت‌یاب) */}
           <div 
@@ -1291,18 +1298,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 <div className="flex items-center justify-between text-slate-500">
                   <span className="text-xs font-bold">
-                    {todaySessions.length > 0 ? 'حاضرین امروز' : 'نرخ حضور مدرسه'}
+                    حاضرین امروز
                   </span>
                   <UserCheck className="w-4 h-4 text-slate-400 group-hover:text-teal-700 transition" />
                 </div>
                 <div className="mt-3">
                   <div className="text-xl sm:text-2xl font-black text-emerald-700">
-                    {todaySessions.length > 0 
-                      ? `${toPersianDigits(todayAttendanceStats.present)} نفر`
-                      : `${toPersianDigits(overallSchoolStats.rate)}٪`}
+                    {`${toPersianDigits(students.length - morningToday.absent)} نفر`}
                   </div>
                   <div className="text-[11px] text-teal-700 font-semibold mt-1 flex items-center gap-1">
-                    <span>{todaySessions.length > 0 ? `${toPersianDigits(todaySessions.length)} جلسه ثبت‌شده` : 'دفتر حضور و غیاب'}</span>
+                    <span>{`از ${toPersianDigits(students.length)} دانش‌آموز`}</span>
                     <ChevronLeft className="w-3 h-3" />
                   </div>
                 </div>
@@ -1717,6 +1722,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
+      {currentFullScreenView === 'loans' && (
+        <LoansWorkspace onBack={() => setCurrentFullScreenView(null)} onOpenSidebar={handleOpenSidebar} />
+      )}
+
       {currentFullScreenView === 'reports' && (
         <AdminReportsWorkspace
           classes={classes}
@@ -1761,7 +1770,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* ========================================================================= */}
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = adminMobileNav(currentUser?.role || 'admin', isAdmin, { warnings: schoolWarningList.length });
+        const nav = adminMobileNav(currentUser?.role || 'admin', isAdmin, { warnings: schoolWarningList.length, loans: overdueLoanCount });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -1793,6 +1802,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           warnings: schoolWarningList.length,
           delays: morningDelays.length,
           sessions: sessions.length,
+          loans: overdueLoanCount,
         }}
       />
 

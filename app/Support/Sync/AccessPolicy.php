@@ -20,7 +20,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -35,6 +35,10 @@ final class AccessPolicy
     private ?array $classIds = null;
 
     private ?array $nurturingIds = null;
+
+    private ?array $defaultCourses = null;
+
+    private ?array $courseKeys = null;
 
     /** @var array<string, string|null> */
     private array $studentClassCache = [];
@@ -70,6 +74,11 @@ final class AccessPolicy
             return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
         }
 
+        // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
+        if ($collection === 'loanItems') {
+            return $this->isManager() && $this->user->hasPermission('manage-loans');
+        }
+
         if ($collection === 'nurturingDossiers') {
             // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
             return (($this->isManager() && ! $this->isAdmin()) || $this->isCoach())
@@ -94,6 +103,7 @@ final class AccessPolicy
         'courseAssignments' => 'manage-curriculum',
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
+        'loanItems' => 'manage-loans',
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',
@@ -165,6 +175,13 @@ final class AccessPolicy
             }
             $this->requireClass($this->prop($new, 'classId'));
 
+            if ($collection === 'academicGrades') {
+                if ($old !== null) {
+                    $this->requireCourse($old);
+                }
+                $this->requireCourse($new);
+            }
+
             return;
         }
 
@@ -217,6 +234,9 @@ final class AccessPolicy
 
         if (in_array($collection, self::CLASS_SCOPED, true)) {
             $this->requireClass($this->prop($old, 'classId'));
+            if ($collection === 'academicGrades') {
+                $this->requireCourse($old);
+            }
 
             return;
         }
@@ -314,7 +334,175 @@ final class AccessPolicy
             }
         }
 
+        foreach ($this->defaultSubjectTeacherCourses() as $course) {
+            $ids[] = $course['classId'];
+        }
+
         return $this->classIds = array_values(array_unique($ids));
+    }
+
+    /**
+     * جفت «کلاس + درس» هایی که کاربر از طریق «دبیر پیش‌فرض درس» (انتخاب‌شده در مدیریت دروس) تدریس می‌کند.
+     * رابط کاربری این انتساب را بدون ردیف جداگانه در course_assignments محاسبه می‌کند؛
+     * اگر برای همان کلاس و درس انتساب صریح وجود داشته باشد، همان مقدم است.
+     *
+     * @return array<int, array{classId: string, subjectId: string}>
+     */
+    private function defaultSubjectTeacherCourses(): array
+    {
+        if ($this->defaultCourses !== null) {
+            return $this->defaultCourses;
+        }
+        if (! CollectionRegistry::tableExists('academic_subjects')) {
+            return $this->defaultCourses = [];
+        }
+
+        $subjects = [];
+        foreach (DB::table('academic_subjects')->get(['id', 'data']) as $row) {
+            $subject = json_decode((string) $row->data, false);
+            if (is_object($subject) && isset($subject->teacherId) && $subject->teacherId === $this->user->id) {
+                $subjects[(string) $row->id] = $subject;
+            }
+        }
+        if ($subjects === []) {
+            return $this->defaultCourses = [];
+        }
+
+        $explicit = [];
+        if (CollectionRegistry::tableExists('course_assignments')) {
+            foreach (DB::table('course_assignments')->get(['class_id', 'subject_id']) as $a) {
+                $explicit[$a->class_id.'|'.$a->subject_id] = true;
+            }
+        }
+
+        $courses = [];
+        foreach (DB::table('school_classes')->get(['id', 'data']) as $row) {
+            $class = json_decode((string) $row->data, false);
+            $grade = is_object($class) && isset($class->grade) && is_string($class->grade) ? $class->grade : '';
+            foreach ($subjects as $subjectId => $subject) {
+                if (isset($explicit[$row->id.'|'.$subjectId])) {
+                    continue;
+                }
+                if ($this->subjectAppliesToGrade($subject, $grade)) {
+                    $courses[] = ['classId' => (string) $row->id, 'subjectId' => (string) $subjectId];
+                }
+            }
+        }
+
+        return $this->defaultCourses = $courses;
+    }
+
+    /**
+     * جلسه‌ای که دبیر مجاز به دیدن آن است: خودش ثبت کرده یا درس آن در همان کلاس به او واگذار شده
+     * (معادل isOwnTeachingSession در رابط کاربری).
+     */
+    public function canSeeSession(object $session): bool
+    {
+        $classId = $this->prop($session, 'classId');
+        if ($classId === null) {
+            return false;
+        }
+        if ($this->prop($session, 'teacherId') === $this->user->id) {
+            return true;
+        }
+
+        $subjectId = $this->prop($session, 'subjectId');
+        $subjectName = $this->prop($session, 'subject');
+
+        $courses = $this->teachingCourses();
+
+        if ($subjectId !== null && $subjectId !== '') {
+            return isset($courses['id'][$classId.'|'.$subjectId]);
+        }
+
+        return $subjectName !== null && isset($courses['name'][$classId.'|'.$subjectName]);
+    }
+
+    /** @return array{id: array<string, true>, name: array<string, true>} */
+    private function teachingCourses(): array
+    {
+        if ($this->courseKeys !== null) {
+            return $this->courseKeys;
+        }
+
+        $subjectNames = [];
+        if (CollectionRegistry::tableExists('academic_subjects')) {
+            $subjectNames = DB::table('academic_subjects')->pluck('name', 'id')->all();
+        }
+
+        $keys = ['id' => [], 'name' => []];
+        $add = function (string $classId, string $subjectId, ?string $name) use (&$keys, $subjectNames): void {
+            $keys['id'][$classId.'|'.$subjectId] = true;
+            $name ??= $subjectNames[$subjectId] ?? null;
+            if ($name !== null && $name !== '') {
+                $keys['name'][$classId.'|'.$name] = true;
+            }
+        };
+
+        // انتساب سه‌طرفه صریح
+        if (CollectionRegistry::tableExists('course_assignments')) {
+            foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->get(['class_id', 'subject_id']) as $a) {
+                $add((string) $a->class_id, (string) $a->subject_id, null);
+            }
+        }
+
+        // دبیر پیش‌فرض درس
+        foreach ($this->defaultSubjectTeacherCourses() as $c) {
+            $add($c['classId'], $c['subjectId'], null);
+        }
+
+        // انتساب‌های قدیمی ذخیره‌شده در پروفایل کاربر
+        $profile = $this->user->profile();
+        if (isset($profile->teachingAssignments) && is_array($profile->teachingAssignments)) {
+            foreach ($profile->teachingAssignments as $ta) {
+                if (! is_object($ta) || ! isset($ta->classIds) || ! is_array($ta->classIds)) {
+                    continue;
+                }
+                $sid = isset($ta->subjectId) && is_string($ta->subjectId) ? $ta->subjectId : '';
+                $sname = isset($ta->subjectName) && is_string($ta->subjectName) ? $ta->subjectName : null;
+                foreach ($ta->classIds as $cid) {
+                    if (is_string($cid)) {
+                        $add($cid, $sid, $sname);
+                    }
+                }
+            }
+        }
+
+        return $this->courseKeys = $keys;
+    }
+
+    /** معادل subjectAppliesToClass در رابط کاربری (دروس عمومی/بدون پایه برای همه‌ی کلاس‌ها) */
+    private function subjectAppliesToGrade(object $subject, string $classGrade): bool
+    {
+        $normalize = static fn (string $g): string => trim(str_replace('پایه', '', $g));
+
+        $raw = isset($subject->targetGrades) && is_array($subject->targetGrades) ? $subject->targetGrades : [];
+        if (isset($subject->grade) && is_string($subject->grade) && $subject->grade !== '') {
+            $raw[] = $subject->grade;
+        }
+
+        $grades = [];
+        foreach ($raw as $g) {
+            if (! is_string($g)) {
+                continue;
+            }
+            $g = $normalize($g);
+            if ($g !== '' && ! str_contains($g, 'عمومی')) {
+                $grades[] = $g;
+            }
+        }
+        if ($grades === []) {
+            return true;
+        }
+
+        $cg = $normalize($classGrade);
+        foreach ($grades as $g) {
+            if ($g === $cg || str_contains($cg, $g) || str_contains($g, $cg)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -389,6 +577,18 @@ final class AccessPolicy
     {
         if ($classId === null || $classId === '' || ! in_array($classId, $this->accessibleClassIds(), true)) {
             $this->deny('شما به اطلاعات این کلاس دسترسی ندارید.');
+        }
+    }
+
+    /** هر دبیر فقط برای درسی که خودش در آن کلاس تدریس می‌کند نمره ثبت می‌کند (مدیر و معاون آموزش مستثنی‌اند) */
+    private function requireCourse(object $record): void
+    {
+        $classId = $this->prop($record, 'classId');
+        $subjectId = $this->prop($record, 'subjectId');
+        $courses = $this->teachingCourses();
+
+        if ($classId === null || $subjectId === null || ! isset($courses['id'][$classId.'|'.$subjectId])) {
+            $this->deny('شما فقط مجاز به ثبت نمره برای درس خودتان در این کلاس هستید.');
         }
     }
 

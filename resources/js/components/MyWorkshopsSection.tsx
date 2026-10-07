@@ -5,6 +5,7 @@ import { Workshop } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
 import { compareByLastName } from '../utils/morningAttendance';
 import { gradeLevelOfClass, workshopTitle } from '../utils/workshops';
+import { studentFullName } from '../utils/studentName';
 
 /** کارگاه‌های انتخابی که استاد/مربی مسئول آن‌هاست؛ فهرست اعضا فقط از پایه همان کارگاه */
 export const MyWorkshopsSection: React.FC = () => {
@@ -44,7 +45,6 @@ export const MyWorkshopsSection: React.FC = () => {
                 <div className="font-bold text-slate-900 text-sm">{workshopTitle(w)}</div>
               </div>
               <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-3 flex-wrap">
-                <span className="whitespace-nowrap">{w.day || 'روز ثبت نشده'} • {w.period || 'زنگ ثبت نشده'}</span>
                 <span className="whitespace-nowrap">{toPersianDigits(roster(w).length)} نفر</span>
               </div>
             </button>
@@ -66,7 +66,7 @@ export const MyWorkshopsSection: React.FC = () => {
                 {roster(open).map((s, i) => (
                   <div key={s.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
                     <span className="w-6 text-center text-xs font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
-                    <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">{s.lastName} {s.firstName}</span>
+                    <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">{studentFullName(s)}</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
                   </div>
                 ))}

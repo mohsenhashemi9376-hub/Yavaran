@@ -15,7 +15,7 @@ export interface DisciplinaryNote {
   recordedBy: string; // e.g. "معاون انضباطی"
   author?: string; // alias for recordedBy
   type: 'delay' | 'absence' | 'behavior' | 'uniform' | 'other';
-  source?: 'class_warning'; // اخطار ثبت‌شده توسط استاد در جلسه کلاسی
+  source?: 'class_warning' | 'auto_delay'; // اخطار کلاسی استاد، یا کسر نمره‌ی خودکارِ سامانه بابت مجموع تأخیرها
   warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
   subject?: string; // درس مربوط به اخطار کلاسی
   sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)
@@ -74,6 +74,8 @@ export interface Student {
   nationalId: string;
   firstName: string;
   lastName: string;
+  /** 'v2': نام و نام‌خانوادگی هنگام ثبت گروهی به‌درستی تفکیک شده است */
+  nameFormat?: 'v2';
   fatherName?: string;
   parentPhone: string;
   fatherPhone?: string; // alias for parentPhone
@@ -266,6 +268,19 @@ export interface Workshop {
   day?: string; // روز برگزاری
   period?: string; // زنگ برگزاری
   studentIds: string[];
+}
+
+/** امانات و لوازم مدرسه: وسیله‌ای که به فردی تحویل داده می‌شود و باید برگردانده شود */
+export interface LoanItem {
+  id: string;
+  itemName: string;
+  loanDate: string; // تاریخ تحویل (شمسی YYYY/MM/DD)
+  recipientName: string; // نام تحویل‌گیرنده
+  note?: string;
+  returned: boolean; // «تحویل گرفتم» — وسیله برگشته است
+  returnedDate?: string; // تاریخ بازگشت (شمسی)
+  createdAt: string;
+  createdBy?: string;
 }
 
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */

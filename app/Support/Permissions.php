@@ -36,6 +36,7 @@ final class Permissions
                 'discipline' => 'ثبت موارد انضباطی',
                 'counseling-report' => 'ثبت گزارش مشاوره‌ای',
                 'view-nurturing-file' => 'مشاهده پرونده تربیتی',
+                'manage-loans' => 'امانات و لوازم',
             ],
         ],
         'base' => [
@@ -74,7 +75,7 @@ final class Permissions
             'vice_principal' => $withoutSettings,
             'vice_disciplinary' => [
                 'manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians',
-                'analytics-reports',
+                'analytics-reports', 'manage-loans',
             ],
             'vice_nurturing' => [
                 'view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file',

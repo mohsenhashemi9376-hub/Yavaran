@@ -11,6 +11,7 @@ import {
   compareByLastName,
   formatDelayText,
 } from '../utils/morningAttendance';
+import { studentFullName } from '../utils/studentName';
 
 export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
 
@@ -304,7 +305,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
       .filter((s) => {
         const cls = classById.get(s.classId);
         if (filter !== 'all' && !(cls && classMatchesMorningFilter(cls, filter))) return false;
-        if (q && !`${s.firstName} ${s.lastName}`.includes(q) && !`${s.lastName} ${s.firstName}`.includes(q)) return false;
+        if (q && !`${studentFullName(s)}`.includes(q) && !`${studentFullName(s)}`.includes(q)) return false;
         return true;
       })
       .sort(compareByLastName);
@@ -371,7 +372,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
 
   const nameOf = (id: string) => {
     const s = studentById.get(id);
-    return s ? `${s.firstName} ${s.lastName}` : 'نامشخص';
+    return s ? `${studentFullName(s)}` : 'نامشخص';
   };
   const classNameOf = (id: string) => classById.get(id)?.name || '—';
 
@@ -509,7 +510,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-sm font-extrabold whitespace-nowrap">
-                      {student.lastName} {student.firstName}
+                      {studentFullName(student)}
                     </div>
                     <div className="text-[11px] opacity-70 mt-0.5 truncate">{classNameOf(student.classId)}</div>
                   </div>
@@ -719,7 +720,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                           onClick={() => onSelectStudent?.(s)}
                           className="font-bold text-slate-800 hover:text-rose-700 transition cursor-pointer text-right whitespace-nowrap"
                         >
-                          {s.lastName} {s.firstName}
+                          {studentFullName(s)}
                         </button>
                         <ExcusedBadge excused={Boolean(todayRecords.get(s.id)?.isExcused)} />
                       </div>
@@ -780,7 +781,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                         onClick={() => onSelectStudent?.(student)}
                         className="font-bold text-slate-800 hover:text-amber-800 transition cursor-pointer text-right"
                       >
-                        {student.lastName} {student.firstName}
+                        {studentFullName(student)}
                       </button>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{classNameOf(student.classId)}</td>
@@ -814,7 +815,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
             className="pointer-events-auto bg-emerald-50 border border-emerald-200 text-emerald-900 shadow-lg rounded-2xl px-4 py-3 flex items-center gap-3 text-xs sm:text-sm max-w-md"
           >
             <span className="font-bold">
-              حضور {undoToast.student.firstName} {undoToast.student.lastName} ثبت شد. (ورود {toPersianDigits(undoToast.time)})
+              حضور {studentFullName(undoToast.student)} ثبت شد. (ورود {toPersianDigits(undoToast.time)})
             </span>
             <button
               type="button"

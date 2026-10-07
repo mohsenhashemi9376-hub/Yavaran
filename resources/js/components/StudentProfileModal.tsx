@@ -55,6 +55,8 @@ import {
   Info,
   Loader2
 } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
+import { summarizeStudentDelays, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades';
 
@@ -339,6 +341,13 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const totalDelaysCount = classLateCount + morningLateCount + morningAttendanceLateCount;
   const scoresList = sessionLogs.filter((l) => l.score !== undefined);
 
+  // مجموع دقایق تأخیر (مبنای کسر خودکار نمره انضباط)
+  const delaySummary = currentStudent
+    ? summarizeStudentDelays(currentStudent, { morningDelays, morningAttendance, sessions })
+    : { count: 0, minutes: 0 };
+  const autoDeductedPoints = Math.floor(delaySummary.minutes / DELAY_MINUTES_PER_POINT) * DELAY_POINTS_DEDUCTED;
+  const minutesToNextPoint = DELAY_MINUTES_PER_POINT - (delaySummary.minutes % DELAY_MINUTES_PER_POINT);
+
   const attendanceRate = totalSessions > 0 
     ? Math.round((attendedCount / totalSessions) * 100) 
     : 100;
@@ -543,7 +552,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 
   const handleOpenSms = () => {
     const text = `سلام و احترام؛
-ولی محترم دانش‌آموز ${currentStudent.firstName} ${currentStudent.lastName}
+ولی محترم دانش‌آموز ${studentFullName(currentStudent)}
 گزارش وضعیت مدرسه یاوران ولایت:
 • درصد حضور: ${toPersianDigits(attendanceRate)}٪ (غیبت غیرموجه: ${toPersianDigits(totalAbsentCount)} مورد)
 • مجموع تأخیرات: ${toPersianDigits(totalDelaysCount)} بار
@@ -595,7 +604,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </div>
             <div className="min-w-0">
               <h2 className="text-xl font-extrabold text-slate-900 truncate">
-                {currentStudent.firstName} {currentStudent.lastName}
+                {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
                 {studentClass && (
@@ -699,6 +708,11 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <div className="text-[11px] text-slate-400 mt-1">
               {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
             </div>
+            {delaySummary.minutes > 0 && (
+              <div className="text-[11px] font-bold text-amber-700 mt-1">
+                مجموع {toPersianDigits(delaySummary.minutes)} دقیقه
+              </div>
+            )}
           </button>
 
           <div className="bg-white p-4 rounded-2xl shadow-xs">
@@ -914,7 +928,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-slate-400 text-[11px]">نام و نام خانوادگی</div>
                       <div className="font-bold text-slate-800 text-sm mt-1">
-                        {currentStudent.firstName} {currentStudent.lastName}
+                        {studentFullName(currentStudent)}
                       </div>
                     </div>
 
@@ -1079,7 +1093,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         onClick={() =>
                           showConfirm({
                             title: 'حذف کامل دانش‌آموز',
-                            message: `آیا از حذف «${currentStudent.firstName} ${currentStudent.lastName}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
+                            message: `آیا از حذف «${studentFullName(currentStudent)}» اطمینان دارید؟ تمام سوابق حضور و غیاب، نمرات، تأخیرها و پرونده تربیتی این دانش‌آموز نیز حذف خواهد شد و قابل بازگشت نیست.`,
                             confirmLabel: 'حذف دانش‌آموز',
                             cancelLabel: 'انصراف',
                             isDangerous: true,
@@ -1145,6 +1159,40 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                   </div>
                 );
               })()}
+
+              {/* خلاصه غیبت و تأخیر + کسر خودکار نمره */}
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-l from-rose-50/60 via-white to-amber-50/70 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <div className="text-slate-500 font-bold">دفعات غیبت</div>
+                  <div className="mt-1 text-lg font-black text-rose-700">
+                    {toPersianDigits(totalAbsentCount + totalExcusedCount)}
+                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
+                      ({toPersianDigits(totalExcusedCount)} موجه)
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500 font-bold">مجموع دقایق تأخیر</div>
+                  <div className="mt-1 text-lg font-black text-amber-700">
+                    {toPersianDigits(delaySummary.minutes)} دقیقه
+                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
+                      در {toPersianDigits(delaySummary.count)} بار
+                    </span>
+                  </div>
+                  {delaySummary.minutes >= 60 && (
+                    <div className="text-[10px] text-slate-400 mt-0.5">معادل {toPersianDigits(formatMinutesLong(delaySummary.minutes))}</div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-slate-500 font-bold">کسر خودکار نمره انضباط</div>
+                  <div className={`mt-1 text-lg font-black ${autoDeductedPoints > 0 ? 'text-violet-700' : 'text-slate-700'}`}>
+                    {autoDeductedPoints > 0 ? `−${toPersianDigits(autoDeductedPoints)} نمره` : 'بدون کسر'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    به‌ازای هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه تأخیر، {toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره • {toPersianDigits(minutesToNextPoint)} دقیقه تا کسر بعدی
+                  </div>
+                </div>
+              </div>
 
               {/* فیلترهای وضعیت */}
               <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
@@ -1350,7 +1398,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               {/* Interactive Growth Trend Chart */}
               <StudentGrowthChart 
                 grades={studentAcademicGrades} 
-                studentName={`${currentStudent.firstName} ${currentStudent.lastName}`} 
+                studentName={`${studentFullName(currentStudent)}`} 
               />
 
               {/* 4-Period Official Grade Sheet */}
@@ -1518,7 +1566,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
             <div className="p-5 space-y-4">
               <div className="text-xs text-slate-600">
-                گیرنده: <strong>{currentStudent.firstName} {currentStudent.lastName}</strong> (شماره: <span className="font-mono">{currentStudent.parentPhone || 'ثبت نشده'}</span>)
+                گیرنده: <strong>{studentFullName(currentStudent)}</strong> (شماره: <span className="font-mono">{currentStudent.parentPhone || 'ثبت نشده'}</span>)
               </div>
 
               <textarea

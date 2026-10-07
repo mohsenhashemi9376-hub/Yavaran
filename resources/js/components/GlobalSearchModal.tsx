@@ -16,6 +16,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { Badge } from './ui/Badge';
+import { studentFullName } from '../utils/studentName';
 
 export interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -139,8 +140,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const matchedStudents = useMemo(() => {
     if (!cleanQuery) return [];
     return students.filter((s) => {
-      const fullName = normalize(`${s.firstName} ${s.lastName}`);
-      const reverseName = normalize(`${s.lastName} ${s.firstName}`);
+      const fullName = normalize(`${studentFullName(s)}`);
+      const reverseName = normalize(`${studentFullName(s)}`);
       const code = s.studentCode || '';
       const nationalId = s.nationalId || '';
       const cls = classMap.get(s.classId);
@@ -461,7 +462,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs sm:text-sm font-bold truncate">
-                                {st.firstName} {st.lastName}
+                                {studentFullName(st)}
                               </div>
                               <div className="text-[11px] text-slate-500 truncate flex items-center gap-1.5">
                                 <span>{cls ? cls.name : 'بدون کلاس'}</span>

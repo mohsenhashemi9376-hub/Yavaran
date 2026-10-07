@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { FlaskConical, Hammer, Users, X, Search, Check } from 'lucide-react';
+import { FlaskConical, Hammer, Users, X, Search, Check, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { Workshop } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
 import { compareByLastName } from '../utils/morningAttendance';
-import { WORKSHOP_DAYS, WORKSHOP_PERIODS, gradeLevelOfClass } from '../utils/workshops';
+import { gradeLevelOfClass } from '../utils/workshops';
+import { studentFullName } from '../utils/studentName';
 
 const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = ({ workshop, onClose }) => {
   const { students, classes, workshops, updateWorkshop, showToast } = useSchool();
@@ -25,7 +26,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
       students
         // فقط دانش‌آموزان کلاس‌های همین پایه
         .filter((s) => gradeLevelOfClass(classById.get(s.classId)) === workshop.gradeLevel)
-        .filter((s) => !query.trim() || `${s.firstName} ${s.lastName}`.includes(query.trim()) || `${s.lastName} ${s.firstName}`.includes(query.trim()))
+        .filter((s) => !query.trim() || `${studentFullName(s)}`.includes(query.trim()) || `${studentFullName(s)}`.includes(query.trim()))
         .sort(compareByLastName),
     [students, classById, workshop.gradeLevel, query]
   );
@@ -52,10 +53,6 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
     const validIds = new Set(candidatesAll.map((s) => s.id));
     if (Array.from(selected).some((id) => !validIds.has(id))) {
       showToast(`فقط دانش‌آموزان پایه ${workshop.gradeLevel === 9 ? 'نهم' : 'هشتم'} قابل تخصیص هستند.`, 'error');
-      return;
-    }
-    if (workshop.capacity && selected.size > workshop.capacity) {
-      showToast(`ظرفیت این کارگاه ${toPersianDigits(workshop.capacity)} نفر است.`, 'error');
       return;
     }
     const conflicts = Array.from(selected).filter((id) => otherMembership.has(id));
@@ -105,7 +102,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
                 <label key={s.id} className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-slate-50/80 text-sm">
                   <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} className="w-4 h-4 accent-emerald-600" />
                   <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">
-                    {s.lastName} {s.firstName}
+                    {studentFullName(s)}
                   </span>
                   <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
                   {other && (
@@ -134,11 +131,115 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
   );
 };
 
+
+/** فرم افزودن / ویرایش کارگاه */
+const WorkshopFormModal: React.FC<{
+  workshop?: Workshop;
+  defaultCategory: Workshop['category'];
+  defaultGrade: 8 | 9;
+  onClose: () => void;
+}> = ({ workshop, defaultCategory, defaultGrade, onClose }) => {
+  const { addWorkshop, updateWorkshop, assignableStaff, showToast } = useSchool();
+  const [name, setName] = useState(workshop?.name || '');
+  const [category, setCategory] = useState<Workshop['category']>(workshop?.category || defaultCategory);
+  const [gradeLevel, setGradeLevel] = useState<8 | 9>(workshop?.gradeLevel || defaultGrade);
+  const [teacherId, setTeacherId] = useState(workshop?.teacherId || '');
+
+  const field = 'w-full text-sm bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl px-3 py-2.5 outline-none';
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast('نام کارگاه را وارد کنید.', 'error');
+      return;
+    }
+    const teacher = assignableStaff.find((u) => u.id === teacherId);
+    if (workshop) {
+      // با تغییر پایه، دانش‌آموزان پایه قبلی از کارگاه خارج می‌شوند
+      const gradeChanged = workshop.gradeLevel !== gradeLevel;
+      updateWorkshop(workshop.id, {
+        name: name.trim(),
+        category,
+        gradeLevel,
+        teacherId: teacher?.id,
+        teacherName: teacher?.name,
+        ...(gradeChanged ? { studentIds: [] } : {}),
+      });
+      showToast('کارگاه ویرایش شد.', 'success');
+    } else {
+      const id = addWorkshop({ name, category, gradeLevel, teacherId: teacher?.id, teacherName: teacher?.name });
+      if (id) showToast('کارگاه جدید افزوده شد.', 'success');
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" dir="rtl">
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+        <div className="px-5 pt-5 pb-3 flex items-center gap-3 border-b border-slate-100">
+          <h3 className="text-base font-extrabold text-slate-900 flex-1">{workshop ? 'ویرایش کارگاه' : 'افزودن کارگاه'}</h3>
+          <button type="button" onClick={onClose} aria-label="بستن" className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <label className="block">
+            <span className="block text-[11px] font-bold text-slate-500 mb-1">نام کارگاه</span>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً رباتیک" className={field} />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="block text-[11px] font-bold text-slate-500 mb-1">نوع کارگاه</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value as Workshop['category'])} className={field}>
+                <option value="scientific">علمی</option>
+                <option value="skill">مهارتی</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-[11px] font-bold text-slate-500 mb-1">پایه</span>
+              <select value={gradeLevel} onChange={(e) => setGradeLevel(Number(e.target.value) === 9 ? 9 : 8)} className={field}>
+                <option value={8}>هشتم</option>
+                <option value={9}>نهم</option>
+              </select>
+            </label>
+          </div>
+          {workshop && workshop.gradeLevel !== gradeLevel && workshop.studentIds.length > 0 && (
+            <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              با تغییر پایه، فهرست دانش‌آموزان این کارگاه پاک می‌شود.
+            </div>
+          )}
+          <label className="block">
+            <span className="block text-[11px] font-bold text-slate-500 mb-1">استاد / مربی مسئول</span>
+            <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={field}>
+              <option value="">— تخصیص نشده —</option>
+              {assignableStaff.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-100 flex gap-3">
+          <button type="submit" className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-extrabold shadow-sm cursor-pointer inline-flex items-center justify-center gap-2">
+            <Check className="w-5 h-5" />
+            <span>{workshop ? 'ذخیره تغییرات' : 'افزودن'}</span>
+          </button>
+          <button type="button" onClick={onClose} className="h-12 px-5 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-100 cursor-pointer">
+            انصراف
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 /** تب «کارگاه‌های انتخابی» در صفحه برنامه دروس و اساتید */
 export const WorkshopsSection: React.FC = () => {
-  const { workshops, updateWorkshop, assignableStaff, isAdmin, isEducationalVice } = useSchool();
+  const { workshops, updateWorkshop, deleteWorkshop, assignableStaff, isAdmin, isEducationalVice, showToast } = useSchool();
   const canManage = isAdmin || isEducationalVice;
   const [enrolling, setEnrolling] = useState<Workshop | null>(null);
+  const [form, setForm] = useState<{ workshop?: Workshop; category: Workshop['category'] } | null>(null);
   const [grade, setGrade] = useState<8 | 9>(8);
   const gradeName = grade === 9 ? 'نهم' : 'هشتم';
 
@@ -174,10 +275,22 @@ export const WorkshopsSection: React.FC = () => {
 
       {groups.map((g) => (
         <div key={g.key} className={`rounded-2xl border p-4 space-y-3 ${g.box}`}>
-          <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-            <g.Icon className="w-4 h-4" />
-            <span>{g.title}</span>
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+              <g.Icon className="w-4 h-4" />
+              <span>{g.title}</span>
+            </h3>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setForm({ category: g.key })}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${g.btn}`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>افزودن کارگاه</span>
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {workshops
               .filter((w) => w.category === g.key && w.gradeLevel === grade)
@@ -192,10 +305,40 @@ export const WorkshopsSection: React.FC = () => {
                         {w.category === 'scientific' ? 'کارگاه علمی' : 'کارگاه مهارتی'} {w.name} • پایه {gradeName}
                       </span>
                     </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
                       <Users className="w-3 h-3" />
-                      {toPersianDigits(w.studentIds.length)}{w.capacity ? ` / ${toPersianDigits(w.capacity)}` : ''} نفر
+                      {toPersianDigits(w.studentIds.length)} نفر
                     </span>
+                    {canManage && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="ویرایش کارگاه"
+                          aria-label="ویرایش کارگاه"
+                          onClick={() => setForm({ workshop: w, category: w.category })}
+                          className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          title="حذف کارگاه"
+                          aria-label="حذف کارگاه"
+                          onClick={() => {
+                            const warn = w.studentIds.length > 0 ? ` فهرست ${toPersianDigits(w.studentIds.length)} دانش‌آموز آن هم پاک می‌شود.` : '';
+                            if (window.confirm(`کارگاه «${w.name}» (پایه ${w.gradeLevel === 9 ? 'نهم' : 'هشتم'}) حذف شود؟${warn}`)) {
+                              deleteWorkshop(w.id);
+                              showToast('کارگاه حذف شد.', 'success');
+                            }
+                          }}
+                          className="w-8 h-8 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 flex items-center justify-center cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    </div>
                   </div>
 
                   <label className="block">
@@ -218,44 +361,6 @@ export const WorkshopsSection: React.FC = () => {
                     </select>
                   </label>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="block">
-                      <span className="block text-[11px] font-bold text-slate-500 mb-1">روز</span>
-                      <select value={w.day || ''} disabled={!canManage} onChange={(e) => updateWorkshop(w.id, { day: e.target.value || undefined })} className={selectClass}>
-                        <option value="">—</option>
-                        {WORKSHOP_DAYS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block">
-                      <span className="block text-[11px] font-bold text-slate-500 mb-1">زنگ</span>
-                      <select value={w.period || ''} disabled={!canManage} onChange={(e) => updateWorkshop(w.id, { period: e.target.value || undefined })} className={selectClass}>
-                        <option value="">—</option>
-                        {WORKSHOP_PERIODS.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="block">
-                    <span className="block text-[11px] font-bold text-slate-500 mb-1">ظرفیت (نفر)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={w.capacity ?? ''}
-                      disabled={!canManage}
-                      onChange={(e) => updateWorkshop(w.id, { capacity: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })}
-                      placeholder="بدون محدودیت"
-                      className={selectClass}
-                    />
-                  </label>
-
                   {canManage && (
                     <button
                       type="button"
@@ -271,6 +376,7 @@ export const WorkshopsSection: React.FC = () => {
         </div>
       ))}
 
+      {form && <WorkshopFormModal workshop={form.workshop} defaultCategory={form.category} defaultGrade={grade} onClose={() => setForm(null)} />}
       {enrolling && <EnrollmentModal workshop={enrolling} onClose={() => setEnrolling(null)} />}
     </div>
   );

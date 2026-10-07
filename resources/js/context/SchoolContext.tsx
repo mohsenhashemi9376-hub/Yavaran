@@ -14,6 +14,7 @@ import {
   TeacherActivity,
   GradePeriod,
   Workshop,
+  LoanItem,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -48,11 +49,13 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
-import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
+import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
+import { studentFullName, normalizeStudentName, compareStudents, splitListName } from '../utils/studentName';
+import { summarizeStudentDelays, expectedDelayDeductions, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 interface SchoolContextType {
   currentUser: User;
@@ -88,7 +91,13 @@ interface SchoolContextType {
   /** فهرست کامل بازه‌های ثبت نمره (فعال/قفل) */
   gradePeriods: GradePeriod[];
   workshops: Workshop[];
+  loanItems: LoanItem[];
+  addLoanItem: (data: Pick<LoanItem, 'itemName' | 'loanDate' | 'recipientName'> & { note?: string }) => string;
+  updateLoanItem: (id: string, patch: Partial<Omit<LoanItem, 'id'>>) => void;
+  deleteLoanItem: (id: string) => void;
   updateWorkshop: (id: string, patch: Partial<Omit<Workshop, 'id'>>) => void;
+  addWorkshop: (data: Pick<Workshop, 'name' | 'category' | 'gradeLevel'> & { teacherId?: string; teacherName?: string }) => string;
+  deleteWorkshop: (id: string) => void;
   setGradePeriodActive: (code: string, isActive: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
   isGradePeriodOpen: (code: string) => boolean;
@@ -306,7 +315,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [rawClasses, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
+  const [rawStudents, setStudents] = useState<Student[]>([]);
+  // نمایش یکسان: نام‌های ثبت‌گروهی قدیمی اصلاح و همه‌جا الفبایی (نام خانوادگی، نام) مرتب می‌شود
+  const students = useMemo<Student[]>(
+    () => rawStudents.map(normalizeStudentName).sort(compareStudents),
+    [rawStudents]
+  );
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [academicSubjects, setAcademicSubjects] = useState<AcademicSubject[]>([]);
   const [academicGrades, setAcademicGrades] = useState<StudentAcademicGrade[]>([]);
@@ -323,6 +337,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
+  const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -465,6 +480,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextTeacherActivities = (d.teacherActivities || []) as unknown as TeacherActivity[];
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
+    const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -489,6 +505,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       teacherActivities: nextTeacherActivities as unknown as SyncRow[],
       gradePeriods: nextGradePeriods as unknown as SyncRow[],
       workshops: nextWorkshops as unknown as SyncRow[],
+      loanItems: nextLoanItems as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -513,6 +530,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTeacherActivities(nextTeacherActivities);
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
+    setLoanItems(nextLoanItems);
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -544,6 +562,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTeacherActivities([]);
     setStoredGradePeriods([]);
     setStoredWorkshops([]);
+    setLoanItems([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -610,7 +629,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('grades', grades as unknown as SyncRow[]); }, [grades, syncEngine]);
   useEffect(() => { syncEngine.push('users', rawUsers as unknown as SyncRow[]); }, [rawUsers, syncEngine]);
   useEffect(() => { syncEngine.push('classes', rawClasses as unknown as SyncRow[]); }, [rawClasses, syncEngine]);
-  useEffect(() => { syncEngine.push('students', students as unknown as SyncRow[]); }, [students, syncEngine]);
+  useEffect(() => { syncEngine.push('students', rawStudents as unknown as SyncRow[]); }, [rawStudents, syncEngine]);
   useEffect(() => { syncEngine.push('sessions', sessions as unknown as SyncRow[]); }, [sessions, syncEngine]);
   useEffect(() => { syncEngine.push('academicSubjects', academicSubjects as unknown as SyncRow[]); }, [academicSubjects, syncEngine]);
   useEffect(() => { syncEngine.push('academicGrades', academicGrades as unknown as SyncRow[]); }, [academicGrades, syncEngine]);
@@ -625,6 +644,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('courseAssignments', courseAssignments as unknown as SyncRow[]); }, [courseAssignments, syncEngine]);
   useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
+  useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
   useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
@@ -709,6 +729,48 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAdmin = currentUser.role === 'admin';
   const isEducationalVice = currentUser.role === 'vice_educational' || currentUser.role === 'vice_principal';
   const isDisciplinaryVice = currentUser.role === 'vice_disciplinary' || currentUser.role === 'vice_principal';
+
+  // کسر خودکار نمره انضباط: به‌ازای هر ۶۰ دقیقه تأخیر تجمعی یک نمره کم می‌شود.
+  // کسرها با شناسه‌ی ثابت (auto-delay-<دانش‌آموز>-<ساعت>) ثبت می‌شوند، پس تکرار نمی‌شوند؛
+  // اگر تأخیری حذف شود و مجموع کم شود، کسر مربوطه برمی‌گردد.
+  const canAutoDeductDelays =
+    ['admin', 'vice_disciplinary', 'vice_principal', 'vice_educational'].includes(currentUser.role) &&
+    (currentUser.role === 'admin' || (Array.isArray(currentUser.permissions) ? currentUser.permissions.includes('discipline') : true));
+  useEffect(() => {
+    if (authStatus !== 'ready' || !canAutoDeductDelays) return;
+    const today = getTodayShamsi().formattedDate;
+    setStudents((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        const { minutes } = summarizeStudentDelays(s, { morningDelays, morningAttendance, sessions });
+        const hours = expectedDelayDeductions(minutes);
+        const notes = s.disciplinaryNotes || [];
+        const wanted = new Set(Array.from({ length: hours }, (_, i) => `auto-delay-${s.id}-${i + 1}`));
+        const keep = notes.filter((n) => n.source !== 'auto_delay' || wanted.has(n.id));
+        const have = new Set(keep.filter((n) => n.source === 'auto_delay').map((n) => n.id));
+        const toAdd: DisciplinaryNote[] = Array.from(wanted)
+          .filter((id) => !have.has(id))
+          .map((id, i) => ({
+            id,
+            date: today,
+            title: 'کسر نمره انضباط بابت مجموع تأخیرها',
+            description: `مجموع تأخیرهای دانش‌آموز از ${toPersianDigits(formatMinutesLong((Number(id.split("-").pop()) || i + 1) * DELAY_MINUTES_PER_POINT))} گذشت؛ ${toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره به‌صورت خودکار کسر شد.`,
+            scoreDeduction: DELAY_POINTS_DEDUCTED,
+            recordedBy: 'سامانه (خودکار)',
+            type: 'delay',
+            source: 'auto_delay',
+          }));
+        if (toAdd.length === 0 && keep.length === notes.length) return s;
+        changed = true;
+        const removed = notes.filter((n) => !keep.includes(n)).reduce((a, n) => a + (Number(n.scoreDeduction) || 0), 0);
+        const added = toAdd.reduce((a, n) => a + n.scoreDeduction, 0);
+        const score = Math.max(0, Math.min(20, (s.disciplineScore ?? 20) + removed - added));
+        return { ...s, disciplineScore: score, disciplinaryNotes: [...toAdd, ...keep] };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, canAutoDeductDelays, morningDelays, morningAttendance, sessions, rawStudents.length]);
   const isNurturingVice = currentUser.role === 'vice_nurturing';
   const isCoach = currentUser.role === 'coach';
   const isNurturingTeam = isNurturingVice || isCoach;
@@ -746,12 +808,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const accessibleClassIds = new Set(accessibleClasses.map((c) => c.id));
 
+  // دبیر فقط جلسات خودش را می‌بیند: جلسه‌ای که خودش ثبت کرده یا درسی که در همان کلاس به او واگذار شده
+  // (جلسات سایر دبیران در همان کلاس‌ها نمایش داده نمی‌شود)
+  const isOwnTeachingSession = (s: AttendanceSession): boolean =>
+    s.teacherId === currentUser.id ||
+    (currentUser.teachingAssignments || []).some(
+      (ta) =>
+        ta.classIds.includes(s.classId) &&
+        ((s.subjectId && ta.subjectId === s.subjectId) || (!s.subjectId && ta.subjectName === s.subject))
+    );
+
   const accessibleSessions = isTeacher
-    ? sessions.filter(
-        (s) =>
-          accessibleClassIds.has(s.classId) &&
-          (s.teacherId === currentUser.id || currentUser.assignedClassIds.includes(s.classId))
-      )
+    ? sessions.filter((s) => accessibleClassIds.has(s.classId) && isOwnTeachingSession(s))
     : isCoach && currentUser.isAlsoTeacher
     ? sessions.filter(
         (s) =>
@@ -792,11 +860,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Sessions accessible for teaching view
   const teachingAccessibleSessions = isTeacher
-    ? sessions.filter(
-        (s) =>
-          teachingClassIdsSet.has(s.classId) &&
-          (s.teacherId === currentUser.id || currentUser.assignedClassIds.includes(s.classId))
-      )
+    ? sessions.filter((s) => teachingClassIdsSet.has(s.classId) && isOwnTeachingSession(s))
     : hasTeachingLoad
     ? sessions.filter(
         (s) =>
@@ -813,8 +877,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const teachesClass = currentUser.assignedClassIds.includes(classId) || classes.find((c) => c.id === classId)?.teacherIds.includes(currentUser.id);
       if (!teachesClass) return false;
       if (!subjectNameOrId) return true;
-      if (currentUser.subject && (subjectNameOrId === currentUser.subject || subjectNameOrId.includes(currentUser.subject))) return true;
-      return true;
+      // فقط درسی که در همین کلاس به این دبیر واگذار شده است
+      return (currentUser.teachingAssignments || []).some(
+        (ta) =>
+          ta.classIds.includes(classId) &&
+          (ta.subjectId === subjectNameOrId || ta.subjectName === subjectNameOrId)
+      );
     }
     if (hasTeachingLoad) {
       const teachesClass = teachingClassIdsSet.has(classId);
@@ -919,7 +987,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId: '' } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» از کلاس خارج شد (سوابق و پرونده در سامانه حفظ گردید).`, 'info');
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» از کلاس خارج شد (سوابق و پرونده در سامانه حفظ گردید).`, 'info');
   };
 
   const transferStudentClass = (studentId: string, newClassId: string) => {
@@ -928,7 +996,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId: newClassId } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» منتقل شد.`);
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» منتقل شد.`);
   };
 
   const assignStudentToClass = (studentId: string, classId: string) => {
@@ -937,7 +1005,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStudents((prev) =>
       prev.map((s) => (s.id === studentId ? { ...s, classId } : s))
     );
-    showToast(`دانش‌آموز «${targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» اضافه شد.`);
+    showToast(`دانش‌آموز «${targetStudent ? `${studentFullName(targetStudent)}` : ''}» به کلاس «${targetClass ? targetClass.name : ''}» اضافه شد.`);
   };
 
   const addStudent = (newStudent: Omit<Student, 'id'>): string => {
@@ -950,7 +1018,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       disciplinaryNotes: newStudent.disciplinaryNotes ?? [],
     };
     setStudents((prev) => [...prev, student]);
-    showToast(`دانش‌آموز «${newStudent.firstName} ${newStudent.lastName}» با موفقیت ثبت شد.`);
+    showToast(`دانش‌آموز «${studentFullName(newStudent)}» با موفقیت ثبت شد.`);
     return id;
   };
 
@@ -959,9 +1027,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .map((name) => name.trim())
       .filter((name) => name.length > 0)
       .map((fullName, idx) => {
-        const parts = fullName.split(' ');
-        const firstName = parts[0] || 'دانش‌آموز';
-        const lastName = parts.slice(1).join(' ') || `شماره ${idx + 1}`;
+        // فهرست کلاسی: «نام‌خانوادگی نام» ← آخرین کلمه نام، بقیه نام خانوادگی
+        const split = splitListName(fullName);
+        const firstName = split.firstName || 'دانش‌آموز';
+        const lastName = split.lastName || `شماره ${idx + 1}`;
         const randomCode = Math.floor(10000000 + Math.random() * 90000000).toString();
         return {
           id: `stu-${Date.now()}-${idx}`,
@@ -970,6 +1039,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           nationalId: `00${randomCode}`,
           firstName,
           lastName,
+          nameFormat: 'v2',
           parentPhone: '09120000000',
           disciplineScore: 20,
           disciplinaryStatus: 'normal',
@@ -1016,7 +1086,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     showToast(
       target
-        ? `دانش‌آموز «${target.firstName} ${target.lastName}» و تمام سوابق او حذف شد.`
+        ? `دانش‌آموز «${studentFullName(target)}» و تمام سوابق او حذف شد.`
         : 'دانش‌آموز با موفقیت حذف شد.',
       'info'
     );
@@ -1284,6 +1354,41 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  // امانات و لوازم
+  const addLoanItem: SchoolContextType['addLoanItem'] = (data) => {
+    const id = `loan-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const item: LoanItem = {
+      id,
+      itemName: data.itemName.trim(),
+      loanDate: data.loanDate,
+      recipientName: data.recipientName.trim(),
+      note: data.note?.trim() || undefined,
+      returned: false,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.name,
+    };
+    setLoanItems((prev) => [item, ...prev]);
+    return id;
+  };
+
+  const updateLoanItem = (id: string, patch: Partial<Omit<LoanItem, 'id'>>) => {
+    setLoanItems((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  };
+
+  const deleteLoanItem = (id: string) => {
+    setLoanItems((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const addWorkshop: SchoolContextType['addWorkshop'] = (data) => {
+    const id = `ws-c${Date.now()}`;
+    setStoredWorkshops((prev) => [...prev, { id, studentIds: [], ...data, name: data.name.trim() }]);
+    return id;
+  };
+
+  const deleteWorkshop = (id: string) => {
+    setStoredWorkshops((prev) => prev.filter((w) => w.id !== id));
+  };
+
   const isGradePeriodOpen = (code: string): boolean => {
     const managerRole = ['admin', 'vice_educational', 'vice_principal'].includes(currentUser.role);
     if (managerRole) return true;
@@ -1305,7 +1410,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const id = `md-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const targetStudent = students.find((s) => s.id === delayData.studentId);
-    const studentName = delayData.studentName || (targetStudent ? `${targetStudent.firstName} ${targetStudent.lastName}` : undefined);
+    const studentName = delayData.studentName || (targetStudent ? `${studentFullName(targetStudent)}` : undefined);
 
     const newRecord: MorningDelayRecord = {
       ...delayData,
@@ -2362,7 +2467,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         teacherActivities,
         gradePeriods,
         workshops,
+        loanItems,
+        addLoanItem,
+        updateLoanItem,
+        deleteLoanItem,
         updateWorkshop,
+        addWorkshop,
+        deleteWorkshop,
         setGradePeriodActive,
         isGradePeriodOpen,
         addTeacherActivity,

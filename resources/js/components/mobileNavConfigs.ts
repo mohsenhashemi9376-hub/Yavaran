@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
   BookOpen, ClipboardList, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
-  BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock,
+  BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
 
@@ -9,7 +9,7 @@ import type { MobileNavItem } from './MobileBottomNav';
 export const HOME = 'home';
 
 /** پنل مدیر مدرسه / معاونین (AdminDashboard) */
-export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warnings: number }) => {
+export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warnings: number; loans?: number }) => {
   const can = (roles: string[]) => isAdmin || roles.includes(role);
   const primary: MobileNavItem[] = [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
@@ -25,6 +25,8 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
       ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
     ...(can(['principal', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'coaches', label: 'مربیان', icon: HeartHandshake }] : []),
+    ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
+      ? [{ id: 'loans', label: 'امانات و لوازم', icon: Package, badge: counts.loans }] : []),
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
     { id: 'reports', label: 'گزارش‌ها', icon: FileSpreadsheet },
     { id: 'settings', label: 'تنظیمات', icon: Settings },
@@ -32,7 +34,7 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
   return { primary, more };
 };
 
-export const executiveMobileNav = (counts: { warnings: number }) => ({
+export const executiveMobileNav = (counts: { warnings: number; loans?: number }) => ({
   primary: [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
     { id: 'attendance', label: 'حضور و غیاب', icon: CheckCircle2 },
@@ -40,6 +42,7 @@ export const executiveMobileNav = (counts: { warnings: number }) => ({
     { id: 'students', label: 'دانش‌آموزان', icon: Users },
   ] as MobileNavItem[],
   more: [
+    { id: 'loans', label: 'امانات و لوازم', icon: Package, badge: counts.loans },
     { id: 'classes', label: 'کلاس‌ها', icon: GraduationCap },
     { id: 'teachers', label: 'معلمان', icon: UserCheck },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },

@@ -4,6 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi, getDayOfWeekFromShamsi } from '../utils/persianDate';
 import { X, Search, Calendar, AlertCircle, Loader2, Check, Plus } from 'lucide-react';
+import { studentFullName } from '../utils/studentName';
 
 interface MorningDelayModalProps {
   isOpen: boolean;
@@ -136,7 +137,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const words = query.split(' ');
     return students
       .filter((stu) => {
-        const haystack = normalizeText(`${stu.firstName} ${stu.lastName} ${stu.studentCode || ''}`);
+        const haystack = normalizeText(`${studentFullName(stu)} ${stu.studentCode || ''}`);
         return words.every((w) => haystack.includes(w));
       })
       .slice(0, 8);
@@ -214,13 +215,13 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     );
     if (isDuplicate) {
       setErrorMessage(
-        `برای «${selectedStudent.firstName} ${selectedStudent.lastName}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً تأخیر ثبت شده است.`
+        `برای «${studentFullName(selectedStudent)}» در تاریخ ${toPersianDigits(cleanDate)} قبلاً تأخیر ثبت شده است.`
       );
       return;
     }
 
     const dayOfWeek = getDayOfWeekFromShamsi(cleanDate);
-    const studentFullName = `${selectedStudent.firstName} ${selectedStudent.lastName}`;
+    const studentDisplayName = studentFullName(selectedStudent);
 
     const now = tehranNow();
     const arrivalTime =
@@ -233,7 +234,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     try {
       const payload = {
         studentId: selectedStudentId,
-        studentName: studentFullName,
+        studentName: studentDisplayName,
         classId: selectedStudent.classId || '',
         date: cleanDate,
         dayOfWeek,
@@ -244,7 +245,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
       };
       if (editRecord) {
         updateMorningDelay(editRecord.id, payload);
-        showToast(`تغییرات تأخیر ${studentFullName} با موفقیت ذخیره شد.`, 'success');
+        showToast(`تغییرات تأخیر ${studentDisplayName} با موفقیت ذخیره شد.`, 'success');
       } else {
         addMorningDelay({ ...payload, recordedBy: `${currentUser.name} (${currentUser.roleTitle})` });
       }
@@ -306,7 +307,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
               <div className="bg-emerald-50 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-extrabold text-slate-900 text-sm truncate">
-                    {selectedStudent.firstName} {selectedStudent.lastName}
+                    {studentFullName(selectedStudent)}
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5">{classNameOf(selectedStudent.classId)}</div>
                 </div>
@@ -355,7 +356,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                           }`}
                         >
                           <span className="font-bold text-sm text-slate-900 truncate">
-                            {stu.firstName} {stu.lastName}
+                            {studentFullName(stu)}
                           </span>
                           <span className="text-xs text-slate-500 shrink-0 bg-slate-100 rounded-lg px-2 py-0.5">
                             {classNameOf(stu.classId)}

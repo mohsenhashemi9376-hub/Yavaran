@@ -35,6 +35,7 @@ import {
   AreaChart, 
   Area 
 } from 'recharts';
+import { studentFullName } from '../utils/studentName';
 
 interface ClassMonthlyGradesSectionProps {
   classData: SchoolClass;
@@ -54,6 +55,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     saveBatchAcademicGrades,
     currentUser,
     isTeacher,
+    isAdmin,
+    isEducationalVice,
+    canTeachClassAndSubject,
     isGradePeriodOpen,
     sessions
   } = useSchool();
@@ -77,9 +81,17 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   }, [initialSubjectId]);
 
   // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
+  // دبیر فقط درس‌های خودش را می‌بیند؛ مدیر و معاون آموزش به همه‌ی دروس دسترسی دارند
+  const restrictToOwnSubjects = !isAdmin && !isEducationalVice && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
   const classSubjects = useMemo(
-    () => academicSubjects.filter((s) => subjectAppliesToClass(s, classData)),
-    [academicSubjects, classData]
+    () =>
+      academicSubjects.filter(
+        (s) =>
+          subjectAppliesToClass(s, classData) &&
+          (!restrictToOwnSubjects || canTeachClassAndSubject(classData.id, s.id))
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [academicSubjects, classData, restrictToOwnSubjects, currentUser.teachingAssignments]
   );
 
   useEffect(() => {
@@ -291,7 +303,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Filter students for display
   const filteredStudents = classStudents.filter((s) => {
-    const fullName = `${s.firstName} ${s.lastName} ${s.studentCode}`.toLowerCase();
+    const fullName = `${studentFullName(s)} ${s.studentCode}`.toLowerCase();
     return !searchQuery || fullName.includes(searchQuery.toLowerCase());
   });
 
@@ -301,7 +313,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
       const row: Record<string, any> = {
         'ردیف': idx + 1,
         'کد دانش‌آموزی': stu.studentCode,
-        'نام و نام خانوادگی': `${stu.firstName} ${stu.lastName}`,
+        'نام و نام خانوادگی': `${studentFullName(stu)}`,
         'کلاس': classData.name,
         'درس': currentSubject?.name || 'نامشخص',
       };
@@ -559,7 +571,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                             className="font-bold text-slate-800 hover:text-emerald-700 transition cursor-pointer text-right group"
                             title="مشاهده کارنامه و پرونده دانش‌آموز"
                           >
-                            <span className="group-hover:underline">{stu.firstName} {stu.lastName}</span>
+                            <span className="group-hover:underline">{studentFullName(stu)}</span>
                           </button>
                           {stu.fatherName && (
                             <div className="text-[10px] text-slate-400">
@@ -678,7 +690,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                       {toPersianDigits(idx + 1)}
                     </td>
                     <td className="p-2 font-bold text-slate-900 sticky right-10 bg-white z-10">
-                      {stu.firstName} {stu.lastName}
+                      {studentFullName(stu)}
                     </td>
 
                     {/* Inputs for each period */}

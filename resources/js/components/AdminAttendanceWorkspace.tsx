@@ -28,7 +28,9 @@ import {
   PhoneCall
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceWorkspace, MorningStatusFilter } from './MorningAttendanceWorkspace';
+import { studentFullName } from '../utils/studentName';
 
 type AttendanceTab = 'morning' | 'sessions';
 
@@ -104,6 +106,11 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const { students } = useSchool();
+  // ردیفی که لیست اسامی غائبین/تأخیرها در آن باز شده است
+  const [expanded, setExpanded] = useState<{ id: string; kind: 'absent' | 'late' } | null>(null);
+  const toggleExpanded = (id: string, kind: 'absent' | 'late') =>
+    setExpanded((cur) => (cur && cur.id === id && cur.kind === kind ? null : { id, kind }));
 
   const todayInfo = getTodayShamsi();
 
@@ -335,9 +342,11 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                     const pres = records.filter((r) => r.status === 'present').length;
                     const abs = records.filter((r) => r.status === 'absent').length;
                     const lts = records.filter((r) => r.status === 'late').length;
+                    const isOpen = expanded?.id === s.id;
 
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50/80 transition">
+                      <React.Fragment key={s.id}>
+                      <tr className="hover:bg-slate-50/80 transition">
                         <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{toPersianDigits(idx + 1)}</td>
                         <td className="py-3 px-4 font-bold text-slate-900">{cls?.name || 'نامشخص'}</td>
                         <td className="py-3 px-4">
@@ -355,18 +364,32 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                         <td className="py-3 px-4 text-center font-bold text-emerald-700 font-mono">{toPersianDigits(pres)}</td>
                         <td className="py-3 px-4 text-center">
                           {abs > 0 ? (
-                            <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full font-mono">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpanded(s.id, 'absent')}
+                              title="نمایش اسامی غائبین"
+                              className={`font-bold text-rose-700 px-2 py-0.5 rounded-full font-mono cursor-pointer transition hover:bg-rose-100 ${
+                                isOpen && expanded?.kind === 'absent' ? 'bg-rose-200 ring-1 ring-rose-300' : 'bg-rose-50'
+                              }`}
+                            >
                               {toPersianDigits(abs)}
-                            </span>
+                            </button>
                           ) : (
                             <span className="text-slate-300 font-mono">۰</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-center">
                           {lts > 0 ? (
-                            <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-mono">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpanded(s.id, 'late')}
+                              title="نمایش اسامی متأخرین"
+                              className={`font-bold text-amber-700 px-2 py-0.5 rounded-full font-mono cursor-pointer transition hover:bg-amber-100 ${
+                                isOpen && expanded?.kind === 'late' ? 'bg-amber-200 ring-1 ring-amber-300' : 'bg-amber-50'
+                              }`}
+                            >
                               {toPersianDigits(lts)}
-                            </span>
+                            </button>
                           ) : (
                             <span className="text-slate-300 font-mono">۰</span>
                           )}
@@ -374,6 +397,49 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                         <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{s.lessonTopic || '-'}</td>
                         <td className="py-3 px-4 text-slate-500 max-w-xs truncate" title={s.homeworkDescription}>{s.homeworkDescription || '-'}</td>
                       </tr>
+                      {isOpen && expanded && (
+                        <tr className={expanded.kind === 'absent' ? 'bg-rose-50/40' : 'bg-amber-50/40'}>
+                          <td colSpan={10} className="px-4 py-3">
+                            <div className="text-[11px] font-bold text-slate-600 mb-2">
+                              {expanded.kind === 'absent' ? 'غائبین این جلسه' : 'متأخرین این جلسه'}
+                              {' • '}
+                              {s.subject || 'عمومی'} • {cls?.name || 'نامشخص'} • {toPersianDigits(s.date)}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {records
+                                .filter((r) => r.status === expanded.kind)
+                                .map((r) => {
+                                  const stu = students.find((x) => x.id === r.studentId);
+                                  const name = stu ? `${studentFullName(stu)}`.trim() : 'دانش‌آموز حذف‌شده';
+                                  const tone =
+                                    expanded.kind === 'absent'
+                                      ? 'bg-white text-rose-800 border-rose-200'
+                                      : 'bg-white text-amber-800 border-amber-200';
+                                  return (
+                                    <button
+                                      key={r.studentId}
+                                      type="button"
+                                      disabled={!stu || !onSelectStudent}
+                                      onClick={() => stu && onSelectStudent?.(stu)}
+                                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${tone} ${
+                                        stu && onSelectStudent ? 'cursor-pointer hover:shadow-sm' : 'cursor-default'
+                                      }`}
+                                    >
+                                      {name}
+                                      {expanded.kind === 'late' && r.delayMinutes ? (
+                                        <span className="mr-1.5 font-mono font-medium text-[10px] text-amber-600">
+                                          ({toPersianDigits(r.delayMinutes)} دقیقه)
+                                        </span>
+                                      ) : null}
+                                      {r.note ? <span className="mr-1.5 font-medium text-[10px] text-slate-500">— {r.note}</span> : null}
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

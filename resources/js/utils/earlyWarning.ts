@@ -9,6 +9,7 @@ import {
   Student,
   StudentAcademicGrade,
 } from '../types';
+import { compareStudents } from './studentName';
 import { getShamsiWeekRange, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from './persianDate';
 
 export type WarningType = 'consecutive_absence' | 'weekly_delays' | 'grade_drop';
@@ -147,7 +148,7 @@ export function computeEarlyWarnings(input: EarlyWarningInput): EarlyWarningStud
     }
   });
 
-  return result.sort((a, b) => b.items.length - a.items.length || a.student.lastName.localeCompare(b.student.lastName, 'fa'));
+  return result.sort((a, b) => b.items.length - a.items.length || compareStudents(a.student, b.student));
 }
 
 export const WARNING_BADGE_CLASS: Record<WarningType, string> = {

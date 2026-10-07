@@ -20,6 +20,7 @@ import {
 import { toPersianDigits } from '../utils/persianDate';
 import { Student, SchoolClass, StudentObservation } from '../types';
 import { useSchool } from '../context/SchoolContext';
+import { studentFullName, compareStudents } from '../utils/studentName';
 
 export type NurturingViewType = 
   | null 
@@ -146,7 +147,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
     const query = studentSearchTerm.trim().toLowerCase();
     if (query) {
       list = list.filter((s) => {
-        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+        const fullName = `${studentFullName(s)}`.toLowerCase();
         return fullName.includes(query);
       });
     }
@@ -157,7 +158,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
       if (countB !== countA) {
         return countB - countA;
       }
-      return a.lastName.localeCompare(b.lastName, 'fa');
+      return compareStudents(a, b);
     });
   }, [actualStudents, effectiveClassFilter, studentSearchTerm, studentObservationCounts]);
 
@@ -524,11 +525,11 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
                                   }
                                 }}
                                 className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-white hover:shadow-2xs transition-all text-right group cursor-pointer border border-transparent hover:border-slate-200/80"
-                                title={`مشاهده پرونده تربیتی ${student.firstName} ${student.lastName} (${toPersianDigits(count)} مشاهده)`}
+                                title={`مشاهده پرونده تربیتی ${studentFullName(student)} (${toPersianDigits(count)} مشاهده)`}
                               >
                                 {/* فقط نام فارسی دانش‌آموز - بدون هیچ کد یا اطلاعات انگلیسی و فنی */}
                                 <span className="text-slate-800 group-hover:text-emerald-800 font-medium truncate text-xs">
-                                  {student.firstName} {student.lastName}
+                                  {studentFullName(student)}
                                 </span>
 
                                 {/* نشانگر تعداد با فرمت [ ۵ ] یا [ ۰ ] دقیقاً مطابق مشخصات */}
