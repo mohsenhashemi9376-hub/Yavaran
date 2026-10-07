@@ -42,6 +42,12 @@ final class Sms
             return;
         }
 
+        if ($driver === 'tsms') {
+            self::sendViaTsms($phone, $code);
+
+            return;
+        }
+
         $key = (string) config('sms.api_key');
         if ($driver !== 'kavenegar' || $key === '') {
             throw new RuntimeException('درگاه پیامک تنظیم نشده است.');
@@ -55,6 +61,37 @@ final class Sms
 
         if (! $response->successful() || (int) $response->json('return.status') !== 200) {
             Log::warning('SMS send failed', ['status' => $response->status(), 'return' => $response->json('return.status')]);
+            throw new RuntimeException('ارسال پیامک ناموفق بود.');
+        }
+    }
+
+    /** TSMS (tsms.ir): موفقیت = عدد مثبت بزرگ (شناسه‌ی رهگیری)؛ عدد منفی یا خطای ارتباط = خطا */
+    private static function sendViaTsms(string $phone, string $code): void
+    {
+        $username = (string) config('sms.tsms.username');
+        $password = (string) config('sms.tsms.password');
+        $from = (string) config('sms.tsms.from');
+        if ($username === '' || $password === '' || $from === '') {
+            throw new RuntimeException('درگاه پیامک تنظیم نشده است.');
+        }
+
+        try {
+            $response = Http::timeout(10)->asForm()->post((string) config('sms.tsms.url'), [
+                'username' => $username,
+                'password' => $password,
+                'from' => $from,
+                'to' => $phone,
+                'text' => "کد ورود شما به سامانه‌ی مدرسه: {$code}",
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('TSMS connection failed', ['error' => $e->getMessage()]);
+            throw new RuntimeException('ارتباط با درگاه پیامک برقرار نشد.');
+        }
+
+        $body = trim((string) $response->body());
+        if (! $response->successful() || ! preg_match('/^\d{3,}$/', $body)) {
+            // فقط وضعیت/کد خطا لاگ می‌شود؛ شماره و متن کد هرگز
+            Log::warning('TSMS send failed', ['http' => $response->status(), 'response' => mb_substr($body, 0, 50)]);
             throw new RuntimeException('ارسال پیامک ناموفق بود.');
         }
     }
