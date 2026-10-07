@@ -752,12 +752,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const accessibleClassIds = new Set(accessibleClasses.map((c) => c.id));
 
+  // دبیر فقط جلسات خودش را می‌بیند: جلسه‌ای که خودش ثبت کرده یا درسی که در همان کلاس به او واگذار شده
+  // (جلسات سایر دبیران در همان کلاس‌ها نمایش داده نمی‌شود)
+  const isOwnTeachingSession = (s: AttendanceSession): boolean =>
+    s.teacherId === currentUser.id ||
+    (currentUser.teachingAssignments || []).some(
+      (ta) =>
+        ta.classIds.includes(s.classId) &&
+        ((s.subjectId && ta.subjectId === s.subjectId) || (!s.subjectId && ta.subjectName === s.subject))
+    );
+
   const accessibleSessions = isTeacher
-    ? sessions.filter(
-        (s) =>
-          accessibleClassIds.has(s.classId) &&
-          (s.teacherId === currentUser.id || currentUser.assignedClassIds.includes(s.classId))
-      )
+    ? sessions.filter((s) => accessibleClassIds.has(s.classId) && isOwnTeachingSession(s))
     : isCoach && currentUser.isAlsoTeacher
     ? sessions.filter(
         (s) =>
@@ -798,11 +804,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Sessions accessible for teaching view
   const teachingAccessibleSessions = isTeacher
-    ? sessions.filter(
-        (s) =>
-          teachingClassIdsSet.has(s.classId) &&
-          (s.teacherId === currentUser.id || currentUser.assignedClassIds.includes(s.classId))
-      )
+    ? sessions.filter((s) => teachingClassIdsSet.has(s.classId) && isOwnTeachingSession(s))
     : hasTeachingLoad
     ? sessions.filter(
         (s) =>
