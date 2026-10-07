@@ -15,15 +15,12 @@ export const DEFAULT_WORKSHOPS: Workshop[] = [
   ...BASE.map((b) => ({ id: `ws9-${b.slug}`, name: b.name, category: b.category, gradeLevel: 9 as const, studentIds: [] })),
 ];
 
-/** هر کارگاه پیش‌فرض را با رکورد ذخیره‌شده (در صورت وجود) ادغام می‌کند؛ پایه همیشه از تعریف پیش‌فرض می‌آید */
+/**
+ * فهرست کارگاه‌ها دقیقاً همان رکوردهای ذخیره‌شده در سرور است (قابل ویرایش، حذف و افزودن).
+ * کارگاه‌های پیش‌فرض فقط هنگام ساخت جدول در سرور بذر می‌شوند.
+ */
 export function buildWorkshopList(stored: Workshop[]): Workshop[] {
-  const byId = new Map(stored.map((w) => [w.id, w]));
-  const merged = DEFAULT_WORKSHOPS.map((d) => {
-    const rec = byId.get(d.id);
-    return { ...d, ...(rec || {}), gradeLevel: d.gradeLevel, category: d.category, name: d.name, studentIds: rec?.studentIds || [] };
-  });
-  const extra = stored.filter((w) => !DEFAULT_WORKSHOPS.some((d) => d.id === w.id));
-  return [...merged, ...extra];
+  return stored.map((w) => ({ ...w, studentIds: w.studentIds || [] }));
 }
 
 /** «کارگاه مهارتی هوش مصنوعی (پایه نهم)» */

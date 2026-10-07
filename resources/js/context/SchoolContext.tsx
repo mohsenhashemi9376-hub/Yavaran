@@ -90,6 +90,8 @@ interface SchoolContextType {
   gradePeriods: GradePeriod[];
   workshops: Workshop[];
   updateWorkshop: (id: string, patch: Partial<Omit<Workshop, 'id'>>) => void;
+  addWorkshop: (data: Pick<Workshop, 'name' | 'category' | 'gradeLevel'> & { teacherId?: string; teacherName?: string }) => string;
+  deleteWorkshop: (id: string) => void;
   setGradePeriodActive: (code: string, isActive: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
   isGradePeriodOpen: (code: string) => boolean;
@@ -1298,6 +1300,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const addWorkshop: SchoolContextType['addWorkshop'] = (data) => {
+    const id = `ws-c${Date.now()}`;
+    setStoredWorkshops((prev) => [...prev, { id, studentIds: [], ...data, name: data.name.trim() }]);
+    return id;
+  };
+
+  const deleteWorkshop = (id: string) => {
+    setStoredWorkshops((prev) => prev.filter((w) => w.id !== id));
+  };
+
   const isGradePeriodOpen = (code: string): boolean => {
     const managerRole = ['admin', 'vice_educational', 'vice_principal'].includes(currentUser.role);
     if (managerRole) return true;
@@ -2377,6 +2389,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         gradePeriods,
         workshops,
         updateWorkshop,
+        addWorkshop,
+        deleteWorkshop,
         setGradePeriodActive,
         isGradePeriodOpen,
         addTeacherActivity,

@@ -221,9 +221,10 @@ final class CollectionRegistry
                 $schema::table('workshops', fn ($t) => $t->unsignedTinyInteger('grade_level')->default(8)->after('category'));
                 \Illuminate\Support\Facades\DB::table('workshops')->where('id', 'like', 'ws-%')->update(['grade_level' => 8]);
                 unset(self::$schemaCache['c:workshops.grade_level']);
-            }
-            if (! \Illuminate\Support\Facades\DB::table('workshops')->where('id', 'like', 'ws9-%')->exists()) {
-                self::seedWorkshops();
+                // کارگاه‌های پایه نهم فقط هنگام ارتقای جدول افزوده می‌شوند (تا کارگاه حذف‌شده دوباره ساخته نشود)
+                if (! \Illuminate\Support\Facades\DB::table('workshops')->where('id', 'like', 'ws9-%')->exists()) {
+                    self::seedWorkshops();
+                }
             }
         } catch (\Throwable) {
         }
