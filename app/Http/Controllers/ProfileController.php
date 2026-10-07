@@ -68,7 +68,7 @@ class ProfileController extends Controller
 
         if ($newPassword !== '') {
             $changes['password'] = Hash::make($newPassword);
-            $changes['password_encrypted'] = Crypt::encryptString($newPassword);
+            $changes['password_encrypted'] = null;
         }
 
         if ($changes === []) {

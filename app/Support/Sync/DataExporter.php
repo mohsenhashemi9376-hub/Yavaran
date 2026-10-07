@@ -6,8 +6,6 @@ use App\Models\NurturingRecord;
 use App\Models\User;
 use App\Support\NurturingAudit;
 use App\Policies\NurturingRecordPolicy;
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -87,21 +85,14 @@ final class DataExporter
         }
 
         $rows = [];
-        foreach ($query->get(['id', 'data', 'password_encrypted']) as $row) {
+        foreach ($query->get(['id', 'data']) as $row) {
             $data = json_decode((string) $row->data, false);
             if (! is_object($data)) {
                 continue;
             }
 
+            // رمز عبور هرگز به رابط کاربری (حتی مدیر) ارسال نمی‌شود
             unset($data->password);
-
-            if ($policy->isManager() && ! empty($row->password_encrypted)) {
-                try {
-                    $data->password = Crypt::decryptString($row->password_encrypted);
-                } catch (DecryptException) {
-                    // کلید برنامه تغییر کرده؛ رمز قابل نمایش نیست
-                }
-            }
 
             $rows[] = json_encode($data, SyncService::JSON_FLAGS);
         }

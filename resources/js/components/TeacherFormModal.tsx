@@ -47,7 +47,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
         setName(teacher.name || '');
         setPhone(teacher.phone || '');
         setUsername(teacher.username || '');
-        setPassword(teacher.password || '123');
+        setPassword(''); // رمز فعلی قابل نمایش نیست؛ خالی = بدون تغییر
       } else {
         setName('');
         setPhone('');
@@ -77,7 +77,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
       newErrors.username = 'لطفاً نام کاربری را وارد نمایید.';
     }
 
-    if (!password.trim()) {
+    if (!isEditMode && !password.trim()) {
       newErrors.password = 'لطفاً رمز عبور را وارد نمایید.';
     }
 
@@ -104,7 +104,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
 
     const trimmedName = name.trim();
     const finalPhone = toEnglishDigits(phone.trim()) || undefined;
-    const finalPassword = password.trim() || '123';
+    const finalPassword = password.trim() || (isEditMode ? undefined : '123');
 
     try {
       setIsSubmitting(true);
@@ -249,7 +249,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
               {errors.username && <p className="text-xs text-rose-600 mt-1.5 font-medium">{errors.username}</p>}
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">رمز عبور</label>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">رمز عبور{isEditMode && <span className="text-[11px] font-medium text-slate-400 mr-1.5">(برای تغییر، رمز جدید را وارد کنید)</span>}</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -258,6 +258,8 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
                     setPassword(e.target.value);
                     if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
+                  placeholder={isEditMode ? 'بدون تغییر' : ''}
+                  autoComplete="new-password"
                   className={`${fieldClass} pl-11 text-left ${errors.password ? '!border-rose-400 !ring-4 !ring-rose-100' : ''}`}
                   dir="ltr"
                 />

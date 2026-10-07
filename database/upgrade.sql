@@ -209,3 +209,6 @@ CREATE TABLE IF NOT EXISTS `nurturing_access_logs` (
   KEY `nurturing_access_logs_allowed_index` (`allowed`),
   KEY `nurturing_access_logs_created_at_index` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- حذف نسخه‌های برگشت‌پذیر رمز عبور (از این پس فقط هش یک‌طرفه نگهداری می‌شود)
+UPDATE `users` SET `password_encrypted` = NULL;

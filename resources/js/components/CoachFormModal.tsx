@@ -64,7 +64,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
         setRoleTitle(coach.coachRoleTitle || coach.roleTitle || 'مربی تربیتی یاوران ولایت');
         setPhone(coach.phone || '');
         setUsername(coach.username || '');
-        setPassword(coach.password || '123');
+        setPassword(''); // رمز فعلی قابل نمایش نیست؛ خالی = بدون تغییر
         setIsActive(coach.isActive !== false);
         setSelectedClassIds(coach.assignedClassIds || []);
       } else {
@@ -116,7 +116,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
       newErrors.username = 'لطفاً نام کاربری را وارد نمایید.';
     }
 
-    if (!password.trim()) {
+    if (!isEditMode && !password.trim()) {
       newErrors.password = 'لطفاً رمز عبور را وارد نمایید.';
     }
 
@@ -144,7 +144,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
     const trimmedName = name.trim();
     const finalRoleTitle = roleTitle.trim() || 'مربی تربیتی یاوران ولایت';
     const finalPhone = phone.trim() || undefined;
-    const finalPassword = password.trim() || '123';
+    const finalPassword = password.trim() || (isEditMode ? undefined : '123');
 
     try {
       setIsSubmitting(true);
@@ -383,7 +383,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  رمز عبور ورود <span className="text-red-500">*</span>
+                  رمز عبور ورود {isEditMode ? <span className="text-[10px] font-medium text-slate-400">(برای تغییر، رمز جدید را وارد کنید)</span> : <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <input
@@ -393,7 +393,8 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
                       setPassword(e.target.value);
                       if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                     }}
-                    placeholder="رمز عبور"
+                    placeholder={isEditMode ? 'بدون تغییر' : 'رمز عبور'}
+                    autoComplete="new-password"
                     className={`w-full text-xs bg-white border rounded-xl pl-9 pr-3 py-2.5 font-mono outline-hidden transition ${
                       errors.password ? 'border-red-500 focus:ring-2 focus:ring-red-300' : 'border-slate-200 focus:ring-2 focus:ring-teal-700'
                     }`}

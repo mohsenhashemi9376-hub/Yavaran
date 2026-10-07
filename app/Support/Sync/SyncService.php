@@ -120,8 +120,8 @@ final class SyncService
     }
 
     /**
-     * رمز عبور هرگز داخل ستون data ذخیره نمی‌شود؛ هش (bcrypt) برای ورود
-     * و نسخه رمزنگاری‌شده (AES-256) فقط برای نمایش به مدیر نگهداری می‌شود.
+     * رمز عبور هرگز داخل ستون data ذخیره نمی‌شود و فقط به‌صورت هش یک‌طرفه (bcrypt) نگهداری می‌شود؛
+     * هیچ نسخه‌ی برگشت‌پذیر یا قابل نمایش از رمز وجود ندارد (ستون password_encrypted همیشه خالی می‌ماند).
      *
      * @return array<string, string>
      */
@@ -147,8 +147,8 @@ final class SyncService
 
         if ($oldHash && password_verify($plain, $oldHash)) {
             $columns = [];
-            if (empty($oldRow->password_encrypted)) {
-                $columns['password_encrypted'] = Crypt::encryptString($plain);
+            if (! empty($oldRow->password_encrypted)) {
+                $columns['password_encrypted'] = null; // پاک‌سازی نسخه‌ی برگشت‌پذیر قدیمی
             }
             if (Hash::needsRehash($oldHash)) {
                 $columns['password'] = Hash::make($plain);
@@ -159,7 +159,7 @@ final class SyncService
 
         return [
             'password' => Hash::make($plain),
-            'password_encrypted' => Crypt::encryptString($plain),
+            'password_encrypted' => null,
         ];
     }
 

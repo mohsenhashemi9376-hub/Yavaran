@@ -66,8 +66,8 @@ class AuthController extends Controller
             $user->password = Hash::make($password);
             $dirty = true;
         }
-        if (empty($user->password_encrypted)) {
-            $user->password_encrypted = Crypt::encryptString($password);
+        if (! empty($user->password_encrypted)) {
+            $user->password_encrypted = null; // پاک‌سازی نسخه‌ی برگشت‌پذیر قدیمی رمز
             $dirty = true;
         }
         if ($dirty) {
