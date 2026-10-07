@@ -338,6 +338,10 @@ final class AccessPolicy
         if ($old === null || ($new->isActive ?? true) !== false) {
             return false;
         }
+        // تغییر رمز همراه با غیرفعال‌سازی، «فقط غیرفعال‌سازی» نیست
+        if (isset($new->password) && is_scalar($new->password) && trim((string) $new->password) !== '') {
+            return false;
+        }
         $a = clone $old;
         $b = clone $new;
         unset($a->isActive, $b->isActive, $b->password);
