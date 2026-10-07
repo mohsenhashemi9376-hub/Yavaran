@@ -97,6 +97,7 @@ class NurturingRecordEndpointTest extends TestCase
     {
         $coach = $this->coach();
         DB::table('users')->where('id', $coach->id)->update(['must_change_password' => true]);
+        $coach->refresh();
 
         $this->actingAs($coach)->getJson($this->url('stu-mine'))
             ->assertForbidden()

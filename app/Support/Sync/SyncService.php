@@ -39,6 +39,7 @@ final class SyncService
         // پرونده‌های تربیتی و مشاهدات رفتاری: خواندن/نوشتن از مسیر مدل برای رمزنگاری/رمزگشایی (کست encrypted)
         $sensitive = NurturingRecord::modelFor($collection);
 
+        try {
         DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes, $sensitive): void {
             if ($deletes !== []) {
                 $rows = $sensitive
@@ -118,6 +119,12 @@ final class SyncService
                 }
             }
         });
+        } catch (\Throwable $e) {
+            // تراکنش برگشت خورده؛ تلاش‌های ردشده‌ی تربیتی باید همچنان ثبت و اطلاع‌رسانی شوند
+            $policy->runAfterRollback();
+
+            throw $e;
+        }
     }
 
     /**

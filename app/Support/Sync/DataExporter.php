@@ -88,6 +88,21 @@ final class DataExporter
             $query->whereIn('class_id', $policy->accessibleClassIds());
         }
 
+        // دبیر فقط جلسات خودش را دریافت می‌کند (نه جلسات سایر دبیران در همان کلاس‌ها)
+        if ($collection === 'sessions' && $user->role === 'teacher') {
+            return $query->pluck('data')
+                ->filter(static function ($json) use ($policy): bool {
+                    if (! is_string($json) || $json === '') {
+                        return false;
+                    }
+                    $session = json_decode($json, false);
+
+                    return is_object($session) && $policy->canSeeSession($session);
+                })
+                ->values()
+                ->all();
+        }
+
         if ($collection !== 'users') {
             return $query->pluck('data')
                 ->filter(static fn ($json) => is_string($json) && $json !== '')

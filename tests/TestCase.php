@@ -61,6 +61,7 @@ abstract class TestCase extends BaseTestCase
             'two_factor_confirmed_at' => now(),
             'two_factor_recovery_codes' => json_encode([]),
         ]);
+        $user->refresh();
 
         return $secret;
     }

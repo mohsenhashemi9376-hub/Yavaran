@@ -137,7 +137,7 @@ class AccountSeparationTest extends TestCase
     {
         $this->makeUser('vice_nurturing');
         $admin = $this->makeUser('admin');
-        $coach = $this->makeUser('coach', ['name' => 'مربی']);
+        $coach = $this->makeUser('coach', ['name' => 'مربی'], ['roleTitle' => 'x', 'name' => 'مربی']);
         $profile = ['id' => $coach->id, 'username' => $coach->id, 'name' => 'مربی', 'role' => 'coach', 'roleTitle' => 'x'];
 
         $this->saveUser($admin, $profile + ['isActive' => false])->assertOk();
@@ -149,7 +149,7 @@ class AccountSeparationTest extends TestCase
     {
         $this->makeUser('vice_nurturing');
         $admin = $this->makeUser('admin');
-        $coach = $this->makeUser('coach', ['name' => 'مربی']);
+        $coach = $this->makeUser('coach', ['name' => 'مربی'], ['roleTitle' => 'x', 'name' => 'مربی']);
         $profile = ['id' => $coach->id, 'username' => $coach->id, 'name' => 'مربی', 'role' => 'coach', 'roleTitle' => 'x'];
         $oldHash = DB::table('users')->where('id', $coach->id)->value('password');
 

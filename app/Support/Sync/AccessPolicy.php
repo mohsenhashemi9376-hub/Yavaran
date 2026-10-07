@@ -37,6 +37,9 @@ final class AccessPolicy
     /** فعالیت‌های خارج از مدرسه: هر معلم فقط رکوردهای خودش را می‌نویسد */
     private const TEACHER_OWNED = ['teacherActivities'];
 
+    /** @var array<int, \Closure> کارهایی که باید بعد از Rollback تراکنش اجرا شوند (لاگ تلاش ردشده، اعلان امنیتی) */
+    private array $afterRollback = [];
+
     private ?array $classIds = null;
 
     private ?array $nurturingIds = null;
@@ -128,6 +131,20 @@ final class AccessPolicy
     /**
      * بررسی Policy پرونده‌های تربیتی / مشاهدات (NurturingRecordPolicy)؛ در صورت رد، 403 برمی‌گرداند.
      */
+    /** اجرای کارهای معوق پس از Rollback (لاگ و اعلان تلاش‌های ردشده که داخل تراکنش از بین می‌رفتند) */
+    public function runAfterRollback(): void
+    {
+        $tasks = $this->afterRollback;
+        $this->afterRollback = [];
+        foreach ($tasks as $task) {
+            try {
+                $task();
+            } catch (\Throwable) {
+                // ثبت لاگ نباید خطای اصلی را بپوشاند
+            }
+        }
+    }
+
     private function authorizeNurturing(string $ability, string $collection, object $record, bool $audit = true): void
     {
         $model = NurturingRecord::fromData($collection, $record);
@@ -138,7 +155,7 @@ final class AccessPolicy
                 NurturingAudit::log($this->user, $ability, $collection, $model->student_id, $recordId);
             }
         } catch (AuthorizationException $e) {
-            NurturingAudit::log($this->user, $ability, $collection, $model->student_id, $recordId, false);
+            $this->afterRollback[] = fn () => NurturingAudit::log($this->user, $ability, $collection, $model->student_id, $recordId, false);
             $this->deny($e->getMessage() !== '' ? $e->getMessage() : 'شما به این پرونده تربیتی دسترسی ندارید.');
         }
     }
@@ -310,21 +327,24 @@ final class AccessPolicy
         $action = $old === null ? 'create' : 'update';
 
         if (! $actorOk && ! $bootstrap && ! $this->isOnlyDeactivation($old, $new)) {
-            NurturingAudit::log($this->user, $action, 'users', null, $targetId, false);
+            $actorName = $this->user->name;
+            $this->afterRollback[] = function () use ($action, $targetId, $new, $newRole, $old, $actorName): void {
+                NurturingAudit::log($this->user, $action, 'users', null, $targetId, false);
 
-            $receivers = DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->pluck('id')->all();
-            Notifier::send($receivers, [
-                'title' => 'هشدار امنیتی: تلاش برای تغییر حساب دارای دسترسی به پرونده‌های تربیتی',
-                'message' => sprintf(
-                    '«%s» تلاش کرد حساب «%s» (نقش %s) را %s کند. این کار فقط با معاون تربیتی ممکن است و رد شد.',
-                    $this->user->name,
-                    (string) ($new->name ?? $targetId),
-                    $newRole,
-                    $old === null ? 'ایجاد' : 'ویرایش'
-                ),
-                'type' => 'announcement',
-                'priority' => 'urgent',
-            ]);
+                $receivers = DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->pluck('id')->all();
+                Notifier::send($receivers, [
+                    'title' => 'هشدار امنیتی: تلاش برای تغییر حساب دارای دسترسی به پرونده‌های تربیتی',
+                    'message' => sprintf(
+                        '«%s» تلاش کرد حساب «%s» (نقش %s) را %s کند. این کار فقط با معاون تربیتی ممکن است و رد شد.',
+                        $actorName,
+                        (string) ($new->name ?? $targetId),
+                        $newRole,
+                        $old === null ? 'ایجاد' : 'ویرایش'
+                    ),
+                    'type' => 'announcement',
+                    'priority' => 'urgent',
+                ]);
+            };
 
             $this->deny('ساخت و ویرایش حساب مربی و معاون تربیتی فقط توسط معاون تربیتی امکان‌پذیر است.');
         }
@@ -346,7 +366,24 @@ final class AccessPolicy
         $b = clone $new;
         unset($a->isActive, $b->isActive, $b->password);
 
-        return json_encode($a) === json_encode($b);
+        return $this->canonicalJson($a) === $this->canonicalJson($b);
+    }
+
+    /** JSON با ترتیب ثابت کلیدها (مقایسه‌ی بدون وابستگی به ترتیب فیلدها) */
+    private function canonicalJson(object $value): string
+    {
+        $array = json_decode((string) json_encode($value), true);
+        $sort = static function (&$node) use (&$sort): void {
+            if (is_array($node)) {
+                ksort($node);
+                foreach ($node as &$child) {
+                    $sort($child);
+                }
+            }
+        };
+        $sort($array);
+
+        return (string) json_encode($array);
     }
 
     private function authorizeUserWrite(?object $old, object $new): void
