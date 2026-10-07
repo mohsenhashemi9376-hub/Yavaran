@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\PasswordRules;
 use App\Support\Sync\SyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,6 +49,22 @@ class ProfileController extends Controller
             }
         }
 
+        $forced = $user->mustChangePassword();
+        if ($forced && $newPassword === '') {
+            throw ValidationException::withMessages(['new_password' => 'تعیین رمز عبور جدید الزامی است.']);
+        }
+        if ($newPassword !== '') {
+            if ($forced && mb_strlen($newPassword) < PasswordRules::MIN_LENGTH_FORCED) {
+                throw ValidationException::withMessages(['new_password' => 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.']);
+            }
+            if (PasswordRules::isWeak($newPassword, $user->username)) {
+                throw ValidationException::withMessages(['new_password' => 'این رمز عبور ساده و قابل حدس است؛ رمز دیگری انتخاب کنید.']);
+            }
+            if (hash_equals($current, $newPassword)) {
+                throw ValidationException::withMessages(['new_password' => 'رمز جدید باید با رمز فعلی متفاوت باشد.']);
+            }
+        }
+
         $changes = [];
         $profile = $user->profile();
 
@@ -69,6 +86,9 @@ class ProfileController extends Controller
         if ($newPassword !== '') {
             $changes['password'] = Hash::make($newPassword);
             $changes['password_encrypted'] = null;
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_change_password')) {
+                $changes['must_change_password'] = false;
+            }
         }
 
         if ($changes === []) {

@@ -8,6 +8,7 @@ import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
 import { EducationalDashboard } from './components/EducationalDashboard';
 import { NurturingDashboard } from './components/NurturingDashboard';
 import { LoginModal } from './components/LoginModal';
+import { ForcePasswordChange } from './components/ForcePasswordChange';
 import { AttendanceModal } from './components/AttendanceModal';
 import { ClassDetailModal } from './components/ClassDetailModal';
 import { MonthlySummaryModal } from './components/MonthlySummaryModal';
@@ -409,8 +410,12 @@ const MainApp: React.FC = () => {
  * و هیچ اطلاعاتی از سرور دریافت نمی‌گردد.
  */
 const AuthGate: React.FC = () => {
-  const { authStatus, reloadFromServer } = useSchool();
+  const { authStatus, reloadFromServer, mustChangePassword } = useSchool();
   useLuxScope(true); // ظاهر لوکس و حالت تاریک برای همه صفحه‌ها و نقش‌ها
+
+  if (authStatus === 'ready' && mustChangePassword) {
+    return <ForcePasswordChange />;
+  }
 
   if (authStatus === 'ready') {
     return <MainApp />;

@@ -100,7 +100,13 @@ class User extends Authenticatable
             && in_array($this->role, ['coach', 'vice_nurturing'], true);
     }
 
-    /** افزودن ستون‌های ورود دومرحله‌ای به جدول users در دیتابیس‌های به‌روزنشده */
+    /** باید در اولین ورود رمز عبور را تغییر دهد (رمز را شخص دیگری تعیین کرده یا رمز پیش‌فرض/ضعیف است) */
+    public function mustChangePassword(): bool
+    {
+        return (bool) $this->getAttribute('must_change_password');
+    }
+
+    /** افزودن ستون‌های امنیتی (ورود دومرحله‌ای، تغییر اجباری رمز) به جدول users در دیتابیس‌های به‌روزنشده */
     public static function ensureTwoFactorColumns(): bool
     {
         static $ready = null;
@@ -108,17 +114,24 @@ class User extends Authenticatable
             return $ready;
         }
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasColumn('users', 'two_factor_secret')) {
-                \Illuminate\Support\Facades\Schema::table('users', function ($t): void {
+            $schema = \Illuminate\Support\Facades\Schema::class;
+            if (! $schema::hasColumn('users', 'two_factor_secret')) {
+                $schema::table('users', function ($t): void {
                     $t->text('two_factor_secret')->nullable();
                     $t->timestamp('two_factor_confirmed_at')->nullable();
                     $t->text('two_factor_recovery_codes')->nullable();
                 });
             }
+            if (! $schema::hasColumn('users', 'must_change_password')) {
+                $schema::table('users', function ($t): void {
+                    $t->boolean('must_change_password')->default(false);
+                });
+            }
         } catch (\Throwable) {
         }
 
-        return $ready = \Illuminate\Support\Facades\Schema::hasColumn('users', 'two_factor_secret');
+        return $ready = \Illuminate\Support\Facades\Schema::hasColumn('users', 'two_factor_secret')
+            && \Illuminate\Support\Facades\Schema::hasColumn('users', 'must_change_password');
     }
 
     public function isActive(): bool

@@ -17,6 +17,13 @@ final class DataExporter
 {
     public function json(User $user): string
     {
+        // رمز اجباری هنوز تغییر نکرده: هیچ داده‌ای ارسال نمی‌شود
+        if ($user->mustChangePassword()) {
+            return '{"authenticated":true,"mustChangePassword":true,'
+                .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
+                .'"serverTime":'.((int) round(microtime(true) * 1000)).',"data":{}}';
+        }
+
         $policy = new AccessPolicy($user);
         $parts = [];
 

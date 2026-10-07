@@ -28,7 +28,7 @@ Route::prefix('api')->group(function (): void {
         ->middleware('throttle:30,1')
         ->name('api.login.two-factor');
 
-    Route::middleware('auth')->group(function (): void {
+    Route::middleware(['auth', 'password.changed'])->group(function (): void {
         Route::prefix('two-factor')->middleware('throttle:30,1')->group(function (): void {
             Route::get('/', [TwoFactorController::class, 'status'])->name('api.two-factor.status');
             Route::post('setup', [TwoFactorController::class, 'setup'])->name('api.two-factor.setup');

@@ -6,6 +6,7 @@ use App\Models\NurturingRecord;
 use App\Models\User;
 use App\Support\Notifier;
 use App\Support\Digits;
+use App\Support\PasswordRules;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -80,7 +81,7 @@ final class SyncService
                     $this->validateSession($data, $item->id);
                 }
 
-                $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow) : [];
+                $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow, $policy->userId(), (string) $item->id) : [];
 
                 $values = CollectionRegistry::columns($collection, $data) + $extra + [
                     'data' => json_encode($data, self::JSON_FLAGS),
@@ -125,8 +126,9 @@ final class SyncService
      *
      * @return array<string, string>
      */
-    private function passwordColumns(object $data, ?object $oldRow): array
+    private function passwordColumns(object $data, ?object $oldRow, string $actorId, string $targetId): array
     {
+        User::ensureTwoFactorColumns(); // ستون must_change_password
         $plain = null;
 
         if (property_exists($data, 'password')) {
@@ -157,9 +159,11 @@ final class SyncService
             return $columns;
         }
 
+        // رمزی که شخص دیگری برای حساب تعیین کرده (یا تصادفی ساخته شده) باید در اولین ورود تغییر کند
         return [
             'password' => Hash::make($plain),
             'password_encrypted' => null,
+            'must_change_password' => $actorId !== $targetId || PasswordRules::isWeak($plain),
         ];
     }
 

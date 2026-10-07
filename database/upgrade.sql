@@ -215,3 +215,7 @@ UPDATE `users` SET `password_encrypted` = NULL;
 
 -- ورود دومرحله‌ای (TOTP) — اگر ستون‌ها از قبل وجود دارند، خطای «Duplicate column» را نادیده بگیرید
 ALTER TABLE `users` ADD COLUMN `two_factor_secret` text NULL, ADD COLUMN `two_factor_confirmed_at` timestamp NULL DEFAULT NULL, ADD COLUMN `two_factor_recovery_codes` text NULL;
+
+-- تغییر اجباری رمز عبور در اولین ورود (حساب‌های دارای رمز پیش‌فرض ۱۲۳ هنگام اولین ورود خودکار علامت می‌خورند)
+-- اگر ستون از قبل وجود دارد، خطای «Duplicate column» را نادیده بگیرید
+ALTER TABLE `users` ADD COLUMN `must_change_password` tinyint(1) NOT NULL DEFAULT 0;

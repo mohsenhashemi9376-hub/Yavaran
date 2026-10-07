@@ -135,6 +135,7 @@ interface SchoolContextType {
   verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
   security: { twoFactorEnabled: boolean; twoFactorRequired: boolean };
   reloadAfterSecurityChange: () => Promise<void>;
+  mustChangePassword: boolean;
   logout: () => void;
 
   // Role & Scope Helpers
@@ -341,6 +342,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false });
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
@@ -536,6 +538,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
     setSecurity(payload.security || { twoFactorEnabled: false, twoFactorRequired: false });
+    setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -2455,6 +2458,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         verifyTwoFactor,
         security,
         reloadAfterSecurityChange,
+        mustChangePassword,
         logout,
         isTeacher,
         isAdmin,

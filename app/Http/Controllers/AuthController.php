@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\PasswordRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -77,6 +79,12 @@ class AuthController extends Controller
 
         User::ensureTwoFactorColumns();
         $user->refresh();
+
+        // رمز پیش‌فرض/ضعیف (مثل ۱۲۳): تا تغییر رمز، به سامانه دسترسی ندارد
+        if (! $user->mustChangePassword() && PasswordRules::isWeak($password, $user->username)) {
+            DB::table('users')->where('id', $user->id)->update(['must_change_password' => true]);
+            $user->refresh();
+        }
 
         // ورود دومرحله‌ای: کاربر هنوز وارد نشده؛ فقط شناسه‌اش برای مرحله‌ی دوم (۵ دقیقه) در نشست می‌ماند
         if ($user->hasTwoFactor()) {
