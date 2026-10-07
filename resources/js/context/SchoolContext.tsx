@@ -821,8 +821,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const teachesClass = currentUser.assignedClassIds.includes(classId) || classes.find((c) => c.id === classId)?.teacherIds.includes(currentUser.id);
       if (!teachesClass) return false;
       if (!subjectNameOrId) return true;
-      if (currentUser.subject && (subjectNameOrId === currentUser.subject || subjectNameOrId.includes(currentUser.subject))) return true;
-      return true;
+      // فقط درسی که در همین کلاس به این دبیر واگذار شده است
+      return (currentUser.teachingAssignments || []).some(
+        (ta) =>
+          ta.classIds.includes(classId) &&
+          (ta.subjectId === subjectNameOrId || ta.subjectName === subjectNameOrId)
+      );
     }
     if (hasTeachingLoad) {
       const teachesClass = teachingClassIdsSet.has(classId);

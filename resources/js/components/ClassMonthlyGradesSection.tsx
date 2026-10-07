@@ -55,6 +55,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     saveBatchAcademicGrades,
     currentUser,
     isTeacher,
+    isAdmin,
+    isEducationalVice,
+    canTeachClassAndSubject,
     isGradePeriodOpen,
     sessions
   } = useSchool();
@@ -78,9 +81,17 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   }, [initialSubjectId]);
 
   // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
+  // دبیر فقط درس‌های خودش را می‌بیند؛ مدیر و معاون آموزش به همه‌ی دروس دسترسی دارند
+  const restrictToOwnSubjects = !isAdmin && !isEducationalVice && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
   const classSubjects = useMemo(
-    () => academicSubjects.filter((s) => subjectAppliesToClass(s, classData)),
-    [academicSubjects, classData]
+    () =>
+      academicSubjects.filter(
+        (s) =>
+          subjectAppliesToClass(s, classData) &&
+          (!restrictToOwnSubjects || canTeachClassAndSubject(classData.id, s.id))
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [academicSubjects, classData, restrictToOwnSubjects, currentUser.teachingAssignments]
   );
 
   useEffect(() => {

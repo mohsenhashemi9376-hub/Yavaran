@@ -169,6 +169,13 @@ final class AccessPolicy
             }
             $this->requireClass($this->prop($new, 'classId'));
 
+            if ($collection === 'academicGrades') {
+                if ($old !== null) {
+                    $this->requireCourse($old);
+                }
+                $this->requireCourse($new);
+            }
+
             return;
         }
 
@@ -221,6 +228,9 @@ final class AccessPolicy
 
         if (in_array($collection, self::CLASS_SCOPED, true)) {
             $this->requireClass($this->prop($old, 'classId'));
+            if ($collection === 'academicGrades') {
+                $this->requireCourse($old);
+            }
 
             return;
         }
@@ -561,6 +571,18 @@ final class AccessPolicy
     {
         if ($classId === null || $classId === '' || ! in_array($classId, $this->accessibleClassIds(), true)) {
             $this->deny('شما به اطلاعات این کلاس دسترسی ندارید.');
+        }
+    }
+
+    /** هر دبیر فقط برای درسی که خودش در آن کلاس تدریس می‌کند نمره ثبت می‌کند (مدیر و معاون آموزش مستثنی‌اند) */
+    private function requireCourse(object $record): void
+    {
+        $classId = $this->prop($record, 'classId');
+        $subjectId = $this->prop($record, 'subjectId');
+        $courses = $this->teachingCourses();
+
+        if ($classId === null || $subjectId === null || ! isset($courses['id'][$classId.'|'.$subjectId])) {
+            $this->deny('شما فقط مجاز به ثبت نمره برای درس خودتان در این کلاس هستید.');
         }
     }
 

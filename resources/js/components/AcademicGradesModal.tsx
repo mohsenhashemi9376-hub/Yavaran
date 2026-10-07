@@ -47,7 +47,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
     academicGrades, 
     saveBatchAcademicGrades, 
     addAcademicSubject,
-    isGradePeriodOpen
+    isGradePeriodOpen,
+    isTeacher,
+    isAdmin,
+    isEducationalVice,
+    canTeachClassAndSubject,
+    currentUser,
   } = useSchool();
 
   const FIELD_PERIOD = { c1: 'term1Continuous', f1: 'term1Final', c2: 'term2Continuous', f2: 'term2Final' } as const;
@@ -92,8 +97,12 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
   // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
   const classSubjects = React.useMemo(() => {
     const cls = classes.find((c) => c.id === selectedClassId);
-    return cls ? academicSubjects.filter((s) => subjectAppliesToClass(s, cls)) : academicSubjects;
-  }, [academicSubjects, classes, selectedClassId]);
+    // دبیر فقط درس‌های خودش را می‌بیند؛ مدیر و معاون آموزش به همه‌ی دروس دسترسی دارند
+    const restrict = !isAdmin && !isEducationalVice && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
+    const list = cls ? academicSubjects.filter((s) => subjectAppliesToClass(s, cls)) : academicSubjects;
+    return restrict && cls ? list.filter((s) => canTeachClassAndSubject(cls.id, s.id)) : list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [academicSubjects, classes, selectedClassId, isTeacher, isAdmin, isEducationalVice, currentUser.teachingAssignments]);
 
   useEffect(() => {
     if (classSubjects.length > 0 && !classSubjects.some((s) => s.id === selectedSubjectId)) {
