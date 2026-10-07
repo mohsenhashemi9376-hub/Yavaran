@@ -13,10 +13,13 @@ const inputClass =
   'w-full text-sm font-[inherit] bg-slate-50 border border-slate-200 rounded-2xl py-3 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400';
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
-  const { login, verifyTwoFactor } = useSchool();
+  const { login, verifyTwoFactor, resendSmsCode } = useSchool();
   const [step, setStep] = useState<'credentials' | 'code'>('credentials');
   const [code, setCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
+  const [method, setMethod] = useState<'sms' | 'totp'>('totp');
+  const [maskedPhone, setMaskedPhone] = useState('');
+  const [resendIn, setResendIn] = useState(0);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,8 +31,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       setStep('credentials');
       setCode('');
       setUseRecovery(false);
+      setMethod('totp');
+      setResendIn(0);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -57,8 +68,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       setStep('code');
       setCode('');
       setUseRecovery(false);
+      setMethod(res.method === 'sms' ? 'sms' : 'totp');
+      setMaskedPhone(res.phone || '');
+      setResendIn(res.method === 'sms' ? res.resendIn || 60 : 0);
     } else {
       setErrorMsg(res.message || 'نام کاربری یا رمز عبور اشتباه است.');
+    }
+  };
+
+  const handleResend = async () => {
+    if (isSubmitting || resendIn > 0) return;
+    setErrorMsg('');
+    setIsSubmitting(true);
+    const res = await resendSmsCode();
+    setIsSubmitting(false);
+    if (res.success) {
+      setCode('');
+      setMaskedPhone(res.phone || maskedPhone);
+      setResendIn(res.resendIn || 60);
+    } else {
+      setErrorMsg(res.message || 'ارسال دوباره‌ی کد ممکن نشد.');
+      if (res.restart) {
+        setStep('credentials');
+        setPassword('');
+      }
     }
   };
 
@@ -132,9 +165,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center ring-8 ring-emerald-50/60">
                   <ShieldCheck className="w-7 h-7" />
                 </div>
-                <h4 className="text-base font-black text-slate-900">تأیید ورود دومرحله‌ای</h4>
+                <h4 className="text-base font-black text-slate-900">{method === 'sms' ? 'کد تأیید پیامکی' : 'تأیید ورود دومرحله‌ای'}</h4>
                 <p className="text-xs text-slate-500 leading-6">
-                  {useRecovery
+                  {method === 'sms'
+                    ? `کد ۶ رقمی برای شماره‌ی ${maskedPhone} پیامک شد. آن را وارد کنید.`
+                    : useRecovery
                     ? 'یکی از کدهای بازیابی خود را وارد کنید (هر کد فقط یک‌بار قابل استفاده است).'
                     : 'کد ۶ رقمی را از برنامه‌ی احراز هویت (Google Authenticator یا مشابه) وارد کنید.'}
                 </p>
@@ -142,9 +177,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               <input
                 id="login-code"
                 autoFocus
-                inputMode={useRecovery ? 'text' : 'numeric'}
+                inputMode={useRecovery && method !== 'sms' ? 'text' : 'numeric'}
                 autoComplete="one-time-code"
-                maxLength={useRecovery ? 12 : 6}
+                maxLength={useRecovery && method !== 'sms' ? 12 : 6}
                 dir="ltr"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -172,16 +207,27 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   <ArrowRight className="w-3.5 h-3.5" />
                   <span>بازگشت</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseRecovery((v) => !v);
-                    setCode('');
-                  }}
-                  className="text-teal-700 hover:text-teal-900 cursor-pointer"
-                >
-                  {useRecovery ? 'استفاده از کد برنامه' : 'استفاده از کد بازیابی'}
-                </button>
+                {method === 'sms' ? (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={isSubmitting || resendIn > 0}
+                    className="text-teal-700 hover:text-teal-900 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resendIn > 0 ? `ارسال دوباره (${resendIn.toLocaleString('fa-IR')} ثانیه)` : 'ارسال دوباره‌ی کد'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseRecovery((v) => !v);
+                      setCode('');
+                    }}
+                    className="text-teal-700 hover:text-teal-900 cursor-pointer"
+                  >
+                    {useRecovery ? 'استفاده از کد برنامه' : 'استفاده از کد بازیابی'}
+                  </button>
+                )}
               </div>
             </form>
           ) : (
