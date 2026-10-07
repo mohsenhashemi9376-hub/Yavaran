@@ -1133,6 +1133,9 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                                 <div key={note.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="font-bold text-slate-800">{note.title}</span>
+                                    {note.source === 'auto_delay' && (
+                              <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">کسر خودکار</span>
+                            )}
                                     {note.source === 'class_warning' && (
                               <span className="bg-violet-50 text-violet-800 border border-violet-200 px-2 py-0.5 rounded-lg text-[10px] font-bold">اخطار کلاسی{note.subject ? ` • ${note.subject}` : ''}</span>
                             )}

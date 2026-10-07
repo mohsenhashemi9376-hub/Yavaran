@@ -56,6 +56,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { summarizeStudentDelays, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades';
 
@@ -339,6 +340,13 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const totalExcusedCount = excusedCount + morningExcusedCount + legacyExcusedCount;
   const totalDelaysCount = classLateCount + morningLateCount + morningAttendanceLateCount;
   const scoresList = sessionLogs.filter((l) => l.score !== undefined);
+
+  // مجموع دقایق تأخیر (مبنای کسر خودکار نمره انضباط)
+  const delaySummary = currentStudent
+    ? summarizeStudentDelays(currentStudent, { morningDelays, morningAttendance, sessions })
+    : { count: 0, minutes: 0 };
+  const autoDeductedPoints = Math.floor(delaySummary.minutes / DELAY_MINUTES_PER_POINT) * DELAY_POINTS_DEDUCTED;
+  const minutesToNextPoint = DELAY_MINUTES_PER_POINT - (delaySummary.minutes % DELAY_MINUTES_PER_POINT);
 
   const attendanceRate = totalSessions > 0 
     ? Math.round((attendedCount / totalSessions) * 100) 
@@ -700,6 +708,11 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <div className="text-[11px] text-slate-400 mt-1">
               {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
             </div>
+            {delaySummary.minutes > 0 && (
+              <div className="text-[11px] font-bold text-amber-700 mt-1">
+                مجموع {toPersianDigits(delaySummary.minutes)} دقیقه
+              </div>
+            )}
           </button>
 
           <div className="bg-white p-4 rounded-2xl shadow-xs">
@@ -1146,6 +1159,40 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                   </div>
                 );
               })()}
+
+              {/* خلاصه غیبت و تأخیر + کسر خودکار نمره */}
+              <div className="rounded-2xl border border-slate-200 bg-gradient-to-l from-rose-50/60 via-white to-amber-50/70 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <div className="text-slate-500 font-bold">دفعات غیبت</div>
+                  <div className="mt-1 text-lg font-black text-rose-700">
+                    {toPersianDigits(totalAbsentCount + totalExcusedCount)}
+                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
+                      ({toPersianDigits(totalExcusedCount)} موجه)
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-slate-500 font-bold">مجموع دقایق تأخیر</div>
+                  <div className="mt-1 text-lg font-black text-amber-700">
+                    {toPersianDigits(delaySummary.minutes)} دقیقه
+                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
+                      در {toPersianDigits(delaySummary.count)} بار
+                    </span>
+                  </div>
+                  {delaySummary.minutes >= 60 && (
+                    <div className="text-[10px] text-slate-400 mt-0.5">معادل {toPersianDigits(formatMinutesLong(delaySummary.minutes))}</div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-slate-500 font-bold">کسر خودکار نمره انضباط</div>
+                  <div className={`mt-1 text-lg font-black ${autoDeductedPoints > 0 ? 'text-violet-700' : 'text-slate-700'}`}>
+                    {autoDeductedPoints > 0 ? `−${toPersianDigits(autoDeductedPoints)} نمره` : 'بدون کسر'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    به‌ازای هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه تأخیر، {toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره • {toPersianDigits(minutesToNextPoint)} دقیقه تا کسر بعدی
+                  </div>
+                </div>
+              </div>
 
               {/* فیلترهای وضعیت */}
               <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">

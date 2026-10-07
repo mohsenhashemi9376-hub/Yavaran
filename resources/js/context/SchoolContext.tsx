@@ -49,12 +49,13 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
-import { toEnglishDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
+import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 import { studentFullName, normalizeStudentName, compareStudents, splitListName } from '../utils/studentName';
+import { summarizeStudentDelays, expectedDelayDeductions, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 interface SchoolContextType {
   currentUser: User;
@@ -728,6 +729,48 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isAdmin = currentUser.role === 'admin';
   const isEducationalVice = currentUser.role === 'vice_educational' || currentUser.role === 'vice_principal';
   const isDisciplinaryVice = currentUser.role === 'vice_disciplinary' || currentUser.role === 'vice_principal';
+
+  // کسر خودکار نمره انضباط: به‌ازای هر ۶۰ دقیقه تأخیر تجمعی یک نمره کم می‌شود.
+  // کسرها با شناسه‌ی ثابت (auto-delay-<دانش‌آموز>-<ساعت>) ثبت می‌شوند، پس تکرار نمی‌شوند؛
+  // اگر تأخیری حذف شود و مجموع کم شود، کسر مربوطه برمی‌گردد.
+  const canAutoDeductDelays =
+    ['admin', 'vice_disciplinary', 'vice_principal', 'vice_educational'].includes(currentUser.role) &&
+    (currentUser.role === 'admin' || (Array.isArray(currentUser.permissions) ? currentUser.permissions.includes('discipline') : true));
+  useEffect(() => {
+    if (authStatus !== 'ready' || !canAutoDeductDelays) return;
+    const today = getTodayShamsi().formattedDate;
+    setStudents((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        const { minutes } = summarizeStudentDelays(s, { morningDelays, morningAttendance, sessions });
+        const hours = expectedDelayDeductions(minutes);
+        const notes = s.disciplinaryNotes || [];
+        const wanted = new Set(Array.from({ length: hours }, (_, i) => `auto-delay-${s.id}-${i + 1}`));
+        const keep = notes.filter((n) => n.source !== 'auto_delay' || wanted.has(n.id));
+        const have = new Set(keep.filter((n) => n.source === 'auto_delay').map((n) => n.id));
+        const toAdd: DisciplinaryNote[] = Array.from(wanted)
+          .filter((id) => !have.has(id))
+          .map((id, i) => ({
+            id,
+            date: today,
+            title: 'کسر نمره انضباط بابت مجموع تأخیرها',
+            description: `مجموع تأخیرهای دانش‌آموز از ${toPersianDigits(formatMinutesLong((Number(id.split("-").pop()) || i + 1) * DELAY_MINUTES_PER_POINT))} گذشت؛ ${toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره به‌صورت خودکار کسر شد.`,
+            scoreDeduction: DELAY_POINTS_DEDUCTED,
+            recordedBy: 'سامانه (خودکار)',
+            type: 'delay',
+            source: 'auto_delay',
+          }));
+        if (toAdd.length === 0 && keep.length === notes.length) return s;
+        changed = true;
+        const removed = notes.filter((n) => !keep.includes(n)).reduce((a, n) => a + (Number(n.scoreDeduction) || 0), 0);
+        const added = toAdd.reduce((a, n) => a + n.scoreDeduction, 0);
+        const score = Math.max(0, Math.min(20, (s.disciplineScore ?? 20) + removed - added));
+        return { ...s, disciplineScore: score, disciplinaryNotes: [...toAdd, ...keep] };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, canAutoDeductDelays, morningDelays, morningAttendance, sessions, rawStudents.length]);
   const isNurturingVice = currentUser.role === 'vice_nurturing';
   const isCoach = currentUser.role === 'coach';
   const isNurturingTeam = isNurturingVice || isCoach;

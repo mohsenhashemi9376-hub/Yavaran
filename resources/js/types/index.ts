@@ -15,7 +15,7 @@ export interface DisciplinaryNote {
   recordedBy: string; // e.g. "معاون انضباطی"
   author?: string; // alias for recordedBy
   type: 'delay' | 'absence' | 'behavior' | 'uniform' | 'other';
-  source?: 'class_warning'; // اخطار ثبت‌شده توسط استاد در جلسه کلاسی
+  source?: 'class_warning' | 'auto_delay'; // اخطار کلاسی استاد، یا کسر نمره‌ی خودکارِ سامانه بابت مجموع تأخیرها
   warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
   subject?: string; // درس مربوط به اخطار کلاسی
   sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)
