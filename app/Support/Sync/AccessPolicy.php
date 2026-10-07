@@ -314,7 +314,94 @@ final class AccessPolicy
             }
         }
 
+        foreach ($this->defaultSubjectTeacherClassIds() as $classId) {
+            $ids[] = $classId;
+        }
+
         return $this->classIds = array_values(array_unique($ids));
+    }
+
+    /**
+     * کلاس‌هایی که کاربر از طریق «دبیر پیش‌فرض درس» (انتخاب‌شده در مدیریت دروس) به آن‌ها دسترسی دارد.
+     * رابط کاربری این انتساب را بدون ردیف جداگانه در course_assignments محاسبه می‌کند؛
+     * اگر برای همان کلاس و درس انتساب صریح وجود داشته باشد، همان مقدم است.
+     *
+     * @return array<int, string>
+     */
+    private function defaultSubjectTeacherClassIds(): array
+    {
+        if (! CollectionRegistry::tableExists('academic_subjects')) {
+            return [];
+        }
+
+        $subjects = [];
+        foreach (DB::table('academic_subjects')->get(['id', 'data']) as $row) {
+            $subject = json_decode((string) $row->data, false);
+            if (is_object($subject) && isset($subject->teacherId) && $subject->teacherId === $this->user->id) {
+                $subjects[(string) $row->id] = $subject;
+            }
+        }
+        if ($subjects === []) {
+            return [];
+        }
+
+        $explicit = [];
+        if (CollectionRegistry::tableExists('course_assignments')) {
+            foreach (DB::table('course_assignments')->get(['class_id', 'subject_id']) as $a) {
+                $explicit[$a->class_id.'|'.$a->subject_id] = true;
+            }
+        }
+
+        $ids = [];
+        foreach (DB::table('school_classes')->get(['id', 'data']) as $row) {
+            $class = json_decode((string) $row->data, false);
+            $grade = is_object($class) && isset($class->grade) && is_string($class->grade) ? $class->grade : '';
+            foreach ($subjects as $subjectId => $subject) {
+                if (isset($explicit[$row->id.'|'.$subjectId])) {
+                    continue;
+                }
+                if ($this->subjectAppliesToGrade($subject, $grade)) {
+                    $ids[] = (string) $row->id;
+                    break;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    /** معادل subjectAppliesToClass در رابط کاربری (دروس عمومی/بدون پایه برای همه‌ی کلاس‌ها) */
+    private function subjectAppliesToGrade(object $subject, string $classGrade): bool
+    {
+        $normalize = static fn (string $g): string => trim(str_replace('پایه', '', $g));
+
+        $raw = isset($subject->targetGrades) && is_array($subject->targetGrades) ? $subject->targetGrades : [];
+        if (isset($subject->grade) && is_string($subject->grade) && $subject->grade !== '') {
+            $raw[] = $subject->grade;
+        }
+
+        $grades = [];
+        foreach ($raw as $g) {
+            if (! is_string($g)) {
+                continue;
+            }
+            $g = $normalize($g);
+            if ($g !== '' && ! str_contains($g, 'عمومی')) {
+                $grades[] = $g;
+            }
+        }
+        if ($grades === []) {
+            return true;
+        }
+
+        $cg = $normalize($classGrade);
+        foreach ($grades as $g) {
+            if ($g === $cg || str_contains($cg, $g) || str_contains($g, $cg)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
