@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, CheckCheck, CheckCircle2, Megaphone, ScrollText, Send, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
@@ -16,6 +17,117 @@ const formatWhen = (iso: string | null) => {
     date: toPersianDigits(dateToShamsiString(d)),
     time: toPersianDigits(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`),
   };
+};
+
+
+const PRIORITY_STYLE = {
+  urgent: { bar: 'from-rose-500 via-orange-400 to-amber-300', icon: 'bg-rose-50 text-rose-600 ring-rose-100', chip: 'bg-rose-50 text-rose-700 border-rose-200' },
+  normal: { bar: 'from-emerald-600 via-teal-500 to-sky-400', icon: 'bg-emerald-50 text-emerald-600 ring-emerald-100', chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+} as const;
+
+/** کادر مرکز صفحه برای نمایش اعلان / اطلاعیه؛ مستقیماً در body رندر می‌شود تا هدر آن را نبُرد */
+const NotificationAlertCard: React.FC<{
+  item: AppNotification;
+  position: { index: number; total: number };
+  onAcknowledge: () => void;
+  onClose: () => void;
+}> = ({ item, position, onAcknowledge, onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const style = PRIORITY_STYLE[item.priority === 'urgent' ? 'urgent' : 'normal'];
+  const when = formatWhen(item.createdAt);
+  const isCircular = item.type === 'circular';
+  const Icon = isCircular ? ScrollText : Megaphone;
+  const kind = isCircular ? 'بخشنامه' : 'اطلاعیه';
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] h-[100dvh] w-screen bg-slate-900/55 backdrop-blur-[4px] flex items-center justify-center p-4 animate-in fade-in duration-200"
+      dir="rtl"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="notif-alert-title"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="relative w-full max-w-md max-h-[88dvh] flex flex-col bg-white rounded-[28px] shadow-2xl shadow-slate-900/25 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-3 duration-300">
+        <div className={`h-2 shrink-0 bg-gradient-to-l ${style.bar}`} />
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="بستن موقت"
+          title="بستن (بعداً یادآوری می‌شود)"
+          className="absolute top-5 left-4 w-9 h-9 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="px-6 pt-6 pb-4 text-center shrink-0">
+          <div className={`w-16 h-16 mx-auto rounded-2xl ring-8 flex items-center justify-center ${style.icon}`}>
+            <Icon className="w-8 h-8" />
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
+            <span className={`px-3 py-1 rounded-full border text-[11px] font-extrabold ${style.chip}`}>
+              {item.priority === 'urgent' ? `${kind} فوری` : kind}
+            </span>
+            {when.date && (
+              <span className="text-[11px] text-slate-400 font-medium">
+                {when.date} • {when.time}
+              </span>
+            )}
+            {position.total > 1 && (
+              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5">
+                {toPersianDigits(position.total)} مورد خوانده‌نشده
+              </span>
+            )}
+          </div>
+          <h3 id="notif-alert-title" className="mt-3 text-lg font-black text-slate-900 leading-snug">
+            {item.title}
+          </h3>
+        </div>
+
+        <div className="px-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3.5 text-[14px] leading-8 text-slate-700 whitespace-pre-line break-words text-right">
+            {item.message}
+          </div>
+          {item.senderName && (
+            <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
+              <span>ارسال‌کننده:</span>
+              <span className="font-bold text-slate-700">{item.senderName}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pt-4 pb-6 shrink-0 space-y-2">
+          <button
+            type="button"
+            onClick={onAcknowledge}
+            autoFocus
+            className="w-full h-13 py-3.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <CheckCircle2 className="w-5 h-5" />
+            <span>متوجه شدم</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition cursor-pointer"
+          >
+            بعداً یادآوری کن
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 interface Props {
@@ -92,16 +204,26 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
   }, [open]);
 
   const markRead = (n: AppNotification) => {
+    // با «متوجه شدم» اعلان در همین نشست هم فوراً از کادر وسط صفحه برداشته می‌شود
+    setDismissed((prev) => (prev.includes(n.id) ? prev : [...prev, n.id]));
     if (n.isRead) return;
     setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
     setUnread((u) => Math.max(0, u - 1));
-    apiRequest('POST', `/api/notifications/${n.id}/read`).catch(() => undefined);
+    apiRequest('POST', `/api/notifications/${n.id}/read`)
+      .then(() => load())
+      .catch(() => {
+        // ثبت در سرور ناموفق بود: وضعیت واقعی دوباره خوانده می‌شود
+        load();
+      });
   };
 
   const markAll = () => {
     setItems((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    setDismissed((prev) => Array.from(new Set([...prev, ...items.map((x) => x.id)])));
     setUnread(0);
-    apiRequest('POST', '/api/notifications/read-all').catch(() => undefined);
+    apiRequest('POST', '/api/notifications/read-all')
+      .then(() => load())
+      .catch(() => load());
   };
 
   const toggleOpen = () => {
@@ -258,69 +380,19 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
         </div>
       )}
 
-      {alertItem && (
-        <div
-          className="fixed inset-0 z-[95] bg-slate-900/45 backdrop-blur-[3px] flex items-center justify-center p-4 animate-in fade-in duration-200"
-          dir="rtl"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="notif-alert-title"
-        >
-          <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl shadow-slate-900/20 overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className={`h-1.5 bg-gradient-to-l ${alertItem.priority === 'urgent' ? 'from-rose-500 to-orange-400' : 'from-emerald-600 to-teal-400'}`} />
-            <button
-              type="button"
-              onClick={() => closeAlert(alertItem)}
-              aria-label="بستن موقت"
-              title="بستن (بعداً یادآوری می‌شود)"
-              className="absolute top-4 left-3 w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="px-5 pt-5 pb-4 text-center">
-              <div
-                className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center ${
-                  alertItem.priority === 'urgent' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
-                }`}
-              >
-                {alertItem.type === 'circular' ? <ScrollText className="w-7 h-7" /> : <Megaphone className="w-7 h-7" />}
-              </div>
-              <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
-                {alertItem.priority === 'urgent' && (
-                  <span className="px-2.5 py-0.5 rounded-full border text-[11px] font-bold bg-rose-100 text-rose-700 border-rose-200">فوری</span>
-                )}
-                <span className="text-[11px] text-slate-400">{formatWhen(alertItem.createdAt).date}</span>
-                {alertQueue.length > 1 && (
-                  <span className="text-[11px] font-bold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
-                    {toPersianDigits(1)} از {toPersianDigits(alertQueue.length)}
-                  </span>
-                )}
-              </div>
-              <h3 id="notif-alert-title" className="mt-2.5 text-base font-extrabold text-slate-900 leading-snug">
-                {alertItem.title}
-              </h3>
-              <div className="mt-2 max-h-52 overflow-y-auto text-[13px] leading-7 text-slate-600 whitespace-pre-line break-words text-right">
-                {alertItem.message}
-              </div>
-              {alertItem.senderName && <div className="mt-2 text-[11px] text-slate-400">{alertItem.senderName}</div>}
-            </div>
-            <div className="px-5 pb-5">
-              <button
-                type="button"
-                onClick={() => {
-                  markRead(alertItem);
-                  setShown(null);
-                }}
-                autoFocus
-                className="w-full h-12 rounded-2xl bg-gradient-to-l from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-extrabold text-sm shadow-md shadow-emerald-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>متوجه شدم</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {alertItem &&
+        createPortal(
+          <NotificationAlertCard
+            item={alertItem}
+            position={{ index: 1, total: alertQueue.length }}
+            onAcknowledge={() => {
+              markRead(alertItem);
+              setShown(null);
+            }}
+            onClose={() => closeAlert(alertItem)}
+          />,
+          document.body
+        )}
 
       <SendAnnouncementModal isOpen={sendOpen} onClose={() => setSendOpen(false)} />
     </div>
