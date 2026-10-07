@@ -2,8 +2,11 @@
 
 namespace App\Support\Sync;
 
+use App\Models\NurturingRecord;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
@@ -120,9 +123,30 @@ final class AccessPolicy
         }
     }
 
+    /**
+     * بررسی Policy پرونده‌های تربیتی / مشاهدات (NurturingRecordPolicy)؛ در صورت رد، 403 برمی‌گرداند.
+     */
+    private function authorizeNurturing(string $ability, string $collection, object $record): void
+    {
+        try {
+            Gate::forUser($this->user)->authorize($ability, NurturingRecord::fromData($collection, $record));
+        } catch (AuthorizationException $e) {
+            $this->deny($e->getMessage() !== '' ? $e->getMessage() : 'شما به این پرونده تربیتی دسترسی ندارید.');
+        }
+    }
+
     public function authorizeUpsert(string $collection, ?object $old, object $new): void
     {
         $this->requireWritePermission($collection);
+
+        if (in_array($collection, self::NURTURING, true)) {
+            if ($old !== null) {
+                $this->authorizeNurturing('update', $collection, $old);
+            }
+            $this->authorizeNurturing($old === null ? 'create' : 'update', $collection, $new);
+
+            return;
+        }
 
         if ($collection === 'users') {
             $this->authorizeUserWrite($old, $new);
@@ -203,6 +227,12 @@ final class AccessPolicy
     public function authorizeDelete(string $collection, object $old): void
     {
         $this->requireWritePermission($collection);
+
+        if (in_array($collection, self::NURTURING, true)) {
+            $this->authorizeNurturing('delete', $collection, $old);
+
+            return;
+        }
 
         if ($collection === 'users') {
             if (! $this->isManager()) {
