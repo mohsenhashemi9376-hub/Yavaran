@@ -103,6 +103,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   attendance: ['manage-attendance', 'view-attendance-history'],
   discipline: ['discipline'],
   loans: ['manage-loans'],
+  audit: ['view-nurturing-file'],
   students: ['view-students'],
   classes: ['manage-classes', 'view-students'],
   subjects: ['manage-curriculum'],

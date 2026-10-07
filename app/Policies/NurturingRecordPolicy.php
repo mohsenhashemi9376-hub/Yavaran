@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\DB;
  * دسترسی به پرونده‌های تربیتی، ارزیابی رشد و مشاهدات رفتاری.
  *
  * - مدیر سامانه (admin): هیچ دسترسی‌ای ندارد (ایزولاسیون کامل)؛ Gate::before برای این مدل‌ها او را دور نمی‌زند.
- * - معاونین: با مجوز مربوطه به همه‌ی دانش‌آموزان دسترسی دارند.
+ * - معاون تربیتی (vice_nurturing): با مجوز مربوطه به همه‌ی دانش‌آموزان دسترسی دارد.
  * - مربی: فقط به دانش‌آموزان کلاس‌های تخصیص‌یافته به خودش (خواندن با مجوز view-nurturing-file یا counseling-report،
  *   نوشتن با counseling-report).
- * - سایر نقش‌ها (دبیر و ...): هیچ دسترسی‌ای ندارند.
+ * - سایر نقش‌ها (سایر معاونین، دبیر و ...): هیچ دسترسی‌ای ندارند.
  *
  * خطای دسترسی در بک‌اند به 403 Forbidden تبدیل می‌شود؛ مستقل از رابط کاربری.
  */
@@ -39,8 +39,7 @@ class NurturingRecordPolicy
             return $this->deny('پرونده‌های تربیتی برای مدیر سامانه قابل دسترسی نیست.');
         }
 
-        $roleOk = in_array($user->role, AccessPolicy::MANAGER_ROLES, true) || $user->role === 'coach';
-        if (! $roleOk) {
+        if (! in_array($user->role, self::ROLES, true)) {
             return $this->deny();
         }
 
@@ -51,10 +50,13 @@ class NurturingRecordPolicy
         return $permitted ? null : $this->deny('مجوز لازم برای این بخش به حساب شما داده نشده است.');
     }
 
-    /** آیا کاربر در محدوده‌ی همه‌ی دانش‌آموزان دسترسی دارد (معاونین)؟ */
+    /** تنها نقش‌هایی که به پرونده‌های تربیتی و مشاهدات رفتاری دسترسی دارند */
+    public const ROLES = ['coach', 'vice_nurturing'];
+
+    /** آیا کاربر در محدوده‌ی همه‌ی دانش‌آموزان دسترسی دارد (معاون تربیتی)؟ */
     public static function seesAllStudents(User $user): bool
     {
-        return in_array($user->role, AccessPolicy::MANAGER_ROLES, true) && $user->role !== 'admin';
+        return $user->role === 'vice_nurturing';
     }
 
     /** @return array<int, string> */

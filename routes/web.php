@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
 use App\Http\Controllers\MentorMessageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NurturingAuditController;
 use App\Http\Controllers\NurturingRecordController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SpaController;
@@ -46,6 +47,9 @@ Route::prefix('api')->group(function (): void {
         Route::get('students/{student}/nurturing-record', [NurturingRecordController::class, 'show'])
             ->middleware('throttle:120,1')
             ->name('api.students.nurturing-record');
+        Route::get('nurturing-audit', [NurturingAuditController::class, 'index'])
+            ->middleware('throttle:60,1')
+            ->name('api.nurturing-audit');
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
             ->name('api.sync');

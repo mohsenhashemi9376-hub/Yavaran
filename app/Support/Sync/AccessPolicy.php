@@ -4,6 +4,7 @@ namespace App\Support\Sync;
 
 use App\Models\NurturingRecord;
 use App\Models\User;
+use App\Support\NurturingAudit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -83,8 +84,8 @@ final class AccessPolicy
         }
 
         if ($collection === 'nurturingDossiers') {
-            // پرونده‌های تربیتی برای مدیر مدرسه قابل مشاهده نیست
-            return (($this->isManager() && ! $this->isAdmin()) || $this->isCoach())
+            // پرونده‌های تربیتی فقط برای مربی و معاون تربیتی قابل مشاهده است
+            return in_array($this->user->role, \App\Policies\NurturingRecordPolicy::ROLES, true)
                 && $this->user->hasPermission('view-nurturing-file');
         }
 
@@ -126,11 +127,17 @@ final class AccessPolicy
     /**
      * بررسی Policy پرونده‌های تربیتی / مشاهدات (NurturingRecordPolicy)؛ در صورت رد، 403 برمی‌گرداند.
      */
-    private function authorizeNurturing(string $ability, string $collection, object $record): void
+    private function authorizeNurturing(string $ability, string $collection, object $record, bool $audit = true): void
     {
+        $model = NurturingRecord::fromData($collection, $record);
+        $recordId = isset($record->id) && is_scalar($record->id) ? (string) $record->id : null;
         try {
-            Gate::forUser($this->user)->authorize($ability, NurturingRecord::fromData($collection, $record));
+            Gate::forUser($this->user)->authorize($ability, $model);
+            if ($audit) {
+                NurturingAudit::log($this->user, $ability, $collection, $model->student_id, $recordId);
+            }
         } catch (AuthorizationException $e) {
+            NurturingAudit::log($this->user, $ability, $collection, $model->student_id, $recordId, false);
             $this->deny($e->getMessage() !== '' ? $e->getMessage() : 'شما به این پرونده تربیتی دسترسی ندارید.');
         }
     }
@@ -141,7 +148,7 @@ final class AccessPolicy
 
         if (in_array($collection, self::NURTURING, true)) {
             if ($old !== null) {
-                $this->authorizeNurturing('update', $collection, $old);
+                $this->authorizeNurturing('update', $collection, $old, false);
             }
             $this->authorizeNurturing($old === null ? 'create' : 'update', $collection, $new);
 

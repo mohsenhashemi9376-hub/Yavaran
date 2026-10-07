@@ -9,6 +9,7 @@ import {
   AlertCircle,
   BarChart3, 
   Settings,
+  ShieldCheck,
   X, 
   ChevronLeft,
   ChevronRight,
@@ -30,6 +31,7 @@ export type NurturingViewType =
   | 'coachEvaluations' 
   | 'coaches' 
   | 'attention' 
+  | 'audit' 
   | 'reports' 
   | 'settings'
   | 'academic_and_discipline'
@@ -254,6 +256,17 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
       ],
     },
   ];
+
+  // گزارش دسترسی به پرونده‌ها: فقط معاون تربیتی
+  if (school.currentUser.role === 'vice_nurturing') {
+    const tracking = navGroups.find((g) => g.id === 'tracking');
+    tracking?.items.push({
+      id: 'audit',
+      label: 'گزارش دسترسی‌ها',
+      tooltip: 'چه کسی چه زمانی به پرونده‌های تربیتی دسترسی داشته است',
+      icon: ShieldCheck,
+    });
+  }
 
   // افزودن گزینه مربیان در صورت دسترسی مجاز
   if (canManageCoaches) {

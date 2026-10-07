@@ -4,6 +4,7 @@ namespace App\Support\Sync;
 
 use App\Models\NurturingRecord;
 use App\Models\User;
+use App\Support\NurturingAudit;
 use App\Policies\NurturingRecordPolicy;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
@@ -44,6 +45,11 @@ final class DataExporter
         if ($sensitive = NurturingRecord::modelFor($collection)) {
             $gate = Gate::forUser($user);
             if (! $gate->allows('viewAny', $sensitive)) {
+                // تلاش کاربر غیرمجاز: فقط هنگام ورود ثبت می‌شود تا لاگ پر نشود
+                if (in_array($user->role, ['admin', 'coach', 'vice_nurturing', 'vice_educational', 'vice_disciplinary', 'vice_principal'], true)) {
+                    NurturingAudit::logList($user, $collection, 0);
+                }
+
                 return [];
             }
             $query = $sensitive::query()->orderBy('sort_order')->orderBy('id');
@@ -52,11 +58,14 @@ final class DataExporter
                 $query->whereIn('student_id', $scope);
             }
 
-            return $query->get()
+            $rows = $query->get()
                 ->pluck('data')
                 ->filter(static fn ($json) => is_string($json) && $json !== '')
                 ->values()
                 ->all();
+            NurturingAudit::logList($user, $collection, count($rows));
+
+            return $rows;
         }
 
         $query = DB::table($table)->orderBy('sort_order')->orderBy('id');

@@ -188,3 +188,24 @@ CREATE TABLE IF NOT EXISTS `loan_items` (
   KEY `loan_items_is_returned_index` (`is_returned`),
   KEY `loan_items_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- دفتر ثبت دسترسی به پرونده‌های تربیتی و مشاهدات رفتاری
+CREATE TABLE IF NOT EXISTS `nurturing_access_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `user_role` varchar(40) NOT NULL DEFAULT '',
+  `action` varchar(20) NOT NULL,
+  `collection` varchar(40) NOT NULL,
+  `student_id` varchar(100) DEFAULT NULL,
+  `record_id` varchar(100) DEFAULT NULL,
+  `allowed` tinyint(1) NOT NULL DEFAULT 1,
+  `items` int unsigned DEFAULT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `nurturing_access_logs_user_id_index` (`user_id`),
+  KEY `nurturing_access_logs_student_id_index` (`student_id`),
+  KEY `nurturing_access_logs_allowed_index` (`allowed`),
+  KEY `nurturing_access_logs_created_at_index` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
