@@ -12,6 +12,7 @@ interface AuditRow {
   collection: string;
   studentId: string | null;
   studentName: string | null;
+  targetName?: string | null;
   allowed: boolean;
   items: number | null;
   ip: string | null;
@@ -30,6 +31,7 @@ const COLLECTIONS: Record<string, string> = {
   observations: 'مشاهده رفتاری',
   nurturingDossiers: 'پرونده تربیتی',
   coachEvaluations: 'ارزیابی رشد',
+  users: 'حساب کاربری',
 };
 
 const ROLES: Record<string, string> = {
@@ -170,6 +172,7 @@ export const NurturingAuditLog: React.FC = () => {
                     <div className="mt-1 text-slate-600">
                       {a.label} • {COLLECTIONS[r.collection] || r.collection}
                       {r.studentName ? <> • دانش‌آموز: <b className="text-slate-800">{r.studentName}</b></> : null}
+                      {r.collection === 'users' && r.targetName ? <> • حساب: <b className="text-slate-800">{r.targetName}</b></> : null}
                       {r.action === 'list' && r.items !== null ? ` • ${toPersianDigits(r.items)} رکورد` : ''}
                     </div>
                     <div className="mt-0.5 text-[10px] text-slate-400 font-mono" dir="ltr">

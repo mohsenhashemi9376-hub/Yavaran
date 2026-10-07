@@ -4,6 +4,7 @@ namespace App\Support\Sync;
 
 use App\Models\NurturingRecord;
 use App\Models\User;
+use App\Support\Notifier;
 use App\Support\NurturingAudit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -287,11 +288,70 @@ final class AccessPolicy
         $this->deny();
     }
 
+    /** نقش‌هایی که به پرونده‌های تربیتی دسترسی دارند؛ ساخت و ویرایش حساب آن‌ها فقط با معاون تربیتی است */
+    private const NURTURING_ACCOUNT_ROLES = ['vice_nurturing', 'coach'];
+
+    /**
+     * جداسازی وظایف: ساخت یا ویرایش حساب مربی و معاون تربیتی (از جمله تغییر رمز و تخصیص کلاس)
+     * فقط توسط معاون تربیتی ممکن است تا مدیر یا معاون دیگر نتواند با ساختن/تصاحب چنین حسابی به پرونده‌ها برسد.
+     * استثناها: غیرفعال‌کردن حساب (کاهش دسترسی) و زمانی که هنوز هیچ معاون تربیتی فعالی وجود ندارد (راه‌اندازی اولیه).
+     */
+    private function guardNurturingAccounts(?object $old, object $new): void
+    {
+        $oldRole = $old ? $this->prop($old, 'role') : null;
+        $newRole = $this->prop($new, 'role');
+        if (! in_array($oldRole, self::NURTURING_ACCOUNT_ROLES, true) && ! in_array($newRole, self::NURTURING_ACCOUNT_ROLES, true)) {
+            return;
+        }
+
+        $actorOk = $this->user->role === 'vice_nurturing' && $this->user->isActive();
+        $bootstrap = ! DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->exists();
+        $targetId = $this->prop($new, 'id') ?? ($old ? $this->prop($old, 'id') : null);
+        $action = $old === null ? 'create' : 'update';
+
+        if (! $actorOk && ! $bootstrap && ! $this->isOnlyDeactivation($old, $new)) {
+            NurturingAudit::log($this->user, $action, 'users', null, $targetId, false);
+
+            $receivers = DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->pluck('id')->all();
+            Notifier::send($receivers, [
+                'title' => 'هشدار امنیتی: تلاش برای تغییر حساب دارای دسترسی به پرونده‌های تربیتی',
+                'message' => sprintf(
+                    '«%s» تلاش کرد حساب «%s» (نقش %s) را %s کند. این کار فقط با معاون تربیتی ممکن است و رد شد.',
+                    $this->user->name,
+                    (string) ($new->name ?? $targetId),
+                    $newRole,
+                    $old === null ? 'ایجاد' : 'ویرایش'
+                ),
+                'type' => 'announcement',
+                'priority' => 'urgent',
+            ]);
+
+            $this->deny('ساخت و ویرایش حساب مربی و معاون تربیتی فقط توسط معاون تربیتی امکان‌پذیر است.');
+        }
+
+        // تغییرات مجاز هم در دفتر دسترسی ثبت می‌شود
+        NurturingAudit::log($this->user, $action, 'users', null, $targetId, true);
+    }
+
+    private function isOnlyDeactivation(?object $old, object $new): bool
+    {
+        if ($old === null || ($new->isActive ?? true) !== false) {
+            return false;
+        }
+        $a = clone $old;
+        $b = clone $new;
+        unset($a->isActive, $b->isActive, $b->password);
+
+        return json_encode($a) === json_encode($b);
+    }
+
     private function authorizeUserWrite(?object $old, object $new): void
     {
         if (! $this->isManager()) {
             $this->deny();
         }
+
+        $this->guardNurturingAccounts($old, $new);
 
         $newRole = $this->prop($new, 'role');
         if (! in_array($newRole, CollectionRegistry::ROLES, true)) {
@@ -303,7 +363,8 @@ final class AccessPolicy
         // تغییر ماتریس دسترسی‌ها فقط توسط مدیر سامانه
         $oldPerms = $old && property_exists($old, 'permissions') ? $old->permissions : null;
         $newPerms = property_exists($new, 'permissions') ? $new->permissions : null;
-        if (! $this->isAdmin() && json_encode($oldPerms) !== json_encode($newPerms)) {
+        $viceEditsCoach = $this->user->role === 'vice_nurturing' && $oldRole === 'coach' && $newRole === 'coach';
+        if (! $this->isAdmin() && ! $viceEditsCoach && json_encode($oldPerms) !== json_encode($newPerms)) {
             $this->deny('فقط مدیر سامانه مجاز به تغییر سطوح دسترسی کاربران است.');
         }
 

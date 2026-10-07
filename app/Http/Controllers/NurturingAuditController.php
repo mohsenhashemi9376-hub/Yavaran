@@ -28,10 +28,13 @@ class NurturingAuditController extends Controller
         $rows = DB::table('nurturing_access_logs as l')
             ->leftJoin('users as u', 'u.id', '=', 'l.user_id')
             ->leftJoin('students as s', 's.id', '=', 'l.student_id')
+            ->leftJoin('users as ru', function ($j): void {
+                $j->on('ru.id', '=', 'l.record_id')->where('l.collection', '=', 'users');
+            })
             ->orderByDesc('l.id')
             ->limit(500)
             ->get(['l.id', 'l.user_id', 'l.user_role', 'l.action', 'l.collection', 'l.student_id', 'l.allowed', 'l.items', 'l.ip', 'l.created_at',
-                'u.name as user_name', 's.first_name', 's.last_name']);
+                'u.name as user_name', 'ru.name as target_name', 's.first_name', 's.last_name']);
 
         return response()->json([
             'logs' => $rows->map(fn ($r) => [
@@ -41,6 +44,7 @@ class NurturingAuditController extends Controller
                 'userRole' => $r->user_role,
                 'action' => $r->action,
                 'collection' => $r->collection,
+                'targetName' => $r->target_name,
                 'studentId' => $r->student_id,
                 'studentName' => trim(($r->last_name ?? '').' '.($r->first_name ?? '')) ?: null,
                 'allowed' => (bool) $r->allowed,
