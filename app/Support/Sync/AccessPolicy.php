@@ -36,6 +36,10 @@ final class AccessPolicy
 
     private ?array $nurturingIds = null;
 
+    private ?array $defaultCourses = null;
+
+    private ?array $courseKeys = null;
+
     /** @var array<string, string|null> */
     private array $studentClassCache = [];
 
@@ -314,24 +318,27 @@ final class AccessPolicy
             }
         }
 
-        foreach ($this->defaultSubjectTeacherClassIds() as $classId) {
-            $ids[] = $classId;
+        foreach ($this->defaultSubjectTeacherCourses() as $course) {
+            $ids[] = $course['classId'];
         }
 
         return $this->classIds = array_values(array_unique($ids));
     }
 
     /**
-     * کلاس‌هایی که کاربر از طریق «دبیر پیش‌فرض درس» (انتخاب‌شده در مدیریت دروس) به آن‌ها دسترسی دارد.
+     * جفت «کلاس + درس» هایی که کاربر از طریق «دبیر پیش‌فرض درس» (انتخاب‌شده در مدیریت دروس) تدریس می‌کند.
      * رابط کاربری این انتساب را بدون ردیف جداگانه در course_assignments محاسبه می‌کند؛
      * اگر برای همان کلاس و درس انتساب صریح وجود داشته باشد، همان مقدم است.
      *
-     * @return array<int, string>
+     * @return array<int, array{classId: string, subjectId: string}>
      */
-    private function defaultSubjectTeacherClassIds(): array
+    private function defaultSubjectTeacherCourses(): array
     {
+        if ($this->defaultCourses !== null) {
+            return $this->defaultCourses;
+        }
         if (! CollectionRegistry::tableExists('academic_subjects')) {
-            return [];
+            return $this->defaultCourses = [];
         }
 
         $subjects = [];
@@ -342,7 +349,7 @@ final class AccessPolicy
             }
         }
         if ($subjects === []) {
-            return [];
+            return $this->defaultCourses = [];
         }
 
         $explicit = [];
@@ -352,7 +359,7 @@ final class AccessPolicy
             }
         }
 
-        $ids = [];
+        $courses = [];
         foreach (DB::table('school_classes')->get(['id', 'data']) as $row) {
             $class = json_decode((string) $row->data, false);
             $grade = is_object($class) && isset($class->grade) && is_string($class->grade) ? $class->grade : '';
@@ -361,13 +368,91 @@ final class AccessPolicy
                     continue;
                 }
                 if ($this->subjectAppliesToGrade($subject, $grade)) {
-                    $ids[] = (string) $row->id;
-                    break;
+                    $courses[] = ['classId' => (string) $row->id, 'subjectId' => (string) $subjectId];
                 }
             }
         }
 
-        return $ids;
+        return $this->defaultCourses = $courses;
+    }
+
+    /**
+     * جلسه‌ای که دبیر مجاز به دیدن آن است: خودش ثبت کرده یا درس آن در همان کلاس به او واگذار شده
+     * (معادل isOwnTeachingSession در رابط کاربری).
+     */
+    public function canSeeSession(object $session): bool
+    {
+        $classId = $this->prop($session, 'classId');
+        if ($classId === null) {
+            return false;
+        }
+        if ($this->prop($session, 'teacherId') === $this->user->id) {
+            return true;
+        }
+
+        $subjectId = $this->prop($session, 'subjectId');
+        $subjectName = $this->prop($session, 'subject');
+
+        $courses = $this->teachingCourses();
+
+        if ($subjectId !== null && $subjectId !== '') {
+            return isset($courses['id'][$classId.'|'.$subjectId]);
+        }
+
+        return $subjectName !== null && isset($courses['name'][$classId.'|'.$subjectName]);
+    }
+
+    /** @return array{id: array<string, true>, name: array<string, true>} */
+    private function teachingCourses(): array
+    {
+        if ($this->courseKeys !== null) {
+            return $this->courseKeys;
+        }
+
+        $subjectNames = [];
+        if (CollectionRegistry::tableExists('academic_subjects')) {
+            $subjectNames = DB::table('academic_subjects')->pluck('name', 'id')->all();
+        }
+
+        $keys = ['id' => [], 'name' => []];
+        $add = function (string $classId, string $subjectId, ?string $name) use (&$keys, $subjectNames): void {
+            $keys['id'][$classId.'|'.$subjectId] = true;
+            $name ??= $subjectNames[$subjectId] ?? null;
+            if ($name !== null && $name !== '') {
+                $keys['name'][$classId.'|'.$name] = true;
+            }
+        };
+
+        // انتساب سه‌طرفه صریح
+        if (CollectionRegistry::tableExists('course_assignments')) {
+            foreach (DB::table('course_assignments')->where('user_id', $this->user->id)->get(['class_id', 'subject_id']) as $a) {
+                $add((string) $a->class_id, (string) $a->subject_id, null);
+            }
+        }
+
+        // دبیر پیش‌فرض درس
+        foreach ($this->defaultSubjectTeacherCourses() as $c) {
+            $add($c['classId'], $c['subjectId'], null);
+        }
+
+        // انتساب‌های قدیمی ذخیره‌شده در پروفایل کاربر
+        $profile = $this->user->profile();
+        if (isset($profile->teachingAssignments) && is_array($profile->teachingAssignments)) {
+            foreach ($profile->teachingAssignments as $ta) {
+                if (! is_object($ta) || ! isset($ta->classIds) || ! is_array($ta->classIds)) {
+                    continue;
+                }
+                $sid = isset($ta->subjectId) && is_string($ta->subjectId) ? $ta->subjectId : '';
+                $sname = isset($ta->subjectName) && is_string($ta->subjectName) ? $ta->subjectName : null;
+                foreach ($ta->classIds as $cid) {
+                    if (is_string($cid)) {
+                        $add($cid, $sid, $sname);
+                    }
+                }
+            }
+        }
+
+        return $this->courseKeys = $keys;
     }
 
     /** معادل subjectAppliesToClass در رابط کاربری (دروس عمومی/بدون پایه برای همه‌ی کلاس‌ها) */
