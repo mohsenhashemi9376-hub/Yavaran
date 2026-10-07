@@ -2043,6 +2043,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newObs: StudentObservation = {
       ...obsData,
       id,
+      // نویسنده را سرور نهایی می‌کند؛ این مقدار فقط تا بازخوانی، دکمه‌های ویرایش/حذف را برای ثبت‌کننده نشان می‌دهد
+      authorId: currentUser.id,
+      authorRole: currentUser.role,
       createdAt: new Date().toISOString(),
     };
     setObservations((prev) => [newObs, ...prev]);

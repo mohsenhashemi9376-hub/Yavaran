@@ -3,6 +3,7 @@
 namespace App\Support\Sync;
 
 use App\Models\NurturingRecord;
+use App\Models\StudentObservation;
 use App\Models\User;
 use App\Support\Notifier;
 use App\Support\Digits;
@@ -76,13 +77,36 @@ final class SyncService
                 $oldRow = $existing->get($item->id);
                 $oldData = $oldRow ? $this->decode($oldRow->data, (string) $oldRow->id) : null;
 
+                // نویسنده‌ی مشاهده‌گری را سرور تعیین می‌کند؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود
+                if ($collection === 'observations') {
+                    StudentObservation::ensureAuthorColumns();
+                    $authorId = $oldRow ? ($oldRow->author_id ?? ($oldData->authorId ?? null)) : null;
+                    $authorRole = $oldRow ? ($oldRow->author_role ?? ($oldData->authorRole ?? null)) : null;
+                    if ($oldData !== null) {
+                        $oldData->authorId = $authorId;
+                        $oldData->authorRole = $authorRole;
+                    }
+                    $data->authorId = $authorId;
+                    $data->authorRole = $authorRole;
+                }
+
                 $policy->authorizeUpsert($collection, $oldData, $data);
+
+                if ($collection === 'observations' && empty($data->authorId)) {
+                    // رکورد تازه (یا مشاهده‌ی قدیمیِ بدون نویسنده که معاون ویرایش می‌کند) به نام کاربر جاری ثبت می‌شود
+                    $data->authorId = $policy->userId();
+                    $data->authorRole = $policy->role();
+                }
 
                 if ($collection === 'sessions') {
                     $this->validateSession($data, $item->id);
                 }
 
                 $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow, $policy->userId(), (string) $item->id) : [];
+
+                if ($collection === 'observations' && StudentObservation::ensureAuthorColumns()) {
+                    $extra += ['author_id' => $data->authorId, 'author_role' => $data->authorRole];
+                }
 
                 $values = CollectionRegistry::columns($collection, $data) + $extra + [
                     'data' => json_encode($data, self::JSON_FLAGS),

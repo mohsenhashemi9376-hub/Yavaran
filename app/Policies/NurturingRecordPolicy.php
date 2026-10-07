@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\NurturingRecord;
+use App\Models\StudentObservation;
 use App\Models\User;
 use App\Support\PasswordConfirmation;
 use App\Support\Sync\AccessPolicy;
@@ -106,7 +107,9 @@ class NurturingRecordPolicy
 
     public function view(User $user, NurturingRecord $record): Response
     {
-        return $this->check($user, $record, false);
+        $base = $this->check($user, $record, false);
+
+        return $base->denied() ? $base : $this->observationVisibility($user, $record);
     }
 
     public function create(User $user, NurturingRecord $record): Response
@@ -116,12 +119,41 @@ class NurturingRecordPolicy
 
     public function update(User $user, NurturingRecord $record): Response
     {
-        return $this->check($user, $record, true);
+        $base = $this->check($user, $record, true);
+
+        return $base->denied() ? $base : $this->observationOwnership($user, $record);
     }
 
     public function delete(User $user, NurturingRecord $record): Response
     {
-        return $this->check($user, $record, true);
+        return $this->update($user, $record);
+    }
+
+    /**
+     * مشاهده‌گری‌های معاون تربیتی برای مربی قابل مشاهده نیست (و مشاهده‌های بدون نویسنده‌ی مشخص هم، به‌صورت محافظه‌کارانه).
+     * معاون تربیتی همه‌ی مشاهده‌ها (از جمله مشاهده‌های مربیان) را می‌بیند.
+     */
+    private function observationVisibility(User $user, NurturingRecord $record): Response
+    {
+        if ($record instanceof StudentObservation && $user->role === 'coach' && $record->author_role !== 'coach') {
+            return $this->deny('این مشاهده‌گری توسط معاون تربیتی ثبت شده و برای مربی قابل مشاهده نیست.');
+        }
+
+        return Response::allow();
+    }
+
+    /** ویرایش و حذف مشاهده‌گری فقط توسط نویسنده‌اش (مشاهده‌ی قدیمی بدون نویسنده را معاون تربیتی مدیریت می‌کند) */
+    private function observationOwnership(User $user, NurturingRecord $record): Response
+    {
+        if (! $record instanceof StudentObservation || $record->author_id === null) {
+            return $record instanceof StudentObservation && $user->role !== 'vice_nurturing'
+                ? $this->deny('ویرایش این مشاهده‌گری فقط توسط معاون تربیتی ممکن است.')
+                : Response::allow();
+        }
+
+        return $record->author_id === $user->id
+            ? Response::allow()
+            : $this->deny('هر مشاهده‌گری فقط توسط ثبت‌کننده‌ی آن قابل ویرایش یا حذف است.');
     }
 
     /**

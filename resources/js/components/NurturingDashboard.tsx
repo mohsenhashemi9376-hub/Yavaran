@@ -1843,6 +1843,12 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                               </div>
 
                               <div className="flex items-center gap-1.5">
+                                {obs.authorRole === 'coach' && currentUser.role === 'vice_nurturing' && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 whitespace-nowrap">
+                                    ثبت‌شده توسط مربی
+                                  </span>
+                                )}
+                                {(obs.authorId === currentUser.id || (!obs.authorId && currentUser.role === 'vice_nurturing')) && (<>
                                 <button
                                   type="button"
                                   onClick={() => handleEditObservation(obs)}
@@ -1863,6 +1869,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
+                                </>)}
                               </div>
                             </div>
 

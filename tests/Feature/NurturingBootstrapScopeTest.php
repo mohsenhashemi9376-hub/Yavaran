@@ -22,6 +22,7 @@ class NurturingBootstrapScopeTest extends TestCase
         foreach (['stu-mine', 'stu-other'] as $sid) {
             (new StudentObservation)->forceFill([
                 'id' => 'obs-'.$sid, 'student_id' => $sid, 'record_date' => '1405/07/10', 'sort_order' => 0,
+                'author_id' => 'coach-writer', 'author_role' => 'coach',
                 'data' => json_encode(['id' => 'obs-'.$sid, 'studentId' => $sid, 'text' => 'OBS-'.$sid]),
             ])->save();
             (new CoachEvaluation)->forceFill([

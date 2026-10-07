@@ -55,6 +55,11 @@ final class AccessPolicy
     {
     }
 
+    public function role(): string
+    {
+        return (string) $this->user->role;
+    }
+
     public function userId(): string
     {
         return (string) $this->user->id;

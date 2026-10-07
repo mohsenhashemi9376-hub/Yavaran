@@ -87,6 +87,10 @@ abstract class NurturingRecord extends Model
         /** @var self $model */
         $model = new $class;
         $model->student_id = is_scalar($studentId) ? (string) $studentId : null;
+        if ($model instanceof StudentObservation) {
+            $model->author_id = isset($data->authorId) && is_scalar($data->authorId) ? (string) $data->authorId : null;
+            $model->author_role = isset($data->authorRole) && is_scalar($data->authorRole) ? (string) $data->authorRole : null;
+        }
 
         return $model;
     }

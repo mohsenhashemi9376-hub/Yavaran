@@ -400,6 +400,9 @@ export interface StudentObservation {
   tags?: string[]; // برچسب‌های کلیدی
   location?: string; // مکان مشاهده: کلاس، حیاط، نمازخانه، اردو
   recordedBy: string; // ثبت‌کننده (معاون تربیتی)
+  /** نویسنده؛ توسط سرور تعیین می‌شود (برای کنترل دیدن و ویرایش) */
+  authorId?: string | null;
+  authorRole?: 'coach' | 'vice_nurturing' | string | null;
   createdAt: string;
   updatedAt?: string;
 }

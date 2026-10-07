@@ -3,6 +3,7 @@
 namespace App\Support\Sync;
 
 use App\Models\NurturingRecord;
+use App\Models\StudentObservation;
 use App\Models\User;
 use App\Support\NurturingAudit;
 use App\Policies\NurturingRecordPolicy;
@@ -63,6 +64,13 @@ final class DataExporter
                 return [];
             }
             $query = $sensitive::query()->orderBy('sort_order')->orderBy('id');
+            if ($sensitive === StudentObservation::class) {
+                StudentObservation::ensureAuthorColumns();
+                // مربی فقط مشاهده‌های ثبت‌شده توسط مربیان را می‌بیند، نه مشاهده‌های معاون تربیتی
+                if ($user->role === 'coach') {
+                    $query->where('author_role', 'coach');
+                }
+            }
             $scope = app(NurturingRecordPolicy::class)->scopeStudentIds($user);
             if ($scope !== null) {
                 $query->whereIn('student_id', $scope);

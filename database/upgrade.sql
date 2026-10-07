@@ -219,3 +219,7 @@ ALTER TABLE `users` ADD COLUMN `two_factor_secret` text NULL, ADD COLUMN `two_fa
 -- تغییر اجباری رمز عبور در اولین ورود (حساب‌های دارای رمز پیش‌فرض ۱۲۳ هنگام اولین ورود خودکار علامت می‌خورند)
 -- اگر ستون از قبل وجود دارد، خطای «Duplicate column» را نادیده بگیرید
 ALTER TABLE `users` ADD COLUMN `must_change_password` tinyint(1) NOT NULL DEFAULT 0;
+
+-- نویسنده‌ی مشاهده‌گری (برای مخفی بودن مشاهده‌های معاون تربیتی از مربی). اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
+-- مشاهده‌های قدیمی بدون نویسنده برای مربی مخفی و برای معاون تربیتی قابل مشاهده می‌مانند.
+ALTER TABLE `student_observations` ADD COLUMN `author_id` varchar(100) NULL, ADD COLUMN `author_role` varchar(40) NULL, ADD KEY `student_observations_author_id_index` (`author_id`);
