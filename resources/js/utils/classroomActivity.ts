@@ -5,6 +5,7 @@ export interface ActivitySummary {
   excellent: number;
   done: number;
   incomplete: number;
+  notDone: number;
   total: number;
 }
 
@@ -28,7 +29,7 @@ export function summarizeActivity(
   studentId: string,
   opts: { classId?: string; subjectId?: string; subjectName?: string; month?: number } = {}
 ): ActivitySummary {
-  const out: ActivitySummary = { excellent: 0, done: 0, incomplete: 0, total: 0 };
+  const out: ActivitySummary = { excellent: 0, done: 0, incomplete: 0, notDone: 0, total: 0 };
   sessions.forEach((s) => {
     if (opts.classId && s.classId !== opts.classId) return;
     if (opts.subjectId || opts.subjectName) {
@@ -36,11 +37,15 @@ export function summarizeActivity(
       if (!same) return;
     }
     if (opts.month && Number(toEnglishDigits(s.date).split('/')[1]) !== opts.month) return;
-    const a = s.records?.[studentId]?.classroomActivity;
-    if (a === 'excellent' || a === 'done' || a === 'incomplete') {
-      out[a]++;
-      out.total++;
-    }
+    const rec = s.records?.[studentId];
+    if (!rec || rec.status === 'absent' || rec.status === 'excused') return;
+    // وضعیت تکلیف (انجام شده / ناقص / انجام نشده)؛ ارزیابی قدیمی «عالی» هم همچنان شمرده می‌شود
+    const a = rec.classroomActivity;
+    if (a === 'excellent') out.excellent++;
+    else if (rec.homeworkStatus === 'incomplete' || a === 'incomplete') out.incomplete++;
+    else if (rec.homeworkStatus === 'not_done') out.notDone++;
+    else out.done++;
+    out.total++;
   });
   return out;
 }
@@ -52,5 +57,6 @@ export function formatActivitySummary(s: ActivitySummary): string {
   if (s.excellent) parts.push(`${toPersianDigits(s.excellent)} عالی`);
   if (s.done) parts.push(`${toPersianDigits(s.done)} انجام‌شده`);
   if (s.incomplete) parts.push(`${toPersianDigits(s.incomplete)} ناقص`);
+  if (s.notDone) parts.push(`${toPersianDigits(s.notDone)} انجام‌نشده`);
   return parts.join('، ');
 }

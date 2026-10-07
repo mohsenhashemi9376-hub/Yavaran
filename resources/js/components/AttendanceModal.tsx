@@ -260,7 +260,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     lessonTopic.trim() ||
       homeworkDescription.trim() ||
       sessionNotes.trim() ||
-      Object.values(records).some((r) => r.status !== 'present' || r.score !== undefined || r.note || r.disciplinaryWarning)
+      Object.values(records).some((r) => r.status !== 'present' || r.note || r.disciplinaryWarning || (r.homeworkStatus && r.homeworkStatus !== 'done'))
   );
 
   const handleRequestClose = () => {
@@ -563,7 +563,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
               const status: AttendanceStatus = rec.status === 'excused' ? 'absent' : rec.status;
               const expanded = expandedId === student.id;
               const hasWarning = Boolean(rec.disciplinaryWarning?.hasWarning);
-              const hasExtra = rec.score !== undefined || !!rec.note || (rec.homeworkStatus && rec.homeworkStatus !== 'done');
+              const hasExtra = !!rec.note;
               const tone =
                 status === 'absent'
                   ? 'bg-rose-50 text-rose-800 border-rose-200'
@@ -592,9 +592,6 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                       <div className="text-sm font-extrabold whitespace-nowrap">
                         {studentFullName(student)}
                       </div>
-                      {student.studentCode && (
-                        <div className="text-[11px] opacity-60 truncate">کد دانش‌آموزی: {toPersianDigits(student.studentCode)}</div>
-                      )}
                     </button>
 
                     <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto sm:mr-auto">
@@ -663,7 +660,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : student.id)}
                         aria-label="جزئیات بیشتر"
-                        title="نمره، تکلیف و یادداشت"
+                        title="یادداشت فردی"
                         className={`w-9 h-9 rounded-2xl flex items-center justify-center transition cursor-pointer ${
                           expanded || hasExtra ? 'bg-white text-emerald-700' : 'text-slate-400 hover:bg-white/70'
                         }`}
@@ -675,19 +672,19 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
                   {status !== 'absent' && (
                     <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">فعالیت و تکلیف امروز:</span>
+                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">وضعیت تکلیف:</span>
                       {([
-                        ['excellent', '⭐ عالی', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
-                        ['done', 'انجام‌شده', 'bg-sky-50 text-sky-700 border-sky-200'],
-                        ['incomplete', 'ناقص / انجام‌نشده', 'bg-rose-50 text-rose-700 border-rose-200'],
+                        ['done', 'انجام شده', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+                        ['incomplete', 'ناقص', 'bg-amber-50 text-amber-700 border-amber-200'],
+                        ['not_done', 'انجام نشده', 'bg-rose-50 text-rose-700 border-rose-200'],
                       ] as const).map(([key, label, cls]) => {
-                        const active = rec.classroomActivity === key;
+                        const active = (rec.homeworkStatus || 'done') === key;
                         return (
                           <button
                             key={key}
                             type="button"
                             aria-pressed={active}
-                            onClick={() => patchRecord(student.id, { classroomActivity: active ? null : key })}
+                            onClick={() => patchRecord(student.id, { homeworkStatus: key })}
                             className={`min-h-[36px] px-3 rounded-xl border text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${cls} ${
                               active ? 'ring-2 ring-offset-1 ring-current shadow-sm' : 'opacity-60 hover:opacity-100'
                             }`}
@@ -719,40 +716,13 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                   )}
 
                   {expanded && (
-                    <div className="mt-2 bg-white/70 rounded-2xl p-3 grid sm:grid-cols-2 gap-3 text-xs text-slate-700">
-                      <label className="flex items-center gap-2 font-bold">
-                        <span className="shrink-0">نمره مستمر</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={rec.score !== undefined ? toPersianDigits(rec.score) : ''}
-                          onChange={(e) => {
-                            const n = parseFloat(toEnglishDigits(e.target.value));
-                            patchRecord(student.id, { score: Number.isNaN(n) ? undefined : Math.min(20, Math.max(0, n)) });
-                          }}
-                          placeholder="—"
-                          className="w-16 text-center font-bold bg-white border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-200"
-                        />
-                        <span className="text-slate-400 font-normal">از ۲۰</span>
-                      </label>
-                      <label className="flex items-center gap-2 font-bold">
-                        <span className="shrink-0">تکلیف</span>
-                        <select
-                          value={rec.homeworkStatus || 'done'}
-                          onChange={(e) => patchRecord(student.id, { homeworkStatus: e.target.value as HomeworkStatus })}
-                          className="flex-1 bg-white border border-slate-200 rounded-xl px-2 py-1.5 outline-none cursor-pointer font-bold"
-                        >
-                          <option value="done">کامل</option>
-                          <option value="incomplete">ناقص</option>
-                          <option value="not_done">انجام نشده</option>
-                        </select>
-                      </label>
+                    <div className="mt-2 bg-white/70 rounded-2xl p-3 text-xs text-slate-700">
                       <input
                         type="text"
                         value={rec.note || ''}
                         onChange={(e) => patchRecord(student.id, { note: e.target.value })}
                         placeholder="یادداشت فردی..."
-                        className="sm:col-span-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-emerald-200"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-emerald-200"
                       />
                     </div>
                   )}
