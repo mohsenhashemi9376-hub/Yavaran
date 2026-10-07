@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
 use Illuminate\Http\JsonResponse;
@@ -74,6 +75,56 @@ class AuthController extends Controller
             $user->save();
         }
 
+        User::ensureTwoFactorColumns();
+        $user->refresh();
+
+        // ورود دومرحله‌ای: کاربر هنوز وارد نشده؛ فقط شناسه‌اش برای مرحله‌ی دوم (۵ دقیقه) در نشست می‌ماند
+        if ($user->hasTwoFactor()) {
+            $request->session()->regenerate();
+            $request->session()->put('two_factor', ['user_id' => $user->id, 'expires' => now()->addMinutes(5)->timestamp]);
+
+            return response()->json(['success' => true, 'requiresTwoFactor' => true]);
+        }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json(['success' => true]);
+    }
+
+    /** مرحله‌ی دوم ورود: کد برنامه‌ی احراز هویت یا کد بازیابی */
+    public function twoFactorLogin(Request $request): JsonResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        $pending = $request->session()->get('two_factor');
+
+        if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
+            $request->session()->forget('two_factor');
+
+            return response()->json(['success' => false, 'message' => 'زمان تأیید به پایان رسید. دوباره وارد شوید.', 'restart' => true], 422);
+        }
+
+        $throttleKey = 'tfa-login:'.$pending['user_id'].'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $request->session()->forget('two_factor');
+
+            return response()->json([
+                'success' => false,
+                'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره وارد شوید.',
+                'restart' => true,
+            ], 429);
+        }
+
+        /** @var User|null $user */
+        $user = User::query()->find($pending['user_id']);
+        if (! $user || ! $user->isActive() || ! $user->hasTwoFactor() || ! TwoFactorController::verifyLoginCode($user, $data['code'])) {
+            RateLimiter::hit($throttleKey, 300);
+
+            return response()->json(['success' => false, 'message' => 'کد وارد‌شده درست نیست.'], 422);
+        }
+
+        RateLimiter::clear($throttleKey);
+        $request->session()->forget('two_factor');
         Auth::login($user);
         $request->session()->regenerate();
 

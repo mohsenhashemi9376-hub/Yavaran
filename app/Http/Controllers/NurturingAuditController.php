@@ -16,7 +16,8 @@ class NurturingAuditController extends Controller
         /** @var User $user */
         $user = $request->user();
         abort_unless(
-            $user->isActive() && $user->role === 'vice_nurturing' && $user->hasPermission('view-nurturing-file'),
+            $user->isActive() && $user->role === 'vice_nurturing' && $user->hasPermission('view-nurturing-file')
+                && (! $user->requiresTwoFactor() || $user->hasTwoFactor()),
             403,
             'گزارش دسترسی‌ها فقط برای معاون تربیتی قابل مشاهده است.'
         );

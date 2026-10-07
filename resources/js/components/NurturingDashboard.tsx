@@ -19,6 +19,7 @@ import {
 import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
 import { TaughtLessonsView } from './TaughtLessonsView';
 import { NurturingAuditLog } from './NurturingAuditLog';
+import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -824,6 +825,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       <div className="flex-1 w-full min-w-0 space-y-6 pb-12">
         {/* Top Banner with Confidentiality & Role identity */}
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
+        <TwoFactorRequiredBanner />
         {(currentView === null || currentView === 'dashboard') && (
           <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
             <div className="absolute left-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />

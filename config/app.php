@@ -5,6 +5,11 @@ return [
     'env' => env('APP_ENV', 'production'),
     'debug' => (bool) env('APP_DEBUG', false),
     'url' => env('APP_URL', 'http://localhost'),
+
+    /*
+     * ورود دومرحله‌ای (TOTP) اجباری برای مربی و معاون تربیتی؛ بدون آن پرونده‌های تربیتی در دسترس نیست.
+     */
+    'require_two_factor_nurturing' => (bool) env('REQUIRE_2FA_NURTURING', true),
     'timezone' => env('APP_TIMEZONE', 'Asia/Tehran'),
     'locale' => env('APP_LOCALE', 'fa'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),

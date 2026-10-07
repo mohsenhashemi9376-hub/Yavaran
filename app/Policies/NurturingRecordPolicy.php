@@ -43,6 +43,10 @@ class NurturingRecordPolicy
             return $this->deny();
         }
 
+        if ($user->requiresTwoFactor() && ! $user->hasTwoFactor()) {
+            return $this->deny('برای دسترسی به پرونده‌های تربیتی ابتدا ورود دومرحله‌ای را در حساب خود فعال کنید.');
+        }
+
         $permitted = $write
             ? $user->hasPermission('counseling-report')
             : ($user->hasPermission('view-nurturing-file') || $user->hasPermission('counseling-report'));

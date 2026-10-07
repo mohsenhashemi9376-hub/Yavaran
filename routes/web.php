@@ -9,6 +9,7 @@ use App\Http\Controllers\NurturingRecordController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,7 +24,17 @@ Route::prefix('api')->group(function (): void {
         ->middleware('throttle:30,1')
         ->name('api.login');
 
+    Route::post('auth/two-factor', [AuthController::class, 'twoFactorLogin'])
+        ->middleware('throttle:30,1')
+        ->name('api.login.two-factor');
+
     Route::middleware('auth')->group(function (): void {
+        Route::prefix('two-factor')->middleware('throttle:30,1')->group(function (): void {
+            Route::get('/', [TwoFactorController::class, 'status'])->name('api.two-factor.status');
+            Route::post('setup', [TwoFactorController::class, 'setup'])->name('api.two-factor.setup');
+            Route::post('confirm', [TwoFactorController::class, 'confirm'])->name('api.two-factor.confirm');
+            Route::post('disable', [TwoFactorController::class, 'disable'])->name('api.two-factor.disable');
+        });
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
         Route::post('profile', [ProfileController::class, 'update'])
             ->middleware('throttle:20,1')

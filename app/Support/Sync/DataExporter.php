@@ -27,6 +27,10 @@ final class DataExporter
         return '{"authenticated":true,'
             .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
             .'"serverTime":'.((int) round(microtime(true) * 1000)).','
+            .'"security":'.json_encode([
+                'twoFactorEnabled' => $user->hasTwoFactor(),
+                'twoFactorRequired' => $user->requiresTwoFactor(),
+            ]).','
             .'"data":{'.implode(',', $parts).'}}';
     }
 

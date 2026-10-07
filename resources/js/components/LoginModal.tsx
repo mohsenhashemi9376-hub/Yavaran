@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { YavaranLogo } from './YavaranLogo';
 import { ThemeToggle } from './ThemeToggle';
-import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -13,12 +13,23 @@ const inputClass =
   'w-full text-sm font-[inherit] bg-slate-50 border border-slate-200 rounded-2xl py-3 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400';
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
-  const { login } = useSchool();
+  const { login, verifyTwoFactor } = useSchool();
+  const [step, setStep] = useState<'credentials' | 'code'>('credentials');
+  const [code, setCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('credentials');
+      setCode('');
+      setUseRecovery(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -42,8 +53,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     if (res.success) {
       setPassword('');
       onClose();
+    } else if (res.requiresTwoFactor) {
+      setStep('code');
+      setCode('');
+      setUseRecovery(false);
     } else {
       setErrorMsg(res.message || 'نام کاربری یا رمز عبور اشتباه است.');
+    }
+  };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting || !code.trim()) return;
+    setErrorMsg('');
+    setIsSubmitting(true);
+    const res = await verifyTwoFactor(code);
+    setIsSubmitting(false);
+    if (res.success) {
+      setPassword('');
+      setCode('');
+      setStep('credentials');
+      onClose();
+    } else {
+      setErrorMsg(res.message || 'کد وارد‌شده درست نیست.');
+      setCode('');
+      if (res.restart) {
+        setStep('credentials');
+        setPassword('');
+      }
     }
   };
 
@@ -89,60 +126,120 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="on">
-            <div>
-              <label htmlFor="login-username" className="block text-xs font-bold text-slate-700 mb-1.5">نام کاربری یا شماره همراه</label>
-              <div className="relative">
-                <User className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="login-username"
-                  type="text"
-                  required
-                  autoFocus
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="نام کاربری یا شماره همراه"
-                  className={`${inputClass} pr-10 pl-3 text-right`}
-                />
+          {step === 'code' ? (
+            <form onSubmit={handleCodeSubmit} className="space-y-4" autoComplete="off">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center ring-8 ring-emerald-50/60">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <h4 className="text-base font-black text-slate-900">تأیید ورود دومرحله‌ای</h4>
+                <p className="text-xs text-slate-500 leading-6">
+                  {useRecovery
+                    ? 'یکی از کدهای بازیابی خود را وارد کنید (هر کد فقط یک‌بار قابل استفاده است).'
+                    : 'کد ۶ رقمی را از برنامه‌ی احراز هویت (Google Authenticator یا مشابه) وارد کنید.'}
+                </p>
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="login-password" className="block text-xs font-bold text-slate-700 mb-1.5">کلمه عبور</label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="رمز عبور خود را وارد کنید"
-                  className={`${inputClass} pr-10 pl-11 text-right`}
-                />
+              <input
+                id="login-code"
+                autoFocus
+                inputMode={useRecovery ? 'text' : 'numeric'}
+                autoComplete="one-time-code"
+                maxLength={useRecovery ? 12 : 6}
+                dir="ltr"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder={useRecovery ? 'xxxxx-xxxxx' : '------'}
+                className={`${inputClass} text-center text-xl font-mono tracking-[0.4em] px-3`}
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting || !code.trim()}
+                className="yv-btn-primary w-full py-3.5 text-white font-bold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                <span>{isSubmitting ? 'در حال بررسی…' : 'تأیید و ورود'}</span>
+              </button>
+              <div className="flex items-center justify-between text-[11px] font-bold">
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
-                  aria-label={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  onClick={() => {
+                    setStep('credentials');
+                    setCode('');
+                    setErrorMsg('');
+                  }}
+                  className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>بازگشت</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseRecovery((v) => !v);
+                    setCode('');
+                  }}
+                  className="text-teal-700 hover:text-teal-900 cursor-pointer"
+                >
+                  {useRecovery ? 'استفاده از کد برنامه' : 'استفاده از کد بازیابی'}
                 </button>
               </div>
-            </div>
+            </form>
+          ) : (
+            <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="on">
+              <div>
+                <label htmlFor="login-username" className="block text-xs font-bold text-slate-700 mb-1.5">نام کاربری یا شماره همراه</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="login-username"
+                    type="text"
+                    required
+                    autoFocus
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="نام کاربری یا شماره همراه"
+                    className={`${inputClass} pr-10 pl-3 text-right`}
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="yv-btn-primary w-full py-3.5 text-white font-bold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-              <span>{isSubmitting ? 'در حال ورود…' : 'ورود امن به سامانه'}</span>
-            </button>
-          </form>
+              <div>
+                <label htmlFor="login-password" className="block text-xs font-bold text-slate-700 mb-1.5">کلمه عبور</label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-teal-700/70 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="رمز عبور خود را وارد کنید"
+                    className={`${inputClass} pr-10 pl-11 text-right`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
+                    aria-label={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="yv-btn-primary w-full py-3.5 text-white font-bold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                <span>{isSubmitting ? 'در حال ورود…' : 'ورود امن به سامانه'}</span>
+              </button>
+            </form>
+          )}
 
           <p className="text-center text-[11px] text-slate-400">اطلاعات شما به‌صورت رمزنگاری‌شده منتقل می‌شود.</p>
         </div>

@@ -212,3 +212,6 @@ CREATE TABLE IF NOT EXISTS `nurturing_access_logs` (
 
 -- حذف نسخه‌های برگشت‌پذیر رمز عبور (از این پس فقط هش یک‌طرفه نگهداری می‌شود)
 UPDATE `users` SET `password_encrypted` = NULL;
+
+-- ورود دومرحله‌ای (TOTP) — اگر ستون‌ها از قبل وجود دارند، خطای «Duplicate column» را نادیده بگیرید
+ALTER TABLE `users` ADD COLUMN `two_factor_secret` text NULL, ADD COLUMN `two_factor_confirmed_at` timestamp NULL DEFAULT NULL, ADD COLUMN `two_factor_recovery_codes` text NULL;
