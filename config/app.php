@@ -10,6 +10,18 @@ return [
      * ورود دومرحله‌ای (TOTP) اجباری برای مربی و معاون تربیتی؛ بدون آن پرونده‌های تربیتی در دسترس نیست.
      */
     'require_two_factor_nurturing' => (bool) env('REQUIRE_2FA_NURTURING', true),
+
+    /*
+     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۳۰ دقیقه بی‌فعالیتی
+     * (در همان نشست) باید رمز دوباره وارد شود.
+     */
+    'require_password_reconfirm_nurturing' => (bool) env('REQUIRE_REAUTH_NURTURING', true),
+    'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
+
+    /*
+     * Content-Security-Policy: enforce | report-only | off
+     */
+    'csp_mode' => env('CSP_MODE', 'enforce'),
     'timezone' => env('APP_TIMEZONE', 'Asia/Tehran'),
     'locale' => env('APP_LOCALE', 'fa'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),

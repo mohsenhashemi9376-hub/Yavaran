@@ -65,7 +65,7 @@ export interface BootstrapPayload {
   userId?: string;
   serverTime?: number;
   /** وضعیت ورود دومرحله‌ای کاربر جاری */
-  security?: { twoFactorEnabled: boolean; twoFactorRequired: boolean };
+  security?: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired?: boolean };
   /** رمز عبور باید پیش از هر کاری تغییر کند */
   mustChangePassword?: boolean;
   data?: Record<CollectionKey, SyncRow[]>;

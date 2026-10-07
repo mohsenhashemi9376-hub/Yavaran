@@ -100,6 +100,13 @@ class User extends Authenticatable
             && in_array($this->role, ['coach', 'vice_nurturing'], true);
     }
 
+    /** دسترسی به پرونده‌های تربیتی نیازمند تأیید مجدد رمز است؟ */
+    public function requiresReauth(): bool
+    {
+        return (bool) config('app.require_password_reconfirm_nurturing', true)
+            && in_array($this->role, ['coach', 'vice_nurturing'], true);
+    }
+
     /** باید در اولین ورود رمز عبور را تغییر دهد (رمز را شخص دیگری تعیین کرده یا رمز پیش‌فرض/ضعیف است) */
     public function mustChangePassword(): bool
     {

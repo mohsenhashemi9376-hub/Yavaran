@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -96,6 +97,34 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        PasswordConfirmation::confirm(); // ورود موفق = تأیید رمز
+
+        return response()->json(['success' => true]);
+    }
+
+    /** تأیید مجدد رمز عبور برای ورود به بخش‌های محرمانه (پرونده‌های تربیتی) */
+    public function confirmPassword(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate(['password' => ['required', 'string', 'max:191']]);
+
+        $key = 'confirm-password:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره تلاش کنید.',
+            ], 429);
+        }
+
+        if (! $user->password || ! password_verify(trim(Digits::toEnglish($data['password'])), $user->password)) {
+            RateLimiter::hit($key, 900);
+
+            return response()->json(['success' => false, 'message' => 'رمز عبور اشتباه است.'], 422);
+        }
+
+        RateLimiter::clear($key);
+        PasswordConfirmation::confirm();
 
         return response()->json(['success' => true]);
     }
@@ -135,6 +164,7 @@ class AuthController extends Controller
         $request->session()->forget('two_factor');
         Auth::login($user);
         $request->session()->regenerate();
+        PasswordConfirmation::confirm();
 
         return response()->json(['success' => true]);
     }

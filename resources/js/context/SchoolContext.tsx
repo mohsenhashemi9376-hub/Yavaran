@@ -133,7 +133,7 @@ interface SchoolContextType {
   reloadFromServer: () => Promise<void>;
   login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
   verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
-  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean };
+  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
   reloadAfterSecurityChange: () => Promise<void>;
   mustChangePassword: boolean;
   logout: () => void;
@@ -343,7 +343,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false });
+  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -537,7 +537,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
-    setSecurity(payload.security || { twoFactorEnabled: false, twoFactorRequired: false });
+    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);

@@ -35,6 +35,9 @@ Route::prefix('api')->group(function (): void {
             Route::post('confirm', [TwoFactorController::class, 'confirm'])->name('api.two-factor.confirm');
             Route::post('disable', [TwoFactorController::class, 'disable'])->name('api.two-factor.disable');
         });
+        Route::post('auth/confirm-password', [AuthController::class, 'confirmPassword'])
+            ->middleware('throttle:20,1')
+            ->name('api.confirm-password');
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('api.logout');
         Route::post('profile', [ProfileController::class, 'update'])
             ->middleware('throttle:20,1')

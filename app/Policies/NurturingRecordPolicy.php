@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\NurturingRecord;
 use App\Models\User;
+use App\Support\PasswordConfirmation;
 use App\Support\Sync\AccessPolicy;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Query\Builder;
@@ -30,7 +31,7 @@ class NurturingRecordPolicy
         return Response::denyWithStatus(403, $message);
     }
 
-    private function baseCheck(User $user, bool $write): ?Response
+    private function baseCheck(User $user, bool $write, bool $touch = true): ?Response
     {
         if (! $user->isActive()) {
             return $this->deny('حساب کاربری شما غیرفعال است.');
@@ -45,6 +46,10 @@ class NurturingRecordPolicy
 
         if ($user->requiresTwoFactor() && ! $user->hasTwoFactor()) {
             return $this->deny('برای دسترسی به پرونده‌های تربیتی ابتدا ورود دومرحله‌ای را در حساب خود فعال کنید.');
+        }
+
+        if ($user->requiresReauth() && ! PasswordConfirmation::isFresh($touch)) {
+            return $this->deny('برای ادامه، رمز عبور خود را دوباره وارد کنید.');
         }
 
         $permitted = $write
@@ -95,7 +100,8 @@ class NurturingRecordPolicy
 
     public function viewAny(User $user): Response
     {
-        return $this->baseCheck($user, false) ?? Response::allow();
+        // خواندن فهرست (بازخوانی خودکار پس‌زمینه) مهلت را تمدید نمی‌کند
+        return $this->baseCheck($user, false, false) ?? Response::allow();
     }
 
     public function view(User $user, NurturingRecord $record): Response

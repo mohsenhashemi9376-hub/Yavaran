@@ -37,6 +37,7 @@ final class DataExporter
             .'"security":'.json_encode([
                 'twoFactorEnabled' => $user->hasTwoFactor(),
                 'twoFactorRequired' => $user->requiresTwoFactor(),
+                'reauthRequired' => $user->requiresReauth() && ! \App\Support\PasswordConfirmation::isFresh(false),
             ]).','
             .'"data":{'.implode(',', $parts).'}}';
     }
