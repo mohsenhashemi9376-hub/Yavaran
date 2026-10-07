@@ -1292,18 +1292,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 <div className="flex items-center justify-between text-slate-500">
                   <span className="text-xs font-bold">
-                    {todaySessions.length > 0 ? 'حاضرین امروز' : 'نرخ حضور مدرسه'}
+                    حاضرین امروز
                   </span>
                   <UserCheck className="w-4 h-4 text-slate-400 group-hover:text-teal-700 transition" />
                 </div>
                 <div className="mt-3">
                   <div className="text-xl sm:text-2xl font-black text-emerald-700">
-                    {todaySessions.length > 0 
-                      ? `${toPersianDigits(todayAttendanceStats.present)} نفر`
-                      : `${toPersianDigits(overallSchoolStats.rate)}٪`}
+                    {`${toPersianDigits(students.length - morningToday.absent)} نفر`}
                   </div>
                   <div className="text-[11px] text-teal-700 font-semibold mt-1 flex items-center gap-1">
-                    <span>{todaySessions.length > 0 ? `${toPersianDigits(todaySessions.length)} جلسه ثبت‌شده` : 'دفتر حضور و غیاب'}</span>
+                    <span>{`از ${toPersianDigits(students.length)} دانش‌آموز`}</span>
                     <ChevronLeft className="w-3 h-3" />
                   </div>
                 </div>
