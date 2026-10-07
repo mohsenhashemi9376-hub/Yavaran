@@ -72,6 +72,8 @@ import {
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
+import { LoansWorkspace } from './LoansWorkspace';
+import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
 import { studentFullName } from '../utils/studentName';
 
 interface AdminDashboardProps {
@@ -132,6 +134,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [isAdmin, isDisciplinaryVice, isEducationalVice, isNurturingVice]);
 
   // Navigation: Layer 1 (Dashboard = null) vs Layer 3 (FullScreenView)
+  const { count: overdueLoanCount } = useOverdueLoans();
   const [rawFullScreenView, setCurrentFullScreenView] = useState<FullScreenView | null>(null);
   const deniedFullScreenView = rawFullScreenView && !canAccessSection(currentUser, rawFullScreenView);
   const currentFullScreenView = deniedFullScreenView ? null : rawFullScreenView;
@@ -581,6 +584,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               warnings: schoolWarningList.length,
               delays: morningDelays.length,
               sessions: sessions.length,
+              loans: overdueLoanCount,
             }}
           />
         </div>
@@ -594,6 +598,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {deniedFullScreenView && <AccessDeniedNotice onClose={() => setCurrentFullScreenView(null)} />}
           {currentFullScreenView === null && (
             <div className="space-y-6" id="admin-main-dashboard-view">
+
+              <LoanOverdueBanner onOpen={() => setCurrentFullScreenView('loans')} />
           
           {/* ۱. هدر اصلی داشبورد (ساده، کارآمد و جهت‌یاب) */}
           <div 
@@ -1716,6 +1722,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
+      {currentFullScreenView === 'loans' && (
+        <LoansWorkspace onBack={() => setCurrentFullScreenView(null)} onOpenSidebar={handleOpenSidebar} />
+      )}
+
       {currentFullScreenView === 'reports' && (
         <AdminReportsWorkspace
           classes={classes}
@@ -1760,7 +1770,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* ========================================================================= */}
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = adminMobileNav(currentUser?.role || 'admin', isAdmin, { warnings: schoolWarningList.length });
+        const nav = adminMobileNav(currentUser?.role || 'admin', isAdmin, { warnings: schoolWarningList.length, loans: overdueLoanCount });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -1792,6 +1802,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           warnings: schoolWarningList.length,
           delays: morningDelays.length,
           sessions: sessions.length,
+          loans: overdueLoanCount,
         }}
       />
 

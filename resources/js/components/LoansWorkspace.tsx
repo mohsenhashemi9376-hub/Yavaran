@@ -285,7 +285,7 @@ export const LoansWorkspace: React.FC<LoansWorkspaceProps> = ({ onBack, onOpenSi
   const stats = [
     { key: 'all' as const, label: 'کل امانات ثبت‌شده', value: counts.all, icon: Package, tone: 'text-slate-700 bg-slate-100', ring: 'hover:border-slate-300' },
     { key: 'active' as const, label: 'در امانت', value: counts.active, icon: PackageOpen, tone: 'text-teal-700 bg-teal-50', ring: 'hover:border-teal-300' },
-    { key: 'overdue' as const, label: `بیش از ${toPersianDigits(LOAN_ALERT_DAYS)} روز`, value: counts.overdue, icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50', ring: 'hover:border-rose-300' },
+    { key: 'overdue' as const, label: 'سررسید گذشته', value: counts.overdue, icon: AlertTriangle, tone: 'text-rose-700 bg-rose-50', ring: 'hover:border-rose-300' },
     { key: 'returned' as const, label: 'تحویل گرفته‌شده', value: counts.returned, icon: PackageCheck, tone: 'text-emerald-700 bg-emerald-50', ring: 'hover:border-emerald-300' },
   ];
 
@@ -327,7 +327,7 @@ export const LoansWorkspace: React.FC<LoansWorkspaceProps> = ({ onBack, onOpenSi
                 <span>امانات و لوازم</span>
               </h1>
               <p className="text-xs text-slate-500 mt-1.5">
-                ثبت وسایلی که از مدرسه تحویل داده می‌شود و پیگیری بازگشت آن‌ها. اگر وسیله‌ای تا {toPersianDigits(LOAN_ALERT_DAYS)} روز برنگردد، سامانه هشدار می‌دهد.
+                ثبت وسایلی که از مدرسه تحویل داده می‌شود و پیگیری بازگشت آن‌ها. اگر وسیله‌ای بعد از {toPersianDigits(LOAN_ALERT_DAYS)} روز برنگردد، سامانه هشدار می‌دهد.
               </p>
             </div>
           </div>
@@ -386,7 +386,7 @@ export const LoansWorkspace: React.FC<LoansWorkspaceProps> = ({ onBack, onOpenSi
           </span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-black text-rose-800">
-              {toPersianDigits(overdue.length)} وسیله بیش از {toPersianDigits(LOAN_ALERT_DAYS)} روز است برگردانده نشده
+              {toPersianDigits(overdue.length)} وسیله بعد از {toPersianDigits(LOAN_ALERT_DAYS)} روز هنوز برگردانده نشده
             </div>
             <div className="text-xs text-rose-700/90 mt-1 leading-6">
               {overdue
@@ -521,7 +521,7 @@ export const LoansWorkspace: React.FC<LoansWorkspaceProps> = ({ onBack, onOpenSi
                         ) : (
                           <span className={`font-bold ${isOver ? 'text-rose-700' : 'text-teal-700'}`}>
                             {elapsedLabel(days)}
-                            {isOver && ` • ${toPersianDigits(days)} روز بدون بازگشت`}
+                            {isOver && ' • هنوز برنگشته'}
                           </span>
                         )}
                       </div>

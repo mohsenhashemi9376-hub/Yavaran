@@ -2,7 +2,7 @@ import type { LoanItem } from '../types';
 import { shamsiStringToDate, toEnglishDigits } from './persianDate';
 
 /** اگر وسیله بعد از این تعداد روز برنگردد، سایت هشدار می‌دهد */
-export const LOAN_ALERT_DAYS = 2;
+export const LOAN_ALERT_DAYS = 1;
 
 /** قالب‌بندی و اعتبارسنجی تاریخ شمسی YYYY/MM/DD (ارقام فارسی هم پذیرفته می‌شود) */
 export function normalizeShamsi(input: string): string | null {

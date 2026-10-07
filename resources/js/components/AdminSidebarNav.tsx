@@ -13,6 +13,7 @@ import {
   FileSpreadsheet, 
   AlertTriangle,
   Settings,
+  Package,
   Clock,
   X, 
   ChevronLeft,
@@ -27,6 +28,7 @@ export type FullScreenView =
   | 'attendance' 
   | 'delays' 
   | 'discipline' 
+  | 'loans' 
   | 'teachers' 
   | 'coaches' 
   | 'subjects' 
@@ -43,6 +45,8 @@ export interface AdminSidebarCounts {
   warnings?: number;
   delays?: number;
   sessions?: number;
+  /** امانات و لوازمِ سررسیدگذشته */
+  loans?: number;
 }
 
 interface AdminSidebarNavProps {
@@ -160,6 +164,16 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
           tooltip: 'ثبت مورد انضباطی',
           icon: ShieldAlert,
           allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_nurturing', 'coach', 'vice_principal'],
+        },
+        {
+          id: 'loans',
+          label: 'امانات و لوازم',
+          subtitle: 'تحویل و تحویل‌گیری وسایل مدرسه',
+          tooltip: 'امانات و لوازم',
+          icon: Package,
+          count: (counts?.loans ?? 0) > 0 ? counts?.loans : undefined,
+          isWarning: true,
+          allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'],
         },
       ],
     },

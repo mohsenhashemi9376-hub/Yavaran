@@ -9,7 +9,7 @@ import type { MobileNavItem } from './MobileBottomNav';
 export const HOME = 'home';
 
 /** پنل مدیر مدرسه / معاونین (AdminDashboard) */
-export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warnings: number }) => {
+export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warnings: number; loans?: number }) => {
   const can = (roles: string[]) => isAdmin || roles.includes(role);
   const primary: MobileNavItem[] = [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
@@ -25,6 +25,8 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
       ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
     ...(can(['principal', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'coaches', label: 'مربیان', icon: HeartHandshake }] : []),
+    ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
+      ? [{ id: 'loans', label: 'امانات و لوازم', icon: Package, badge: counts.loans }] : []),
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
     { id: 'reports', label: 'گزارش‌ها', icon: FileSpreadsheet },
     { id: 'settings', label: 'تنظیمات', icon: Settings },
