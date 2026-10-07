@@ -73,7 +73,7 @@ export const educationalMobileNav = (counts: { warnings: number }) => ({
   ] as MobileNavItem[],
 });
 
-export const nurturingMobileNav = () => ({
+export const nurturingMobileNav = (isVice = false) => ({
   primary: [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
     { id: 'observation', label: 'مشاهده‌گری', icon: Eye },
@@ -86,6 +86,7 @@ export const nurturingMobileNav = () => ({
     { id: 'coachEvaluations', label: 'ارزیابی رشد', icon: Star },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
+    ...(isVice ? [{ id: 'audit', label: 'گزارش دسترسی‌ها', icon: ClipboardCheck }] : []),
     { id: 'settings', label: 'تنظیمات', icon: Settings },
   ] as MobileNavItem[],
 });

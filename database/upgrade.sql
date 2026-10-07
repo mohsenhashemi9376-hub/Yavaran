@@ -188,3 +188,53 @@ CREATE TABLE IF NOT EXISTS `loan_items` (
   KEY `loan_items_is_returned_index` (`is_returned`),
   KEY `loan_items_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- دفتر ثبت دسترسی به پرونده‌های تربیتی و مشاهدات رفتاری
+CREATE TABLE IF NOT EXISTS `nurturing_access_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `user_role` varchar(40) NOT NULL DEFAULT '',
+  `action` varchar(20) NOT NULL,
+  `collection` varchar(40) NOT NULL,
+  `student_id` varchar(100) DEFAULT NULL,
+  `record_id` varchar(100) DEFAULT NULL,
+  `allowed` tinyint(1) NOT NULL DEFAULT 1,
+  `items` int unsigned DEFAULT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `nurturing_access_logs_user_id_index` (`user_id`),
+  KEY `nurturing_access_logs_student_id_index` (`student_id`),
+  KEY `nurturing_access_logs_allowed_index` (`allowed`),
+  KEY `nurturing_access_logs_created_at_index` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- حذف نسخه‌های برگشت‌پذیر رمز عبور (از این پس فقط هش یک‌طرفه نگهداری می‌شود)
+UPDATE `users` SET `password_encrypted` = NULL;
+
+-- ورود دومرحله‌ای (TOTP) — اگر ستون‌ها از قبل وجود دارند، خطای «Duplicate column» را نادیده بگیرید
+ALTER TABLE `users` ADD COLUMN `two_factor_secret` text NULL, ADD COLUMN `two_factor_confirmed_at` timestamp NULL DEFAULT NULL, ADD COLUMN `two_factor_recovery_codes` text NULL;
+
+-- تغییر اجباری رمز عبور در اولین ورود (حساب‌های دارای رمز پیش‌فرض ۱۲۳ هنگام اولین ورود خودکار علامت می‌خورند)
+-- اگر ستون از قبل وجود دارد، خطای «Duplicate column» را نادیده بگیرید
+ALTER TABLE `users` ADD COLUMN `must_change_password` tinyint(1) NOT NULL DEFAULT 0;
+
+-- نویسنده‌ی مشاهده‌گری (برای مخفی بودن مشاهده‌های معاون تربیتی از مربی). اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
+-- مشاهده‌های قدیمی بدون نویسنده برای مربی مخفی و برای معاون تربیتی قابل مشاهده می‌مانند.
+ALTER TABLE `student_observations` ADD COLUMN `author_id` varchar(100) NULL, ADD COLUMN `author_role` varchar(40) NULL, ADD KEY `student_observations_author_id_index` (`author_id`);
+
+-- دستگاه‌های شناخته‌شده‌ی ورود (هشدار ورود از دستگاه جدید)
+CREATE TABLE IF NOT EXISTS `login_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `ua_hash` varchar(64) NOT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `first_seen_at` timestamp NULL DEFAULT NULL,
+  `last_seen_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `login_devices_user_ua_unique` (`user_id`, `ua_hash`),
+  KEY `login_devices_user_id_index` (`user_id`),
+  KEY `login_devices_last_seen_at_index` (`last_seen_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -2,10 +2,13 @@
 
 namespace App\Support\Sync;
 
+use App\Models\NurturingRecord;
+use App\Models\StudentObservation;
 use App\Models\User;
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Crypt;
+use App\Support\NurturingAudit;
+use App\Policies\NurturingRecordPolicy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * ساخت بسته اطلاعات اولیه (bootstrap) برای رابط کاربری بر اساس نقش کاربر.
@@ -15,6 +18,13 @@ final class DataExporter
 {
     public function json(User $user): string
     {
+        // رمز اجباری هنوز تغییر نکرده: هیچ داده‌ای ارسال نمی‌شود
+        if ($user->mustChangePassword()) {
+            return '{"authenticated":true,"mustChangePassword":true,'
+                .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
+                .'"serverTime":'.((int) round(microtime(true) * 1000)).',"data":{}}';
+        }
+
         $policy = new AccessPolicy($user);
         $parts = [];
 
@@ -25,6 +35,11 @@ final class DataExporter
         return '{"authenticated":true,'
             .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
             .'"serverTime":'.((int) round(microtime(true) * 1000)).','
+            .'"security":'.json_encode([
+                'twoFactorEnabled' => $user->hasTwoFactor(),
+                'twoFactorRequired' => $user->requiresTwoFactor(),
+                'reauthRequired' => $user->requiresReauth() && ! \App\Support\PasswordConfirmation::isFresh(false),
+            ]).','
             .'"data":{'.implode(',', $parts).'}}';
     }
 
@@ -37,22 +52,49 @@ final class DataExporter
             return [];
         }
 
+        // پرونده‌های تربیتی و مشاهدات رفتاری: فقط با تأیید Policy و فقط برای دانش‌آموزان مجاز کاربر؛ محتوا رمزگشایی می‌شود
+        if ($sensitive = NurturingRecord::modelFor($collection)) {
+            $gate = Gate::forUser($user);
+            if (! $gate->allows('viewAny', $sensitive)) {
+                // تلاش کاربر غیرمجاز: فقط هنگام ورود ثبت می‌شود تا لاگ پر نشود
+                if (in_array($user->role, ['admin', 'coach', 'vice_nurturing', 'vice_educational', 'vice_disciplinary', 'vice_principal'], true)) {
+                    NurturingAudit::logList($user, $collection, 0);
+                }
+
+                return [];
+            }
+            $query = $sensitive::query()->orderBy('sort_order')->orderBy('id');
+            if ($sensitive === StudentObservation::class) {
+                StudentObservation::ensureAuthorColumns();
+                // مربی فقط مشاهده‌هایی را می‌بیند که خودش نوشته است (نه معاون تربیتی، نه مربی دیگر)
+                if ($user->role === 'coach') {
+                    $query->where('author_id', $user->id);
+                }
+            }
+            $scope = app(NurturingRecordPolicy::class)->scopeStudentIds($user);
+            if ($scope !== null) {
+                $query->whereIn('student_id', $scope);
+            }
+
+            $rows = $query->get()
+                ->pluck('data')
+                ->filter(static fn ($json) => is_string($json) && $json !== '')
+                ->values()
+                ->all();
+            NurturingAudit::logList($user, $collection, count($rows));
+
+            return $rows;
+        }
+
         $query = DB::table($table)->orderBy('sort_order')->orderBy('id');
 
         if (in_array($collection, ['teacherEvaluations', 'teacherActivities'], true) && ! $policy->isManager()) {
             $query->where('teacher_id', $user->id);
         }
 
-        // دسترسی محدود (Scoped Access): مربی/دبیر فقط دانش‌آموزان و سوابق تربیتی کلاس‌های خود را دریافت می‌کند
-        if (! $policy->isManager()) {
-            if ($collection === 'students' && $policy->isCoach()) {
-                $query->whereIn('class_id', $policy->accessibleClassIds());
-            } elseif (in_array($collection, ['observations', 'coachEvaluations', 'nurturingDossiers'], true)) {
-                $query->whereIn(
-                    'student_id',
-                    DB::table('students')->whereIn('class_id', $policy->nurturingClassIds())->select('id')
-                );
-            }
+        // دسترسی محدود (Scoped Access): مربی فقط دانش‌آموزان کلاس‌های خود را دریافت می‌کند
+        if ($collection === 'students' && ! $policy->isManager() && $policy->isCoach()) {
+            $query->whereIn('class_id', $policy->accessibleClassIds());
         }
 
         // دبیر فقط جلسات خودش را دریافت می‌کند (نه جلسات سایر دبیران در همان کلاس‌ها)
@@ -78,21 +120,14 @@ final class DataExporter
         }
 
         $rows = [];
-        foreach ($query->get(['id', 'data', 'password_encrypted']) as $row) {
+        foreach ($query->get(['id', 'data']) as $row) {
             $data = json_decode((string) $row->data, false);
             if (! is_object($data)) {
                 continue;
             }
 
+            // رمز عبور هرگز به رابط کاربری (حتی مدیر) ارسال نمی‌شود
             unset($data->password);
-
-            if ($policy->isManager() && ! empty($row->password_encrypted)) {
-                try {
-                    $data->password = Crypt::decryptString($row->password_encrypted);
-                } catch (DecryptException) {
-                    // کلید برنامه تغییر کرده؛ رمز قابل نمایش نیست
-                }
-            }
 
             $rows[] = json_encode($data, SyncService::JSON_FLAGS);
         }

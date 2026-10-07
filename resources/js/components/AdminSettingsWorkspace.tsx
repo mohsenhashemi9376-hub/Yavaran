@@ -414,7 +414,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     setUserFormData({
       name: usr.name,
       username: usr.username,
-      password: usr.password || '',
+      password: '', // رمز فعلی قابل نمایش نیست؛ خالی = بدون تغییر
       role: usr.role,
       phone: usr.phone || '',
       roleTitle: usr.roleTitle || ROLE_LABELS[usr.role] || '',
@@ -429,7 +429,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     const errors: Record<string, string> = {};
     if (!userFormData.name.trim()) errors.name = 'لطفاً نام و نام خانوادگی را وارد کنید.';
     if (!userFormData.username.trim()) errors.username = 'لطفاً نام کاربری را وارد کنید.';
-    if (!userFormData.password.trim()) errors.password = 'لطفاً کلمه عبور را وارد کنید.';
+    if (!editingUser && !userFormData.password.trim()) errors.password = 'لطفاً کلمه عبور را وارد کنید.';
 
     // Check duplicate username if adding or changing
     const duplicate = allUsers.find(
@@ -448,7 +448,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       updateUser(editingUser.id, {
         name: userFormData.name.trim(),
         username: userFormData.username.trim(),
-        password: userFormData.password.trim(),
+        password: userFormData.password.trim() || undefined,
         role: userFormData.role,
         roleTitle: userFormData.roleTitle.trim() || ROLE_LABELS[userFormData.role],
         phone: userFormData.phone.trim(),
@@ -1838,12 +1838,13 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">کلمه عبور *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">کلمه عبور {editingUser ? <span className="text-[10px] font-medium text-slate-400">(برای تغییر، رمز جدید را وارد کنید)</span> : '*'}</label>
                   <input
                     type="text"
                     value={userFormData.password}
                     onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                    placeholder="123"
+                    placeholder={editingUser ? 'بدون تغییر' : '123'}
+                    autoComplete="new-password"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-teal-700 font-mono"
                     dir="ltr"
                   />

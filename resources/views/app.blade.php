@@ -27,7 +27,7 @@
   </head>
   <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] antialiased selection:bg-emerald-500 selection:text-white">
     <div id="root"></div>
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});

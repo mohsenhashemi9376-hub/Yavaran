@@ -5,6 +5,29 @@ return [
     'env' => env('APP_ENV', 'production'),
     'debug' => (bool) env('APP_DEBUG', false),
     'url' => env('APP_URL', 'http://localhost'),
+
+    /*
+     * ورود دومرحله‌ای (TOTP) اجباری برای مربی و معاون تربیتی؛ بدون آن پرونده‌های تربیتی در دسترس نیست.
+     */
+    'require_two_factor_nurturing' => (bool) env('REQUIRE_2FA_NURTURING', true),
+
+    /*
+     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۳۰ دقیقه بی‌فعالیتی
+     * (در همان نشست) باید رمز دوباره وارد شود.
+     */
+    'require_password_reconfirm_nurturing' => (bool) env('REQUIRE_REAUTH_NURTURING', true),
+    'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
+
+    /*
+     * ساعت مدرسه (به وقت تهران)؛ دسترسی کاربران پرونده‌های تربیتی خارج از این بازه هشدار می‌دهد.
+     */
+    'nurturing_hours_start' => (int) env('NURTURING_HOURS_START', 6),
+    'nurturing_hours_end' => (int) env('NURTURING_HOURS_END', 20),
+
+    /*
+     * Content-Security-Policy: enforce | report-only | off
+     */
+    'csp_mode' => env('CSP_MODE', 'enforce'),
     'timezone' => env('APP_TIMEZONE', 'Asia/Tehran'),
     'locale' => env('APP_LOCALE', 'fa'),
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),

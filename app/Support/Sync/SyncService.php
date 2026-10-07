@@ -2,9 +2,12 @@
 
 namespace App\Support\Sync;
 
+use App\Models\NurturingRecord;
+use App\Models\StudentObservation;
 use App\Models\User;
 use App\Support\Notifier;
 use App\Support\Digits;
+use App\Support\PasswordRules;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -34,9 +37,15 @@ final class SyncService
             abort(503, 'ساختار دیتابیس هنوز به‌روزرسانی نشده است. لطفاً فایل upgrade.sql را روی دیتابیس اجرا کنید.');
         }
 
-        DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes): void {
+        // پرونده‌های تربیتی و مشاهدات رفتاری: خواندن/نوشتن از مسیر مدل برای رمزنگاری/رمزگشایی (کست encrypted)
+        $sensitive = NurturingRecord::modelFor($collection);
+
+        try {
+        DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes, $sensitive): void {
             if ($deletes !== []) {
-                $rows = DB::table($table)->whereIn('id', $deletes)->lockForUpdate()->get(['id', 'data']);
+                $rows = $sensitive
+                    ? $sensitive::query()->whereIn('id', $deletes)->lockForUpdate()->get()
+                    : DB::table($table)->whereIn('id', $deletes)->lockForUpdate()->get(['id', 'data']);
 
                 foreach ($rows as $row) {
                     $policy->authorizeDelete($collection, $this->decode($row->data, (string) $row->id));
@@ -52,7 +61,9 @@ final class SyncService
             }
 
             $ids = array_map(static fn (object $item): string => $item->id, $upserts);
-            $existing = DB::table($table)->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+            $existing = $sensitive
+                ? $sensitive::query()->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id')
+                : DB::table($table)->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
 
             $minOrder = (int) (DB::table($table)->min('sort_order') ?? 0);
             $maxOrder = (int) (DB::table($table)->max('sort_order') ?? 0);
@@ -66,20 +77,56 @@ final class SyncService
                 $oldRow = $existing->get($item->id);
                 $oldData = $oldRow ? $this->decode($oldRow->data, (string) $oldRow->id) : null;
 
+                // نویسنده‌ی مشاهده‌گری را سرور تعیین می‌کند؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود
+                if ($collection === 'observations') {
+                    StudentObservation::ensureAuthorColumns();
+                    $authorId = $oldRow ? ($oldRow->author_id ?? ($oldData->authorId ?? null)) : null;
+                    $authorRole = $oldRow ? ($oldRow->author_role ?? ($oldData->authorRole ?? null)) : null;
+                    if ($oldData !== null) {
+                        $oldData->authorId = $authorId;
+                        $oldData->authorRole = $authorRole;
+                    }
+                    $data->authorId = $authorId;
+                    $data->authorRole = $authorRole;
+                }
+
                 $policy->authorizeUpsert($collection, $oldData, $data);
+
+                if ($collection === 'observations' && empty($data->authorId)) {
+                    // رکورد تازه (یا مشاهده‌ی قدیمیِ بدون نویسنده که معاون ویرایش می‌کند) به نام کاربر جاری ثبت می‌شود
+                    $data->authorId = $policy->userId();
+                    $data->authorRole = $policy->role();
+                }
 
                 if ($collection === 'sessions') {
                     $this->validateSession($data, $item->id);
                 }
 
-                $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow) : [];
+                $extra = $collection === 'users' ? $this->passwordColumns($data, $oldRow, $policy->userId(), (string) $item->id) : [];
+
+                if ($collection === 'observations' && StudentObservation::ensureAuthorColumns()) {
+                    $extra += ['author_id' => $data->authorId, 'author_role' => $data->authorRole];
+                }
 
                 $values = CollectionRegistry::columns($collection, $data) + $extra + [
                     'data' => json_encode($data, self::JSON_FLAGS),
                     'updated_at' => $now,
                 ];
 
-                if ($oldRow) {
+                if ($sensitive) {
+                    // ستون data هنگام ذخیره با کست encrypted رمزنگاری می‌شود
+                    if ($oldRow instanceof NurturingRecord) {
+                        $oldRow->forceFill($values)->save();
+                    } else {
+                        $order = ! empty($item->prepend) ? --$minOrder : ++$maxOrder;
+                        (new $sensitive)->forceFill($values + [
+                            'id' => $item->id,
+                            'sort_order' => $order,
+                            'created_at' => $now,
+                        ])->save();
+                        $existing->put($item->id, (object) ['id' => $item->id, 'data' => $values['data']]);
+                    }
+                } elseif ($oldRow) {
                     DB::table($table)->where('id', $item->id)->update($values);
                 } else {
                     $order = ! empty($item->prepend) ? --$minOrder : ++$maxOrder;
@@ -96,16 +143,23 @@ final class SyncService
                 }
             }
         });
+        } catch (\Throwable $e) {
+            // تراکنش برگشت خورده؛ تلاش‌های ردشده‌ی تربیتی باید همچنان ثبت و اطلاع‌رسانی شوند
+            $policy->runAfterRollback();
+
+            throw $e;
+        }
     }
 
     /**
-     * رمز عبور هرگز داخل ستون data ذخیره نمی‌شود؛ هش (bcrypt) برای ورود
-     * و نسخه رمزنگاری‌شده (AES-256) فقط برای نمایش به مدیر نگهداری می‌شود.
+     * رمز عبور هرگز داخل ستون data ذخیره نمی‌شود و فقط به‌صورت هش یک‌طرفه (bcrypt) نگهداری می‌شود؛
+     * هیچ نسخه‌ی برگشت‌پذیر یا قابل نمایش از رمز وجود ندارد (ستون password_encrypted همیشه خالی می‌ماند).
      *
      * @return array<string, string>
      */
-    private function passwordColumns(object $data, ?object $oldRow): array
+    private function passwordColumns(object $data, ?object $oldRow, string $actorId, string $targetId): array
     {
+        User::ensureTwoFactorColumns(); // ستون must_change_password
         $plain = null;
 
         if (property_exists($data, 'password')) {
@@ -126,8 +180,8 @@ final class SyncService
 
         if ($oldHash && password_verify($plain, $oldHash)) {
             $columns = [];
-            if (empty($oldRow->password_encrypted)) {
-                $columns['password_encrypted'] = Crypt::encryptString($plain);
+            if (! empty($oldRow->password_encrypted)) {
+                $columns['password_encrypted'] = null; // پاک‌سازی نسخه‌ی برگشت‌پذیر قدیمی
             }
             if (Hash::needsRehash($oldHash)) {
                 $columns['password'] = Hash::make($plain);
@@ -136,9 +190,11 @@ final class SyncService
             return $columns;
         }
 
+        // رمزی که شخص دیگری برای حساب تعیین کرده (یا تصادفی ساخته شده) باید در اولین ورود تغییر کند
         return [
             'password' => Hash::make($plain),
-            'password_encrypted' => Crypt::encryptString($plain),
+            'password_encrypted' => null,
+            'must_change_password' => $actorId !== $targetId || PasswordRules::isWeak($plain),
         ];
     }
 

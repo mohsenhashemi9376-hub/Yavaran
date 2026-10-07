@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo('/');
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->alias(['password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

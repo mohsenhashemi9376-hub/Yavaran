@@ -33,6 +33,7 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password', 'password_encrypted', 'remember_token', 'data',
+        'two_factor_secret', 'two_factor_confirmed_at', 'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
@@ -84,6 +85,60 @@ class User extends Authenticatable
     public function hasPermission(string $key): bool
     {
         return in_array($key, $this->permissionList(), true);
+    }
+
+    /** ورود دومرحله‌ای (TOTP) برای این کاربر فعال و تأیید شده است؟ */
+    public function hasTwoFactor(): bool
+    {
+        return ! empty($this->getAttribute('two_factor_secret')) && ! empty($this->getAttribute('two_factor_confirmed_at'));
+    }
+
+    /** نقش‌هایی که به پرونده‌های تربیتی دسترسی دارند باید ورود دومرحله‌ای داشته باشند */
+    public function requiresTwoFactor(): bool
+    {
+        return (bool) config('app.require_two_factor_nurturing', true)
+            && in_array($this->role, ['coach', 'vice_nurturing'], true);
+    }
+
+    /** دسترسی به پرونده‌های تربیتی نیازمند تأیید مجدد رمز است؟ */
+    public function requiresReauth(): bool
+    {
+        return (bool) config('app.require_password_reconfirm_nurturing', true)
+            && in_array($this->role, ['coach', 'vice_nurturing'], true);
+    }
+
+    /** باید در اولین ورود رمز عبور را تغییر دهد (رمز را شخص دیگری تعیین کرده یا رمز پیش‌فرض/ضعیف است) */
+    public function mustChangePassword(): bool
+    {
+        return (bool) $this->getAttribute('must_change_password');
+    }
+
+    /** افزودن ستون‌های امنیتی (ورود دومرحله‌ای، تغییر اجباری رمز) به جدول users در دیتابیس‌های به‌روزنشده */
+    public static function ensureTwoFactorColumns(): bool
+    {
+        static $ready = null;
+        if ($ready !== null) {
+            return $ready;
+        }
+        try {
+            $schema = \Illuminate\Support\Facades\Schema::class;
+            if (! $schema::hasColumn('users', 'two_factor_secret')) {
+                $schema::table('users', function ($t): void {
+                    $t->text('two_factor_secret')->nullable();
+                    $t->timestamp('two_factor_confirmed_at')->nullable();
+                    $t->text('two_factor_recovery_codes')->nullable();
+                });
+            }
+            if (! $schema::hasColumn('users', 'must_change_password')) {
+                $schema::table('users', function ($t): void {
+                    $t->boolean('must_change_password')->default(false);
+                });
+            }
+        } catch (\Throwable) {
+        }
+
+        return $ready = \Illuminate\Support\Facades\Schema::hasColumn('users', 'two_factor_secret')
+            && \Illuminate\Support\Facades\Schema::hasColumn('users', 'must_change_password');
     }
 
     public function isActive(): bool

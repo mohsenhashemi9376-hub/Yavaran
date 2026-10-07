@@ -131,7 +131,11 @@ interface SchoolContextType {
   isAuthenticated: boolean;
   authStatus: 'loading' | 'guest' | 'ready' | 'offline';
   reloadFromServer: () => Promise<void>;
-  login: (username: string, password?: string) => Promise<{ success: boolean; message?: string }>;
+  login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
+  verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
+  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
+  reloadAfterSecurityChange: () => Promise<void>;
+  mustChangePassword: boolean;
   logout: () => void;
 
   // Role & Scope Helpers
@@ -338,6 +342,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -531,6 +537,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
+    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
+    setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
@@ -904,7 +912,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Authentication logic (احراز هویت سمت سرور لاراول)
-  const login = async (username: string, password?: string): Promise<{ success: boolean; message?: string }> => {
+  const login = async (username: string, password?: string): Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }> => {
     const cleanUsername = username.trim();
     const cleanPassword = (password || '').trim();
 
@@ -914,7 +922,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       await syncEngine.flush();
-      await apiRequest('POST', '/api/auth/login', { username: cleanUsername, password: cleanPassword });
+      const res = await apiRequest<{ requiresTwoFactor?: boolean }>('POST', '/api/auth/login', { username: cleanUsername, password: cleanPassword });
+      if (res && res.requiresTwoFactor) {
+        // رمز درست است؛ منتظر کد مرحله‌ی دوم
+        return { success: false, requiresTwoFactor: true };
+      }
       await loadFromServer(false);
       return { success: true };
     } catch (error) {
@@ -923,6 +935,23 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         message: error instanceof ApiError ? error.message : 'نام کاربری یا رمز عبور اشتباه است.',
       };
     }
+  };
+
+  const verifyTwoFactor = async (code: string): Promise<{ success: boolean; message?: string; restart?: boolean }> => {
+    try {
+      await apiRequest('POST', '/api/auth/two-factor', { code: code.trim() });
+      await loadFromServer(false);
+      return { success: true };
+    } catch (error) {
+      const status = error instanceof ApiError ? error.status : 0;
+      const message = error instanceof ApiError ? error.message : 'کد وارد‌شده درست نیست.';
+      return { success: false, message, restart: status === 429 || message.includes('دوباره وارد شوید') };
+    }
+  };
+
+  /** پس از فعال‌سازی ورود دومرحله‌ای، داده‌های محافظت‌شده (پرونده‌های تربیتی) دوباره دریافت می‌شود */
+  const reloadAfterSecurityChange = async () => {
+    await loadFromServer(false);
   };
 
   const logout = () => {
@@ -2014,6 +2043,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newObs: StudentObservation = {
       ...obsData,
       id,
+      // نویسنده را سرور نهایی می‌کند؛ این مقدار فقط تا بازخوانی، دکمه‌های ویرایش/حذف را برای ثبت‌کننده نشان می‌دهد
+      authorId: currentUser.id,
+      authorRole: currentUser.role,
       createdAt: new Date().toISOString(),
     };
     setObservations((prev) => [newObs, ...prev]);
@@ -2426,6 +2458,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         authStatus,
         reloadFromServer,
         login,
+        verifyTwoFactor,
+        security,
+        reloadAfterSecurityChange,
+        mustChangePassword,
         logout,
         isTeacher,
         isAdmin,

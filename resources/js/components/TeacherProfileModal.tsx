@@ -56,7 +56,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   );
 
   const handleCopyCredentials = () => {
-    const textToCopy = `اطلاعات ورود به سامانه یاوران ولایت:\nنام کاربری: ${teacher.username}\nرمز عبور: ${teacher.password || '123'}`;
+    const textToCopy = `اطلاعات ورود به سامانه یاوران ولایت:\nنام کاربری: ${teacher.username}`;
     navigator.clipboard.writeText(textToCopy).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -170,26 +170,10 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                 <div>
                   <span className="text-[11px] text-slate-400 block mb-1">رمز شخصی:</span>
                   <div className="font-mono font-bold text-slate-900 text-xs sm:text-sm tracking-wider" dir="ltr">
-                    {showPassword ? (teacher.password || '123') : '••••••'}
+                    ••••••
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="px-2.5 py-1 text-slate-500 hover:text-indigo-700 bg-slate-100 hover:bg-indigo-50 border border-slate-200 rounded-lg text-[11px] font-medium transition flex items-center gap-1 cursor-pointer"
-                >
-                  {showPassword ? (
-                    <>
-                      <EyeOff className="w-3.5 h-3.5" />
-                      <span>مخفی‌سازی رمز</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>نمایش رمز</span>
-                    </>
-                  )}
-                </button>
+                <span className="text-[10px] text-slate-400 max-w-[11rem] leading-5">رمز فقط به‌صورت هش یک‌طرفه ذخیره می‌شود و قابل نمایش نیست؛ برای تغییر از «ویرایش» استفاده کنید.</span>
               </div>
             </div>
           </div>

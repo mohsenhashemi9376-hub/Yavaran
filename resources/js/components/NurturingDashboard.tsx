@@ -18,6 +18,8 @@ import {
 } from '../types';
 import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
 import { TaughtLessonsView } from './TaughtLessonsView';
+import { NurturingAuditLog } from './NurturingAuditLog';
+import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -774,7 +776,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* سایدبار در حالت موبایل و تبلت (Drawer) */}
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = nurturingMobileNav();
+        const nav = nurturingMobileNav(currentUser.role === 'vice_nurturing');
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -823,6 +825,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       <div className="flex-1 w-full min-w-0 space-y-6 pb-12">
         {/* Top Banner with Confidentiality & Role identity */}
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
+        <TwoFactorRequiredBanner />
         {(currentView === null || currentView === 'dashboard') && (
           <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
             <div className="absolute left-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
@@ -911,6 +914,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
                 {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+                {currentView === 'audit' && 'گزارش دسترسی‌ها'}
               </span>
             </div>
 
@@ -1221,6 +1225,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
+      {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 
       {/* ========================================================================= */}
       {/* SECTION 1: «مشاهده‌گری» (Observation Desk) */}
@@ -1838,6 +1843,12 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                               </div>
 
                               <div className="flex items-center gap-1.5">
+                                {obs.authorRole === 'coach' && currentUser.role === 'vice_nurturing' && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 whitespace-nowrap">
+                                    ثبت‌شده توسط مربی
+                                  </span>
+                                )}
+                                {(obs.authorId === currentUser.id || (!obs.authorId && currentUser.role === 'vice_nurturing')) && (<>
                                 <button
                                   type="button"
                                   onClick={() => handleEditObservation(obs)}
@@ -1858,6 +1869,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
+                                </>)}
                               </div>
                             </div>
 
