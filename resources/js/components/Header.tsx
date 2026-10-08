@@ -104,15 +104,6 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Warning count for school notifications (students with >= 2 absences)
-  const warningCount = students.filter((student) => {
-    let abs = 0;
-    sessions.filter((s) => s.classId === student.classId).forEach((s) => {
-      if (s.records[student.id]?.status === 'absent') abs++;
-    });
-    return abs >= 2;
-  }).length;
-
   const closeAllMenus = () => {
     setShowUserMenu(false);
     setShowNotifications(false);
@@ -326,7 +317,7 @@ export const Header: React.FC<HeaderProps> = ({
             <ThemeToggle className="yv-lux-only" />
 
             {/* 4. اعلان‌ها (Notifications) */}
-            <NotificationBell warningCount={warningCount} />
+            <NotificationBell />
 
             {/* 3. اطلاعات کاربر و منوی حساب (User Menu) */}
             <div className="relative" ref={userMenuRef}>
