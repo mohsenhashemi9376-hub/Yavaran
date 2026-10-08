@@ -291,3 +291,16 @@ CREATE TABLE IF NOT EXISTS `worksheet_weeks` (
   UNIQUE KEY `worksheet_weeks_week_start_unique` (`week_start`),
   KEY `worksheet_weeks_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- روزهای تعطیل اعلام‌شده‌ی مدرسه
+CREATE TABLE IF NOT EXISTS `school_holidays` (
+  `id` varchar(100) NOT NULL,
+  `holiday_date` varchar(20) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `school_holidays_holiday_date_unique` (`holiday_date`),
+  KEY `school_holidays_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

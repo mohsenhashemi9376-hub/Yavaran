@@ -388,6 +388,16 @@ export type ObservationCategory =
   | 'family' // خانوادگی
   | 'other'; // سایر
 
+/** روز تعطیل اعلام‌شده توسط مدیر یا معاون انضباطی؛ حضور و غیاب آن روز بسته است و در محاسبات نمی‌آید */
+export interface SchoolHoliday {
+  id: string; // hol-{تاریخ با خط تیره}
+  date: string; // "1405/07/20"
+  title?: string | null;
+  setBy?: string;
+  setById?: string;
+  updatedAt?: string;
+}
+
 /** کاربرگ هفتگی: «تحویل نداده» حالت پیش‌فرض است و رکوردی ندارد؛ فقط تحویل‌دهندگان ثبت می‌شوند */
 export type WorksheetStatus = 'complete' | 'partial' | 'absent';
 

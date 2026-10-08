@@ -82,6 +82,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
     sessions, 
     morningDelays,
     morningAttendance,
+    todayClosedReason,
     schoolAbsences,
     allTeachers,
     allCoaches,
@@ -155,8 +156,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   }, [safeSchoolAbsences, todayInfo.formattedDate]);
 
   const morningToday = useMemo(
-    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
-    [students, morningAttendance, todayInfo.formattedDate]
+    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate, todayClosedReason !== null),
+    [students, morningAttendance, todayInfo.formattedDate, todayClosedReason]
   );
   const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);
   const [morningFilter, setMorningFilter] = useState<MorningStatusFilter>(null);

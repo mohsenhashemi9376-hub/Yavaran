@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarClock,
+  FileSpreadsheet,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import { Student, WorksheetStatus } from '../types';
 import { hasPermission } from '../utils/permissions';
 import { dateToShamsiString, getShamsiWeekRange, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
+import { exportWorksheetTermExcel, exportWorksheetWeekExcel } from '../utils/worksheetExport';
 import { isDeadlinePassed, shiftWeek, summarizeClassWeek, weekStartOf, weekTitle, worksheetKey } from '../utils/worksheets';
 
 type Filter = 'all' | 'missing' | WorksheetStatus;
@@ -215,6 +217,22 @@ export const WorksheetsWorkspace: React.FC = () => {
             <CalendarClock className="w-3.5 h-3.5" />
             {deadlineChip.text}
           </span>
+          <button
+            type="button"
+            onClick={() => exportWorksheetWeekExcel({ students, classes: myClasses, worksheets, worksheetWeeks }, weekStart)}
+            className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+            <span>اکسل این هفته</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => exportWorksheetTermExcel({ students, classes: myClasses, worksheets, worksheetWeeks })}
+            className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+            <span>اکسل ترمی (همه‌ی هفته‌ها)</span>
+          </button>
           {isEducationalManager && (
             <button
               type="button"

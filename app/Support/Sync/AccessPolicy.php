@@ -142,6 +142,7 @@ final class AccessPolicy
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
+        'schoolHolidays' => 'discipline',
         'worksheets' => 'manage-worksheets',
         'worksheetWeeks' => 'manage-worksheets',
         'bellPeriods' => 'manage-curriculum',
@@ -213,6 +214,12 @@ final class AccessPolicy
 
         if (in_array($collection, self::WORKSHEETS, true)) {
             $this->authorizeWorksheet($collection, $old, $new);
+
+            return;
+        }
+
+        if ($collection === 'schoolHolidays') {
+            $this->requireHolidayManager();
 
             return;
         }
@@ -307,6 +314,12 @@ final class AccessPolicy
 
         if (in_array($collection, self::WORKSHEETS, true)) {
             $this->authorizeWorksheet($collection, $old, null);
+
+            return;
+        }
+
+        if ($collection === 'schoolHolidays') {
+            $this->requireHolidayManager();
 
             return;
         }
@@ -764,6 +777,14 @@ final class AccessPolicy
             if ($before !== $after) {
                 $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
             }
+        }
+    }
+
+    /** اعلام یا لغو تعطیلی فقط توسط مدیر سامانه و معاون انضباطی */
+    private function requireHolidayManager(): void
+    {
+        if (! in_array($this->user->role, ['admin', 'vice_disciplinary'], true)) {
+            $this->deny('اعلام تعطیلی فقط با مدیر سامانه و معاون انضباطی است.');
         }
     }
 

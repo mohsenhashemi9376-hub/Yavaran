@@ -30,6 +30,7 @@ final class SyncService
      */
     public function apply(User $user, string $collection, array $upserts, array $deletes): void
     {
+        \App\Support\SchoolCalendar::reset(); // تعطیلی‌ها هر درخواست تازه خوانده می‌شود
         $policy = new AccessPolicy($user);
         $table = CollectionRegistry::table($collection);
 
@@ -88,6 +89,13 @@ final class SyncService
                     }
                     $data->authorId = $authorId;
                     $data->authorRole = $authorRole;
+                }
+
+                if ($collection === 'schoolHolidays') {
+                    $this->normalizeHoliday($data, (string) $item->id, $user);
+                }
+                if (in_array($collection, self::DATED_ATTENDANCE, true)) {
+                    $this->requireSchoolDay($data);
                 }
 
                 if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
@@ -241,6 +249,36 @@ final class SyncService
      * اعتبارسنجی جلسه کلاسی: مبحث تدریس‌شده اجباری است و یک زنگ برای یک درس در
      * یک تاریخ نمی‌تواند دو بار ثبت شود.
      */
+    /** مجموعه‌هایی که ثبت آن‌ها در جمعه‌ها و روزهای تعطیل اعلام‌شده ممکن نیست */
+    private const DATED_ATTENDANCE = ['sessions', 'morningAttendance', 'morningDelays', 'schoolAbsences'];
+
+    private function requireSchoolDay(object $data): void
+    {
+        $date = isset($data->date) && is_string($data->date) ? $data->date : null;
+        $reason = \App\Support\SchoolCalendar::closedReason($date);
+        if ($reason !== null) {
+            abort(422, $reason === 'friday' ? 'جمعه روز درسی نیست و ثبت حضور و غیاب در آن ممکن نیست.' : 'این روز تعطیل اعلام شده است و ثبت حضور و غیاب در آن ممکن نیست.');
+        }
+    }
+
+    /** تعطیلی: شناسه‌ی قطعی «hol-سال-ماه-روز»؛ اعلام‌کننده را سرور تعیین می‌کند */
+    private function normalizeHoliday(object $data, string $id, User $user): void
+    {
+        $date = isset($data->date) && is_string($data->date) ? \App\Support\SchoolCalendar::normalize($data->date) : '';
+        if (! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $date) || \App\Support\Jalali::shamsiToDate($date) === null) {
+            abort(422, 'تاریخ تعطیلی نامعتبر است.');
+        }
+        if ($id !== 'hol-'.str_replace('/', '-', $date)) {
+            abort(422, 'شناسه‌ی تعطیلی نامعتبر است.');
+        }
+        $data->date = $date;
+        $data->title = isset($data->title) && is_string($data->title) && trim($data->title) !== '' ? mb_substr(trim($data->title), 0, 120) : null;
+        $data->setById = (string) $user->id;
+        $data->setBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
+        \App\Support\SchoolCalendar::reset();
+    }
+
     /**
      * کاربرگ: شناسه‌ی رکورد قطعی است (یک رکورد برای هر دانش‌آموز در هر هفته)، کلاس از روی دیتابیس تعیین می‌شود
      * و ثبت‌کننده و زمان را سرور می‌گذارد؛ مقدار ارسالی کلاینت برای این فیلدها نادیده گرفته می‌شود.

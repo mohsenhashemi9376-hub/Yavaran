@@ -114,6 +114,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     currentUser,
     worksheets,
     worksheetWeeks,
+    todayClosedReason,
   } = useSchool();
 
   // کاربرگ هفتگی: فقط کسانی که مجوز مشاهده/ثبت کاربرگ دارند (دبیر ندارد)
@@ -207,7 +208,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         recordedBy: r.recordedBy,
       }));
     const hasToday = (morningAttendance || []).some((r) => r.studentId === currentStudent.id && r.date === today);
-    if (!hasToday) {
+    if (!hasToday && !todayClosedReason) {
       rows.push({
         id: `implicit-${today}`,
         date: today,
@@ -221,7 +222,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       });
     }
     return rows.sort((a, b) => b.date.localeCompare(a.date));
-  }, [morningAttendance, currentStudent]);
+  }, [morningAttendance, currentStudent, todayClosedReason]);
 
   // Attendance Sessions for this student's class
   const classSessions = useMemo(() => {

@@ -18,6 +18,7 @@ import {
   WorksheetRecord,
   WorksheetWeek,
   WorksheetStatus,
+  SchoolHoliday,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -54,6 +55,7 @@ import {
 } from '../utils/sampleData';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
+import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
@@ -97,6 +99,15 @@ interface SchoolContextType {
   loanItems: LoanItem[];
   worksheets: WorksheetRecord[];
   worksheetWeeks: WorksheetWeek[];
+  /** تعطیلی‌های اعلام‌شده؛ جمعه‌ها همیشه تعطیل‌اند و در این فهرست نیستند */
+  schoolHolidays: SchoolHoliday[];
+  /** جمعه یا تعطیلی اعلام‌شده؟ (حضور و غیاب آن روز بسته است و در محاسبات نمی‌آید) */
+  isClosedDay: (date: string) => boolean;
+  closedReasonOf: (date: string) => ClosedReason | null;
+  /** امروز تعطیل است؟ */
+  todayClosedReason: ClosedReason | null;
+  addSchoolHoliday: (date: string, title?: string | null) => void;
+  removeSchoolHoliday: (date: string) => void;
   /** علامت‌گذاری کاربرگ هفتگی: status=null یعنی «تحویل نداده» (حذف رکورد) */
   setWorksheetStatus: (student: Pick<Student, 'id' | 'classId'>, weekStart: string, status: WorksheetStatus | null, note?: string | null) => void;
   markWorksheetsComplete: (students: Pick<Student, 'id' | 'classId'>[], weekStart: string) => void;
@@ -336,12 +347,21 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     () => rawStudents.map(normalizeStudentName).sort(compareStudents),
     [rawStudents]
   );
-  const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+  const [rawSessions, setSessions] = useState<AttendanceSession[]>([]);
   const [academicSubjects, setAcademicSubjects] = useState<AcademicSubject[]>([]);
   const [academicGrades, setAcademicGrades] = useState<StudentAcademicGrade[]>([]);
-  const [morningDelays, setMorningDelays] = useState<MorningDelayRecord[]>([]);
-  const [morningAttendance, setMorningAttendance] = useState<MorningAttendanceRecord[]>([]);
-  const [schoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
+  const [rawMorningDelays, setMorningDelays] = useState<MorningDelayRecord[]>([]);
+  const [rawMorningAttendance, setMorningAttendance] = useState<MorningAttendanceRecord[]>([]);
+  const [rawSchoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
+  const [schoolHolidays, setSchoolHolidays] = useState<SchoolHoliday[]>([]);
+
+  // جمعه‌ها و روزهای تعطیل اعلام‌شده روز درسی نیستند: حضور و غیاب آن روزها در هیچ محاسبه‌ای نمی‌آید
+  // (state خام فقط برای همگام‌سازی با سرور نگه داشته می‌شود)
+  const isClosedDay = useCallback((date: string) => closedReasonOf(date, schoolHolidays) !== null, [schoolHolidays]);
+  const sessions = useMemo(() => rawSessions.filter((r) => !isClosedDay(r.date)), [rawSessions, isClosedDay]);
+  const morningDelays = useMemo(() => rawMorningDelays.filter((r) => !isClosedDay(r.date)), [rawMorningDelays, isClosedDay]);
+  const morningAttendance = useMemo(() => rawMorningAttendance.filter((r) => !isClosedDay(r.date)), [rawMorningAttendance, isClosedDay]);
+  const schoolAbsences = useMemo(() => rawSchoolAbsences.filter((r) => !isClosedDay(r.date)), [rawSchoolAbsences, isClosedDay]);
   const [observations, setObservations] = useState<StudentObservation[]>([]);
   const [nurturingDossiers, setNurturingDossiers] = useState<Record<string, StudentNurturingDossier>>({});
   const [coachEvaluations, setCoachEvaluations] = useState<CoachGrowthEvaluation[]>([]);
@@ -501,6 +521,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
+    const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
@@ -529,6 +550,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
+      schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
@@ -556,6 +578,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
     setWorksheets(nextWorksheets);
+    setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
     setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
@@ -592,6 +615,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops([]);
     setLoanItems([]);
     setWorksheets([]);
+    setSchoolHolidays([]);
     setWorksheetWeeks([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
@@ -660,12 +684,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('users', rawUsers as unknown as SyncRow[]); }, [rawUsers, syncEngine]);
   useEffect(() => { syncEngine.push('classes', rawClasses as unknown as SyncRow[]); }, [rawClasses, syncEngine]);
   useEffect(() => { syncEngine.push('students', rawStudents as unknown as SyncRow[]); }, [rawStudents, syncEngine]);
-  useEffect(() => { syncEngine.push('sessions', sessions as unknown as SyncRow[]); }, [sessions, syncEngine]);
+  useEffect(() => { syncEngine.push('sessions', rawSessions as unknown as SyncRow[]); }, [rawSessions, syncEngine]);
   useEffect(() => { syncEngine.push('academicSubjects', academicSubjects as unknown as SyncRow[]); }, [academicSubjects, syncEngine]);
   useEffect(() => { syncEngine.push('academicGrades', academicGrades as unknown as SyncRow[]); }, [academicGrades, syncEngine]);
-  useEffect(() => { syncEngine.push('morningDelays', morningDelays as unknown as SyncRow[]); }, [morningDelays, syncEngine]);
-  useEffect(() => { syncEngine.push('morningAttendance', morningAttendance as unknown as SyncRow[]); }, [morningAttendance, syncEngine]);
-  useEffect(() => { syncEngine.push('schoolAbsences', schoolAbsences as unknown as SyncRow[]); }, [schoolAbsences, syncEngine]);
+  useEffect(() => { syncEngine.push('morningDelays', rawMorningDelays as unknown as SyncRow[]); }, [rawMorningDelays, syncEngine]);
+  useEffect(() => { syncEngine.push('morningAttendance', rawMorningAttendance as unknown as SyncRow[]); }, [rawMorningAttendance, syncEngine]);
+  useEffect(() => { syncEngine.push('schoolAbsences', rawSchoolAbsences as unknown as SyncRow[]); }, [rawSchoolAbsences, syncEngine]);
+  useEffect(() => { syncEngine.push('schoolHolidays', schoolHolidays as unknown as SyncRow[]); }, [schoolHolidays, syncEngine]);
   useEffect(() => { syncEngine.push('observations', observations as unknown as SyncRow[]); }, [observations, syncEngine]);
   useEffect(() => { syncEngine.push('nurturingDossiers', dossiersToRows(nurturingDossiers)); }, [nurturingDossiers, syncEngine]);
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
@@ -2107,6 +2132,20 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const addSchoolHoliday = (date: string, title?: string | null) => {
+    const normalized = normalizeShamsi(date);
+    const id = `hol-${normalized.replace(/\//g, '-')}`;
+    setSchoolHolidays((prev) => [
+      ...prev.filter((h) => h.id !== id),
+      { id, date: normalized, title: title?.trim() || null, setById: currentUser.id, setBy: currentUser.name, updatedAt: new Date().toISOString() },
+    ]);
+  };
+
+  const removeSchoolHoliday = (date: string) => {
+    const id = `hol-${normalizeShamsi(date).replace(/\//g, '-')}`;
+    setSchoolHolidays((prev) => prev.filter((h) => h.id !== id));
+  };
+
   const setWorksheetDeadline = (weekStart: string, deadline: string | null) => {
     const id = `wk-${weekStart.replace(/\//g, '-')}`;
     setWorksheetWeeks((prev) => {
@@ -2586,6 +2625,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loanItems,
         worksheets,
         worksheetWeeks,
+        schoolHolidays,
+        isClosedDay,
+        closedReasonOf: (date: string) => closedReasonOf(date, schoolHolidays),
+        todayClosedReason: closedReasonOf(getTodayShamsi().formattedDate, schoolHolidays),
+        addSchoolHoliday,
+        removeSchoolHoliday,
         setWorksheetStatus,
         markWorksheetsComplete,
         setWorksheetDeadline,

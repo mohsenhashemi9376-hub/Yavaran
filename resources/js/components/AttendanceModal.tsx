@@ -1,3 +1,4 @@
+import { closedReasonMessage, normalizeShamsi } from '../utils/schoolCalendar';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import {
@@ -66,7 +67,12 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     saveAttendanceSession,
     addDisciplinaryNote,
     showToast,
+    closedReasonOf,
+    schoolHolidays,
   } = useSchool();
+
+  // جمعه یا روز تعطیل اعلام‌شده: لیست حضور و غیاب باز نمی‌شود
+
 
   const todayInfo = getTodayShamsi();
 
@@ -336,8 +342,14 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   // ------------------------------------------------------------------
   // ذخیره
   // ------------------------------------------------------------------
+  const dayClosedReason = closedReasonOf(date);
+
   const handleSave = () => {
     if (isSubmitting) return;
+    if (dayClosedReason) {
+      showToast(closedReasonMessage(dayClosedReason), 'error');
+      return;
+    }
     if (!course) {
       showToast('لطفاً درس و کلاس را انتخاب نمایید.', 'error');
       return;
@@ -450,6 +462,12 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
+
+          {dayClosedReason && (
+            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 leading-6">
+              {closedReasonMessage(dayClosedReason, schoolHolidays.find((h) => normalizeShamsi(h.date) === normalizeShamsi(date))?.title)}
+            </div>
+          )}
 
           {/* دو انتخابگر پویا: درس و کلاس / زنگ جلسه */}
           <div className="grid sm:grid-cols-3 gap-2.5">
@@ -738,7 +756,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             type="button"
             id="btn-save-attendance-session"
             onClick={handleSave}
-            disabled={isSubmitting || !course}
+            disabled={isSubmitting || !course || Boolean(dayClosedReason)}
             className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}

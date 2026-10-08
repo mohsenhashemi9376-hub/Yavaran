@@ -28,6 +28,7 @@ export type CollectionKey =
   | 'loanItems'
   | 'worksheets'
   | 'worksheetWeeks'
+  | 'schoolHolidays'
   | 'grades'
   | 'settings';
 
@@ -55,6 +56,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'loanItems',
   'worksheets',
   'worksheetWeeks',
+  'schoolHolidays',
   'grades',
   'settings',
 ];

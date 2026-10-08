@@ -56,8 +56,11 @@ export function compareByLastName(a: { lastName: string; firstName: string }, b:
 export function getMorningTodayStats(
   students: { id: string }[],
   records: { studentId: string; date: string; status: string; delayMinutes: number }[],
-  todayDate: string
+  todayDate: string,
+  /** جمعه یا تعطیلی: لیست بسته است و کسی غایب حساب نمی‌شود */
+  closed = false
 ): { absent: number; late: number; present: number } {
+  if (closed) return { absent: 0, late: 0, present: 0 };
   const presentIds = new Set<string>();
   let late = 0;
   records.forEach((r) => {

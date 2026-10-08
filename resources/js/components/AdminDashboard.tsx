@@ -111,6 +111,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     deleteClass,
     morningDelays,
     morningAttendance,
+    todayClosedReason,
     schoolAbsences,
     addMorningDelay,
     deleteMorningDelay,
@@ -248,8 +249,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [schoolAbsences, todayInfo.formattedDate]);
 
   const morningToday = useMemo(
-    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate),
-    [students, morningAttendance, todayInfo.formattedDate]
+    () => getMorningTodayStats(students, morningAttendance || [], todayInfo.formattedDate, todayClosedReason !== null),
+    [students, morningAttendance, todayInfo.formattedDate, todayClosedReason]
   );
   const [isSendAnnouncementOpen, setIsSendAnnouncementOpen] = useState(false);
   const [isEarlyWarningOpen, setIsEarlyWarningOpen] = useState(false);

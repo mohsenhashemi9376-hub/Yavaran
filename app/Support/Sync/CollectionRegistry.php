@@ -33,6 +33,7 @@ final class CollectionRegistry
         'loanItems' => 'loan_items',
         'worksheets' => 'worksheet_records',
         'worksheetWeeks' => 'worksheet_weeks',
+        'schoolHolidays' => 'school_holidays',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -80,6 +81,21 @@ final class CollectionRegistry
                     $t->timestamps();
                 });
                 self::seedWorkshops();
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'school_holidays') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('school_holidays', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('holiday_date', 20)->unique();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
             } catch (\Throwable) {
             }
             unset(self::$schemaCache["t:$table"]);
@@ -425,6 +441,9 @@ final class CollectionRegistry
                 'class_id' => self::str($d, 'classId', 100),
                 'week_start' => self::str($d, 'weekStart', 20) ?? '',
                 'status' => self::str($d, 'status', 12) ?? 'complete',
+            ],
+            'schoolHolidays' => [
+                'holiday_date' => self::str($d, 'date', 20) ?? '',
             ],
             'worksheetWeeks' => [
                 'week_start' => self::str($d, 'weekStart', 20) ?? '',
