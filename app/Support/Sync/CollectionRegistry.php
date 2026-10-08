@@ -31,6 +31,8 @@ final class CollectionRegistry
         'gradePeriods' => 'grade_periods',
         'workshops' => 'workshops',
         'loanItems' => 'loan_items',
+        'worksheets' => 'worksheet_records',
+        'worksheetWeeks' => 'worksheet_weeks',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -78,6 +80,41 @@ final class CollectionRegistry
                     $t->timestamps();
                 });
                 self::seedWorkshops();
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'worksheet_records') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('worksheet_records', function ($t): void {
+                    $t->string('id', 150)->primary();
+                    $t->string('student_id', 100)->index();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('week_start', 20)->index();
+                    $t->string('status', 12)->default('complete')->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                    $t->unique(['student_id', 'week_start'], 'worksheet_records_student_week_unique');
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'worksheet_weeks') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('worksheet_weeks', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('week_start', 20)->unique();
+                    $t->string('deadline', 20)->nullable();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
             } catch (\Throwable) {
             }
             unset(self::$schemaCache["t:$table"]);
@@ -383,6 +420,16 @@ final class CollectionRegistry
                 'grade_level' => ((int) ($d->gradeLevel ?? 8)) === 9 ? 9 : 8,
                 'teacher_id' => self::str($d, 'teacherId', 100),
             ], static fn ($v, $k) => $k !== 'grade_level' || self::columnExists('workshops', 'grade_level'), ARRAY_FILTER_USE_BOTH),
+            'worksheets' => [
+                'student_id' => self::str($d, 'studentId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'week_start' => self::str($d, 'weekStart', 20) ?? '',
+                'status' => self::str($d, 'status', 12) ?? 'complete',
+            ],
+            'worksheetWeeks' => [
+                'week_start' => self::str($d, 'weekStart', 20) ?? '',
+                'deadline' => self::str($d, 'deadline', 20),
+            ],
             'loanItems' => [
                 'item_name' => self::str($d, 'itemName', 191) ?? '',
                 'recipient_name' => self::str($d, 'recipientName', 191) ?? '',

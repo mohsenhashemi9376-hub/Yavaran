@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
 import { TaughtLessonsView } from './TaughtLessonsView';
+import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
@@ -938,6 +939,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
                 {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+                {currentView === 'worksheets' && 'کاربرگ هفتگی'}
                 {currentView === 'audit' && 'گزارش دسترسی‌ها'}
               </span>
             </div>
@@ -1249,6 +1251,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
+      {currentView === 'worksheets' && <WorksheetsWorkspace />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 
       {/* ========================================================================= */}

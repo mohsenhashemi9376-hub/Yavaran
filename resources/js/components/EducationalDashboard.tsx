@@ -10,6 +10,8 @@ import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
 import { AnnouncementsManagement } from './AnnouncementsManagement';
 import { TeacherActivitiesReport } from './TeacherActivitiesReport';
+import { WorksheetsWorkspace } from './WorksheetsWorkspace';
+import { WorksheetAlertsCard } from './WorksheetAlertsCard';
 import { GradePeriodsModal } from './GradePeriodsModal';
 import { scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
@@ -634,6 +636,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               ))}
             </div>
 
+            {/* ۲/۱. هشدار کاربرگ هفتگی */}
+            {canAccessSection(currentUser, 'worksheets') && <WorksheetAlertsCard onOpen={() => setCurrentView('worksheets')} />}
+
             {/* ۳. مسیرهای کار روزمره */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
               <h2 className="text-sm font-bold text-slate-800 mb-3.5">
@@ -1187,6 +1192,22 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           />
+        )}
+
+        {currentView === 'worksheets' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3" dir="rtl">
+              <button
+                onClick={() => setCurrentView(null)}
+                className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 cursor-pointer"
+                aria-label="بازگشت"
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <h1 className="text-xl font-extrabold text-slate-900 flex-1">کاربرگ</h1>
+            </div>
+            <WorksheetsWorkspace />
+          </div>
         )}
 
         {currentView === 'teacher_evaluation' && (

@@ -31,6 +31,12 @@ final class AccessPolicy
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
     private const CLASS_SCOPED = ['sessions', 'academicGrades', 'morningDelays', 'schoolAbsences', 'morningAttendance'];
 
+    /** کاربرگ هفتگی: رکورد دانش‌آموزان و مهلت هر هفته */
+    public const WORKSHEETS = ['worksheets', 'worksheetWeeks'];
+
+    /** نقش‌هایی که کاربرگ همه‌ی کلاس‌ها را ثبت می‌کنند و مهلت هفته را تعیین می‌کنند (مربی فقط کلاس خودش) */
+    private const WORKSHEET_MANAGERS = ['admin', 'vice_educational', 'vice_principal'];
+
     /** موارد انضباطی (تأخیر، غیبت، حضور صبحگاه): دبیر نه می‌بیند و نه ثبت می‌کند */
     public const DISCIPLINARY = ['morningDelays', 'schoolAbsences', 'morningAttendance'];
 
@@ -106,6 +112,11 @@ final class AccessPolicy
             return $this->isManager() && $this->user->hasPermission('manage-loans');
         }
 
+        // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            return $this->user->hasPermission('view-worksheets') || $this->user->hasPermission('manage-worksheets');
+        }
+
         if ($collection === 'nurturingDossiers') {
             // پرونده‌های تربیتی فقط برای مربی و معاون تربیتی قابل مشاهده است
             return in_array($this->user->role, \App\Policies\NurturingRecordPolicy::ROLES, true)
@@ -131,6 +142,8 @@ final class AccessPolicy
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
+        'worksheets' => 'manage-worksheets',
+        'worksheetWeeks' => 'manage-worksheets',
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',
@@ -194,6 +207,12 @@ final class AccessPolicy
 
         if ($collection === 'users') {
             $this->authorizeUserWrite($old, $new);
+
+            return;
+        }
+
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            $this->authorizeWorksheet($collection, $old, $new);
 
             return;
         }
@@ -282,6 +301,12 @@ final class AccessPolicy
 
         if (in_array($collection, self::NURTURING, true)) {
             $this->authorizeNurturing('delete', $collection, $old);
+
+            return;
+        }
+
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            $this->authorizeWorksheet($collection, $old, null);
 
             return;
         }
@@ -738,6 +763,35 @@ final class AccessPolicy
             $after = isset($new->{$code}) ? (string) $new->{$code} : '';
             if ($before !== $after) {
                 $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
+            }
+        }
+    }
+
+    /**
+     * کاربرگ: مهلت هفته فقط با معاونت آموزش و مدیر؛ رکورد دانش‌آموز با معاونت آموزش/مدیر (همه‌ی کلاس‌ها)
+     * یا مربی (فقط دانش‌آموزان کلاس‌های خودش). سایر نقش‌ها (از جمله معاون تربیتی و دبیر) فقط مشاهده یا هیچ.
+     */
+    private function authorizeWorksheet(string $collection, ?object $old, ?object $new): void
+    {
+        $isWorksheetManager = in_array($this->user->role, self::WORKSHEET_MANAGERS, true);
+
+        if ($collection === 'worksheetWeeks') {
+            if (! $isWorksheetManager) {
+                $this->deny('فقط معاونت آموزش مجاز به تعیین مهلت کاربرگ است.');
+            }
+
+            return;
+        }
+
+        if ($isWorksheetManager) {
+            return;
+        }
+        if (! $this->isCoach()) {
+            $this->deny('ثبت کاربرگ فقط برای مربی و معاونت آموزش ممکن است.');
+        }
+        foreach ([$old, $new] as $record) {
+            if ($record !== null) {
+                $this->requireStudent($this->prop($record, 'studentId'));
             }
         }
     }

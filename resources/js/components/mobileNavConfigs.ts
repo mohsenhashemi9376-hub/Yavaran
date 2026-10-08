@@ -68,6 +68,7 @@ export const educationalMobileNav = (counts: { warnings: number }) => ({
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'announcements', label: 'بخشنامه‌ها', icon: Megaphone },
     { id: 'teacher_evaluation', label: 'ارزیابی اساتید', icon: UserCheck },
+    { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
     { id: 'settings', label: 'تنظیمات', icon: Settings },
   ] as MobileNavItem[],
@@ -82,6 +83,7 @@ export const nurturingMobileNav = (isVice = false) => ({
   ] as MobileNavItem[],
   more: [
     { id: 'academic_and_discipline', label: 'آموزش و انضباط', icon: BookOpen },
+    { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'taught_lessons', label: 'درس‌ها و تکالیف', icon: ClipboardList },
     { id: 'coachEvaluations', label: 'ارزیابی رشد', icon: Star },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },

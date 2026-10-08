@@ -258,3 +258,36 @@ CREATE TABLE IF NOT EXISTS `trusted_devices` (
   KEY `trusted_devices_user_id_index` (`user_id`),
   KEY `trusted_devices_expires_at_index` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- کاربرگ هفتگی دانش‌آموزان
+CREATE TABLE IF NOT EXISTS `worksheet_records` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `week_start` varchar(20) NOT NULL,
+  `status` varchar(12) NOT NULL DEFAULT 'complete',
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `worksheet_records_student_week_unique` (`student_id`, `week_start`),
+  KEY `worksheet_records_student_id_index` (`student_id`),
+  KEY `worksheet_records_class_id_index` (`class_id`),
+  KEY `worksheet_records_week_start_index` (`week_start`),
+  KEY `worksheet_records_status_index` (`status`),
+  KEY `worksheet_records_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `worksheet_weeks` (
+  `id` varchar(100) NOT NULL,
+  `week_start` varchar(20) NOT NULL,
+  `deadline` varchar(20) DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `worksheet_weeks_week_start_unique` (`week_start`),
+  KEY `worksheet_weeks_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

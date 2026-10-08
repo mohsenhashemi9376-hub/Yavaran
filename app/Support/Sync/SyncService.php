@@ -41,7 +41,7 @@ final class SyncService
         $sensitive = NurturingRecord::modelFor($collection);
 
         try {
-        DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes, $sensitive): void {
+        DB::transaction(function () use ($policy, $collection, $table, $upserts, $deletes, $sensitive, $user): void {
             if ($deletes !== []) {
                 $rows = $sensitive
                     ? $sensitive::query()->whereIn('id', $deletes)->lockForUpdate()->get()
@@ -88,6 +88,10 @@ final class SyncService
                     }
                     $data->authorId = $authorId;
                     $data->authorRole = $authorRole;
+                }
+
+                if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
+                    $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
@@ -237,6 +241,53 @@ final class SyncService
      * اعتبارسنجی جلسه کلاسی: مبحث تدریس‌شده اجباری است و یک زنگ برای یک درس در
      * یک تاریخ نمی‌تواند دو بار ثبت شود.
      */
+    /**
+     * کاربرگ: شناسه‌ی رکورد قطعی است (یک رکورد برای هر دانش‌آموز در هر هفته)، کلاس از روی دیتابیس تعیین می‌شود
+     * و ثبت‌کننده و زمان را سرور می‌گذارد؛ مقدار ارسالی کلاینت برای این فیلدها نادیده گرفته می‌شود.
+     */
+    private function normalizeWorksheet(string $collection, object $data, string $id, User $user): void
+    {
+        $weekStart = isset($data->weekStart) && is_string($data->weekStart) ? trim($data->weekStart) : '';
+        if (! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $weekStart)) {
+            abort(422, 'تاریخ شروع هفته نامعتبر است.');
+        }
+        $weekKey = str_replace('/', '-', $weekStart);
+        $now = now()->toIso8601String();
+
+        if ($collection === 'worksheetWeeks') {
+            if ($id !== 'wk-'.$weekKey) {
+                abort(422, 'شناسه‌ی هفته نامعتبر است.');
+            }
+            $deadline = isset($data->deadline) && is_string($data->deadline) ? trim($data->deadline) : '';
+            if ($deadline !== '' && ! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $deadline)) {
+                abort(422, 'مهلت ثبت نامعتبر است.');
+            }
+            $data->deadline = $deadline === '' ? null : $deadline;
+            $data->setById = (string) $user->id;
+            $data->setBy = (string) $user->name;
+            $data->updatedAt = $now;
+
+            return;
+        }
+
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        if ($id !== 'ws-'.$studentId.'-'.$weekKey) {
+            abort(422, 'شناسه‌ی رکورد کاربرگ نامعتبر است.');
+        }
+        if (! isset($data->status) || ! in_array($data->status, ['complete', 'partial', 'absent'], true)) {
+            abort(422, 'وضعیت کاربرگ نامعتبر است.');
+        }
+        $data->classId = (string) $classId;
+        $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        $data->recordedById = (string) $user->id;
+        $data->recordedBy = (string) $user->name;
+        $data->updatedAt = $now;
+    }
+
     private function validateSession(object $data, string $id): void
     {
         $topic = isset($data->lessonTopic) && is_scalar($data->lessonTopic) ? trim((string) $data->lessonTopic) : '';

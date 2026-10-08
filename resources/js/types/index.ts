@@ -388,6 +388,31 @@ export type ObservationCategory =
   | 'family' // خانوادگی
   | 'other'; // سایر
 
+/** کاربرگ هفتگی: «تحویل نداده» حالت پیش‌فرض است و رکوردی ندارد؛ فقط تحویل‌دهندگان ثبت می‌شوند */
+export type WorksheetStatus = 'complete' | 'partial' | 'absent';
+
+export interface WorksheetRecord {
+  id: string; // ws-{studentId}-{weekStart با خط تیره}
+  studentId: string;
+  classId: string;
+  weekStart: string; // شنبه‌ی هفته: "1405/07/15"
+  status: WorksheetStatus;
+  note?: string | null;
+  recordedBy?: string; // توسط سرور تعیین می‌شود
+  recordedById?: string;
+  updatedAt?: string;
+}
+
+/** مهلت ثبت کاربرگ هر هفته (توسط معاونت آموزش) */
+export interface WorksheetWeek {
+  id: string; // wk-{weekStart با خط تیره}
+  weekStart: string;
+  deadline?: string | null; // "1405/07/19"
+  setBy?: string;
+  setById?: string;
+  updatedAt?: string;
+}
+
 export interface StudentObservation {
   id: string;
   studentId: string;

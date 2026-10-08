@@ -15,6 +15,9 @@ import {
   GradePeriod,
   Workshop,
   LoanItem,
+  WorksheetRecord,
+  WorksheetWeek,
+  WorksheetStatus,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -92,6 +95,12 @@ interface SchoolContextType {
   gradePeriods: GradePeriod[];
   workshops: Workshop[];
   loanItems: LoanItem[];
+  worksheets: WorksheetRecord[];
+  worksheetWeeks: WorksheetWeek[];
+  /** علامت‌گذاری کاربرگ هفتگی: status=null یعنی «تحویل نداده» (حذف رکورد) */
+  setWorksheetStatus: (student: Pick<Student, 'id' | 'classId'>, weekStart: string, status: WorksheetStatus | null, note?: string | null) => void;
+  markWorksheetsComplete: (students: Pick<Student, 'id' | 'classId'>[], weekStart: string) => void;
+  setWorksheetDeadline: (weekStart: string, deadline: string | null) => void;
   addLoanItem: (data: Pick<LoanItem, 'itemName' | 'loanDate' | 'recipientName'> & { note?: string }) => string;
   updateLoanItem: (id: string, patch: Partial<Omit<LoanItem, 'id'>>) => void;
   deleteLoanItem: (id: string) => void;
@@ -344,6 +353,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
+  const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
+  const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
   const nurturingLocked = security.twoFactorRequired && !security.twoFactorEnabled;
@@ -490,6 +501,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
+    const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
+    const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
     const nextSettings = rowsToSettings(d.settings || []);
 
@@ -515,6 +528,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       gradePeriods: nextGradePeriods as unknown as SyncRow[],
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
+      worksheets: nextWorksheets as unknown as SyncRow[],
+      worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
     });
@@ -540,6 +555,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
+    setWorksheets(nextWorksheets);
+    setWorksheetWeeks(nextWorksheetWeeks);
     setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
@@ -574,6 +591,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods([]);
     setStoredWorkshops([]);
     setLoanItems([]);
+    setWorksheets([]);
+    setWorksheetWeeks([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
   }, [syncEngine]);
@@ -656,6 +675,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
+  useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
+  useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
   useEffect(() => { syncEngine.push('comprehensiveExams', comprehensiveExams as unknown as SyncRow[]); }, [comprehensiveExams, syncEngine]);
   useEffect(() => { syncEngine.push('bellPeriods', bellPeriods as unknown as SyncRow[]); }, [bellPeriods, syncEngine]);
@@ -2041,6 +2062,59 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ----------------------------------------------------------------
   // Nurturing & Counseling Actions (معاونت تربیتی)
   // ----------------------------------------------------------------
+  // ----------------------------------------------------------------
+  // کاربرگ هفتگی
+  // ----------------------------------------------------------------
+  const worksheetId = (studentId: string, weekStart: string) => `ws-${studentId}-${weekStart.replace(/\//g, '-')}`;
+
+  const setWorksheetStatus = (
+    student: Pick<Student, 'id' | 'classId'>,
+    weekStart: string,
+    status: WorksheetStatus | null,
+    note?: string | null,
+  ) => {
+    const id = worksheetId(student.id, weekStart);
+    setWorksheets((prev) => {
+      const rest = prev.filter((r) => r.id !== id);
+      if (status === null) return rest; // «تحویل نداده» = بدون رکورد
+      const old = prev.find((r) => r.id === id);
+      return [
+        ...rest,
+        {
+          id,
+          studentId: student.id,
+          classId: student.classId,
+          weekStart,
+          status,
+          note: note === undefined ? old?.note ?? null : note,
+          recordedById: currentUser.id,
+          recordedBy: currentUser.name,
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    });
+  };
+
+  const markWorksheetsComplete = (list: Pick<Student, 'id' | 'classId'>[], weekStart: string) => {
+    setWorksheets((prev) => {
+      const next = [...prev];
+      for (const s of list) {
+        const id = worksheetId(s.id, weekStart);
+        if (next.some((r) => r.id === id)) continue; // فقط «تحویل نداده»ها
+        next.push({ id, studentId: s.id, classId: s.classId, weekStart, status: 'complete', note: null, recordedById: currentUser.id, recordedBy: currentUser.name, updatedAt: new Date().toISOString() });
+      }
+      return next;
+    });
+  };
+
+  const setWorksheetDeadline = (weekStart: string, deadline: string | null) => {
+    const id = `wk-${weekStart.replace(/\//g, '-')}`;
+    setWorksheetWeeks((prev) => {
+      const rest = prev.filter((w) => w.id !== id);
+      return deadline ? [...rest, { id, weekStart, deadline, setById: currentUser.id, setBy: currentUser.name, updatedAt: new Date().toISOString() }] : rest;
+    });
+  };
+
   const addStudentObservation = (obsData: Omit<StudentObservation, 'id' | 'createdAt'>): string => {
     const id = `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newObs: StudentObservation = {
@@ -2510,6 +2584,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         gradePeriods,
         workshops,
         loanItems,
+        worksheets,
+        worksheetWeeks,
+        setWorksheetStatus,
+        markWorksheetsComplete,
+        setWorksheetDeadline,
         addLoanItem,
         updateLoanItem,
         deleteLoanItem,

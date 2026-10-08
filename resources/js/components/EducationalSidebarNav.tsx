@@ -36,6 +36,7 @@ export type EducationalViewType =
   | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
+  | 'worksheets'
   | 'students' 
   | 'attendance' 
   | 'settings';
@@ -205,6 +206,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
       id: 'tracking',
       title: 'پیگیری آموزشی',
       items: [
+        {
+          id: 'worksheets',
+          label: 'کاربرگ',
+          tooltip: 'کاربرگ هفتگی دانش‌آموزان و مهلت ثبت',
+          icon: ClipboardCheck,
+        },
         {
           id: 'warnings',
           label: 'دانش‌آموزان نیازمند پیگیری',
