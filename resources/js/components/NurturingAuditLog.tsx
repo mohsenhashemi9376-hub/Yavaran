@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Eye, FilePlus2, List, Pencil, RefreshCw, ShieldCheck, Trash2, UserX, Users } from 'lucide-react';
+import { AlertTriangle, Eye, FilePlus2, List, LogOut, Pencil, RefreshCw, ShieldCheck, Trash2, UserX, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
-import { apiRequest } from '../lib/serverSync';
+import { ApiError, apiRequest } from '../lib/serverSync';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
 
 interface AuditRow {
@@ -73,13 +73,15 @@ const EventsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [onlyDenied, setOnlyDenied] = useState(false);
   const [onlyWrites, setOnlyWrites] = useState(false);
+  const [integrity, setIntegrity] = useState<{ ok: boolean; checked: number; unprotected: number; brokenAt: number | null } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiRequest<{ logs: AuditRow[] }>('GET', '/api/nurturing-audit');
+      const res = await apiRequest<{ logs: AuditRow[]; integrity?: { ok: boolean; checked: number; unprotected: number; brokenAt: number | null } | null }>('GET', '/api/nurturing-audit');
       setRows(res.logs || []);
+      setIntegrity(res.integrity ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'خطا در دریافت گزارش.');
     } finally {
@@ -126,6 +128,21 @@ const EventsView: React.FC = () => {
           <span>تازه‌سازی</span>
         </button>
       </div>
+
+      {integrity && (integrity.ok ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs font-bold text-emerald-900 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 shrink-0" />
+          <span>یکپارچگی گزارش تأیید شد: {toPersianDigits(integrity.checked)} رکورد زنجیره‌ای بدون دست‌کاری.</span>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-xs flex items-center gap-3" role="alert">
+          <AlertTriangle className="w-5 h-5 text-rose-700 shrink-0" />
+          <div>
+            <div className="font-black text-rose-800">هشدار: در گزارش دسترسی‌ها دست‌کاری یا حذف رکورد تشخیص داده شد</div>
+            <div className="text-rose-700/90 mt-0.5">اولین ناهماهنگی در رکورد شماره‌ی {toPersianDigits(integrity.brokenAt ?? 0)}. موضوع را فوراً به مدیر فنی سامانه اطلاع دهید.</div>
+          </div>
+        </div>
+      ))}
 
       {denied > 0 && (
         <div className="rounded-2xl border border-rose-200 bg-gradient-to-l from-rose-50 to-white p-4 flex items-center gap-3" role="alert">
@@ -257,6 +274,40 @@ const ReviewView: React.FC = () => {
 
   const flagged = accounts.filter((a) => a.isActive && (a.inactive30 || !a.twoFactor)).length;
 
+  // بستن فوری نشست‌ها (گم شدن دستگاه یا شک به نفوذ)؛ با رمز معاون تأیید می‌شود
+  const [revokeTarget, setRevokeTarget] = useState<ReviewAccount | 'all' | null>(null);
+  const [revokePassword, setRevokePassword] = useState('');
+  const [revokeBusy, setRevokeBusy] = useState(false);
+  const [revokeError, setRevokeError] = useState('');
+  const [revokeDone, setRevokeDone] = useState('');
+
+  const openRevoke = (target: ReviewAccount | 'all') => {
+    setRevokeTarget(target);
+    setRevokePassword('');
+    setRevokeError('');
+  };
+
+  const submitRevoke = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revokeTarget || revokeBusy || !revokePassword) return;
+    setRevokeBusy(true);
+    setRevokeError('');
+    try {
+      const res = await apiRequest<{ count: number }>('POST', '/api/nurturing/revoke-sessions', {
+        password: revokePassword,
+        ...(revokeTarget === 'all' ? { all: true } : { userId: revokeTarget.id }),
+      });
+      setRevokeDone(`نشست ${toPersianDigits(res.count)} حساب بسته شد؛ برای ادامه باید دوباره وارد شوند.`);
+      setRevokeTarget(null);
+      setRevokePassword('');
+      load();
+    } catch (err) {
+      setRevokeError(err instanceof ApiError || err instanceof Error ? err.message : 'بستن نشست‌ها ممکن نشد.');
+    } finally {
+      setRevokeBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-4" dir="rtl">
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -278,7 +329,44 @@ const ReviewView: React.FC = () => {
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           <span>تازه‌سازی</span>
         </button>
+        <button
+          type="button"
+          onClick={() => openRevoke('all')}
+          className="px-3.5 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>بستن نشست همه‌ی مربیان</span>
+        </button>
       </div>
+
+      {revokeDone && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs font-bold text-emerald-900" role="status">{revokeDone}</div>
+      )}
+
+      {revokeTarget && (
+        <form onSubmit={submitRevoke} className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 space-y-3 text-xs" autoComplete="off">
+          <div className="font-black text-rose-800">
+            {revokeTarget === 'all' ? 'نشست همه‌ی مربیان و سایر معاونین تربیتی بسته شود؟' : `نشست «${revokeTarget.name}» بسته شود؟`}
+          </div>
+          <div className="text-slate-600 leading-6">کاربر فوراً از همه‌ی دستگاه‌ها خارج می‌شود و باید دوباره وارد شود. برای تأیید رمز عبور خودتان را وارد کنید.</div>
+          {revokeError && <div role="alert" className="font-bold text-rose-700">{revokeError}</div>}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="password"
+              autoFocus
+              autoComplete="current-password"
+              value={revokePassword}
+              onChange={(e) => setRevokePassword(e.target.value)}
+              placeholder="رمز عبور شما"
+              className="flex-1 min-w-[10rem] text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-rose-400"
+            />
+            <button type="submit" disabled={revokeBusy || !revokePassword} className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white font-extrabold cursor-pointer">
+              {revokeBusy ? 'در حال انجام…' : 'بستن نشست‌ها'}
+            </button>
+            <button type="button" onClick={() => setRevokeTarget(null)} className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold cursor-pointer">انصراف</button>
+          </div>
+        </form>
+      )}
 
       {flagged > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs font-bold text-amber-900 flex items-center gap-2" role="alert">
@@ -333,16 +421,26 @@ const ReviewView: React.FC = () => {
                   </div>
                 </div>
 
-                {a.isActive && a.role === 'coach' && a.id !== currentUser.id && (
-                  <div className="flex justify-end">
+                {a.isActive && a.id !== currentUser.id && (
+                  <div className="flex justify-end gap-2 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => deactivate(a)}
-                      className="px-3 py-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-[11px] font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => openRevoke(a)}
+                      className="px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
                     >
-                      <UserX className="w-3.5 h-3.5" />
-                      <span>غیرفعال‌سازی حساب</span>
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>بستن نشست‌ها</span>
                     </button>
+                    {a.role === 'coach' && (
+                      <button
+                        type="button"
+                        onClick={() => deactivate(a)}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-[11px] font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        <span>غیرفعال‌سازی حساب</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

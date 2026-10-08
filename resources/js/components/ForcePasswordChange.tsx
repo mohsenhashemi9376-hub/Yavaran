@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { AlertCircle, Eye, EyeOff, KeyRound, Loader2, LogOut, ShieldCheck } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ApiError, apiRequest } from '../lib/serverSync';
-import { toEnglishDigits } from '../utils/persianDate';
+import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
+import { minPasswordLength, passwordTooShortMessage } from '../utils/passwordRules';
 import { YavaranLogo } from './YavaranLogo';
 
 const inputClass =
@@ -10,7 +11,8 @@ const inputClass =
 
 /** صفحه‌ی تمام‌صفحه‌ی تغییر اجباری رمز عبور؛ تا تغییر رمز هیچ بخشی از سامانه باز نمی‌شود */
 export const ForcePasswordChange: React.FC = () => {
-  const { reloadAfterSecurityChange, logout, showToast } = useSchool();
+  const { reloadAfterSecurityChange, logout, showToast, currentUser } = useSchool();
+  const minLength = minPasswordLength(currentUser?.role, true);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -20,7 +22,7 @@ export const ForcePasswordChange: React.FC = () => {
 
   const strength = (() => {
     let score = 0;
-    if (next.length >= 8) score++;
+    if (next.length >= minLength) score++;
     if (/[A-Za-z]/.test(next) && /\d/.test(next)) score++;
     if (next.length >= 12 || /[^A-Za-z0-9]/.test(next)) score++;
     return score;
@@ -31,7 +33,7 @@ export const ForcePasswordChange: React.FC = () => {
     if (busy) return;
     const errs: Record<string, string> = {};
     if (!current) errs.current_password = 'رمز عبور فعلی را وارد کنید.';
-    if (next.length < 8) errs.new_password = 'رمز جدید باید حداقل ۸ کاراکتر باشد.';
+    if (next.length < minLength) errs.new_password = passwordTooShortMessage(minLength);
     if (next !== confirm) errs.new_password_confirmation = 'تکرار رمز جدید یکسان نیست.';
     if (Object.keys(errs).length) {
       setErrors(errs);
@@ -112,7 +114,7 @@ export const ForcePasswordChange: React.FC = () => {
             </div>
           )}
           {field('current_password', 'رمز عبور فعلی', current, setCurrent, 'current-password')}
-          {field('new_password', 'رمز عبور جدید (حداقل ۸ کاراکتر)', next, setNext, 'new-password')}
+          {field('new_password', `رمز عبور جدید (حداقل ${toPersianDigits(minLength)} کاراکتر)`, next, setNext, 'new-password')}
           <div className="flex items-center gap-1.5" aria-hidden="true">
             {[1, 2, 3].map((i) => (
               <span

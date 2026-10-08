@@ -54,8 +54,9 @@ class ProfileController extends Controller
             throw ValidationException::withMessages(['new_password' => 'تعیین رمز عبور جدید الزامی است.']);
         }
         if ($newPassword !== '') {
-            if ($forced && mb_strlen($newPassword) < PasswordRules::MIN_LENGTH_FORCED) {
-                throw ValidationException::withMessages(['new_password' => 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.']);
+            $min = $forced ? max(PasswordRules::MIN_LENGTH_FORCED, PasswordRules::minLengthFor($user->role)) : PasswordRules::minLengthFor($user->role);
+            if ($min > 6 && mb_strlen($newPassword) < $min) {
+                throw ValidationException::withMessages(['new_password' => 'رمز عبور جدید باید حداقل '.strtr((string) $min, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹']).' کاراکتر باشد.']);
             }
             if (PasswordRules::isWeak($newPassword, $user->username)) {
                 throw ValidationException::withMessages(['new_password' => 'این رمز عبور ساده و قابل حدس است؛ رمز دیگری انتخاب کنید.']);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\NurturingSession;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
 use App\Support\SecurityAlerts;
@@ -83,8 +84,9 @@ class AuthController extends Controller
         User::ensureTwoFactorColumns();
         $user->refresh();
 
-        // رمز پیش‌فرض/ضعیف (مثل ۱۲۳): تا تغییر رمز، به سامانه دسترسی ندارد
-        if (! $user->mustChangePassword() && PasswordRules::isWeak($password, $user->username)) {
+        // رمز پیش‌فرض/ضعیف (مثل ۱۲۳) یا کوتاه‌تر از حد مجاز مربی و معاون تربیتی: تا تغییر رمز، به سامانه دسترسی ندارد
+        if (! $user->mustChangePassword()
+            && (PasswordRules::isWeak($password, $user->username) || mb_strlen($password) < PasswordRules::minLengthFor($user->role))) {
             DB::table('users')->where('id', $user->id)->update(['must_change_password' => true]);
             $user->refresh();
         }
@@ -100,6 +102,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm(); // ورود موفق = تأیید رمز
+        NurturingSession::start($request);
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);
@@ -195,6 +198,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm();
+        NurturingSession::start($request);
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);

@@ -19,6 +19,15 @@ return [
     'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
 
     /*
+     * خروج کامل مربی و معاون تربیتی: پس از این مدت بی‌فعالیتی (دقیقه؛ پیش‌فرض ۶۰ — پیش از آن، پس از ۳۰ دقیقه فقط رمز دوباره خواسته می‌شود) و سقف مطلق عمر نشست (ساعت).
+     */
+    'nurturing_idle_minutes' => (int) env('NURTURING_IDLE_MINUTES', 60),
+    'nurturing_session_max_hours' => (int) env('NURTURING_SESSION_MAX_HOURS', 8),
+
+    /* حداقل طول رمز عبور مربی و معاون تربیتی */
+    'nurturing_password_min' => (int) env('NURTURING_PASSWORD_MIN', 12),
+
+    /*
      * ساعت مدرسه (به وقت تهران)؛ دسترسی کاربران پرونده‌های تربیتی خارج از این بازه هشدار می‌دهد.
      */
     'nurturing_hours_start' => (int) env('NURTURING_HOURS_START', 6),

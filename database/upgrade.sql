@@ -238,3 +238,7 @@ CREATE TABLE IF NOT EXISTS `login_devices` (
   KEY `login_devices_user_id_index` (`user_id`),
   KEY `login_devices_last_seen_at_index` (`last_seen_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- بستن نشست‌ها توسط معاون تربیتی و زنجیره‌ی هش لاگ دسترسی. اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
+ALTER TABLE `users` ADD COLUMN `sessions_revoked_at` timestamp NULL DEFAULT NULL;
+ALTER TABLE `nurturing_access_logs` ADD COLUMN `prev_hash` varchar(64) NULL, ADD COLUMN `row_hash` varchar(64) NULL;
