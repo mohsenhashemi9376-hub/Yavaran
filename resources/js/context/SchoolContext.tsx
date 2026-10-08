@@ -134,6 +134,8 @@ interface SchoolContextType {
   login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
   verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
   security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
+  /** ورود دومرحله‌ای هنوز فعال نشده: سابقه‌ی مشاهده‌گری و پرونده‌های تربیتی نمایش داده نمی‌شود (ثبت مشاهده‌گری جدید آزاد است) */
+  nurturingLocked: boolean;
   reloadAfterSecurityChange: () => Promise<void>;
   mustChangePassword: boolean;
   logout: () => void;
@@ -344,6 +346,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
+  const nurturingLocked = security.twoFactorRequired && !security.twoFactorEnabled;
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -2063,11 +2066,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getStudentObservations = (studentId: string): StudentObservation[] => {
+    if (nurturingLocked) return [];
     return observations.filter((o) => o.studentId === studentId);
   };
 
   const getStudentNurturingDossier = (studentId: string): StudentNurturingDossier => {
-    if (nurturingDossiers[studentId]) {
+    if (!nurturingLocked && nurturingDossiers[studentId]) {
       return nurturingDossiers[studentId];
     }
     // Return blank default template
@@ -2283,6 +2287,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getStudentCoachEvaluations = (studentId: string): CoachGrowthEvaluation[] => {
+    if (nurturingLocked) return [];
     return coachEvaluations.filter((item) => item.studentId === studentId);
   };
 
@@ -2431,9 +2436,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         academicGrades,
         morningDelays,
         schoolAbsences,
-        observations,
-        nurturingDossiers,
-        coachEvaluations,
+        observations: nurturingLocked ? [] : observations,
+        nurturingDossiers: nurturingLocked ? {} : nurturingDossiers,
+        coachEvaluations: nurturingLocked ? [] : coachEvaluations,
+        nurturingLocked,
         teacherEvaluations,
         schoolAnnouncements,
         comprehensiveExams,

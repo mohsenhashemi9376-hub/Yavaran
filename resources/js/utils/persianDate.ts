@@ -123,6 +123,28 @@ export const getTodayShamsi = () => {
   };
 };
 
+/** تاریخ شمسی و ساعت فعلی از ساعت رسمی سامانه (وقت تهران، هماهنگ با سرور): «1404/08/20» و «10:30» */
+export const getNowShamsi = (): { date: string; time: string } => {
+  const now = tehranNow();
+  return {
+    date: getTodayShamsi().formattedDate,
+    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+  };
+};
+
+/** بررسی تاریخ شمسی «YYYY/MM/DD» و ساعت «HH:MM» واردشده (ارقام فارسی هم پذیرفته می‌شود)؛ مقدار استاندارد یا null */
+export const parseShamsiDateTime = (date: string, time: string): { date: string; time: string } | null => {
+  const d = toEnglishDigits(date).trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  const t = toEnglishDigits(time).trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!d || !t) return null;
+  const [y, m, day, h, min] = [d[1], d[2], d[3], t[1], t[2]].map(Number);
+  if (m < 1 || m > 12 || day < 1 || day > 31 || h > 23 || min > 59) return null;
+  return {
+    date: `${y}/${String(m).padStart(2, '0')}/${String(day).padStart(2, '0')}`,
+    time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+  };
+};
+
 /**
  * Format any Shamsi YYYY/MM/DD to full readable Persian string
  */
