@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { YavaranLogo } from './YavaranLogo';
 import { ThemeToggle } from './ThemeToggle';
+import { TwoFactorHelp } from './TwoFactorHelp';
 import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginModalProps {
@@ -240,6 +241,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               </button>
             </form>
           )}
+
+          <TwoFactorHelp />
 
           <p className="text-center text-[11px] text-slate-400">اطلاعات شما به‌صورت رمزنگاری‌شده منتقل می‌شود.</p>
         </div>
