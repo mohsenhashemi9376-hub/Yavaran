@@ -131,7 +131,7 @@ const NotificationAlertCard: React.FC<{
 };
 
 interface Props {
-  /** تعداد دانش‌آموزان دارای هشدار غیبت (اطلاع‌رسانی قدیمی هدر) */
+  /** تعداد دانش‌آموزان دارای هشدار غیبت (فقط خلاصه‌ی داخل فهرست؛ در شمارنده‌ی زنگوله حساب نمی‌شود) */
   warningCount?: number;
 }
 
@@ -244,7 +244,8 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
     else groups.push({ date, list: [n] });
   });
 
-  const badge = unread + warningCount;
+  // شمارنده فقط اعلان‌های خوانده‌نشده‌ی واقعی را می‌شمارد؛ هشدار غیبت یک خلاصه‌ی دائمی است و با «خوانده‌شد» پاک نمی‌شود، پس در شمارنده نمی‌آید
+  const badge = unread;
 
   // بخشنامه‌ها برای استاد با کادر اختصاصی خودش نمایش داده می‌شود
   const alertQueue = items.filter(
@@ -308,7 +309,7 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
           <div className="overflow-y-auto overscroll-contain flex-1 p-3 space-y-3 min-h-[120px]">
             {warningCount > 0 && (
               <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                <span className="font-bold">هشدار غیبت: </span>
+                <span className="font-bold">خلاصه‌ی وضعیت — هشدار غیبت: </span>
                 {toPersianDigits(warningCount)} دانش‌آموز دارای ۲ جلسه غیبت یا بیشتر هستند.
               </div>
             )}
