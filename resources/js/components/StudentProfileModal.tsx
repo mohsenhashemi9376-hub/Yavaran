@@ -107,7 +107,11 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     deleteStudent,
     showConfirm,
     isAdminOrVice,
+    isTeacher,
   } = useSchool();
+
+  // دبیر فقط نام دانش‌آموز و سوابق خودش (حضور و غیاب و نمرات درس خودش) را می‌بیند؛ نه مشخصات و نه موارد انضباطی/تربیتی
+  const teacherView = isTeacher;
 
   // Always bind to the most up-to-date student record from SchoolContext
   const currentStudent = useMemo(() => {
@@ -141,7 +145,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(initialTab || 'overview');
+      setActiveTab(teacherView && (initialTab === 'info' || initialTab === 'discipline') ? 'overview' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -619,6 +623,8 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           </div>
 
           <div className="flex items-center gap-1.5">
+            {!teacherView && (
+            <>
             <button
               id="btn-profile-edit-info"
               onClick={() => {
@@ -654,6 +660,8 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             >
               <MessageSquare className="w-5 h-5" />
             </button>
+            </>
+            )}
             <button
               id="btn-close-student-profile"
               onClick={onClose}
@@ -666,6 +674,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         </div>
 
         {/* ===================== عملیات سریع ===================== */}
+        {!teacherView && (
         <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-1 gap-3">
           <button
             id="btn-quick-add-discipline"
@@ -676,6 +685,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <span>ثبت مورد انضباطی</span>
           </button>
         </div>
+        )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
@@ -762,6 +772,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <span>خلاصه پرونده</span>
             </button>
 
+            {!teacherView && (
             <button
               id="tab-btn-personal-info"
               onClick={() => {
@@ -777,6 +788,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <User className="w-3.5 h-3.5" />
               <span>اطلاعات فردی</span>
             </button>
+            )}
 
             <button
               id="tab-btn-attendance"
@@ -794,6 +806,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <span>حضور و غیاب ({toPersianDigits(attendanceRecords.length)})</span>
             </button>
 
+            {!teacherView && (
             <button
               id="tab-btn-discipline"
               onClick={() => {
@@ -809,6 +822,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <ShieldAlert className="w-3.5 h-3.5" />
               <span>انضباط ({toPersianDigits(disciplinaryNotes.length)})</span>
             </button>
+            )}
 
             <button
               id="tab-btn-grades"

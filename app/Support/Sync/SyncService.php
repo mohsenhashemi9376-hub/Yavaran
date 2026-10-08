@@ -90,6 +90,18 @@ final class SyncService
                     $data->authorRole = $authorRole;
                 }
 
+                // دبیر فقط نام دانش‌آموز را می‌بیند؛ ویرایش او فقط نام را عوض می‌کند و سایر مشخصات (کد ملی، تلفن، سوابق و ...) دست‌نخورده می‌ماند
+                if ($collection === 'students' && $policy->isTeacher() && $oldData !== null) {
+                    $merged = clone $oldData;
+                    foreach (['firstName', 'lastName', 'nameFormat'] as $field) {
+                        if (property_exists($data, $field)) {
+                            $merged->{$field} = $data->{$field};
+                        }
+                    }
+                    $data = $merged;
+                    $data->id = $item->id;
+                }
+
                 $policy->authorizeUpsert($collection, $oldData, $data);
 
                 if ($collection === 'observations' && empty($data->authorId)) {

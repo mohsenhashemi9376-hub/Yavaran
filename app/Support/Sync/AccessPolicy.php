@@ -31,6 +31,9 @@ final class AccessPolicy
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
     private const CLASS_SCOPED = ['sessions', 'academicGrades', 'morningDelays', 'schoolAbsences', 'morningAttendance'];
 
+    /** موارد انضباطی (تأخیر، غیبت، حضور صبحگاه): دبیر نه می‌بیند و نه ثبت می‌کند */
+    public const DISCIPLINARY = ['morningDelays', 'schoolAbsences', 'morningAttendance'];
+
     /** مجموعه‌های پرونده تربیتی (فقط تیم تربیتی) */
     private const NURTURING = ['observations', 'coachEvaluations', 'nurturingDossiers'];
 
@@ -75,6 +78,12 @@ final class AccessPolicy
         return $this->user->role === 'admin';
     }
 
+    /** دبیر (نقش teacher): فقط نام دانش‌آموزان کلاس‌های خودش و سوابقی که خودش ثبت کرده */
+    public function isTeacher(): bool
+    {
+        return $this->user->role === 'teacher';
+    }
+
     public function isCoach(): bool
     {
         return $this->user->role === 'coach';
@@ -82,6 +91,11 @@ final class AccessPolicy
 
     public function canRead(string $collection): bool
     {
+        // موارد انضباطی برای دبیر قابل مشاهده نیست
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            return false;
+        }
+
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
         if ($collection === 'comprehensiveExams') {
             return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
@@ -223,6 +237,10 @@ final class AccessPolicy
             return;
         }
 
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            $this->deny('موارد انضباطی برای دبیر قابل ثبت یا مشاهده نیست.');
+        }
+
         if (in_array($collection, self::CLASS_SCOPED, true)) {
             if ($old !== null) {
                 $this->requireClass($this->prop($old, 'classId'));
@@ -290,6 +308,10 @@ final class AccessPolicy
             $this->requireOwner($this->prop($old, 'teacherId'));
 
             return;
+        }
+
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            $this->deny('موارد انضباطی برای دبیر قابل ثبت یا مشاهده نیست.');
         }
 
         if (in_array($collection, self::CLASS_SCOPED, true)) {
@@ -560,6 +582,12 @@ final class AccessPolicy
         }
 
         return $subjectName !== null && isset($courses['name'][$classId.'|'.$subjectName]);
+    }
+
+    /** کلیدهای «کلاس|درس» که دبیر تدریس می‌کند (برای محدودکردن نمرات) */
+    public function teachingCourseKeys(): array
+    {
+        return array_keys($this->teachingCourses()['id']);
     }
 
     /** @return array{id: array<string, true>, name: array<string, true>} */
