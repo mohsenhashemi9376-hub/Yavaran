@@ -18,6 +18,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<'credentials' | 'code'>('credentials');
   const [code, setCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -68,7 +69,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     if (isSubmitting || !code.trim()) return;
     setErrorMsg('');
     setIsSubmitting(true);
-    const res = await verifyTwoFactor(code);
+    const res = await verifyTwoFactor(code, trustDevice);
     setIsSubmitting(false);
     if (res.success) {
       setPassword('');
@@ -152,6 +153,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 placeholder={useRecovery ? 'xxxxx-xxxxx' : '------'}
                 className={`${inputClass} text-center text-xl font-mono tracking-[0.4em] px-3`}
               />
+              <label className="flex items-start gap-2 text-[11px] text-slate-600 leading-5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={trustDevice}
+                  onChange={(e) => setTrustDevice(e.target.checked)}
+                  className="mt-1 accent-emerald-600"
+                />
+                <span>این دستگاه را مطمئن بدان؛ دفعه‌های بعد در همین دستگاه فقط رمز عبور کافی است. (روی رایانه‌ی مشترک فعال نکنید.)</span>
+              </label>
               <button
                 type="submit"
                 disabled={isSubmitting || !code.trim()}

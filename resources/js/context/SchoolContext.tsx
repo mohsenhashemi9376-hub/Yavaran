@@ -132,7 +132,7 @@ interface SchoolContextType {
   authStatus: 'loading' | 'guest' | 'ready' | 'offline';
   reloadFromServer: () => Promise<void>;
   login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
-  verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
+  verifyTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
   security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
   /** ورود دومرحله‌ای هنوز فعال نشده: سابقه‌ی مشاهده‌گری و پرونده‌های تربیتی نمایش داده نمی‌شود (ثبت مشاهده‌گری جدید آزاد است) */
   nurturingLocked: boolean;
@@ -940,9 +940,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const verifyTwoFactor = async (code: string): Promise<{ success: boolean; message?: string; restart?: boolean }> => {
+  const verifyTwoFactor = async (code: string, trustDevice = false): Promise<{ success: boolean; message?: string; restart?: boolean }> => {
     try {
-      await apiRequest('POST', '/api/auth/two-factor', { code: code.trim() });
+      await apiRequest('POST', '/api/auth/two-factor', { code: code.trim(), trustDevice });
       await loadFromServer(false);
       return { success: true };
     } catch (error) {

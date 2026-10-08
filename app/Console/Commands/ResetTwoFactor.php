@@ -27,6 +27,7 @@ class ResetTwoFactor extends Command
             'two_factor_confirmed_at' => null,
             'two_factor_recovery_codes' => null,
         ]);
+        \App\Support\TrustedDevices::revokeAll((string) $user->id);
         $this->info("ورود دومرحله‌ای «{$user->name}» غیرفعال شد؛ در ورود بعدی باید دوباره تنظیم شود.");
 
         return self::SUCCESS;

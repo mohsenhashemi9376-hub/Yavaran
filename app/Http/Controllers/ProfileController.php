@@ -98,6 +98,9 @@ class ProfileController extends Controller
 
         $changes['data'] = json_encode($profile, SyncService::JSON_FLAGS);
         $user->forceFill($changes)->save();
+        if ($newPassword !== '') {
+            \App\Support\TrustedDevices::revokeAll($user->id); // با تغییر رمز، اعتماد همه‌ی دستگاه‌ها لغو می‌شود
+        }
 
         return response()->json([
             'success' => true,

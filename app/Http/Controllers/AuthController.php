@@ -9,6 +9,7 @@ use App\Support\NurturingSession;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
 use App\Support\SecurityAlerts;
+use App\Support\TrustedDevices;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -92,7 +93,8 @@ class AuthController extends Controller
         }
 
         // ورود دومرحله‌ای: کاربر هنوز وارد نشده؛ فقط شناسه‌اش برای مرحله‌ی دوم (۵ دقیقه) در نشست می‌ماند
-        if ($user->hasTwoFactor()) {
+        // دستگاه مطمئن (پیش‌تر با کد دومرحله‌ای تأیید شده): فقط رمز عبور کافی است؛ دستگاه ناشناس همیشه کد می‌خواهد
+        if ($user->hasTwoFactor() && ! TrustedDevices::isTrusted($request, $user)) {
             $request->session()->regenerate();
             $request->session()->put('two_factor', ['user_id' => $user->id, 'expires' => now()->addMinutes(5)->timestamp]);
 
@@ -128,6 +130,7 @@ class AuthController extends Controller
         RateLimiter::clear($key);
 
         Auth::guard('web')->logoutOtherDevices($plain);
+        TrustedDevices::revokeAll($user->id, $request, exceptCurrent: true);
 
         return response()->json(['success' => true, 'message' => 'از همه‌ی دستگاه‌های دیگر خارج شدید.']);
     }
@@ -164,7 +167,7 @@ class AuthController extends Controller
     /** مرحله‌ی دوم ورود: کد برنامه‌ی احراز هویت یا کد بازیابی */
     public function twoFactorLogin(Request $request): JsonResponse
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        $data = $request->validate(['code' => ['required', 'string', 'max:32'], 'trustDevice' => ['nullable', 'boolean']]);
         $pending = $request->session()->get('two_factor');
 
         if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
@@ -199,6 +202,9 @@ class AuthController extends Controller
         $request->session()->regenerate();
         PasswordConfirmation::confirm();
         NurturingSession::start($request);
+        if ($request->boolean('trustDevice')) {
+            TrustedDevices::trust($request, $user); // از این پس در همین دستگاه فقط رمز عبور
+        }
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);

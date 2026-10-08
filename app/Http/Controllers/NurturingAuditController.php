@@ -118,7 +118,7 @@ class NurturingAuditController extends Controller
 
     /**
      * بستن فوری نشست‌های یک مربی (یا همه‌ی مربیان) از سوی معاون تربیتی؛ برای گم شدن گوشی/دستگاه یا شک به نفوذ.
-     * نیازمند رمز عبور معاون؛ نشست خود معاون بسته نمی‌شود. کاربر با ورود دوباره (و کد دومرحله‌ای) می‌تواند ادامه دهد.
+     * نیازمند رمز عبور معاون؛ نشست خود معاون بسته نمی‌شود. کاربر باید دوباره وارد شود و دستگاه‌هایش دوباره با کد دومرحله‌ای تأیید می‌شوند.
      */
     public function revokeSessions(Request $request): JsonResponse
     {
@@ -159,6 +159,9 @@ class NurturingAuditController extends Controller
         }
 
         DB::table('users')->whereIn('id', $targets)->update(['sessions_revoked_at' => now()]);
+        foreach ($targets as $id) {
+            \App\Support\TrustedDevices::revokeAll((string) $id); // دستگاه‌ها دوباره باید با کد دومرحله‌ای تأیید شوند
+        }
         foreach ($targets as $id) {
             NurturingAudit::log($vice, 'alert', 'users', null, (string) $id, true);
         }

@@ -31,70 +31,25 @@ class NurturingSessionSecurityTest extends TestCase
         $this->postJson('/api/auth/two-factor', ['code' => $this->currentTotp($secret)])->assertOk();
     }
 
-    public function test_idle_coach_is_logged_out_after_the_idle_limit(): void
+    public function test_session_is_never_expired_automatically_but_sensitive_access_needs_password_after_six_hours(): void
     {
-        config(['app.nurturing_idle_minutes' => 20, 'app.require_password_reconfirm_nurturing' => false]);
-        $coach = $this->nurturing('coach');
+        config(['app.require_password_reconfirm_nurturing' => true, 'app.reauth_minutes' => 360]);
+        $this->makeClass('cls-1');
+        $this->makeStudent('stu-1', 'cls-1');
+        $this->makeDossier('stu-1');
+        $coach = $this->makeUser('coach', ['password' => \Illuminate\Support\Facades\Hash::make('Str0ng-Pass!-long')], ['assignedClassIds' => ['cls-1']]);
+        $this->enableTwoFactor($coach);
         $this->fullLogin($coach);
-        $this->getJson('/api/notifications')->assertOk();
 
-        $this->travel(21)->minutes();
-        $this->postJson('/api/sync', ['collection' => 'observations', 'upserts' => [], 'deletes' => []])
-            ->assertStatus(401)->assertJsonPath('sessionExpired', true);
-        $this->assertGuest();
-    }
+        $this->travel(5)->hours();
+        $this->getJson('/api/students/stu-1/nurturing-record')->assertOk();
 
-    public function test_bootstrap_after_expiry_reports_unauthenticated_with_message(): void
-    {
-        config(['app.nurturing_idle_minutes' => 20]);
-        $this->fullLogin($this->nurturing('coach'));
-
-        $this->travel(21)->minutes();
-        $this->getJson('/api/bootstrap')->assertOk()
-            ->assertJsonPath('authenticated', false)->assertJsonPath('sessionExpired', true);
-        $this->assertGuest();
-    }
-
-    public function test_background_polling_does_not_extend_the_idle_window(): void
-    {
-        config(['app.nurturing_idle_minutes' => 20]);
-        $this->fullLogin($this->nurturing('vice_nurturing'));
-
-        $this->travel(15)->minutes();
+        // ۶ ساعت بی‌فعالیتی: هنوز وارد است ولی برای پرونده‌ها رمز دوباره می‌خواهد
+        $this->travel(361)->minutes();
         $this->getJson('/api/bootstrap')->assertOk()->assertJsonPath('authenticated', true);
-        $this->getJson('/api/notifications')->assertOk();
-        $this->travel(7)->minutes(); // 22 دقیقه از آخرین فعالیت واقعی
-        $this->getJson('/api/bootstrap')->assertOk()->assertJsonPath('authenticated', false);
-    }
-
-    public function test_real_activity_extends_the_idle_window(): void
-    {
-        config(['app.nurturing_idle_minutes' => 20, 'app.require_password_reconfirm_nurturing' => false]);
-        $this->fullLogin($this->nurturing('coach'));
-
-        for ($i = 0; $i < 3; $i++) {
-            $this->travel(15)->minutes();
-            $this->postJson('/api/sync', ['collection' => 'observations', 'upserts' => [], 'deletes' => []])->assertOk();
-        }
-    }
-
-    public function test_absolute_session_limit_applies_even_when_active(): void
-    {
-        config(['app.nurturing_idle_minutes' => 600, 'app.nurturing_session_max_hours' => 1, 'app.require_password_reconfirm_nurturing' => false]);
-        $this->fullLogin($this->nurturing('coach'));
-
-        $this->travel(61)->minutes();
-        $this->postJson('/api/sync', ['collection' => 'observations', 'upserts' => [], 'deletes' => []])->assertStatus(401);
-    }
-
-    public function test_teacher_is_not_subject_to_idle_logout(): void
-    {
-        config(['app.nurturing_idle_minutes' => 1]);
-        $teacher = $this->makeUser('teacher', ['password' => \Illuminate\Support\Facades\Hash::make('Str0ng-Pass!-long')]);
-        $this->login($teacher)->assertOk();
-
-        $this->travel(120)->minutes();
-        $this->getJson('/api/bootstrap')->assertOk()->assertJsonPath('authenticated', true);
+        $this->getJson('/api/students/stu-1/nurturing-record')->assertForbidden();
+        $this->postJson('/api/auth/confirm-password', ['password' => 'Str0ng-Pass!-long'])->assertOk();
+        $this->getJson('/api/students/stu-1/nurturing-record')->assertOk();
     }
 
     // ---------- بستن نشست‌ها ----------
@@ -182,34 +137,31 @@ class NurturingSessionSecurityTest extends TestCase
 
     public function test_short_password_forces_change_for_coach_but_not_teacher(): void
     {
-        $coach = $this->makeUser('coach', ['password' => \Illuminate\Support\Facades\Hash::make('Short-Pass1')]); // ۱۱ کاراکتر
-        $teacher = $this->makeUser('teacher', ['password' => \Illuminate\Support\Facades\Hash::make('Short-Pass1')]);
+        $coach = $this->makeUser('coach', ['password' => \Illuminate\Support\Facades\Hash::make('Abc-123')]); // ۷ کاراکتر
+        $teacher = $this->makeUser('teacher', ['password' => \Illuminate\Support\Facades\Hash::make('Abc-123')]);
 
         $this->enableTwoFactor($coach);
-        $this->postJson('/api/auth/login', ['username' => $coach->username, 'password' => 'Short-Pass1'])->assertOk();
+        $this->postJson('/api/auth/login', ['username' => $coach->username, 'password' => 'Abc-123'])->assertOk();
         $this->assertSame(1, (int) DB::table('users')->where('id', $coach->id)->value('must_change_password'));
 
-        $this->postJson('/api/auth/login', ['username' => $teacher->username, 'password' => 'Short-Pass1'])->assertOk();
+        $this->postJson('/api/auth/login', ['username' => $teacher->username, 'password' => 'Abc-123'])->assertOk();
         $this->assertSame(0, (int) DB::table('users')->where('id', $teacher->id)->value('must_change_password'));
     }
 
-    public function test_profile_rejects_new_password_shorter_than_twelve_for_nurturing_roles(): void
+    public function test_profile_rejects_new_password_shorter_than_eight_for_nurturing_roles(): void
     {
         $coach = $this->makeUser('coach');
         $teacher = $this->makeUser('teacher');
 
         $this->actingAs($coach)->postJson('/api/profile', [
-            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Short-Pass-1', 'new_password_confirmation' => 'Short-Pass-1x',
-        ])->assertStatus(422);
-        $this->actingAs($coach)->postJson('/api/profile', [
-            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Eleven-Pass', 'new_password_confirmation' => 'Eleven-Pass',
+            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-123', 'new_password_confirmation' => 'Abc-123',
         ])->assertStatus(422)->assertJsonValidationErrors('new_password');
         $this->actingAs($coach)->postJson('/api/profile', [
-            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Twelve-Pass-9', 'new_password_confirmation' => 'Twelve-Pass-9',
+            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-1234', 'new_password_confirmation' => 'Abc-1234',
         ])->assertOk();
 
         $this->actingAs($teacher)->postJson('/api/profile', [
-            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-123456', 'new_password_confirmation' => 'Abc-123456',
+            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-12', 'new_password_confirmation' => 'Abc-12',
         ])->assertOk();
     }
 }

@@ -122,6 +122,8 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => null,
         ]);
 
+        \App\Support\TrustedDevices::revokeAll((string) $user->id);
+
         return response()->json(['enabled' => false]);
     }
 

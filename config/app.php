@@ -12,20 +12,17 @@ return [
     'require_two_factor_nurturing' => (bool) env('REQUIRE_2FA_NURTURING', true),
 
     /*
-     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۳۰ دقیقه بی‌فعالیتی
+     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۶ ساعت بی‌فعالیتی
      * (در همان نشست) باید رمز دوباره وارد شود.
      */
     'require_password_reconfirm_nurturing' => (bool) env('REQUIRE_REAUTH_NURTURING', true),
-    'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
+    'reauth_minutes' => (int) env('REAUTH_MINUTES', 360),
 
-    /*
-     * خروج کامل مربی و معاون تربیتی: پس از این مدت بی‌فعالیتی (دقیقه؛ پیش‌فرض ۶۰ — پیش از آن، پس از ۳۰ دقیقه فقط رمز دوباره خواسته می‌شود) و سقف مطلق عمر نشست (ساعت).
-     */
-    'nurturing_idle_minutes' => (int) env('NURTURING_IDLE_MINUTES', 60),
-    'nurturing_session_max_hours' => (int) env('NURTURING_SESSION_MAX_HOURS', 8),
+    /* دستگاه مطمئن: پس از ورود دومرحله‌ای موفق، در همان دستگاه فقط رمز عبور کافی است (روز) */
+    'trusted_device_days' => (int) env('TRUSTED_DEVICE_DAYS', 180),
 
     /* حداقل طول رمز عبور مربی و معاون تربیتی */
-    'nurturing_password_min' => (int) env('NURTURING_PASSWORD_MIN', 12),
+    'nurturing_password_min' => (int) env('NURTURING_PASSWORD_MIN', 8),
 
     /*
      * ساعت مدرسه (به وقت تهران)؛ دسترسی کاربران پرونده‌های تربیتی خارج از این بازه هشدار می‌دهد.

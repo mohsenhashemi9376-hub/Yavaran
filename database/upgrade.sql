@@ -242,3 +242,19 @@ CREATE TABLE IF NOT EXISTS `login_devices` (
 -- بستن نشست‌ها توسط معاون تربیتی و زنجیره‌ی هش لاگ دسترسی. اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
 ALTER TABLE `users` ADD COLUMN `sessions_revoked_at` timestamp NULL DEFAULT NULL;
 ALTER TABLE `nurturing_access_logs` ADD COLUMN `prev_hash` varchar(64) NULL, ADD COLUMN `row_hash` varchar(64) NULL;
+
+-- دستگاه‌های مطمئن (ورود دومرحله‌ای فقط در اولین ورود با هر دستگاه)
+CREATE TABLE IF NOT EXISTS `trusted_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `token_hash` varchar(64) NOT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `trusted_devices_token_hash_unique` (`token_hash`),
+  KEY `trusted_devices_user_id_index` (`user_id`),
+  KEY `trusted_devices_expires_at_index` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

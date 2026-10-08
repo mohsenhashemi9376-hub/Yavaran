@@ -16,7 +16,7 @@ final class PasswordRules
     public static function minLengthFor(?string $role): int
     {
         return in_array($role, ['coach', 'vice_nurturing'], true)
-            ? max(self::MIN_LENGTH_FORCED, (int) config('app.nurturing_password_min', 12))
+            ? max(self::MIN_LENGTH_FORCED, (int) config('app.nurturing_password_min', 8))
             : 6;
     }
 
