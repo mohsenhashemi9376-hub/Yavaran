@@ -12,6 +12,8 @@ import {
   formatDelayText,
 } from '../utils/morningAttendance';
 import { studentFullName } from '../utils/studentName';
+import { closedReasonMessage } from '../utils/schoolCalendar';
+import { SchoolHolidaysPanel } from './SchoolHolidaysPanel';
 
 export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
 
@@ -197,12 +199,16 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     setMorningDelayMinutes,
     acknowledgeMorningRecord,
     setMorningAbsenceInfo,
+    todayClosedReason,
+    schoolHolidays,
+    currentUser,
   } = useSchool();
 
   const today = getTodayShamsi();
   const [filter, setFilter] = useState<MorningFilterKey>('all');
   const [search, setSearch] = useState('');
   const [showArchive, setShowArchive] = useState(false);
+  const [holidayPanelOpen, setHolidayPanelOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<MorningStatusFilter>(() => {
     if (initialStatusFilter) return initialStatusFilter;
     try {
@@ -378,6 +384,42 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
 
   const thCls = 'px-4 py-2.5 text-right text-xs font-bold';
 
+  const canDeclareHoliday = currentUser.role === 'admin' || currentUser.role === 'vice_disciplinary';
+
+  // جمعه یا روز تعطیل اعلام‌شده: لیست صبحگاه کلاً بسته است و کسی «غایب» حساب نمی‌شود
+  if (todayClosedReason) {
+    const holidayTitle = schoolHolidays.find((h) => toEnglishDigits(h.date) === today.formattedDate)?.title;
+    return (
+      <div className="space-y-5" dir="rtl">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h1 className="text-xl font-black text-slate-900 flex items-center gap-2.5 flex-wrap">
+              <Sunrise className="w-6 h-6 text-amber-500" />
+              <span>حضور و غیاب صبحگاه</span>
+              <span className="text-xs font-bold bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
+                {today.dayOfWeek} {toPersianDigits(today.formattedDate)}
+              </span>
+            </h1>
+            <div className="flex items-center gap-2">
+              <button onClick={onOpenSidebar} className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer border border-slate-200">
+                منو
+              </button>
+              <button onClick={onBack} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                <span>بازگشت به داشبورد</span>
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center space-y-1.5">
+            <div className="text-base font-black text-amber-900">{todayClosedReason === 'friday' ? 'امروز جمعه است' : 'امروز تعطیل است'}</div>
+            <div className="text-xs text-amber-800 leading-6">{closedReasonMessage(todayClosedReason, holidayTitle)}</div>
+          </div>
+        </div>
+        {canDeclareHoliday && todayClosedReason === 'holiday' && <SchoolHolidaysPanel />}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5" dir="rtl">
       {/* هدر */}
@@ -409,6 +451,14 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
               <Menu className="w-4 h-4" />
               <span>منو</span>
             </button>
+            {canDeclareHoliday && (
+              <button
+                onClick={() => setHolidayPanelOpen((v) => !v)}
+                className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                اعلام تعطیلی
+              </button>
+            )}
             <button
               onClick={onBack}
               className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -418,6 +468,8 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
             </button>
           </div>
         </div>
+
+        {canDeclareHoliday && holidayPanelOpen && <SchoolHolidaysPanel />}
 
         {/* ۵ کادر فیلتر پاستلی */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5" role="tablist" aria-label="فیلتر کلاس">

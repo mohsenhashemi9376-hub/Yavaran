@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Digits;
+use App\Support\NurturingSession;
+use Illuminate\Support\Facades\RateLimiter;
 use App\Support\Sync\AccessPolicy;
 use App\Support\SecurityAlerts;
 use App\Support\NurturingAudit;
@@ -33,7 +36,7 @@ class NurturingAuditController extends Controller
         $this->authorizeViewer($request);
 
         if (! NurturingAudit::ensureTable()) {
-            return response()->json(['logs' => []]);
+            return response()->json(['logs' => [], 'integrity' => null]);
         }
 
         $rows = DB::table('nurturing_access_logs as l')
@@ -48,6 +51,7 @@ class NurturingAuditController extends Controller
                 'u.name as user_name', 'ru.name as target_name', 's.first_name', 's.last_name']);
 
         return response()->json([
+            'integrity' => NurturingAudit::verifyChain(),
             'logs' => $rows->map(fn ($r) => [
                 'id' => (int) $r->id,
                 'userId' => $r->user_id,
@@ -110,5 +114,58 @@ class NurturingAuditController extends Controller
         }
 
         return response()->json(['accounts' => $accounts]);
+    }
+
+    /**
+     * بستن فوری نشست‌های یک مربی (یا همه‌ی مربیان) از سوی معاون تربیتی؛ برای گم شدن گوشی/دستگاه یا شک به نفوذ.
+     * نیازمند رمز عبور معاون؛ نشست خود معاون بسته نمی‌شود. کاربر باید دوباره وارد شود و دستگاه‌هایش دوباره با کد دومرحله‌ای تأیید می‌شوند.
+     */
+    public function revokeSessions(Request $request): JsonResponse
+    {
+        $vice = $this->authorizeViewer($request);
+        $data = $request->validate([
+            'password' => ['required', 'string', 'max:191'],
+            'userId' => ['nullable', 'string', 'max:100'],
+            'all' => ['nullable', 'boolean'],
+        ]);
+
+        $key = 'revoke-sessions:'.$vice->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['success' => false, 'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره تلاش کنید.'], 429);
+        }
+        if (! $vice->password || ! password_verify(trim(Digits::toEnglish($data['password'])), $vice->password)) {
+            RateLimiter::hit($key, 900);
+
+            return response()->json(['success' => false, 'message' => 'رمز عبور اشتباه است.'], 422);
+        }
+        RateLimiter::clear($key);
+
+        if (! NurturingSession::ensureColumn()) {
+            return response()->json(['success' => false, 'message' => 'ساختار دیتابیس هنوز به‌روزرسانی نشده است.'], 503);
+        }
+
+        $query = User::query()->whereIn('role', NurturingSession::ROLES)->where('id', '!=', $vice->id);
+        if (! empty($data['all'])) {
+            // همه‌ی مربیان و سایر معاونین تربیتی (به‌جز خود)
+        } elseif (! empty($data['userId'])) {
+            $query->where('id', $data['userId']);
+        } else {
+            return response()->json(['success' => false, 'message' => 'کاربر را مشخص کنید.'], 422);
+        }
+
+        $targets = $query->pluck('id')->all();
+        if ($targets === []) {
+            return response()->json(['success' => false, 'message' => 'کاربری برای بستن نشست پیدا نشد.'], 404);
+        }
+
+        DB::table('users')->whereIn('id', $targets)->update(['sessions_revoked_at' => now()]);
+        foreach ($targets as $id) {
+            \App\Support\TrustedDevices::revokeAll((string) $id); // دستگاه‌ها دوباره باید با کد دومرحله‌ای تأیید شوند
+        }
+        foreach ($targets as $id) {
+            NurturingAudit::log($vice, 'alert', 'users', null, (string) $id, true);
+        }
+
+        return response()->json(['success' => true, 'count' => count($targets), 'message' => 'نشست‌ها بسته شد.']);
     }
 }

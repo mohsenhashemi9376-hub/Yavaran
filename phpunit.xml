@@ -30,5 +30,6 @@
         <env name="LOG_CHANNEL" value="null"/>
         <env name="REQUIRE_2FA_NURTURING" value="true"/>
         <env name="REQUIRE_REAUTH_NURTURING" value="false"/>
+        <env name="REAUTH_MINUTES" value="30"/>
     </php>
 </phpunit>

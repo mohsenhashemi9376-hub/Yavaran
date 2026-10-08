@@ -14,6 +14,7 @@ import {
   Calendar,
   Lock
 } from 'lucide-react';
+import { minPasswordLength, passwordTooShortMessage } from '../utils/passwordRules';
 import { useSchool } from '../context/SchoolContext';
 import { TwoFactorSetupModal } from './TwoFactorSetupModal';
 import { getUserGreeting } from '../utils/userRoles';
@@ -55,7 +56,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setErrors({});
     const nextErrors: Record<string, string> = {};
     if (!currentPassword) nextErrors.current_password = 'لطفاً رمز عبور فعلی خود را وارد کنید.';
-    if (newPassword && newPassword.length < 6) nextErrors.new_password = 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.';
+    if (newPassword && newPassword.length < minPasswordLength(currentUser.role)) nextErrors.new_password = passwordTooShortMessage(minPasswordLength(currentUser.role));
     if (newPassword && newPassword !== confirmPassword) nextErrors.new_password_confirmation = 'تکرار رمز عبور جدید یکسان نیست.';
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);

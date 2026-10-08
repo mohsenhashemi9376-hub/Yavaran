@@ -12,6 +12,14 @@ final class PasswordRules
 
     public const MIN_LENGTH_FORCED = 8;
 
+    /** مربی و معاون تربیتی به داده‌های محرمانه دسترسی دارند؛ رمز بلندتری لازم است */
+    public static function minLengthFor(?string $role): int
+    {
+        return in_array($role, ['coach', 'vice_nurturing'], true)
+            ? max(self::MIN_LENGTH_FORCED, (int) config('app.nurturing_password_min', 8))
+            : 6;
+    }
+
     public static function isWeak(string $plain, ?string $username = null): bool
     {
         $p = mb_strtolower(trim($plain));

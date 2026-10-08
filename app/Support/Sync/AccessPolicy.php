@@ -31,6 +31,15 @@ final class AccessPolicy
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
     private const CLASS_SCOPED = ['sessions', 'academicGrades', 'morningDelays', 'schoolAbsences', 'morningAttendance'];
 
+    /** کاربرگ هفتگی: رکورد دانش‌آموزان و مهلت هر هفته */
+    public const WORKSHEETS = ['worksheets', 'worksheetWeeks'];
+
+    /** نقش‌هایی که کاربرگ همه‌ی کلاس‌ها را ثبت می‌کنند و مهلت هفته را تعیین می‌کنند (مربی فقط کلاس خودش) */
+    private const WORKSHEET_MANAGERS = ['admin', 'vice_educational', 'vice_principal'];
+
+    /** موارد انضباطی (تأخیر، غیبت، حضور صبحگاه): دبیر نه می‌بیند و نه ثبت می‌کند */
+    public const DISCIPLINARY = ['morningDelays', 'schoolAbsences', 'morningAttendance'];
+
     /** مجموعه‌های پرونده تربیتی (فقط تیم تربیتی) */
     private const NURTURING = ['observations', 'coachEvaluations', 'nurturingDossiers'];
 
@@ -75,6 +84,12 @@ final class AccessPolicy
         return $this->user->role === 'admin';
     }
 
+    /** دبیر (نقش teacher): فقط نام دانش‌آموزان کلاس‌های خودش و سوابقی که خودش ثبت کرده */
+    public function isTeacher(): bool
+    {
+        return $this->user->role === 'teacher';
+    }
+
     public function isCoach(): bool
     {
         return $this->user->role === 'coach';
@@ -82,6 +97,11 @@ final class AccessPolicy
 
     public function canRead(string $collection): bool
     {
+        // موارد انضباطی برای دبیر قابل مشاهده نیست
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            return false;
+        }
+
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
         if ($collection === 'comprehensiveExams') {
             return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
@@ -90,6 +110,11 @@ final class AccessPolicy
         // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
         if ($collection === 'loanItems') {
             return $this->isManager() && $this->user->hasPermission('manage-loans');
+        }
+
+        // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            return $this->user->hasPermission('view-worksheets') || $this->user->hasPermission('manage-worksheets');
         }
 
         if ($collection === 'nurturingDossiers') {
@@ -117,6 +142,9 @@ final class AccessPolicy
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
+        'schoolHolidays' => 'discipline',
+        'worksheets' => 'manage-worksheets',
+        'worksheetWeeks' => 'manage-worksheets',
         'bellPeriods' => 'manage-curriculum',
         'classes' => 'manage-classes',
         'settings' => 'school-settings',
@@ -184,6 +212,18 @@ final class AccessPolicy
             return;
         }
 
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            $this->authorizeWorksheet($collection, $old, $new);
+
+            return;
+        }
+
+        if ($collection === 'schoolHolidays') {
+            $this->requireHolidayManager();
+
+            return;
+        }
+
         if ($this->isAdmin() && in_array($collection, self::NURTURING, true)) {
             $this->deny();
         }
@@ -210,6 +250,10 @@ final class AccessPolicy
         }
 
         if ($collection === 'students') {
+            // دبیر فقط نام دانش‌آموز را می‌بیند؛ ثبت، ویرایش و انتقال دانش‌آموز کار مدیر و معاونین است
+            if ($this->isTeacher()) {
+                $this->deny('دبیر مجاز به ثبت یا ویرایش دانش‌آموز نیست.');
+            }
             $newClass = $this->prop($new, 'classId');
             if ($old === null) {
                 $this->requireClass($newClass);
@@ -221,6 +265,10 @@ final class AccessPolicy
             }
 
             return;
+        }
+
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            $this->deny('موارد انضباطی برای دبیر قابل ثبت یا مشاهده نیست.');
         }
 
         if (in_array($collection, self::CLASS_SCOPED, true)) {
@@ -264,6 +312,18 @@ final class AccessPolicy
             return;
         }
 
+        if (in_array($collection, self::WORKSHEETS, true)) {
+            $this->authorizeWorksheet($collection, $old, null);
+
+            return;
+        }
+
+        if ($collection === 'schoolHolidays') {
+            $this->requireHolidayManager();
+
+            return;
+        }
+
         if ($collection === 'users') {
             if (! $this->isManager()) {
                 $this->deny();
@@ -290,6 +350,10 @@ final class AccessPolicy
             $this->requireOwner($this->prop($old, 'teacherId'));
 
             return;
+        }
+
+        if ($this->isTeacher() && in_array($collection, self::DISCIPLINARY, true)) {
+            $this->deny('موارد انضباطی برای دبیر قابل ثبت یا مشاهده نیست.');
         }
 
         if (in_array($collection, self::CLASS_SCOPED, true)) {
@@ -562,6 +626,12 @@ final class AccessPolicy
         return $subjectName !== null && isset($courses['name'][$classId.'|'.$subjectName]);
     }
 
+    /** کلیدهای «کلاس|درس» که دبیر تدریس می‌کند (برای محدودکردن نمرات) */
+    public function teachingCourseKeys(): array
+    {
+        return array_keys($this->teachingCourses()['id']);
+    }
+
     /** @return array{id: array<string, true>, name: array<string, true>} */
     private function teachingCourses(): array
     {
@@ -706,6 +776,43 @@ final class AccessPolicy
             $after = isset($new->{$code}) ? (string) $new->{$code} : '';
             if ($before !== $after) {
                 $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
+            }
+        }
+    }
+
+    /** اعلام یا لغو تعطیلی فقط توسط مدیر سامانه و معاون انضباطی */
+    private function requireHolidayManager(): void
+    {
+        if (! in_array($this->user->role, ['admin', 'vice_disciplinary'], true)) {
+            $this->deny('اعلام تعطیلی فقط با مدیر سامانه و معاون انضباطی است.');
+        }
+    }
+
+    /**
+     * کاربرگ: مهلت هفته فقط با معاونت آموزش و مدیر؛ رکورد دانش‌آموز با معاونت آموزش/مدیر (همه‌ی کلاس‌ها)
+     * یا مربی (فقط دانش‌آموزان کلاس‌های خودش). سایر نقش‌ها (از جمله معاون تربیتی و دبیر) فقط مشاهده یا هیچ.
+     */
+    private function authorizeWorksheet(string $collection, ?object $old, ?object $new): void
+    {
+        $isWorksheetManager = in_array($this->user->role, self::WORKSHEET_MANAGERS, true);
+
+        if ($collection === 'worksheetWeeks') {
+            if (! $isWorksheetManager) {
+                $this->deny('فقط معاونت آموزش مجاز به تعیین مهلت کاربرگ است.');
+            }
+
+            return;
+        }
+
+        if ($isWorksheetManager) {
+            return;
+        }
+        if (! $this->isCoach()) {
+            $this->deny('ثبت کاربرگ فقط برای مربی و معاونت آموزش ممکن است.');
+        }
+        foreach ([$old, $new] as $record) {
+            if ($record !== null) {
+                $this->requireStudent($this->prop($record, 'studentId'));
             }
         }
     }

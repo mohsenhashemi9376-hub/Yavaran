@@ -5,7 +5,7 @@ import { ApiError, apiRequest } from '../lib/serverSync';
 import { toEnglishDigits } from '../utils/persianDate';
 import { TwoFactorSetupModal } from './TwoFactorSetupModal';
 
-/** تأیید مجدد رمز عبور برای ورود به بخش محرمانه (پس از ۳۰ دقیقه بی‌فعالیتی) */
+/** تأیید مجدد رمز عبور برای ورود به بخش محرمانه (پس از ۶ ساعت بی‌فعالیتی) */
 const ReauthCard: React.FC = () => {
   const { reloadAfterSecurityChange } = useSchool();
   const [password, setPassword] = useState('');
@@ -40,7 +40,7 @@ const ReauthCard: React.FC = () => {
       <div className="flex-1 min-w-0">
         <div className="text-base font-black text-emerald-900">برای ادامه، رمز عبور را دوباره وارد کنید</div>
         <p className="text-xs text-emerald-800/90 mt-1 leading-6">
-          پرونده‌های تربیتی محرمانه‌اند؛ پس از ۳۰ دقیقه بی‌فعالیتی برای حفاظت از اطلاعات، تأیید مجدد رمز عبور لازم است.
+          پرونده‌های تربیتی محرمانه‌اند؛ پس از ۶ ساعت بی‌فعالیتی برای حفاظت از اطلاعات، تأیید مجدد رمز عبور لازم است.
         </p>
         {error && <p className="text-xs font-bold text-rose-600 mt-1.5">{error}</p>}
       </div>
@@ -87,7 +87,7 @@ export const TwoFactorRequiredBanner: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="text-base font-black text-amber-900">ورود دومرحله‌ای را فعال کنید</div>
           <p className="text-xs text-amber-800/90 mt-1 leading-6">
-            پرونده‌های تربیتی و مشاهدات رفتاری محرمانه‌اند. تا ورود دومرحله‌ای حساب شما فعال نشود، این اطلاعات نمایش داده نمی‌شود.
+            پرونده‌های تربیتی و مشاهدات رفتاری محرمانه‌اند. تا ورود دومرحله‌ای حساب شما فعال نشود، هیچ سابقه‌ای نمایش داده نمی‌شود؛ ثبت مشاهده‌گری جدید همچنان ممکن است.
             فعال‌سازی حدود ۲ دقیقه زمان می‌برد.
           </p>
         </div>

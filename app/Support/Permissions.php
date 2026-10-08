@@ -21,6 +21,8 @@ final class Permissions
                 'manage-curriculum' => 'مدیریت برنامه دروس',
                 'manage-announcements' => 'مدیریت بخشنامه‌ها و اطلاعیه‌ها',
                 'evaluate-teachers' => 'ارزیابی اساتید',
+                'manage-worksheets' => 'ثبت کاربرگ هفتگی',
+                'view-worksheets' => 'مشاهده کاربرگ هفتگی',
             ],
         ],
         'attendance' => [
@@ -79,11 +81,11 @@ final class Permissions
             ],
             'vice_nurturing' => [
                 'view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file',
-                'view-students', 'view-guardians', 'analytics-reports',
+                'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets',
             ],
             'coach' => [
                 'view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students',
-                'analytics-reports',
+                'analytics-reports', 'manage-worksheets', 'view-worksheets',
             ],
             'teacher' => [
                 'manage-grades', 'manage-attendance', 'view-attendance-history', 'view-students',

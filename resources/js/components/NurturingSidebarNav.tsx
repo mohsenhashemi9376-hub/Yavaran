@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ClipboardList,
+  ClipboardList, ClipboardCheck,
   BookOpen,
   Search
 } from 'lucide-react';
@@ -35,7 +35,8 @@ export type NurturingViewType =
   | 'reports' 
   | 'settings'
   | 'academic_and_discipline'
-  | 'taught_lessons';
+  | 'taught_lessons'
+  | 'worksheets';
 
 export interface NurturingSidebarCounts {
   observations?: number;
@@ -226,6 +227,12 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           label: 'آموزش و انضباط کلاس‌ها',
           tooltip: 'نمای یکپارچه کارنامه، غیبت‌ها و نمرات',
           icon: BookOpen,
+        },
+        {
+          id: 'worksheets',
+          label: 'کاربرگ',
+          tooltip: 'کاربرگ هفتگی دانش‌آموزان کلاس',
+          icon: ClipboardCheck,
         },
         {
           id: 'taught_lessons',

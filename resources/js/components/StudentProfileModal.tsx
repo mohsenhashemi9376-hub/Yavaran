@@ -53,12 +53,15 @@ import {
   CheckCircle,
   FileText,
   Info,
-  Loader2
+  Loader2,
+  ClipboardCheck
 } from 'lucide-react';
+import { hasPermission } from '../utils/permissions';
+import { studentWorksheetHistory, weekTitle, WORKSHEET_STATUS_LABEL } from '../utils/worksheets';
 import { studentFullName } from '../utils/studentName';
 import { summarizeStudentDelays, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
-export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades';
+export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets';
 
 interface StudentProfileModalProps {
   isOpen: boolean;
@@ -107,7 +110,18 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     deleteStudent,
     showConfirm,
     isAdminOrVice,
+    isTeacher,
+    currentUser,
+    worksheets,
+    worksheetWeeks,
+    todayClosedReason,
   } = useSchool();
+
+  // کاربرگ هفتگی: فقط کسانی که مجوز مشاهده/ثبت کاربرگ دارند (دبیر ندارد)
+  const canSeeWorksheets = hasPermission(currentUser, 'view-worksheets') || hasPermission(currentUser, 'manage-worksheets');
+
+  // دبیر فقط نام دانش‌آموز و سوابق خودش (حضور و غیاب و نمرات درس خودش) را می‌بیند؛ نه مشخصات و نه موارد انضباطی/تربیتی
+  const teacherView = isTeacher;
 
   // Always bind to the most up-to-date student record from SchoolContext
   const currentStudent = useMemo(() => {
@@ -141,7 +155,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(initialTab || 'overview');
+      setActiveTab(teacherView && (initialTab === 'info' || initialTab === 'discipline') ? 'overview' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -194,7 +208,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         recordedBy: r.recordedBy,
       }));
     const hasToday = (morningAttendance || []).some((r) => r.studentId === currentStudent.id && r.date === today);
-    if (!hasToday) {
+    if (!hasToday && !todayClosedReason) {
       rows.push({
         id: `implicit-${today}`,
         date: today,
@@ -208,7 +222,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       });
     }
     return rows.sort((a, b) => b.date.localeCompare(a.date));
-  }, [morningAttendance, currentStudent]);
+  }, [morningAttendance, currentStudent, todayClosedReason]);
 
   // Attendance Sessions for this student's class
   const classSessions = useMemo(() => {
@@ -619,6 +633,8 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           </div>
 
           <div className="flex items-center gap-1.5">
+            {!teacherView && (
+            <>
             <button
               id="btn-profile-edit-info"
               onClick={() => {
@@ -654,6 +670,8 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             >
               <MessageSquare className="w-5 h-5" />
             </button>
+            </>
+            )}
             <button
               id="btn-close-student-profile"
               onClick={onClose}
@@ -666,6 +684,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
         </div>
 
         {/* ===================== عملیات سریع ===================== */}
+        {!teacherView && (
         <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-1 gap-3">
           <button
             id="btn-quick-add-discipline"
@@ -676,6 +695,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <span>ثبت مورد انضباطی</span>
           </button>
         </div>
+        )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
@@ -762,6 +782,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <span>خلاصه پرونده</span>
             </button>
 
+            {!teacherView && (
             <button
               id="tab-btn-personal-info"
               onClick={() => {
@@ -777,6 +798,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <User className="w-3.5 h-3.5" />
               <span>اطلاعات فردی</span>
             </button>
+            )}
 
             <button
               id="tab-btn-attendance"
@@ -794,6 +816,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <span>حضور و غیاب ({toPersianDigits(attendanceRecords.length)})</span>
             </button>
 
+            {!teacherView && (
             <button
               id="tab-btn-discipline"
               onClick={() => {
@@ -809,6 +832,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <ShieldAlert className="w-3.5 h-3.5" />
               <span>انضباط ({toPersianDigits(disciplinaryNotes.length)})</span>
             </button>
+            )}
 
             <button
               id="tab-btn-grades"
@@ -825,6 +849,24 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <Award className="w-3.5 h-3.5" />
               <span>کارنامه و نمرات</span>
             </button>
+
+            {canSeeWorksheets && (
+            <button
+              id="tab-btn-worksheets"
+              onClick={() => {
+                setActiveTab('worksheets');
+                setIsEditing(false);
+              }}
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'worksheets' && !isEditing
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>کاربرگ</span>
+            </button>
+            )}
           </div>
 
           {currentStudent.parentPhone && (
@@ -1392,6 +1434,45 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           {/* =======================================================================
               TAB 5: کارنامه رسمی و نمودار رشد (GRADES & REPORTS)
           ======================================================================= */}
+          {activeTab === 'worksheets' && !isEditing && canSeeWorksheets && (() => {
+            const history = studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks);
+            const counted = history.filter((h) => h.status !== 'absent');
+            const doneCount = counted.filter((h) => h.status === 'complete').length;
+            const rate = counted.length ? Math.round((doneCount / counted.length) * 100) : null;
+            const tone: Record<string, string> = {
+              complete: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+              partial: 'bg-amber-50 text-amber-800 border-amber-200',
+              absent: 'bg-slate-100 text-slate-600 border-slate-200',
+              missing: 'bg-rose-50 text-rose-700 border-rose-200',
+            };
+            return (
+              <div className="space-y-4" id="profile-worksheets">
+                <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-sm font-black text-slate-900">سابقه‌ی کاربرگ هفتگی</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">هفته‌های غایب در درصد حساب نمی‌شود.</div>
+                  </div>
+                  <div className="text-left">
+                    <div className="text-2xl font-black text-slate-900 font-mono">{rate === null ? '—' : `${toPersianDigits(rate)}٪`}</div>
+                    <div className="text-[11px] text-slate-500">تحویل کامل</div>
+                  </div>
+                </div>
+                {history.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500">هنوز سابقه‌ای ثبت نشده است.</div>
+                ) : (
+                  <ul className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                    {history.map((h) => (
+                      <li key={h.weekStart} className="px-4 py-3 flex items-center justify-between gap-3 text-xs">
+                        <span className="font-bold text-slate-800">هفته‌ی {weekTitle(h.weekStart)}</span>
+                        <span className={`px-3 py-1 rounded-full border font-extrabold ${tone[h.status]}`}>{WORKSHEET_STATUS_LABEL[h.status]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
+
           {activeTab === 'grades' && !isEditing && (
             <div className="space-y-6">
               

@@ -32,7 +32,7 @@ class NurturingRecordPolicy
         return Response::denyWithStatus(403, $message);
     }
 
-    private function baseCheck(User $user, bool $write, bool $touch = true): ?Response
+    private function baseCheck(User $user, bool $write, bool $touch = true, bool $skipTwoFactor = false): ?Response
     {
         if (! $user->isActive()) {
             return $this->deny('حساب کاربری شما غیرفعال است.');
@@ -45,7 +45,7 @@ class NurturingRecordPolicy
             return $this->deny();
         }
 
-        if ($user->requiresTwoFactor() && ! $user->hasTwoFactor()) {
+        if (! $skipTwoFactor && $user->requiresTwoFactor() && ! $user->hasTwoFactor()) {
             return $this->deny('برای دسترسی به پرونده‌های تربیتی ابتدا ورود دومرحله‌ای را در حساب خود فعال کنید.');
         }
 
@@ -88,9 +88,9 @@ class NurturingRecordPolicy
         return $classId !== null && $classId !== '' && in_array($classId, $this->classIds($user), true);
     }
 
-    private function check(User $user, NurturingRecord $record, bool $write): Response
+    private function check(User $user, NurturingRecord $record, bool $write, bool $skipTwoFactor = false): Response
     {
-        if ($denied = $this->baseCheck($user, $write)) {
+        if ($denied = $this->baseCheck($user, $write, true, $skipTwoFactor)) {
             return $denied;
         }
 
@@ -114,7 +114,8 @@ class NurturingRecordPolicy
 
     public function create(User $user, NurturingRecord $record): Response
     {
-        return $this->check($user, $record, true);
+        // ثبت مشاهده‌گری‌ِ جدید بدون ورود دومرحله‌ای آزاد است (فقط نوشتن؛ خواندن، ویرایش و حذف سوابق همچنان نیازمند آن است)
+        return $this->check($user, $record, true, $record instanceof StudentObservation);
     }
 
     public function update(User $user, NurturingRecord $record): Response

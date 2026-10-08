@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
 import { TaughtLessonsView } from './TaughtLessonsView';
+import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
@@ -26,7 +27,7 @@ import { CoachProfileModal } from './CoachProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { MentorMessagesSection } from './MentorMessages';
 import { EditCoachModal } from './EditCoachModal';
-import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
+import { toPersianDigits, getTodayShamsi, getNowShamsi, parseShamsiDateTime } from '../utils/persianDate';
 import { getUserGreeting } from '../utils/userRoles';
 import { 
   HeartHandshake, 
@@ -283,7 +284,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     isAdmin,
     nurturingClasses,
     allCoaches,
-    allUsers
+    allUsers,
+    nurturingLocked,
+    showToast
   } = useSchool();
 
   const todayInfo = getTodayShamsi();
@@ -324,8 +327,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [obsTitle, setObsTitle] = useState('');
   const [obsCategory, setObsCategory] = useState<ObservationCategory>('behavioral');
   const [obsContent, setObsContent] = useState('');
-  const [obsDate, setObsDate] = useState(todayInfo.formattedDate);
-  const [obsTime, setObsTime] = useState('10:00');
+  const [obsDate, setObsDate] = useState(() => getNowShamsi().date);
+  const [obsTime, setObsTime] = useState(() => getNowShamsi().time);
+  // تاریخ و ساعت به‌طور پیش‌فرض خودکار از ساعت سامانه گرفته می‌شود؛ با ویرایش دستی، مقدار واردشده حفظ می‌شود
+  const [obsDateManual, setObsDateManual] = useState(false);
   const [obsLocation, setObsLocation] = useState('کلاس درس');
   const [obsTagsInput, setObsTagsInput] = useState('');
   const [editingObsId, setEditingObsId] = useState<string | null>(null);
@@ -542,14 +547,21 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     return count;
   }, [coachEvaluations]);
 
+  /** تاریخ و ساعت را دوباره از ساعت سامانه می‌گیرد (حالت خودکار) */
+  const resetObsDateTimeToNow = () => {
+    const now = getNowShamsi();
+    setObsDate(now.date);
+    setObsTime(now.time);
+    setObsDateManual(false);
+  };
+
   // Handle open observation modal for a student
   const handleOpenStudentObs = (student: Student) => {
     setSelectedStudentForObs(student);
     setObsTitle('');
     setObsCategory('behavioral');
     setObsContent('');
-    setObsDate(todayInfo.formattedDate);
-    setObsTime('10:00');
+    resetObsDateTimeToNow();
     setObsLocation('کلاس درس');
     setObsTagsInput('');
     setEditingObsId(null);
@@ -561,6 +573,13 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     e.preventDefault();
     if (!selectedStudentForObs || !obsContent.trim()) {
       alert('لطفاً متن یادداشت مشاهده‌گری را وارد نمایید.');
+      return;
+    }
+
+    // خودکار: لحظه‌ی ثبت از ساعت سامانه؛ دستی: مقدار واردشده (پس از اعتبارسنجی)
+    const when = obsDateManual || editingObsId ? parseShamsiDateTime(obsDate, obsTime) : getNowShamsi();
+    if (!when) {
+      alert('تاریخ (مثل 1404/08/20) یا ساعت (مثل 10:30) معتبر نیست. می‌توانید دکمه‌ی «اکنون» را بزنید.');
       return;
     }
 
@@ -576,8 +595,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         category: obsCategory,
         categoryLabel: catObj?.label || 'رفتاری',
         content: obsContent.trim(),
-        date: obsDate,
-        time: obsTime,
+        date: when.date,
+        time: when.time,
         location: obsLocation.trim() || 'مدرسه',
         tags,
       });
@@ -589,13 +608,18 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         category: obsCategory,
         categoryLabel: catObj?.label || 'رفتاری',
         content: obsContent.trim(),
-        date: obsDate,
-        time: obsTime,
+        date: when.date,
+        time: when.time,
         location: obsLocation.trim() || 'مدرسه',
         tags,
         recordedBy: currentUser.name || 'معاون تربیتی',
       });
+      if (nurturingLocked) {
+        showToast('مشاهده‌گری ثبت شد. پس از فعال‌سازی ورود دومرحله‌ای قابل مشاهده است.', 'success');
+      }
     }
+
+    resetObsDateTimeToNow();
 
     setObsTitle('');
     setObsContent('');
@@ -610,6 +634,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     setObsContent(obs.content);
     setObsDate(obs.date);
     setObsTime(obs.time || '10:00');
+    setObsDateManual(true);
     setObsLocation(obs.location || 'کلاس درس');
     setObsTagsInput((obs.tags || []).join(', '));
   };
@@ -914,6 +939,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
                 {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+                {currentView === 'worksheets' && 'کاربرگ هفتگی'}
                 {currentView === 'audit' && 'گزارش دسترسی‌ها'}
               </span>
             </div>
@@ -1225,6 +1251,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
+      {currentView === 'worksheets' && <WorksheetsWorkspace />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 
       {/* ========================================================================= */}
@@ -1743,7 +1770,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     <input
                       type="text"
                       value={obsDate}
-                      onChange={(e) => setObsDate(e.target.value)}
+                      onChange={(e) => {
+                        setObsDate(e.target.value);
+                        setObsDateManual(true);
+                      }}
                       placeholder="1404/08/20"
                       className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
                     />
@@ -1753,7 +1783,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     <input
                       type="text"
                       value={obsTime}
-                      onChange={(e) => setObsTime(e.target.value)}
+                      onChange={(e) => {
+                        setObsTime(e.target.value);
+                        setObsDateManual(true);
+                      }}
                       placeholder="10:15"
                       className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
                     />
@@ -1768,6 +1801,21 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                       className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-[11px] -mt-1">
+                  <span className={obsDateManual ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
+                    {obsDateManual ? 'تاریخ و ساعت: دستی' : 'تاریخ و ساعت: خودکار از ساعت سامانه'}
+                  </span>
+                  {(obsDateManual || !editingObsId) && (
+                    <button
+                      type="button"
+                      onClick={resetObsDateTimeToNow}
+                      className="text-teal-700 hover:underline font-bold cursor-pointer"
+                    >
+                      اکنون (بازگشت به خودکار)
+                    </button>
+                  )}
                 </div>
 
                 <div>
@@ -1809,6 +1857,12 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </form>
 
               {/* Observation History Logs */}
+              {nurturingLocked ? (
+                <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
+                  <div className="font-black mb-1">سوابق مشاهده‌گری نمایش داده نمی‌شود</div>
+                  شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.
+                </div>
+              ) : (
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
                   <span>سوابق و مشاهدات قبلی این دانش‌آموز:</span>
@@ -1909,6 +1963,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   )}
                 </div>
               </div>
+              )}
 
             </div>
           </div>

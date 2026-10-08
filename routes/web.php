@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 | API داخلی سامانه (Session + CSRF — هم‌دامنه با رابط کاربری)
 |--------------------------------------------------------------------------
 */
-Route::prefix('api')->group(function (): void {
+Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::class)->group(function (): void {
     Route::get('bootstrap', BootstrapController::class)->name('api.bootstrap');
 
     Route::post('auth/login', [AuthController::class, 'login'])
@@ -67,6 +67,9 @@ Route::prefix('api')->group(function (): void {
         Route::get('nurturing-audit/review', [NurturingAuditController::class, 'review'])
             ->middleware('throttle:60,1')
             ->name('api.nurturing-audit.review');
+        Route::post('nurturing/revoke-sessions', [NurturingAuditController::class, 'revokeSessions'])
+            ->middleware('throttle:20,1')
+            ->name('api.nurturing.revoke-sessions');
         Route::get('nurturing-audit', [NurturingAuditController::class, 'index'])
             ->middleware('throttle:60,1')
             ->name('api.nurturing-audit');

@@ -19,6 +19,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'manage-curriculum', label: 'مدیریت برنامه دروس' },
       { key: 'manage-announcements', label: 'مدیریت بخشنامه‌ها و اطلاعیه‌ها' },
       { key: 'evaluate-teachers', label: 'ارزیابی اساتید' },
+      { key: 'manage-worksheets', label: 'ثبت کاربرگ هفتگی' },
+      { key: 'view-worksheets', label: 'مشاهده کاربرگ هفتگی' },
     ],
   },
   {
@@ -76,9 +78,9 @@ export function defaultPermissionsFor(role: UserRole | string): string[] {
     case 'vice_disciplinary':
       return ['manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians', 'analytics-reports', 'manage-loans'];
     case 'vice_nurturing':
-      return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports'];
+      return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets'];
     case 'coach':
-      return ['view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports'];
+      return ['view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports', 'manage-worksheets', 'view-worksheets'];
     case 'teacher':
       return TEACHER_DEFAULTS;
     default:
@@ -114,6 +116,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   settings: ['school-settings'],
   announcements: ['manage-announcements'],
   teacher_evaluation: ['evaluate-teachers'],
+  worksheets: ['manage-worksheets', 'view-worksheets'],
   warnings: ['discipline', 'view-attendance-history'],
   observation: ['counseling-report', 'view-nurturing-file'],
   student_observations: ['counseling-report', 'view-nurturing-file'],

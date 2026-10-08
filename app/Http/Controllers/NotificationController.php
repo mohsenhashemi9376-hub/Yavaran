@@ -69,6 +69,7 @@ class NotificationController extends Controller
     {
         Notifier::ensureTable();
         $user = $request->user();
+        \App\Support\WorksheetReminders::syncFor($user); // یادآوری کاربرگ برای مربی
 
         $rows = DB::table('notifications as n')
             ->leftJoin('users as s', 's.id', '=', 'n.sender_id')

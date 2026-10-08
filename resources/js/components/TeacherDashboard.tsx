@@ -931,8 +931,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
                             <th className="p-3 font-bold">ردیف</th>
                             <th className="p-3 font-bold">نام و نام خانوادگی</th>
-                            <th className="p-3 font-bold">کد ملی</th>
-                            <th className="p-3 font-bold">شماره دانش‌آموزی</th>
                             <th className="p-3 font-bold text-center">غیبت در جلسات شما</th>
                             <th className="p-3 font-bold text-center">عملیات</th>
                           </tr>
@@ -953,8 +951,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                 <td className="p-3 font-bold text-slate-900">
                                   {studentFullName(std)}
                                 </td>
-                                <td className="p-3 font-mono text-slate-600" dir="ltr">{std.nationalId || '-'}</td>
-                                <td className="p-3 font-mono text-slate-600" dir="ltr">{std.studentCode || '-'}</td>
                                 <td className="p-3 text-center">
                                   {studentAbsences > 0 ? (
                                     <span className="text-rose-600 font-bold">{toPersianDigits(studentAbsences)} جلسه</span>

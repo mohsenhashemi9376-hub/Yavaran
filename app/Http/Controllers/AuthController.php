@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\NurturingSession;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
 use App\Support\SecurityAlerts;
+use App\Support\TrustedDevices;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -83,14 +85,16 @@ class AuthController extends Controller
         User::ensureTwoFactorColumns();
         $user->refresh();
 
-        // رمز پیش‌فرض/ضعیف (مثل ۱۲۳): تا تغییر رمز، به سامانه دسترسی ندارد
-        if (! $user->mustChangePassword() && PasswordRules::isWeak($password, $user->username)) {
+        // رمز پیش‌فرض/ضعیف (مثل ۱۲۳) یا کوتاه‌تر از حد مجاز مربی و معاون تربیتی: تا تغییر رمز، به سامانه دسترسی ندارد
+        if (! $user->mustChangePassword()
+            && (PasswordRules::isWeak($password, $user->username) || mb_strlen($password) < PasswordRules::minLengthFor($user->role))) {
             DB::table('users')->where('id', $user->id)->update(['must_change_password' => true]);
             $user->refresh();
         }
 
         // ورود دومرحله‌ای: کاربر هنوز وارد نشده؛ فقط شناسه‌اش برای مرحله‌ی دوم (۵ دقیقه) در نشست می‌ماند
-        if ($user->hasTwoFactor()) {
+        // دستگاه مطمئن (پیش‌تر با کد دومرحله‌ای تأیید شده): فقط رمز عبور کافی است؛ دستگاه ناشناس همیشه کد می‌خواهد
+        if ($user->hasTwoFactor() && ! TrustedDevices::isTrusted($request, $user)) {
             $request->session()->regenerate();
             $request->session()->put('two_factor', ['user_id' => $user->id, 'expires' => now()->addMinutes(5)->timestamp]);
 
@@ -100,6 +104,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm(); // ورود موفق = تأیید رمز
+        NurturingSession::start($request);
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);
@@ -125,6 +130,7 @@ class AuthController extends Controller
         RateLimiter::clear($key);
 
         Auth::guard('web')->logoutOtherDevices($plain);
+        TrustedDevices::revokeAll($user->id, $request, exceptCurrent: true);
 
         return response()->json(['success' => true, 'message' => 'از همه‌ی دستگاه‌های دیگر خارج شدید.']);
     }
@@ -161,7 +167,7 @@ class AuthController extends Controller
     /** مرحله‌ی دوم ورود: کد برنامه‌ی احراز هویت یا کد بازیابی */
     public function twoFactorLogin(Request $request): JsonResponse
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        $data = $request->validate(['code' => ['required', 'string', 'max:32'], 'trustDevice' => ['nullable', 'boolean']]);
         $pending = $request->session()->get('two_factor');
 
         if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
@@ -195,6 +201,10 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         PasswordConfirmation::confirm();
+        NurturingSession::start($request);
+        if ($request->boolean('trustDevice')) {
+            TrustedDevices::trust($request, $user); // از این پس در همین دستگاه فقط رمز عبور
+        }
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);

@@ -130,13 +130,8 @@ const NotificationAlertCard: React.FC<{
   );
 };
 
-interface Props {
-  /** تعداد دانش‌آموزان دارای هشدار غیبت (اطلاع‌رسانی قدیمی هدر) */
-  warningCount?: number;
-}
-
 /** زنگوله اعلان‌ها: شمارنده خوانده‌نشده، دراور اعلان‌ها، پاپ‌آپ اعلان جدید */
-export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
+export const NotificationBell: React.FC = () => {
   const { currentUser } = useSchool();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -244,7 +239,8 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
     else groups.push({ date, list: [n] });
   });
 
-  const badge = unread + warningCount;
+  // شمارنده فقط اعلان‌های خوانده‌نشده‌ی واقعی را می‌شمارد؛ هشدار غیبت یک خلاصه‌ی دائمی است و با «خوانده‌شد» پاک نمی‌شود، پس در شمارنده نمی‌آید
+  const badge = unread;
 
   // بخشنامه‌ها برای استاد با کادر اختصاصی خودش نمایش داده می‌شود
   const alertQueue = items.filter(
@@ -306,13 +302,6 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
           </div>
 
           <div className="overflow-y-auto overscroll-contain flex-1 p-3 space-y-3 min-h-[120px]">
-            {warningCount > 0 && (
-              <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
-                <span className="font-bold">هشدار غیبت: </span>
-                {toPersianDigits(warningCount)} دانش‌آموز دارای ۲ جلسه غیبت یا بیشتر هستند.
-              </div>
-            )}
-
             {groups.map((g) => (
               <div key={g.date} className="space-y-1.5">
                 <div className="text-[11px] font-bold text-slate-400 px-1">{g.date}</div>
@@ -357,7 +346,7 @@ export const NotificationBell: React.FC<Props> = ({ warningCount = 0 }) => {
               </div>
             ))}
 
-            {items.length === 0 && warningCount === 0 && (
+            {items.length === 0 && (
               <div className="py-8 text-center text-xs text-slate-400">اعلانی برای نمایش وجود ندارد.</div>
             )}
           </div>

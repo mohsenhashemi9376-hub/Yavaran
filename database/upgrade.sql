@@ -238,3 +238,69 @@ CREATE TABLE IF NOT EXISTS `login_devices` (
   KEY `login_devices_user_id_index` (`user_id`),
   KEY `login_devices_last_seen_at_index` (`last_seen_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- بستن نشست‌ها توسط معاون تربیتی و زنجیره‌ی هش لاگ دسترسی. اگر ستون وجود دارد، خطای «Duplicate column» را نادیده بگیرید.
+ALTER TABLE `users` ADD COLUMN `sessions_revoked_at` timestamp NULL DEFAULT NULL;
+ALTER TABLE `nurturing_access_logs` ADD COLUMN `prev_hash` varchar(64) NULL, ADD COLUMN `row_hash` varchar(64) NULL;
+
+-- دستگاه‌های مطمئن (ورود دومرحله‌ای فقط در اولین ورود با هر دستگاه)
+CREATE TABLE IF NOT EXISTS `trusted_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `token_hash` varchar(64) NOT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `ip` varchar(64) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `trusted_devices_token_hash_unique` (`token_hash`),
+  KEY `trusted_devices_user_id_index` (`user_id`),
+  KEY `trusted_devices_expires_at_index` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- کاربرگ هفتگی دانش‌آموزان
+CREATE TABLE IF NOT EXISTS `worksheet_records` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `week_start` varchar(20) NOT NULL,
+  `status` varchar(12) NOT NULL DEFAULT 'complete',
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `worksheet_records_student_week_unique` (`student_id`, `week_start`),
+  KEY `worksheet_records_student_id_index` (`student_id`),
+  KEY `worksheet_records_class_id_index` (`class_id`),
+  KEY `worksheet_records_week_start_index` (`week_start`),
+  KEY `worksheet_records_status_index` (`status`),
+  KEY `worksheet_records_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `worksheet_weeks` (
+  `id` varchar(100) NOT NULL,
+  `week_start` varchar(20) NOT NULL,
+  `deadline` varchar(20) DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `worksheet_weeks_week_start_unique` (`week_start`),
+  KEY `worksheet_weeks_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- روزهای تعطیل اعلام‌شده‌ی مدرسه
+CREATE TABLE IF NOT EXISTS `school_holidays` (
+  `id` varchar(100) NOT NULL,
+  `holiday_date` varchar(20) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `school_holidays_holiday_date_unique` (`holiday_date`),
+  KEY `school_holidays_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

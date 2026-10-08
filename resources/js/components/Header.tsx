@@ -104,15 +104,6 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Warning count for school notifications (students with >= 2 absences)
-  const warningCount = students.filter((student) => {
-    let abs = 0;
-    sessions.filter((s) => s.classId === student.classId).forEach((s) => {
-      if (s.records[student.id]?.status === 'absent') abs++;
-    });
-    return abs >= 2;
-  }).length;
-
   const closeAllMenus = () => {
     setShowUserMenu(false);
     setShowNotifications(false);
@@ -160,11 +151,14 @@ export const Header: React.FC<HeaderProps> = ({
           ================================================== */}
           {onSelectTab && (
             currentUser.role === 'coach' && currentUser.isAlsoTeacher ? (
-              <RolePanelSwitcher
-                currentUser={currentUser}
-                currentActiveTab={currentActiveTab}
-                onSelectTab={onSelectTab}
-              />
+              // در موبایل جای کافی نیست؛ همین کلید در ردیف جداگانه‌ی زیر هدر نمایش داده می‌شود
+              <div className="hidden sm:block shrink-0">
+                <RolePanelSwitcher
+                  currentUser={currentUser}
+                  currentActiveTab={currentActiveTab}
+                  onSelectTab={onSelectTab}
+                />
+              </div>
             ) : isAdmin ? (
               <nav aria-label="بخش‌های اصلی سامانه" className="hidden lg:flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/80 text-xs font-bold gap-1">
                 <button
@@ -323,7 +317,7 @@ export const Header: React.FC<HeaderProps> = ({
             <ThemeToggle className="yv-lux-only" />
 
             {/* 4. اعلان‌ها (Notifications) */}
-            <NotificationBell warningCount={warningCount} />
+            <NotificationBell />
 
             {/* 3. اطلاعات کاربر و منوی حساب (User Menu) */}
             <div className="relative" ref={userMenuRef}>
@@ -530,6 +524,17 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
         </div>
+
+        {onSelectTab && currentUser.role === 'coach' && currentUser.isAlsoTeacher && (
+          <div className="sm:hidden pb-2">
+            <RolePanelSwitcher
+              currentUser={currentUser}
+              currentActiveTab={currentActiveTab}
+              onSelectTab={onSelectTab}
+              className="w-full [&>button]:flex-1 [&>button]:min-w-0"
+            />
+          </div>
+        )}
       </div>
 
       {/* Mobile Navigation Dropdown */}
