@@ -172,28 +172,27 @@ class TeacherDataIsolationTest extends TestCase
         ], 'deletes' => []])->assertStatus(403);
     }
 
-    public function test_teacher_editing_a_student_changes_only_the_name_and_keeps_hidden_details(): void
+    public function test_teacher_cannot_edit_rename_move_or_create_any_student(): void
     {
+        $before = DB::table('students')->where('id', 'stu-mine')->first();
+
+        // تغییر نام
         $this->actingAs($this->teacher)->postJson('/api/sync', ['collection' => 'students', 'upserts' => [
-            ['id' => 'stu-mine', 'data' => ['id' => 'stu-mine', 'classId' => 'cls-mine', 'firstName' => 'محمد', 'lastName' => 'رضایی', 'nationalId' => 'HACK', 'parentPhone' => 'HACK', 'disciplineScore' => 1]],
-        ], 'deletes' => []])->assertOk();
-
-        $stored = json_decode((string) DB::table('students')->where('id', 'stu-mine')->value('data'), true);
-        $this->assertSame('محمد', $stored['firstName']);
-        $this->assertSame('0012345678', $stored['nationalId']);
-        $this->assertSame('09123334444', $stored['parentPhone']);
-        $this->assertSame(15, $stored['disciplineScore']);
-        $this->assertSame('یادداشت خصوصی', $stored['notes']);
-        $this->assertSame('محمد', DB::table('students')->where('id', 'stu-mine')->value('first_name'));
-    }
-
-    public function test_teacher_cannot_move_student_to_another_class_via_edit(): void
-    {
+            ['id' => 'stu-mine', 'data' => ['id' => 'stu-mine', 'classId' => 'cls-mine', 'firstName' => 'محمد', 'lastName' => 'رضایی']],
+        ], 'deletes' => []])->assertStatus(403);
+        // انتقال به کلاس دیگر
         $this->actingAs($this->teacher)->postJson('/api/sync', ['collection' => 'students', 'upserts' => [
             ['id' => 'stu-mine', 'data' => ['id' => 'stu-mine', 'classId' => 'cls-other', 'firstName' => 'علی', 'lastName' => 'رضایی']],
-        ], 'deletes' => []])->assertOk();
+        ], 'deletes' => []])->assertStatus(403);
+        // ثبت دانش‌آموز جدید
+        $this->actingAs($this->teacher)->postJson('/api/sync', ['collection' => 'students', 'upserts' => [
+            ['id' => 'stu-new', 'data' => ['id' => 'stu-new', 'classId' => 'cls-mine', 'firstName' => 'جدید', 'lastName' => 'x']],
+        ], 'deletes' => []])->assertStatus(403);
 
-        $this->assertSame('cls-mine', DB::table('students')->where('id', 'stu-mine')->value('class_id'));
+        $after = DB::table('students')->where('id', 'stu-mine')->first();
+        $this->assertSame($before->data, $after->data);
+        $this->assertSame('cls-mine', $after->class_id);
+        $this->assertDatabaseMissing('students', ['id' => 'stu-new']);
     }
 
     public function test_teacher_cannot_edit_or_delete_student_of_other_class(): void

@@ -75,6 +75,8 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
     currentUser
   } = useSchool();
   const canEditClass = currentUser?.role !== 'teacher';
+  // دبیر فقط نام دانش‌آموزان را می‌بیند: نه ویرایش، نه افزودن/انتقال/حذف، نه تلفن اولیا و موارد انضباطی
+  const isTeacherView = currentUser?.role === 'teacher';
 
   // Tab State: 4 core sections according to user specification (Phase 11)
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'attendance' | 'reports'>('overview');
@@ -498,7 +500,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
+                {!isTeacherView && <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsAddStudentModalOpen(true)}
                     className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -506,7 +508,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                     <UserPlus className="w-4 h-4" />
                     <span>افزودن دانش‌آموز به کلاس</span>
                   </button>
-                </div>
+                </div>}
               </div>
 
               {/* Students Table */}
@@ -517,13 +519,13 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                   <p className="text-xs text-slate-400 max-w-md mx-auto">
                     می‌توانید دانش‌آموزان موجود در مدرسه را به این کلاس منتقل کنید یا دانش‌آموزان جدید را مستقیماً ثبت نمایید.
                   </p>
-                  <button
+                  {!isTeacherView && <button
                     onClick={() => setIsAddStudentModalOpen(true)}
                     className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>افزودن دانش‌آموز</span>
-                  </button>
+                  </button>}
                 </div>
               ) : filteredStudents.length === 0 ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-500">
@@ -536,9 +538,9 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                       <tr>
                         <th className="p-3 text-center w-12">#</th>
                         <th className="p-3">نام و نام خانوادگی</th>
-                        <th className="p-3">تلفن ولی</th>
+                        {!isTeacherView && <th className="p-3">تلفن ولی</th>}
                         <th className="p-3 text-center">آمار غیبت / حضور</th>
-                        <th className="p-3 text-center">انضباط</th>
+                        {!isTeacherView && <th className="p-3 text-center">انضباط</th>}
                         <th className="p-3 text-center w-40">عملیات</th>
                       </tr>
                     </thead>
@@ -576,9 +578,9 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                               </button>
                             </td>
 
-                            <td className="p-3 font-mono text-slate-600" dir="ltr">
+                            {!isTeacherView && <td className="p-3 font-mono text-slate-600" dir="ltr">
                               {stu.parentPhone ? toPersianDigits(stu.parentPhone) : '-'}
-                            </td>
+                            </td>}
 
                             <td className="p-3 text-center">
                               <div className="flex items-center justify-center gap-1.5 text-[11px]">
@@ -590,11 +592,11 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                               </div>
                             </td>
 
-                            <td className="p-3 text-center">
+                            {!isTeacherView && <td className="p-3 text-center">
                               <span className="font-bold text-slate-800 font-mono">
                                 {toPersianDigits(stu.disciplineScore ?? 20)}
                               </span>
-                            </td>
+                            </td>}
 
                             <td className="p-3 text-center">
                               <div className="flex items-center justify-center gap-1">
@@ -611,6 +613,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                                 )}
 
                                 {/* دکمه انتقال دانش‌آموز به کلاس دیگر (مرحله ۱۲ و ۱۵) */}
+                                {!isTeacherView && (<>
                                 <button
                                   onClick={() => setTransferStudentTarget(stu)}
                                   className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
@@ -636,6 +639,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                                 >
                                   <UserMinus className="w-4 h-4" />
                                 </button>
+                                </>)}
                               </div>
                             </td>
                           </tr>

@@ -224,6 +224,10 @@ final class AccessPolicy
         }
 
         if ($collection === 'students') {
+            // دبیر فقط نام دانش‌آموز را می‌بیند؛ ثبت، ویرایش و انتقال دانش‌آموز کار مدیر و معاونین است
+            if ($this->isTeacher()) {
+                $this->deny('دبیر مجاز به ثبت یا ویرایش دانش‌آموز نیست.');
+            }
             $newClass = $this->prop($new, 'classId');
             if ($old === null) {
                 $this->requireClass($newClass);
