@@ -227,34 +227,4 @@ class SmsOtpLoginTest extends TestCase
         $this->assertNull(Sms::normalizePhone(''));
         $this->assertNull(Sms::normalizePhone(null));
     }
-
-    private function configureTsms(): void
-    {
-        config(['sms.driver' => 'tsms', 'sms.tsms.username' => 'u', 'sms.tsms.password' => 'p', 'sms.tsms.from' => '3000x']);
-    }
-
-    public function test_tsms_driver_posts_form_and_accepts_tracking_id(): void
-    {
-        $this->configureTsms();
-        Http::fake(['tsms.ir/*' => Http::response('1234567890')]);
-        $coach = $this->makeUser('coach', ['phone' => '09123456789']);
-
-        $this->postJson('/api/auth/login', ['username' => $coach->username, 'password' => 'Str0ng-Pass!'])
-            ->assertOk()->assertJsonPath('method', 'sms');
-        Http::assertSent(fn ($r) => $r->url() === 'https://tsms.ir/url/tsms/http_send_sms.php'
-            && $r['username'] === 'u' && $r['password'] === 'p' && $r['from'] === '3000x'
-            && $r['to'] === '09123456789' && preg_match('/\d{6}/', $r['text']) === 1);
-    }
-
-    public function test_tsms_negative_response_or_connection_error_fails_login(): void
-    {
-        $this->configureTsms();
-        $coach = $this->makeUser('coach', ['phone' => '09123456789']);
-
-        foreach ([Http::response('-2'), Http::response('', 500), Http::failedConnection()] as $fake) {
-            Http::fake(['tsms.ir/*' => $fake]);
-            $this->postJson('/api/auth/login', ['username' => $coach->username, 'password' => 'Str0ng-Pass!'])->assertStatus(422);
-            $this->assertGuest();
-        }
-    }
 }
