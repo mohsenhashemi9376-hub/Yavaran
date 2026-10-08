@@ -131,9 +131,8 @@ interface SchoolContextType {
   isAuthenticated: boolean;
   authStatus: 'loading' | 'guest' | 'ready' | 'offline';
   reloadFromServer: () => Promise<void>;
-  login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean; method?: 'sms' | 'totp'; phone?: string; resendIn?: number }>;
+  login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
   verifyTwoFactor: (code: string) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
-  resendSmsCode: () => Promise<{ success: boolean; message?: string; restart?: boolean; phone?: string; resendIn?: number }>;
   security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
   reloadAfterSecurityChange: () => Promise<void>;
   mustChangePassword: boolean;
@@ -913,7 +912,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Authentication logic (احراز هویت سمت سرور لاراول)
-  const login = async (username: string, password?: string): Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean; method?: 'sms' | 'totp'; phone?: string; resendIn?: number }> => {
+  const login = async (username: string, password?: string): Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }> => {
     const cleanUsername = username.trim();
     const cleanPassword = (password || '').trim();
 
@@ -923,10 +922,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       await syncEngine.flush();
-      const res = await apiRequest<{ requiresTwoFactor?: boolean; method?: 'sms' | 'totp'; phone?: string; resendIn?: number }>('POST', '/api/auth/login', { username: cleanUsername, password: cleanPassword });
+      const res = await apiRequest<{ requiresTwoFactor?: boolean }>('POST', '/api/auth/login', { username: cleanUsername, password: cleanPassword });
       if (res && res.requiresTwoFactor) {
         // رمز درست است؛ منتظر کد مرحله‌ی دوم
-        return { success: false, requiresTwoFactor: true, method: res.method === 'sms' ? 'sms' : 'totp', phone: res.phone, resendIn: res.resendIn };
+        return { success: false, requiresTwoFactor: true };
       }
       await loadFromServer(false);
       return { success: true };
@@ -947,16 +946,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const status = error instanceof ApiError ? error.status : 0;
       const message = error instanceof ApiError ? error.message : 'کد وارد‌شده درست نیست.';
       return { success: false, message, restart: status === 429 || message.includes('دوباره وارد شوید') };
-    }
-  };
-
-  const resendSmsCode = async (): Promise<{ success: boolean; message?: string; restart?: boolean; phone?: string; resendIn?: number }> => {
-    try {
-      const res = await apiRequest<{ phone?: string; resendIn?: number }>('POST', '/api/auth/two-factor/resend');
-      return { success: true, phone: res?.phone, resendIn: res?.resendIn };
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : 'ارسال دوباره‌ی کد ممکن نشد.';
-      return { success: false, message, restart: message.includes('دوباره وارد شوید') };
     }
   };
 
@@ -2470,7 +2459,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         reloadFromServer,
         login,
         verifyTwoFactor,
-        resendSmsCode,
         security,
         reloadAfterSecurityChange,
         mustChangePassword,

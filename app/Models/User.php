@@ -97,8 +97,7 @@ class User extends Authenticatable
     public function requiresTwoFactor(): bool
     {
         return (bool) config('app.require_two_factor_nurturing', true)
-            && in_array($this->role, ['coach', 'vice_nurturing'], true)
-            && ! \App\Support\SmsOtp::requiredFor($this); // کد پیامکی هر ورود، جایگزین اجبار TOTP است
+            && in_array($this->role, ['coach', 'vice_nurturing'], true);
     }
 
     /** دسترسی به پرونده‌های تربیتی نیازمند تأیید مجدد رمز است؟ */

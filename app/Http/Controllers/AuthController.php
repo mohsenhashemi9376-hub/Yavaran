@@ -8,7 +8,6 @@ use App\Support\Digits;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
 use App\Support\SecurityAlerts;
-use App\Support\SmsOtp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -89,20 +87,6 @@ class AuthController extends Controller
         if (! $user->mustChangePassword() && PasswordRules::isWeak($password, $user->username)) {
             DB::table('users')->where('id', $user->id)->update(['must_change_password' => true]);
             $user->refresh();
-        }
-
-        // کد یکبارمصرف پیامکی در هر بار ورود (مربی و معاون تربیتی)
-        if (SmsOtp::requiredFor($user)) {
-            $request->session()->regenerate();
-            try {
-                $sent = SmsOtp::issue($request, $user);
-            } catch (RuntimeException $e) {
-                $request->session()->forget(SmsOtp::SESSION_KEY);
-
-                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-            }
-
-            return response()->json(['success' => true, 'requiresTwoFactor' => true, 'method' => 'sms', 'phone' => $sent['phone'], 'resendIn' => $sent['resendIn']]);
         }
 
         // ورود دومرحله‌ای: کاربر هنوز وارد نشده؛ فقط شناسه‌اش برای مرحله‌ی دوم (۵ دقیقه) در نشست می‌ماند
@@ -200,15 +184,8 @@ class AuthController extends Controller
 
         /** @var User|null $user */
         $user = User::query()->find($pending['user_id']);
-        $viaSms = ($pending['method'] ?? null) === 'sms';
-        $valid = $user && $user->isActive() && ($viaSms
-            ? SmsOtp::requiredFor($user) && SmsOtp::verify($request, $data['code'])
-            : $user->hasTwoFactor() && TwoFactorController::verifyLoginCode($user, $data['code']));
-        if (! $valid) {
+        if (! $user || ! $user->isActive() || ! $user->hasTwoFactor() || ! TwoFactorController::verifyLoginCode($user, $data['code'])) {
             RateLimiter::hit($throttleKey, 300);
-            if ($viaSms && ! $request->session()->has(SmsOtp::SESSION_KEY)) {
-                return response()->json(['success' => false, 'message' => 'تعداد تلاش‌های ناموفق زیاد است. دوباره وارد شوید.', 'restart' => true], 422);
-            }
 
             return response()->json(['success' => false, 'message' => 'کد وارد‌شده درست نیست.'], 422);
         }
@@ -221,34 +198,6 @@ class AuthController extends Controller
         SecurityAlerts::loginSucceeded($user, $request);
 
         return response()->json(['success' => true]);
-    }
-
-    /** ارسال دوباره‌ی کد پیامکی (حداقل فاصله‌ی ارسال: SMS_OTP_RESEND ثانیه) */
-    public function resendSmsCode(Request $request): JsonResponse
-    {
-        $pending = $request->session()->get(SmsOtp::SESSION_KEY);
-        if (! is_array($pending) || ($pending['method'] ?? null) !== 'sms' || ($pending['expires'] ?? 0) + 600 < now()->timestamp) {
-            return response()->json(['success' => false, 'message' => 'زمان تأیید به پایان رسید. دوباره وارد شوید.', 'restart' => true], 422);
-        }
-        $wait = (int) ($pending['resend_at'] ?? 0) - now()->timestamp;
-        if ($wait > 0) {
-            return response()->json(['success' => false, 'message' => "{$wait} ثانیه دیگر می‌توانید کد جدید بگیرید.", 'resendIn' => $wait], 429);
-        }
-
-        /** @var User|null $user */
-        $user = User::query()->find($pending['user_id']);
-        if (! $user || ! $user->isActive() || ! SmsOtp::requiredFor($user)) {
-            $request->session()->forget(SmsOtp::SESSION_KEY);
-
-            return response()->json(['success' => false, 'message' => 'دوباره وارد شوید.', 'restart' => true], 422);
-        }
-        try {
-            $sent = SmsOtp::issue($request, $user);
-        } catch (RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['success' => true, 'phone' => $sent['phone'], 'resendIn' => $sent['resendIn']]);
     }
 
     public function logout(Request $request): JsonResponse

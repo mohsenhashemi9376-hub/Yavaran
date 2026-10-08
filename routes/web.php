@@ -28,10 +28,6 @@ Route::prefix('api')->group(function (): void {
         ->middleware('throttle:30,1')
         ->name('api.login.two-factor');
 
-    Route::post('auth/two-factor/resend', [AuthController::class, 'resendSmsCode'])
-        ->middleware('throttle:10,1')
-        ->name('api.login.two-factor.resend');
-
     Route::middleware(['auth', \Illuminate\Session\Middleware\AuthenticateSession::class, 'password.changed'])->group(function (): void {
         Route::prefix('two-factor')->middleware('throttle:30,1')->group(function (): void {
             Route::get('/', [TwoFactorController::class, 'status'])->name('api.two-factor.status');
