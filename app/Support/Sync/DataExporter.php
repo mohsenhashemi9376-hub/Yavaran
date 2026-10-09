@@ -67,12 +67,14 @@ final class DataExporter
             if ($sensitive === StudentObservation::class) {
                 StudentObservation::ensureAuthorColumns();
                 // مربی فقط مشاهده‌هایی را می‌بیند که خودش نوشته است (نه معاون تربیتی، نه مربی دیگر)
+                // و همه‌ی سوابق خودش را هم می‌بیند، حتی برای دانش‌آموزی که دیگر در کلاس‌هایش نیست
                 if ($user->role === 'coach') {
+                    StudentObservation::claimLegacyFor($user);
                     $query->where('author_id', $user->id);
                 }
             }
             $scope = app(NurturingRecordPolicy::class)->scopeStudentIds($user);
-            if ($scope !== null) {
+            if ($scope !== null && ! ($sensitive === StudentObservation::class && $user->role === 'coach')) {
                 $query->whereIn('student_id', $scope);
             }
 

@@ -340,7 +340,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       schoolGradeCount++;
     }
   });
-  const schoolAverageGrade = schoolGradeCount > 0 ? (schoolGradeSum / schoolGradeCount).toFixed(1) : '۱۸.۴';
+  const schoolAverageGrade = schoolGradeCount > 0 ? (schoolGradeSum / schoolGradeCount).toFixed(1) : '—';
 
   // محاسبه معدل تحصیلی هر دانش‌آموز جهت کارنامه و پیگیری
   const studentsAcademicData = useMemo(() => {
@@ -591,7 +591,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
                 ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-sky-600'],
                 ['teachers', 'کادر اساتید', toPersianDigits(allTeachers.length), 'لیست دبیران', GraduationCap, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
-                ['reports', 'معدل کل', toPersianDigits(schoolAverageGrade), 'گزارش آماری', BarChart3, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
+                ['reports', 'معدل کل', schoolAverageGrade === '—' ? '—' : toPersianDigits(schoolAverageGrade), 'گزارش آماری', BarChart3, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
                 [
                   'grades',
                   'نمره ثبت‌نشده',
@@ -665,8 +665,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </div>
             </div>
 
-            {/* ۴. خلاصه وضعیت کلاس‌های اساتید */}
-            <TeacherClassesSummary teachers={allTeachers} classes={classes} sessions={sessions} />
+            {/* ۴. آخرین جلسه‌ی هر کلاس */}
+            <TeacherClassesSummary classes={classes} sessions={sessions} />
 
           </div>
         )}

@@ -107,6 +107,11 @@ class NurturingRecordPolicy
 
     public function view(User $user, NurturingRecord $record): Response
     {
+        // مربی سوابق مشاهده‌گری خودش را همیشه می‌بیند (حتی اگر دانش‌آموز از کلاس‌های فعلی‌اش خارج شده باشد)
+        if ($record instanceof StudentObservation && $user->role === 'coach' && $record->author_id === $user->id) {
+            return $this->baseCheck($user, false) ?? Response::allow();
+        }
+
         $base = $this->check($user, $record, false);
 
         return $base->denied() ? $base : $this->observationVisibility($user, $record);

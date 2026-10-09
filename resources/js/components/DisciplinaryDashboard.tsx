@@ -52,6 +52,7 @@ import { AddClassModal } from './AddClassModal';
 import { EditClassModal } from './EditClassModal';
 import { AddTeacherModal } from './AddTeacherModal';
 import { EditTeacherModal } from './EditTeacherModal';
+import { AttendanceAlertsPanel } from './AttendanceStatsView';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
@@ -109,6 +110,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   const [rawView, setCurrentView] = useState<ExecutiveViewType>(null);
   const deniedView = rawView && !canAccessSection(currentUser, rawView);
   const currentView = deniedView ? null : rawView;
+  const [attendanceTab, setAttendanceTab] = useState<'morning' | 'sessions' | 'stats' | undefined>(undefined);
+  useEffect(() => { if (currentView !== 'attendance') setAttendanceTab(undefined); }, [currentView]);
   useScrollTop(currentView);
 
   // وضعیت‌های مربوط به مدال‌های عملیاتی
@@ -371,6 +374,12 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* هشدارهای ماهانه‌ی غیبت غیرموجه و تأخیر مکرر (با امکان ارجاع به معاون تربیتی) */}
+              <AttendanceAlertsPanel
+                onOpenStats={() => { setAttendanceTab('stats'); setCurrentView('attendance'); }}
+                onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
+              />
 
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -771,6 +780,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {/* ========================================================================= */}
           {currentView === 'attendance' && (
             <AdminAttendanceWorkspace
+              initialTab={attendanceTab}
               initialStatusFilter={morningFilter}
               classes={classes}
               sessions={sessions}

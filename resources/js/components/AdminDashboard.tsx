@@ -20,6 +20,7 @@ import { SendAnnouncementModal } from './SendAnnouncementModal';
 import { EarlyWarningDossier, EarlyWarningPill, useEarlyWarnings } from './EarlyWarningDossier';
 import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
 import { getMorningTodayStats } from '../utils/morningAttendance';
+import { AttendanceAlertsPanel } from './AttendanceStatsView';
 import { AdminDelaysWorkspace } from './AdminDelaysWorkspace';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
@@ -665,6 +666,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* هشدار غیبت غیرموجه ماهانه برای مدیر مدرسه */}
+          <AttendanceAlertsPanel onSelectStudent={(stu) => onSelectStudent?.(stu, 'attendance')} />
 
           {/* ۲. بخش نیازمند توجه (برای مدیر مدرسه حذف شده؛ از کارت «موارد نیازمند توجه» در اقدامات سریع قابل دسترسی است) */}
           {!isAdmin && (

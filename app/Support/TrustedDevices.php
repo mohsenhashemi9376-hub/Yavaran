@@ -55,11 +55,15 @@ final class TrustedDevices
             return false;
         }
 
-        $row = DB::table('trusted_devices')
+        $query = DB::table('trusted_devices')
             ->where('user_id', $user->id)
             ->where('token_hash', self::hash($token))
-            ->where('expires_at', '>', now())
-            ->first(['id']);
+            ->where('expires_at', '>', now());
+        // برای مربی و معاون تربیتی، توکن دزدیده‌شده روی مرورگر دیگر کار نمی‌کند (گره به مرورگر ثبت‌شده)
+        if (NurturingSession::applies($user)) {
+            $query->where('user_agent', mb_substr((string) $request->userAgent(), 0, 255));
+        }
+        $row = $query->first(['id']);
         if (! $row) {
             return false;
         }
@@ -74,7 +78,9 @@ final class TrustedDevices
         if (! self::ensureTable()) {
             return;
         }
-        $days = max(1, (int) config('app.trusted_device_days', 180));
+        $days = max(1, NurturingSession::applies($user)
+            ? (int) config('app.trusted_device_days_nurturing', 14)
+            : (int) config('app.trusted_device_days', 180));
         $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
 
         DB::table('trusted_devices')->where('user_id', $user->id)->where('expires_at', '<', now())->delete();

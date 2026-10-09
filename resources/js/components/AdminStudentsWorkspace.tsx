@@ -46,7 +46,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'warning' | 'normal'>('all');
 
   const todayInfo = getTodayShamsi();
-  const { deleteStudent, showConfirm, isAdminOrVice } = useSchool();
+  const { deleteStudent, showConfirm, isAdminOrVice, morningAttendance, schoolAbsences } = useSchool();
 
   const handleDeleteStudent = (student: Student) => {
     showConfirm({
@@ -61,13 +61,14 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
 
   // Compute student stats
   const getStudentMetrics = (studentId: string, classId: string) => {
-    let absences = 0;
     let lates = 0;
     sessions.filter((s) => s.classId === classId).forEach((s) => {
       const r = s.records[studentId];
-      if (r?.status === 'absent') absences++;
       if (r?.status === 'late') lates++;
     });
+    // غیبت‌های کلاسی (زنگ‌ها) شمرده نمی‌شوند؛ فقط غیبت روزانه‌ی مدرسه
+    const absences = (morningAttendance || []).filter((r) => r.studentId === studentId && r.status === 'absent').length
+      + (schoolAbsences || []).filter((a) => a.studentId === studentId && !(morningAttendance || []).some((r) => r.studentId === studentId && r.status === 'absent' && r.date === a.date)).length;
     const safeMorningDelays = Array.isArray(morningDelays) ? morningDelays : [];
     const morningLateCount = safeMorningDelays.filter((d) => d.studentId === studentId).length;
     return {

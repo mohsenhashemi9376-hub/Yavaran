@@ -225,9 +225,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       }
       if (!rec) return;
       const what = `${sess.subject || 'کلاس'}${sess.periodNumber ? ` • زنگ ${toPersianDigits(sess.periodNumber)}` : ''}`;
-      if (rec.status === 'absent' || rec.status === 'excused') {
-        dayOf(sess.date).parts.push({ label: what, daily: false, excused: rec.status === 'excused', note: rec.note });
-      } else if (rec.status === 'late' && (rec.delayMinutes || 0) > 0) {
+      // غیبت‌های کلاسی (زنگ‌ها) در آمار غیبت دانش‌آموز نمی‌آیند؛ فقط تأخیر کلاسی
+      if (rec.status === 'late' && (rec.delayMinutes || 0) > 0) {
         classLates.push({
           id: `sess-${sess.id}`,
           date: sess.date,

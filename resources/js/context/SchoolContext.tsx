@@ -60,7 +60,7 @@ import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 import { studentFullName, normalizeStudentName, compareStudents, splitListName } from '../utils/studentName';
-import { summarizeStudentDelays, expectedDelayDeductions, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
+import { summarizeStudentDelays, delayDeductionState, delayDeductionId, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 interface SchoolContextType {
   currentUser: User;
@@ -194,6 +194,7 @@ interface SchoolContextType {
   
   // Disciplinary Actions (معاونت انضباطی)
   addDisciplinaryNote: (studentId: string, note: Omit<DisciplinaryNote, 'id'>) => void;
+  resolveDelayDeduction: (studentId: string, approve: boolean) => void;
   updateStudentDiscipline: (studentId: string, score: number, status?: DisciplinaryStatus) => void;
   deleteDisciplinaryNote: (studentId: string, noteId: string) => void;
 
@@ -787,47 +788,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isEducationalVice = currentUser.role === 'vice_educational' || currentUser.role === 'vice_principal';
   const isDisciplinaryVice = currentUser.role === 'vice_disciplinary' || currentUser.role === 'vice_principal';
 
-  // کسر خودکار نمره انضباط: به‌ازای هر ۶۰ دقیقه تأخیر تجمعی یک نمره کم می‌شود.
-  // کسرها با شناسه‌ی ثابت (auto-delay-<دانش‌آموز>-<ساعت>) ثبت می‌شوند، پس تکرار نمی‌شوند؛
-  // اگر تأخیری حذف شود و مجموع کم شود، کسر مربوطه برمی‌گردد.
-  const canAutoDeductDelays =
-    ['admin', 'vice_disciplinary', 'vice_principal', 'vice_educational'].includes(currentUser.role) &&
-    (currentUser.role === 'admin' || (Array.isArray(currentUser.permissions) ? currentUser.permissions.includes('discipline') : true));
-  useEffect(() => {
-    if (authStatus !== 'ready' || !canAutoDeductDelays) return;
-    const today = getTodayShamsi().formattedDate;
-    setStudents((prev) => {
-      let changed = false;
-      const next = prev.map((s) => {
-        const { minutes } = summarizeStudentDelays(s, { morningDelays, morningAttendance, sessions });
-        const hours = expectedDelayDeductions(minutes);
-        const notes = s.disciplinaryNotes || [];
-        const wanted = new Set(Array.from({ length: hours }, (_, i) => `auto-delay-${s.id}-${i + 1}`));
-        const keep = notes.filter((n) => n.source !== 'auto_delay' || wanted.has(n.id));
-        const have = new Set(keep.filter((n) => n.source === 'auto_delay').map((n) => n.id));
-        const toAdd: DisciplinaryNote[] = Array.from(wanted)
-          .filter((id) => !have.has(id))
-          .map((id, i) => ({
-            id,
-            date: today,
-            title: 'کسر نمره انضباط بابت مجموع تأخیرها',
-            description: `مجموع تأخیرهای دانش‌آموز از ${toPersianDigits(formatMinutesLong((Number(id.split("-").pop()) || i + 1) * DELAY_MINUTES_PER_POINT))} گذشت؛ ${toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره به‌صورت خودکار کسر شد.`,
-            scoreDeduction: DELAY_POINTS_DEDUCTED,
-            recordedBy: 'سامانه (خودکار)',
-            type: 'delay',
-            source: 'auto_delay',
-          }));
-        if (toAdd.length === 0 && keep.length === notes.length) return s;
-        changed = true;
-        const removed = notes.filter((n) => !keep.includes(n)).reduce((a, n) => a + (Number(n.scoreDeduction) || 0), 0);
-        const added = toAdd.reduce((a, n) => a + n.scoreDeduction, 0);
-        const score = Math.max(0, Math.min(20, (s.disciplineScore ?? 20) + removed - added));
-        return { ...s, disciplineScore: score, disciplinaryNotes: [...toAdd, ...keep] };
-      });
-      return changed ? next : prev;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, canAutoDeductDelays, morningDelays, morningAttendance, sessions, rawStudents.length]);
   const isNurturingVice = currentUser.role === 'vice_nurturing';
   const isCoach = currentUser.role === 'coach';
   const isNurturingTeam = isNurturingVice || isCoach;
@@ -1230,6 +1190,43 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
     showToast('مورد انضباطی با موفقیت ثبت شد.');
+  };
+
+  /**
+   * تأیید یا رد پیشنهاد کسر نمره بابت مجموع تأخیرها (هر ۱۲۰ دقیقه، ۱ نمره) توسط معاون انضباطی.
+   * تأیید: نمره کم می‌شود و یادداشت انضباطی ثبت می‌شود؛ رد: فقط پیشنهاد بسته می‌شود (نمره‌ی صفر).
+   */
+  const resolveDelayDeduction = (studentId: string, approve: boolean) => {
+    if (!(isAdmin || isDisciplinaryVice)) {
+      showToast('فقط معاون انضباطی می‌تواند کسر نمره بابت تأخیر را تأیید کند.', 'error');
+      return;
+    }
+    const today = getTodayShamsi().formattedDate;
+    let applied = false;
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const { minutes } = summarizeStudentDelays(s, { morningDelays, morningAttendance, sessions });
+        const state = delayDeductionState(s.disciplinaryNotes, minutes);
+        if (state.pending <= 0) return s;
+        applied = true;
+        const note: DisciplinaryNote = {
+          id: delayDeductionId(s.id, state.nextIndex),
+          date: today,
+          title: approve ? 'کسر نمره انضباط بابت مجموع تأخیرها' : 'پیشنهاد کسر نمره بابت تأخیر رد شد',
+          description: approve
+            ? `مجموع تأخیرها به ${toPersianDigits(formatMinutesLong(state.nextIndex * DELAY_MINUTES_PER_POINT))} رسید؛ ${toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره با تأیید معاون انضباطی کسر شد.`
+            : 'معاون انضباطی کسر نمره‌ی این بازه از تأخیرها را تأیید نکرد.',
+          scoreDeduction: approve ? DELAY_POINTS_DEDUCTED : 0,
+          recordedBy: currentUser.name,
+          type: 'delay',
+          source: approve ? 'approved_delay' : 'delay_dismissed',
+        };
+        const score = Math.max(0, Math.min(20, (s.disciplineScore ?? 20) - note.scoreDeduction));
+        return { ...s, disciplineScore: score, disciplinaryNotes: [note, ...(s.disciplinaryNotes || [])] };
+      })
+    );
+    if (applied) showToast(approve ? 'کسر نمره تأیید و ثبت شد.' : 'پیشنهاد کسر نمره رد شد.');
   };
 
   const updateStudentDiscipline = (studentId: string, score: number, status?: DisciplinaryStatus) => {
@@ -2609,6 +2606,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         transferStudentClass,
         assignStudentToClass,
         addDisciplinaryNote,
+        resolveDelayDeduction,
         updateStudentDiscipline,
         deleteDisciplinaryNote,
         addMorningDelay,

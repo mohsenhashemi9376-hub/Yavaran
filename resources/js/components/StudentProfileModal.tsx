@@ -59,7 +59,7 @@ import {
 import { hasPermission } from '../utils/permissions';
 import { studentWorksheetHistory, weekTitle, WORKSHEET_STATUS_LABEL } from '../utils/worksheets';
 import { studentFullName } from '../utils/studentName';
-import { summarizeStudentDelays, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
+import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets';
 
@@ -310,15 +310,16 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       })
     );
     sessionLogs.forEach((l) => {
-      if (l.status === 'present') return;
+      // غیبت‌های کلاسی (غایب/موجه در زنگ‌ها) در آمار غیبت دانش‌آموز نمی‌آیند؛ فقط تأخیر کلاسی شمرده می‌شود
+      if (l.status !== 'late') return;
       rows.push({
         id: `cs-${l.session.id}`,
         date: l.session.date,
         kind: 'class',
         eventLabel: `${l.session.subject}${l.session.bellPeriodName ? ` • ${l.session.bellPeriodName}` : ''}`,
-        type: l.status === 'late' ? 'late' : 'absent',
-        isExcused: l.status === 'excused',
-        delayMinutes: l.status === 'late' ? l.delayMinutes || 10 : 0,
+        type: 'late',
+        isExcused: false,
+        delayMinutes: l.delayMinutes || 0,
         note: l.note || '',
         recordedBy: l.session.teacherName || '',
       });
@@ -341,8 +342,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Attendance Metrics
   const totalSessions = sessionLogs.length;
   const attendedCount = sessionLogs.filter((l) => l.status === 'present').length;
-  const absentCount = sessionLogs.filter((l) => l.status === 'absent').length;
-  const excusedCount = sessionLogs.filter((l) => l.status === 'excused').length;
   const classLateCount = sessionLogs.filter((l) => l.status === 'late').length;
   const morningLateCount = studentMorningDelays.length;
   const legacyAbsentCount = studentSchoolAbsences.filter((a) => !a.isExcused).length;
@@ -350,8 +349,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const morningAbsentCount = morningLogs.filter((l) => l.status === 'absent' && !l.isExcused).length;
   const morningExcusedCount = morningLogs.filter((l) => l.status === 'absent' && l.isExcused).length;
   const morningAttendanceLateCount = morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0).length;
-  const totalAbsentCount = absentCount + morningAbsentCount + legacyAbsentCount;
-  const totalExcusedCount = excusedCount + morningExcusedCount + legacyExcusedCount;
+  const totalAbsentCount = morningAbsentCount + legacyAbsentCount;
+  const totalExcusedCount = morningExcusedCount + legacyExcusedCount;
   const totalDelaysCount = classLateCount + morningLateCount + morningAttendanceLateCount;
   const scoresList = sessionLogs.filter((l) => l.score !== undefined);
 
@@ -359,8 +358,9 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const delaySummary = currentStudent
     ? summarizeStudentDelays(currentStudent, { morningDelays, morningAttendance, sessions })
     : { count: 0, minutes: 0 };
-  const autoDeductedPoints = Math.floor(delaySummary.minutes / DELAY_MINUTES_PER_POINT) * DELAY_POINTS_DEDUCTED;
-  const minutesToNextPoint = DELAY_MINUTES_PER_POINT - (delaySummary.minutes % DELAY_MINUTES_PER_POINT);
+  const deductionState = delayDeductionState(currentStudent?.disciplinaryNotes, delaySummary.minutes);
+  const autoDeductedPoints = (deductionState.approved + (currentStudent?.disciplinaryNotes || []).filter((n) => n.source === 'auto_delay').length) * DELAY_POINTS_DEDUCTED;
+  const minutesToNextPoint = deductionState.minutesToNext;
 
   const attendanceRate = totalSessions > 0 
     ? Math.round((attendedCount / totalSessions) * 100) 
@@ -439,36 +439,15 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 
     // 3. Class absences & delays
     sessionLogs.forEach((log) => {
-      if (log.status === 'absent') {
-        events.push({
-          id: `sess-abs-${log.session.id}`,
-          type: 'session_absence',
-          title: 'غیبت غیرموجه در کلاس',
-          description: `درس ${log.session.subject || ''}${log.session.lessonTopic ? ` (${log.session.lessonTopic})` : ''}`,
-          date: log.session.date,
-          badgeText: 'غیبت غیرموجه',
-          badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
-          iconType: 'absence',
-        });
-      } else if (log.status === 'excused') {
-        events.push({
-          id: `sess-exc-${log.session.id}`,
-          type: 'session_absence',
-          title: 'غیبت موجه در کلاس',
-          description: `درس ${log.session.subject || ''}${log.session.lessonTopic ? ` (${log.session.lessonTopic})` : ''}`,
-          date: log.session.date,
-          badgeText: 'غیبت موجه',
-          badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
-          iconType: 'absence',
-        });
-      } else if (log.status === 'late') {
+      // غیبت‌های کلاسی (غایب/موجه در زنگ‌ها) در سوابق غیبت دانش‌آموز نمی‌آیند
+      if (log.status === 'late') {
         events.push({
           id: `sess-late-${log.session.id}`,
           type: 'session_delay',
           title: 'تأخیر در کلاس درس',
-          description: `درس ${log.session.subject || ''} • ${toPersianDigits(log.delayMinutes || 10)} دقیقه تأخیر`,
+          description: `درس ${log.session.subject || ''} • ${toPersianDigits(log.delayMinutes || 0)} دقیقه تأخیر`,
           date: log.session.date,
-          badgeText: `${toPersianDigits(log.delayMinutes || 10)} دقیقه تأخیر`,
+          badgeText: `${toPersianDigits(log.delayMinutes || 0)} دقیقه تأخیر`,
           badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
           iconType: 'delay',
         });
@@ -1205,7 +1184,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               {/* خلاصه غیبت و تأخیر + کسر خودکار نمره */}
               <div className="rounded-2xl border border-slate-200 bg-gradient-to-l from-rose-50/60 via-white to-amber-50/70 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <div className="text-slate-500 font-bold">دفعات غیبت</div>
+                  <div className="text-slate-500 font-bold">دفعات غیبت (غیر از غیبت کلاسی)</div>
                   <div className="mt-1 text-lg font-black text-rose-700">
                     {toPersianDigits(totalAbsentCount + totalExcusedCount)}
                     <span className="text-[11px] font-bold text-slate-400 mr-1.5">
@@ -1226,12 +1205,17 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                   )}
                 </div>
                 <div>
-                  <div className="text-slate-500 font-bold">کسر خودکار نمره انضباط</div>
+                  <div className="text-slate-500 font-bold">کسر نمره انضباط بابت تأخیر</div>
                   <div className={`mt-1 text-lg font-black ${autoDeductedPoints > 0 ? 'text-violet-700' : 'text-slate-700'}`}>
                     {autoDeductedPoints > 0 ? `−${toPersianDigits(autoDeductedPoints)} نمره` : 'بدون کسر'}
                   </div>
+                  {deductionState.pending > 0 && (
+                    <div className="text-[11px] font-bold text-amber-700 mt-0.5">
+                      {toPersianDigits(deductionState.pending)} کسر منتظر تأیید معاون انضباطی
+                    </div>
+                  )}
                   <div className="text-[10px] text-slate-400 mt-0.5">
-                    به‌ازای هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه تأخیر، {toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره • {toPersianDigits(minutesToNextPoint)} دقیقه تا کسر بعدی
+                    به‌ازای هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه تأخیر، {toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره (پس از تأیید معاون انضباطی) • {toPersianDigits(minutesToNextPoint)} دقیقه تا پیشنهاد بعدی
                   </div>
                 </div>
               </div>

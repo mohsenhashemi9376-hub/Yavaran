@@ -12,7 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // TRUSTED_PROXIES: آدرس IP پروکسی/CDN (با ویرگول جدا شود) یا * ؛ هدرهای X-Forwarded-* فقط از این مبداها پذیرفته می‌شوند
+        $trusted = trim((string) env('TRUSTED_PROXIES', '*'));
+        $middleware->trustProxies(at: $trusted === '*' ? '*' : array_values(array_filter(array_map('trim', explode(',', $trusted)))));
         $middleware->redirectGuestsTo('/');
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->alias(['password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class]);

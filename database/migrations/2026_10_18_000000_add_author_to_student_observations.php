@@ -30,7 +30,7 @@ return new class extends Migration
                     continue;
                 }
                 try {
-                    $json = ($raw[0] === '{' || $raw[0] === '[') ? $raw : \Illuminate\Support\Facades\Crypt::decryptString($raw);
+                    $json = ($raw[0] === '{' || $raw[0] === '[') ? $raw : \App\Support\NurturingCrypt::decryptString($raw);
                 } catch (\Throwable) {
                     continue;
                 }

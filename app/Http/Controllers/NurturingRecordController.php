@@ -23,6 +23,11 @@ class NurturingRecordController extends Controller
             throw $e;
         }
 
+        if ($reason = SecurityAlerts::viewBlockReason(request()->user())) {
+            NurturingAudit::log(request()->user(), 'view', 'nurturingDossiers', (string) $student->getKey(), null, false);
+            abort(429, $reason);
+        }
+
         abort_if($student->nurturingRecord === null, 404, 'برای این دانش‌آموز پرونده تربیتی ثبت نشده است.');
         NurturingAudit::log(request()->user(), 'view', 'nurturingDossiers', (string) $student->getKey(), (string) $student->nurturingRecord->getKey());
         SecurityAlerts::afterRecordView(request()->user());

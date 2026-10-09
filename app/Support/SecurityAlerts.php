@@ -129,6 +129,33 @@ final class SecurityAlerts
 
     // ---------- خواندن انبوه ----------
 
+    /**
+     * قفل موقت مشاهده‌ی پرونده‌ها برای مربی پس از سقف مجاز (در بازه‌ی ۱۰ دقیقه یا در یک روز).
+     * معاون تربیتی قفل نمی‌شود (فقط هشدار می‌گیرد). @return string|null پیام خطا در صورت قفل بودن
+     */
+    public static function viewBlockReason(User $user): ?string
+    {
+        try {
+            if ($user->role !== 'coach' || ! NurturingAudit::ensureTable()) {
+                return null;
+            }
+            $base = DB::table('nurturing_access_logs')->where('user_id', $user->id)->where('action', 'view')->where('allowed', true);
+
+            $burst = (clone $base)->where('created_at', '>=', now()->subMinutes(self::BULK_READ_MINUTES))->distinct()->count('student_id');
+            if ($burst >= (int) config('app.nurturing_bulk_block_limit', 30)) {
+                return 'تعداد پرونده‌های بازشده در مدت کوتاه از سقف مجاز گذشته است. چند دقیقه بعد دوباره تلاش کنید یا با معاون تربیتی هماهنگ کنید.';
+            }
+
+            $daily = (clone $base)->where('created_at', '>=', now()->setTimezone('Asia/Tehran')->startOfDay()->setTimezone(config('app.timezone')))->distinct()->count('student_id');
+            if ($daily >= (int) config('app.nurturing_daily_view_limit', 150)) {
+                return 'سقف روزانه‌ی مشاهده‌ی پرونده‌ها پر شده است. برای ادامه با معاون تربیتی هماهنگ کنید.';
+            }
+        } catch (\Throwable) {
+        }
+
+        return null;
+    }
+
     /** پس از هر مشاهده‌ی پرونده فراخوانی می‌شود */
     public static function afterRecordView(User $user): void
     {
@@ -203,5 +230,33 @@ final class SecurityAlerts
             'priority' => 'urgent',
             'ref_id' => $type,
         ]);
+
+        EitaaNotifier::send($title, $message);
+    }
+
+    /** تغییر نام کاربری یا رمز توسط خود مربی/معاون تربیتی: اعلان به معاون تربیتی (برای معاون: مدیر) و ایتا */
+    public static function credentialsChanged(User $user, bool $password, bool $username): void
+    {
+        try {
+            if (! self::watched($user)) {
+                return;
+            }
+            $what = implode(' و ', array_filter([$password ? 'رمز عبور' : null, $username ? 'نام کاربری' : null]));
+            self::raise($user, 'credentials_changed', 'تغییر اطلاعات ورود حساب', sprintf('«%s» %s حساب خود را تغییر داد. اگر خودِ او نبوده، فوراً نشست‌ها را ببندید.', $user->name, $what));
+        } catch (\Throwable) {
+        }
+    }
+
+    /** هشدار امنیتی عمومی (بدون حساب مشخص) برای معاون تربیتی و مدیر، مثلاً گسست زنجیره‌ی دفتر دسترسی */
+    public static function system(string $type, string $title, string $message): void
+    {
+        try {
+            $receivers = DB::table('users')->where('is_active', true)->whereIn('role', ['vice_nurturing', 'admin'])->pluck('id')->all();
+            Notifier::send($receivers, [
+                'title' => 'هشدار امنیتی: '.$title, 'message' => $message, 'type' => 'announcement', 'priority' => 'urgent', 'ref_id' => $type,
+            ]);
+            EitaaNotifier::send($title, $message);
+        } catch (\Throwable) {
+        }
     }
 }
