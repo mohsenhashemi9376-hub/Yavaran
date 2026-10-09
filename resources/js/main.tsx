@@ -4,8 +4,10 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { enablePersianDigits } from './utils/persianizeDom';
+import { enableResponsiveTables } from './utils/responsiveTables';
 
 enablePersianDigits();
+enableResponsiveTables();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

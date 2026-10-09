@@ -204,3 +204,44 @@ html.yv-confidential input, html.yv-confidential textarea, html.yv-confidential 
   html.yv-confidential body * { display: none !important; }
   html.yv-confidential body::before { content: 'چاپ اطلاعات تربیتی مجاز نیست.'; display: block; padding: 2rem; font-size: 1.25rem; }
 }
+
+/* ===== جدول‌ها در موبایل: هر ردیف یک کارت (بدون اسکرول افقی) ===== */
+@media (max-width: 767.98px) {
+  table[data-stack] { display: block; width: 100%; min-width: 0 !important; max-width: 100%; overflow: visible; font-size: 13px; }
+  table[data-stack] thead { display: none; }
+  table[data-stack] tbody { display: block; }
+  table[data-stack] tbody tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    background: #fff;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  }
+  table[data-stack] tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0 !important;
+    border: 0 !important;
+    border-bottom: 1px dashed rgb(226 232 240) !important;
+    white-space: normal !important;
+    text-align: start !important;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  table[data-stack] tbody td:last-child { border-bottom: 0 !important; }
+  table[data-stack] tbody td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 40%;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgb(100 116 139);
+  }
+  table[data-stack] tbody td:empty { display: none; }
+  table[data-stack] tbody td[colspan] { display: block; text-align: center !important; }
+  table[data-stack] tbody td > * { max-width: 100%; }
+}
