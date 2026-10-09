@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { useSchool } from '../context/SchoolContext';
 
 interface AdminDelaysWorkspaceProps {
   delays?: MorningDelayRecord[];
@@ -39,6 +40,7 @@ export const AdminDelaysWorkspace: React.FC<AdminDelaysWorkspaceProps> = ({
   onDeleteDelay,
   onSelectStudent,
 }) => {
+  const { showConfirm } = useSchool();
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
 
@@ -332,9 +334,17 @@ export const AdminDelaysWorkspace: React.FC<AdminDelaysWorkspaceProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (window.confirm('آیا از حذف این سابقه تأخیر اطمینان دارید؟')) {
+                            showConfirm({
+                              title: 'حذف شود؟',
+                              message: 'آیا از حذف این سابقه تأخیر اطمینان دارید؟',
+                              confirmLabel: 'بله، حذف شود',
+                              cancelLabel: 'انصراف',
+                              isDangerous: true,
+                              onConfirm: () => {
                               onDeleteDelay(delay.id);
-                            }
+                            
+                              },
+                            });
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer mx-auto"
                           title="حذف سابقه تأخیر"

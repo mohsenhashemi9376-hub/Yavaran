@@ -131,7 +131,7 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
     deleteTeacherEvaluation,
     addSchoolAnnouncement,
     deleteSchoolAnnouncement,
-    currentUser
+    currentUser, showConfirm
   } = useSchool();
 
   const teachers = allTeachers || [];
@@ -636,9 +636,17 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
                     {isEvaluated && (
                       <button
                         onClick={() => {
-                          if (confirm(`آیا از حذف ارزیابی ${teacher.name} اطمینان دارید؟`)) {
+                          showConfirm({
+                            title: 'حذف شود؟',
+                            message: `آیا از حذف ارزیابی ${teacher.name} اطمینان دارید؟`,
+                            confirmLabel: 'بله، حذف شود',
+                            cancelLabel: 'انصراف',
+                            isDangerous: true,
+                            onConfirm: () => {
                             deleteTeacherEvaluation(evalItem.id);
-                          }
+                          
+                            },
+                          });
                         }}
                         className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                         title="حذف ارزیابی"
@@ -694,9 +702,17 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
 
                     <button
                       onClick={() => {
-                        if (confirm('آیا از حذف این اطلاعیه اطمینان دارید؟')) {
+                        showConfirm({
+                          title: 'حذف شود؟',
+                          message: 'آیا از حذف این اطلاعیه اطمینان دارید؟',
+                          confirmLabel: 'بله، حذف شود',
+                          cancelLabel: 'انصراف',
+                          isDangerous: true,
+                          onConfirm: () => {
                           deleteSchoolAnnouncement(ann.id);
-                        }
+                        
+                          },
+                        });
                       }}
                       className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition"
                       title="حذف اطلاعیه"

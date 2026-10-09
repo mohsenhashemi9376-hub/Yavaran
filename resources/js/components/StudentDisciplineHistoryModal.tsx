@@ -62,7 +62,7 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
     }
   }, [isOpen, initialTab]);
 
-  const { morningAttendance, schoolAbsences } = useSchool();
+  const { morningAttendance, schoolAbsences, showConfirm } = useSchool();
 
   if (!isOpen || !student) return null;
 
@@ -364,9 +364,17 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
                       {onDeleteDelay && (
                         <button
                           onClick={() => {
-                            if (confirm('آیا از حذف این رکورد تاخیر اطمینان دارید؟')) {
+                            showConfirm({
+                              title: 'حذف شود؟',
+                              message: 'آیا از حذف این رکورد تاخیر اطمینان دارید؟',
+                              confirmLabel: 'بله، حذف شود',
+                              cancelLabel: 'انصراف',
+                              isDangerous: true,
+                              onConfirm: () => {
                               onDeleteDelay(delay.id);
-                            }
+                            
+                              },
+                            });
                           }}
                           className="text-slate-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
                           title="حذف سابقه تاخیر"
@@ -533,9 +541,17 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
                       {onDeleteNote && (
                         <button
                           onClick={() => {
-                            if (confirm('آیا از حذف این تذکر انضباطی اطمینان دارید؟')) {
+                            showConfirm({
+                              title: 'حذف شود؟',
+                              message: 'آیا از حذف این تذکر انضباطی اطمینان دارید؟',
+                              confirmLabel: 'بله، حذف شود',
+                              cancelLabel: 'انصراف',
+                              isDangerous: true,
+                              onConfirm: () => {
                               onDeleteNote(student.id, note.id);
-                            }
+                            
+                              },
+                            });
                           }}
                           className="text-slate-400 hover:text-rose-600 p-1 rounded transition cursor-pointer"
                           title="حذف تذکر"
