@@ -20,6 +20,8 @@ class NurturingSessionGuard
 
         $reason = NurturingSession::violation($request, $user);
         if ($reason === null) {
+            NurturingSession::touch($request);
+
             return $next($request);
         }
 

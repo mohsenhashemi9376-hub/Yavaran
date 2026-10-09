@@ -2,6 +2,7 @@
 
 namespace App\Support\Sync;
 
+use App\Http\Controllers\MentorMessageController;
 use App\Models\NurturingRecord;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,32 @@ final class NurturingEncryptor
                 }
             });
         }
+
+        return $done + self::encryptMentorMessages();
+    }
+
+    /** پیام‌های قدیمی مربیان که هنوز متن ساده‌اند */
+    private static function encryptMentorMessages(): int
+    {
+        if (! Schema::hasTable('mentor_messages')) {
+            return 0;
+        }
+        $done = 0;
+        DB::table('mentor_messages')->select(['id', 'title', 'content'])->orderBy('id')->chunk(200, function ($rows) use (&$done): void {
+            foreach ($rows as $row) {
+                try {
+                    Crypt::decryptString((string) $row->content);
+
+                    continue; // قبلاً رمز شده
+                } catch (\Throwable) {
+                }
+                DB::table('mentor_messages')->where('id', $row->id)->update([
+                    'title' => '',
+                    'content' => MentorMessageController::seal((string) $row->title, (string) $row->content),
+                ]);
+                $done++;
+            }
+        });
 
         return $done;
     }

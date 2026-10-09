@@ -129,6 +129,33 @@ final class SecurityAlerts
 
     // ---------- خواندن انبوه ----------
 
+    /**
+     * قفل موقت مشاهده‌ی پرونده‌ها برای مربی پس از سقف مجاز (در بازه‌ی ۱۰ دقیقه یا در یک روز).
+     * معاون تربیتی قفل نمی‌شود (فقط هشدار می‌گیرد). @return string|null پیام خطا در صورت قفل بودن
+     */
+    public static function viewBlockReason(User $user): ?string
+    {
+        try {
+            if ($user->role !== 'coach' || ! NurturingAudit::ensureTable()) {
+                return null;
+            }
+            $base = DB::table('nurturing_access_logs')->where('user_id', $user->id)->where('action', 'view')->where('allowed', true);
+
+            $burst = (clone $base)->where('created_at', '>=', now()->subMinutes(self::BULK_READ_MINUTES))->distinct()->count('student_id');
+            if ($burst >= (int) config('app.nurturing_bulk_block_limit', 30)) {
+                return 'تعداد پرونده‌های بازشده در مدت کوتاه از سقف مجاز گذشته است. چند دقیقه بعد دوباره تلاش کنید یا با معاون تربیتی هماهنگ کنید.';
+            }
+
+            $daily = (clone $base)->where('created_at', '>=', now()->setTimezone('Asia/Tehran')->startOfDay()->setTimezone(config('app.timezone')))->distinct()->count('student_id');
+            if ($daily >= (int) config('app.nurturing_daily_view_limit', 150)) {
+                return 'سقف روزانه‌ی مشاهده‌ی پرونده‌ها پر شده است. برای ادامه با معاون تربیتی هماهنگ کنید.';
+            }
+        } catch (\Throwable) {
+        }
+
+        return null;
+    }
+
     /** پس از هر مشاهده‌ی پرونده فراخوانی می‌شود */
     public static function afterRecordView(User $user): void
     {

@@ -23,6 +23,9 @@ class AuthController extends Controller
 {
     private const MAX_ATTEMPTS = 5;
 
+    /** سقف تلاش ناموفق برای یک نام کاربری در ۱۵ دقیقه (از هر IP) */
+    private const MAX_ACCOUNT_ATTEMPTS = 10;
+
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -33,6 +36,15 @@ class AuthController extends Controller
         $username = trim(Digits::toEnglish($validated['username']));
         $password = trim(Digits::toEnglish($validated['password']));
         $throttleKey = 'login:'.Str::lower($username).'|'.$request->ip();
+
+        // قفل بر اساس نام کاربری، مستقل از IP؛ با عوض‌کردن IP (یا جعل X-Forwarded-For) دور زده نمی‌شود
+        $accountKey = 'login-account:'.Str::lower($username);
+        if (RateLimiter::tooManyAttempts($accountKey, self::MAX_ACCOUNT_ATTEMPTS)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تعداد تلاش‌های ناموفق برای این حساب زیاد است. چند دقیقه بعد دوباره تلاش کنید.',
+            ], 429);
+        }
 
         if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_ATTEMPTS)) {
             $seconds = RateLimiter::availableIn($throttleKey);
@@ -52,6 +64,7 @@ class AuthController extends Controller
 
         if (! $user || ! $user->password || ! password_verify($password, $user->password)) {
             RateLimiter::hit($throttleKey, 60);
+            RateLimiter::hit($accountKey, 900);
             SecurityAlerts::failedLogin($user);
 
             return response()->json([
@@ -68,6 +81,7 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+        RateLimiter::clear($accountKey);
 
         $dirty = false;
         if (Hash::needsRehash($user->password)) {

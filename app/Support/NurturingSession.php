@@ -14,6 +14,8 @@ final class NurturingSession
 {
     public const LOGIN_AT = 'nurturing.login_at';
 
+    public const LAST_SEEN = 'nurturing.last_seen';
+
     public const ROLES = ['coach', 'vice_nurturing'];
 
     public static function applies(?User $user): bool
@@ -25,6 +27,7 @@ final class NurturingSession
     public static function start(Request $request): void
     {
         $request->session()->put(self::LOGIN_AT, now()->getTimestamp());
+        $request->session()->put(self::LAST_SEEN, now()->getTimestamp());
     }
 
     /** ستون بسته شدن نشست‌ها را در دیتابیس‌های به‌روزنشده اضافه می‌کند */
@@ -50,6 +53,17 @@ final class NurturingSession
     public static function violation(Request $request, User $user): ?string
     {
         $loginAt = (int) $request->session()->get(self::LOGIN_AT, 0);
+        $now = now()->getTimestamp();
+
+        $maxHours = (int) config('app.nurturing_session_max_hours', 14);
+        if ($loginAt > 0 && $maxHours > 0 && $now - $loginAt > $maxHours * 3600) {
+            return 'expired';
+        }
+        $idle = (int) config('app.nurturing_idle_minutes', 0);
+        $lastSeen = (int) $request->session()->get(self::LAST_SEEN, 0);
+        if ($idle > 0 && $lastSeen > 0 && $now - $lastSeen > $idle * 60) {
+            return 'idle';
+        }
         $revokedAt = self::ensureColumn() && $user->getAttribute('sessions_revoked_at')
             ? \Illuminate\Support\Carbon::parse($user->getAttribute('sessions_revoked_at'))->getTimestamp()
             : 0;
@@ -67,8 +81,24 @@ final class NurturingSession
         return $revokedAt > 0 && $loginAt <= $revokedAt ? 'revoked' : null;
     }
 
+    /** ثبت آخرین فعالیت واقعی کاربر (نه بازخوانی پس‌زمینه) برای خروج بر اثر بی‌فعالیتی */
+    public static function touch(Request $request): void
+    {
+        $background = $request->isMethod('GET') && ($request->is('api/bootstrap') || $request->is('api/notifications') || $request->is('api/mentor-messages/active'));
+        if (! $background) {
+            $request->session()->put(self::LAST_SEEN, now()->getTimestamp());
+        }
+    }
+
     public static function message(string $reason): string
     {
+        if ($reason === 'expired') {
+            return 'مدت نشست شما به پایان رسید. برای ادامه دوباره وارد شوید.';
+        }
+        if ($reason === 'idle') {
+            return 'به دلیل بی‌فعالیتی از سامانه خارج شدید. دوباره وارد شوید.';
+        }
+
         return 'نشست شما توسط معاون تربیتی بسته شده است. دوباره وارد شوید.';
     }
 }

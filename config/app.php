@@ -21,6 +21,20 @@ return [
     /* دستگاه مطمئن: پس از ورود دومرحله‌ای موفق، در همان دستگاه فقط رمز عبور کافی است (روز) */
     'trusted_device_days' => (int) env('TRUSTED_DEVICE_DAYS', 180),
 
+    /* دستگاه مطمئن برای مربی و معاون تربیتی کوتاه‌تر است (روز) */
+    'trusted_device_days_nurturing' => (int) env('TRUSTED_DEVICE_DAYS_NURTURING', 14),
+
+    /*
+     * عمر مطلق نشست مربی و معاون تربیتی (ساعت): پس از آن، حتی با فعالیت، دوباره باید وارد شوند.
+     * بی‌فعالیتی (دقیقه): ۰ = غیرفعال (حفاظت با تأیید مجدد رمز انجام می‌شود).
+     */
+    'nurturing_session_max_hours' => (int) env('NURTURING_SESSION_MAX_HOURS', 14),
+    'nurturing_idle_minutes' => (int) env('NURTURING_IDLE_MINUTES', 0),
+
+    /* سقف باز کردن پرونده توسط مربی؛ پس از آن تا پایان بازه، دسترسی موقتاً قفل می‌شود */
+    'nurturing_bulk_block_limit' => (int) env('NURTURING_BULK_BLOCK_LIMIT', 30),
+    'nurturing_daily_view_limit' => (int) env('NURTURING_DAILY_VIEW_LIMIT', 150),
+
     /* حداقل طول رمز عبور مربی و معاون تربیتی */
     'nurturing_password_min' => (int) env('NURTURING_PASSWORD_MIN', 8),
 

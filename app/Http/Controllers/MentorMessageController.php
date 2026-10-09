@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -47,8 +49,8 @@ class MentorMessageController extends Controller
             'target_type' => $data['targetType'],
             'target_mentor_id' => $targetMentorId,
             'priority' => $data['priority'],
-            'title' => $title,
-            'content' => $content,
+            'title' => '', // عنوان و متن پیام با هم رمز می‌شوند (ستون title متن ساده نمی‌ماند)
+            'content' => self::seal($title, $content),
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -141,13 +143,35 @@ class MentorMessageController extends Controller
         return response()->json(['messages' => $result->all()]);
     }
 
+    /** عنوان و متن پیام را یک‌جا رمز می‌کند (AES-256) */
+    public static function seal(string $title, string $content): string
+    {
+        return Crypt::encryptString(json_encode(['title' => $title, 'content' => $content], JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * @return array{title: string, content: string}
+     *                                               پیام‌های قدیمی (متن ساده) همان‌طور خوانده می‌شوند تا دستور nurturing:encrypt رمزشان کند
+     */
+    public static function open(string $title, string $content): array
+    {
+        try {
+            $data = json_decode(Crypt::decryptString($content), true);
+            if (is_array($data) && isset($data['content'])) {
+                return ['title' => (string) ($data['title'] ?? ''), 'content' => (string) $data['content']];
+            }
+        } catch (DecryptException) {
+        }
+
+        return ['title' => $title, 'content' => $content];
+    }
+
     private function present(object $m): array
     {
         return [
             'id' => (int) $m->id,
             'priority' => $m->priority,
-            'title' => $m->title,
-            'content' => $m->content,
+            ...self::open((string) $m->title, (string) $m->content),
             'createdAt' => $m->created_at ? \Illuminate\Support\Carbon::parse($m->created_at)->toIso8601String() : null,
         ];
     }
