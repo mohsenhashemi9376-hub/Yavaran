@@ -1,4 +1,5 @@
 import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -296,6 +297,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [rawView, setCurrentView] = useState<NurturingViewType>(null);
   const deniedView = rawView && !canAccessSection(currentUser, rawView);
   const currentView = deniedView ? null : rawView;
+  useScrollTop(currentView);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 

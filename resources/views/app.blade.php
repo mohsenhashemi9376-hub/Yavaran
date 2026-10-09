@@ -20,9 +20,6 @@
     <meta name="description" content="سامانه جامع مدیریت آموزشی، انضباطی و تربیتی مدرسه یاوران ولایت شامل مدیریت دروس و تخصیص اساتید دوره اول متوسطه، دفتر نمرات و مانیتورینگ کارنامه، و پنل‌های معاونت تربیتی و انضباطی" />
     <meta property="og:title" content="مدرسه یاوران ولایت" />
     <meta property="og:description" content="سامانه جامع مدیریت آموزشی، انضباطی و تربیتی مدرسه یاوران ولایت" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     @vite('resources/js/main.tsx')
   </head>
   <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] antialiased selection:bg-emerald-500 selection:text-white">

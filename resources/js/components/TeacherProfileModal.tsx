@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits } from '../utils/persianDate';
+import { workshopTitle } from '../utils/workshops';
 import { 
   X, 
   Eye, 
@@ -33,7 +34,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   teacher,
   onEdit,
 }) => {
-  const { classes, sessions, students, academicSubjects } = useSchool();
+  const { classes, sessions, students, academicSubjects, workshops } = useSchool();
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -43,6 +44,8 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   const teacherClasses = classes.filter((c) => 
     teacher.assignedClassIds?.includes(c.id) || c.teacherIds?.includes(teacher.id)
   );
+
+  const teacherWorkshops = workshops.filter((w) => w.teacherId === teacher.id);
 
   // Sessions conducted by this teacher
   const teacherSessions = sessions.filter((s) => s.teacherId === teacher.id);
@@ -86,7 +89,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                   پنل شخصی {displayName}
                 </h3>
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-medium">
-                  {teacherClasses.length > 0 ? 'استاد فعال' : 'در انتظار تخصیص'}
+                  {teacherClasses.length > 0 || teacherWorkshops.length > 0 ? 'استاد فعال' : 'در انتظار تخصیص'}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
@@ -213,7 +216,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                 </span>
               </div>
 
-              {teacherClasses.length === 0 ? (
+              {teacherClasses.length === 0 && teacherWorkshops.length === 0 ? (
                 <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-slate-400 text-xs">
                   در حال حاضر هیچ کلاسی برای این استاد تعیین نشده است.
                 </div>
@@ -238,6 +241,27 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {teacherWorkshops.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <span className="text-[11px] text-slate-400 block">کارگاه‌های علمی و مهارتی:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {teacherWorkshops.map((w) => (
+                      <div key={w.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-slate-900">{workshopTitle(w)}</div>
+                          {(w.day || w.period) && (
+                            <div className="text-[10px] text-slate-500 mt-0.5">{[w.day, w.period].filter(Boolean).join(' • ')}</div>
+                          )}
+                        </div>
+                        <div className="font-bold text-[11px] text-indigo-700 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0">
+                          {toPersianDigits(w.studentIds.length)} دانش‌آموز
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

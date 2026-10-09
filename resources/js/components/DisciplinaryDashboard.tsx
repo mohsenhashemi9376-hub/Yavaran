@@ -1,4 +1,5 @@
 import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
@@ -108,6 +109,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
   const [rawView, setCurrentView] = useState<ExecutiveViewType>(null);
   const deniedView = rawView && !canAccessSection(currentUser, rawView);
   const currentView = deniedView ? null : rawView;
+  useScrollTop(currentView);
 
   // وضعیت‌های مربوط به مدال‌های عملیاتی
 

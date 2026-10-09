@@ -1,4 +1,5 @@
 import { AccessDeniedNotice } from './AccessDeniedNotice';
+import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -139,6 +140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [rawFullScreenView, setCurrentFullScreenView] = useState<FullScreenView | null>(null);
   const deniedFullScreenView = rawFullScreenView && !canAccessSection(currentUser, rawFullScreenView);
   const currentFullScreenView = deniedFullScreenView ? null : rawFullScreenView;
+  useScrollTop(currentFullScreenView);
 
   // Navigation: Layer 2 (Sidebar Drawer)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

@@ -119,4 +119,36 @@ class NotificationController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /** وضعیت مشاهده‌ی یک بخشنامه: چه کسانی دیده‌اند و چه کسانی هنوز ندیده‌اند (فقط دارندگان مجوز مدیریت بخشنامه) */
+    public function circularReaders(Request $request, string $circular): JsonResponse
+    {
+        Notifier::ensureTable();
+        /** @var User $user */
+        $user = $request->user();
+        if (! $user->hasPermission('manage-announcements')) {
+            return response()->json(['message' => 'دسترسی به این بخش برای شما مجاز نیست.'], 403);
+        }
+
+        $rows = DB::table('notifications as n')
+            ->join('users as u', 'u.id', '=', 'n.receiver_id')
+            ->where('n.type', 'circular')
+            ->where('n.ref_id', $circular)
+            ->orderBy('u.name')
+            ->get(['u.id', 'u.name', 'u.role', 'n.is_read', 'n.read_at']);
+
+        $readers = $rows->map(fn ($r) => [
+            'id' => $r->id,
+            'name' => $r->name,
+            'role' => $r->role,
+            'isRead' => (bool) $r->is_read,
+            'readAt' => $r->read_at ? str_replace(' ', 'T', (string) $r->read_at).'Z' : null,
+        ])->all();
+
+        return response()->json([
+            'total' => count($readers),
+            'readCount' => count(array_filter($readers, fn ($r) => $r['isRead'])),
+            'readers' => $readers,
+        ]);
+    }
 }

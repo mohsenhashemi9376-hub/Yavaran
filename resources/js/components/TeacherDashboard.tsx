@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useScrollTop } from '../utils/useScrollTop';
 import { apiRequest } from '../lib/serverSync';
 import { CircularModal } from './CircularModal';
 import { CircularAlertCard } from './CircularAlertCard';
@@ -76,6 +77,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
+  useScrollTop(activeView);
 
   // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
   const [circularModal, setCircularModal] = useState<SchoolAnnouncement | null>(null);

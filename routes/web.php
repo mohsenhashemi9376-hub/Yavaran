@@ -57,6 +57,9 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
             Route::get('/', [NotificationController::class, 'index'])->name('api.notifications.index');
             Route::post('/', [NotificationController::class, 'store'])->name('api.notifications.store');
             Route::post('read-all', [NotificationController::class, 'readAll'])->name('api.notifications.read-all');
+            Route::get('circulars/{circular}/readers', [NotificationController::class, 'circularReaders'])
+                ->where('circular', '[A-Za-z0-9_\-]+')
+                ->name('api.notifications.circular-readers');
             Route::post('{notification}/read', [NotificationController::class, 'read'])
                 ->whereNumber('notification')
                 ->name('api.notifications.read');
