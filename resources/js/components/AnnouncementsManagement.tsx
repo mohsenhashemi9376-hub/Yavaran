@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolAnnouncement } from '../types';
-import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
+import { apiRequest } from '../lib/serverSync';
+import { dateToShamsiString, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import {
-  Bell, Plus, Pencil, Trash2, Archive, ArchiveRestore, Paperclip, X, ArrowRight, Menu, Eye, Send,
+  Bell, Plus, Pencil, Trash2, Archive, ArchiveRestore, Paperclip, X, ArrowRight, Menu, Eye, Send, Users, CheckCircle2, Clock,
 } from 'lucide-react';
 
 interface Props {
@@ -17,6 +18,9 @@ const PRIORITY_CLASS = {
   important: 'bg-amber-50 text-amber-800 border-amber-200',
   urgent: 'bg-rose-50 text-rose-800 border-rose-200',
 } as const;
+interface Reader { id: string; name: string; role: string; isRead: boolean; readAt: string | null }
+interface ReadersResponse { total: number; readCount: number; readers: Reader[] }
+const ROLE_LABEL: Record<string, string> = { teacher: 'مدرس', coach: 'مربی' };
 const MAX_ATTACHMENT_BYTES = 700 * 1024;
 
 const fieldClass =
@@ -47,6 +51,20 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
   const [form, setForm] = useState(emptyForm());
   const [viewing, setViewing] = useState<SchoolAnnouncement | null>(null);
   const [error, setError] = useState('');
+  const [readersFor, setReadersFor] = useState<SchoolAnnouncement | null>(null);
+  const [readers, setReaders] = useState<ReadersResponse | null>(null);
+  const [readersError, setReadersError] = useState('');
+
+  useEffect(() => {
+    if (!readersFor) return;
+    let cancelled = false;
+    setReaders(null);
+    setReadersError('');
+    apiRequest<ReadersResponse>('GET', `/api/notifications/circulars/${encodeURIComponent(readersFor.id)}/readers`)
+      .then((res) => { if (!cancelled) setReaders(res); })
+      .catch(() => { if (!cancelled) setReadersError('دریافت وضعیت مشاهده ممکن نشد. اتصال را بررسی کنید.'); });
+    return () => { cancelled = true; };
+  }, [readersFor]);
 
   const openNew = () => {
     setEditingId(null);
@@ -204,6 +222,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
                       <td className="p-3.5 whitespace-nowrap">
                         <div className="flex items-center justify-center gap-0.5">
                           <button onClick={() => setViewing(a)} title="مشاهده" aria-label="مشاهده" className="p-2 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => setReadersFor(a)} title="چه کسانی دیده‌اند" aria-label="چه کسانی دیده‌اند" className="p-2 rounded-lg text-slate-400 hover:text-sky-700 hover:bg-sky-50 cursor-pointer"><Users className="w-4 h-4" /></button>
                           <button onClick={() => openEdit(a)} title="ویرایش" aria-label="ویرایش" className="p-2 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"><Pencil className="w-4 h-4" /></button>
                           <button
                             onClick={() => updateSchoolAnnouncement(a.id, { status: archived ? 'active' : 'archived' })}
@@ -224,6 +243,59 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
           </div>
         )}
       </div>
+
+      {readersFor && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => e.target === e.currentTarget && setReadersFor(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-2 -mx-6 -mt-6 px-6 py-4 bg-sky-50/70 border-b border-sky-100 rounded-t-3xl">
+              <div>
+                <h3 className="font-extrabold text-slate-900">وضعیت مشاهده بخشنامه</h3>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">{readersFor.title}</p>
+              </div>
+              <button onClick={() => setReadersFor(null)} aria-label="بستن" className="text-slate-400 hover:text-slate-700 cursor-pointer"><X className="w-5 h-5" /></button>
+            </div>
+            {readersError && <div role="alert" className="text-xs font-bold text-rose-700 bg-rose-50 rounded-xl p-3">{readersError}</div>}
+            {!readers && !readersError && <div className="text-center text-sm text-slate-400 py-8">در حال بارگذاری…</div>}
+            {readers && readers.total === 0 && (
+              <div className="text-center text-sm text-slate-500 py-8">برای این بخشنامه اعلانی ارسال نشده است.</div>
+            )}
+            {readers && readers.total > 0 && (
+              <>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                    <span>{toPersianDigits(readers.readCount)} نفر از {toPersianDigits(readers.total)} نفر مشاهده کرده‌اند</span>
+                    <span>{toPersianDigits(Math.round((readers.readCount / readers.total) * 100))}٪</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(readers.readCount / readers.total) * 100}%` }} />
+                  </div>
+                </div>
+                <ul className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+                  {[...readers.readers].sort((a, b) => Number(a.isRead) - Number(b.isRead)).map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{r.name}</div>
+                        <div className="text-[11px] text-slate-400">{ROLE_LABEL[r.role] || r.role}</div>
+                      </div>
+                      {r.isRead ? (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 rounded-full px-2.5 py-1 shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          دیده شد{r.readAt ? ` · ${toPersianDigits(dateToShamsiString(new Date(r.readAt)))}` : ''}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2.5 py-1 shrink-0">
+                          <Clock className="w-3.5 h-3.5" />
+                          هنوز ندیده
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {viewing && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => e.target === e.currentTarget && setViewing(null)}>
