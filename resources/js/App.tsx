@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { Header } from './components/Header';
@@ -46,6 +47,7 @@ const MainApp: React.FC = () => {
   // Active view tab: 'main' (Classes/Attendance), 'discipline' (Disciplinary VP), 'grades' (Educational VP), 'nurture' (Nurturing VP & Coach), 'teacher' (Coach acting as Teacher)
   const [activeTab, setActiveTab] = useState<'main' | 'discipline' | 'grades' | 'nurture' | 'teacher'>('main');
   const prevUserIdRef = useRef<string>('');
+  useScrollTop(activeTab);
 
   // گارد دسترسی: مدیر مدرسه هیچ دسترسی‌ای به بخش معاونت تربیتی ندارد
   // جابه‌جایی بین پنل معاونت‌ها فقط برای مدیر مدرسه؛ سایرین فقط پنل مسئولیت خود (و پنل آموزشی در صورت داشتن درس)
