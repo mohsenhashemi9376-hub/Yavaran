@@ -2,6 +2,66 @@
 @import "./lux.css";
 @source "../views";
 
+/* وزیرمتن با ارقام فارسی (FD)، میزبانی‌شده روی خود سایت؛ هر رقم لاتین هم با شکل فارسی نمایش داده می‌شود */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-ExtraBold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('../fonts/Vazirmatn-UI-FD-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+}
+
+html, body { font-family: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif; }
+button, input, select, textarea, optgroup { font-family: inherit; }
+
+
 /* جداول: عرض حداقلی و جلوگیری از شکستن حروف فارسی (کانتینر والد اسکرول افقی دارد) */
 @layer base {
   table { min-width: 650px; }
@@ -133,8 +193,5 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 5) { background-color: rgb(255 251 235 / 0.7); border-color: rgb(253 230 138 / 0.8); }
 .edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 6) { background-color: rgb(255 241 242 / 0.7); border-color: rgb(254 205 211 / 0.8); }
 
-/* ارقام و متن فارسی با font-mono نباید به فونت مونواسپیس سیستم برگردند */
-.font-mono {
-  font-family: 'Vazirmatn', sans-serif !important;
-  font-variant-numeric: tabular-nums;
-}
+
+.font-mono { font-variant-numeric: tabular-nums; }
