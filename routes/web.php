@@ -7,6 +7,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NurturingAuditController;
 use App\Http\Controllers\NurturingRecordController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\TwoFactorController;
@@ -63,6 +64,10 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
             Route::post('{notification}/read', [NotificationController::class, 'read'])
                 ->whereNumber('notification')
                 ->name('api.notifications.read');
+        });
+        Route::prefix('referrals')->middleware('throttle:60,1')->group(function (): void {
+            Route::get('/', [ReferralController::class, 'index'])->name('api.referrals.index');
+            Route::post('/', [ReferralController::class, 'store'])->name('api.referrals.store');
         });
         Route::get('students/{student}/nurturing-record', [NurturingRecordController::class, 'show'])
             ->middleware('throttle:120,1')

@@ -15,7 +15,7 @@ export interface DisciplinaryNote {
   recordedBy: string; // e.g. "معاون انضباطی"
   author?: string; // alias for recordedBy
   type: 'delay' | 'absence' | 'behavior' | 'uniform' | 'other';
-  source?: 'class_warning' | 'auto_delay'; // اخطار کلاسی استاد، یا کسر نمره‌ی خودکارِ سامانه بابت مجموع تأخیرها
+  source?: 'class_warning' | 'auto_delay' | 'approved_delay' | 'delay_dismissed'; // اخطار کلاسی، کسر خودکار قدیمی (هر ۶۰ دقیقه)، کسر تأییدشده توسط معاون انضباطی (هر ۱۲۰ دقیقه)، یا پیشنهاد ردشده
   warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
   subject?: string; // درس مربوط به اخطار کلاسی
   sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)

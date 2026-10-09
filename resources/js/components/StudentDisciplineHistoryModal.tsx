@@ -21,6 +21,8 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { useSchool } from '../context/SchoolContext';
+import { absenceEventsOf } from '../utils/attendanceStats';
 
 interface StudentDisciplineHistoryModalProps {
   isOpen: boolean;
@@ -60,6 +62,8 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
     }
   }, [isOpen, initialTab]);
 
+  const { morningAttendance, schoolAbsences } = useSchool();
+
   if (!isOpen || !student) return null;
 
   const safeMorningDelays = Array.isArray(morningDelays) ? morningDelays : [];
@@ -84,22 +88,17 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
     note?: string;
   }[] = [];
 
-  sessions
-    .filter((s) => s.classId === student.classId)
-    .forEach((s) => {
-      const rec = s.records[student.id];
-      if (rec && (rec.status === 'absent' || rec.status === 'excused')) {
-        studentAbsenceSessions.push({
-          sessionId: s.id,
-          date: s.date,
-          dayOfWeek: s.dayOfWeek || getDayOfWeekFromShamsi(s.date),
-          subject: s.subject,
-          teacherName: s.teacherName,
-          status: rec.status,
-          note: rec.note,
-        });
-      }
+  // غیبت‌های کلاسی (زنگ‌ها) در آمار غیبت دانش‌آموز نمی‌آیند؛ فقط غیبت روزانه‌ی مدرسه (صبحگاه و دفتر غیبت)
+  absenceEventsOf(student, { morningDelays, morningAttendance, schoolAbsences, sessions }).forEach((e) => {
+    studentAbsenceSessions.push({
+      sessionId: `abs-${e.date}`,
+      date: e.date,
+      dayOfWeek: getDayOfWeekFromShamsi(e.date),
+      subject: 'غیبت روزانه مدرسه',
+      teacherName: '',
+      status: e.excused ? 'excused' : 'absent',
     });
+  });
 
   studentAbsenceSessions.sort((a, b) => b.date.localeCompare(a.date));
   const unexcusedAbsenceCount = studentAbsenceSessions.filter((s) => s.status === 'absent').length;

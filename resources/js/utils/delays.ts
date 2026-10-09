@@ -1,7 +1,9 @@
 import type { AttendanceSession, MorningAttendanceRecord, MorningDelayRecord, StudentAttendanceRecord } from '../types';
 
-/** هر این‌قدر دقیقه تأخیر تجمعی، یک نمره از نمره انضباط کم می‌شود */
-export const DELAY_MINUTES_PER_POINT = 60;
+/** هر این‌قدر دقیقه تأخیر تجمعی، پس از تأیید معاون انضباطی یک نمره از نمره انضباط کم می‌شود */
+export const DELAY_MINUTES_PER_POINT = 120;
+/** کسرهای خودکار قدیمی (پیش از الزام تأیید) هر یک معادل این‌قدر دقیقه بودند */
+export const LEGACY_AUTO_DELAY_MINUTES = 60;
 /** نمره‌ای که به‌ازای هر بازه کسر می‌شود */
 export const DELAY_POINTS_DEDUCTED = 1;
 
@@ -55,6 +57,46 @@ export function summarizeStudentDelays(
 
 /** تعداد نمره‌ای که تا این مجموع دقایق باید کسر شده باشد */
 export const expectedDelayDeductions = (minutes: number): number => Math.floor(minutes / DELAY_MINUTES_PER_POINT);
+
+/** شناسه‌ی پیشنهاد کسر k‌ام (۱، ۲، …) برای یک دانش‌آموز */
+export const delayDeductionId = (studentId: string, k: number): string => `delay-ded-${studentId}-${k}`;
+
+export interface DelayDeductionState {
+  /** تعداد کسرهای تأییدشده */
+  approved: number;
+  /** تعداد پیشنهادهای ردشده */
+  dismissed: number;
+  /** تعداد پیشنهادهای منتظر تأیید */
+  pending: number;
+  /** شماره‌ی k بعدی که در صورت تأیید ثبت می‌شود */
+  nextIndex: number;
+  /** دقیقه‌ی مانده تا پیشنهاد بعدی */
+  minutesToNext: number;
+}
+
+/**
+ * وضعیت کسر نمره بابت تأخیر: هر ۱۲۰ دقیقه‌ی تجمعی یک پیشنهاد کسر یک‌نمره‌ای می‌سازد که تا تأیید معاون انضباطی اعمال نمی‌شود.
+ * کسرهای خودکار قدیمی (هر ۶۰ دقیقه) همان‌طور که اعمال شده‌اند می‌مانند و دقایقشان از شمارش کم می‌شود تا دوبار کسر نشود.
+ */
+export function delayDeductionState(
+  notes: { source?: string }[] | undefined,
+  totalMinutes: number
+): DelayDeductionState {
+  const list = notes || [];
+  const legacy = list.filter((n) => n.source === 'auto_delay').length;
+  const approved = list.filter((n) => n.source === 'approved_delay').length;
+  const dismissed = list.filter((n) => n.source === 'delay_dismissed').length;
+  const effective = Math.max(0, totalMinutes - legacy * LEGACY_AUTO_DELAY_MINUTES);
+  const earned = Math.floor(effective / DELAY_MINUTES_PER_POINT);
+  const handled = approved + dismissed;
+  return {
+    approved,
+    dismissed,
+    pending: Math.max(0, earned - handled),
+    nextIndex: handled + 1,
+    minutesToNext: DELAY_MINUTES_PER_POINT - (effective % DELAY_MINUTES_PER_POINT),
+  };
+}
 
 /** «۱ ساعت و ۱۵ دقیقه» */
 export function formatMinutesLong(minutes: number): string {
