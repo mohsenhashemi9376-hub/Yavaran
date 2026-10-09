@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolAnnouncement } from '../types';
 import { apiRequest } from '../lib/serverSync';
+import { PageHeader, Button } from './ui';
+import { ListSkeleton } from './Skeleton';
 import { dateToShamsiString, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import {
   Bell, Plus, Pencil, Trash2, Archive, ArchiveRestore, Paperclip, X, ArrowRight, Menu, Eye, Send, Users, CheckCircle2, Clock,
@@ -145,30 +147,17 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
 
   return (
     <div className="space-y-5 font-['Vazirmatn',sans-serif]" dir="rtl">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 cursor-pointer"
-          aria-label="بازگشت"
-        >
-          <ArrowRight className="w-5 h-5" />
-        </button>
-        <h1 className="text-xl font-extrabold text-slate-900 flex-1">بخشنامه‌ها و اطلاعیه‌ها</h1>
-        <button
-          onClick={onOpenSidebar}
-          className="lg:hidden h-10 px-3 bg-white hover:bg-slate-100 text-slate-700 rounded-xl text-sm font-bold flex items-center gap-1.5 border border-slate-200 cursor-pointer"
-        >
-          <Menu className="w-4 h-4" />
-          <span>منو</span>
-        </button>
-        <button
-          onClick={openNew}
-          className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-extrabold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>ثبت بخشنامه جدید</span>
-        </button>
-      </div>
+      <PageHeader
+        title="بخشنامه‌ها و اطلاعیه‌ها"
+        subtitle="ابلاغ بخشنامه و مشاهدهٔ اینکه چه کسانی آن را دیده‌اند"
+        icon={<Bell className="w-5 h-5" />}
+        onBack={onBack}
+        onOpenSidebar={onOpenSidebar}
+        actions={
+          <Button onClick={openNew} icon={<Plus className="w-4 h-4" />}>ثبت بخشنامه جدید</Button>
+        }
+        className="!mb-0"
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {schoolAnnouncements.length === 0 ? (
@@ -255,7 +244,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
               <button onClick={() => setReadersFor(null)} aria-label="بستن" className="text-slate-400 hover:text-slate-700 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             {readersError && <div role="alert" className="text-xs font-bold text-rose-700 bg-rose-50 rounded-xl p-3">{readersError}</div>}
-            {!readers && !readersError && <div className="text-center text-sm text-slate-400 py-8">در حال بارگذاری…</div>}
+            {!readers && !readersError && <ListSkeleton rows={4} />}
             {readers && readers.total === 0 && (
               <div className="text-center text-sm text-slate-500 py-8">برای این بخشنامه اعلانی ارسال نشده است.</div>
             )}

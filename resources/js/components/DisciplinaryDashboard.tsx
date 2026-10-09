@@ -52,7 +52,7 @@ import { AddClassModal } from './AddClassModal';
 import { EditClassModal } from './EditClassModal';
 import { AddTeacherModal } from './AddTeacherModal';
 import { EditTeacherModal } from './EditTeacherModal';
-import { AttendanceAlertsPanel } from './AttendanceStatsView';
+import { AttendanceAlertsPanel, AttendanceTrendsPanel } from './AttendanceStatsView';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
@@ -380,6 +380,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onOpenStats={() => { setAttendanceTab('stats'); setCurrentView('attendance'); }}
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
+
+              <AttendanceTrendsPanel />
 
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

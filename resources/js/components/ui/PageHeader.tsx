@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Menu } from 'lucide-react';
 import { Button } from './Button';
 
 export interface PageHeaderProps {
@@ -8,6 +8,8 @@ export interface PageHeaderProps {
   badge?: React.ReactNode;
   icon?: React.ReactNode;
   onBack?: () => void;
+  /** دکمهٔ «منو» در موبایل برای باز کردن نوار کناری */
+  onOpenSidebar?: () => void;
   backLabel?: string;
   actions?: React.ReactNode;
   className?: string;
@@ -19,6 +21,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   badge,
   icon,
   onBack,
+  onOpenSidebar,
   backLabel = 'بازگشت به پیشخوان',
   actions,
   className = '',
@@ -41,7 +44,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         )}
 
         {icon && (
-          <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-800 border border-teal-100 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-700 to-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-teal-700/20">
             {icon}
           </div>
         )}
@@ -61,9 +64,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
       </div>
 
-      {actions && (
+      {(actions || onOpenSidebar) && (
         <div className="flex items-center gap-2.5 flex-wrap shrink-0">
           {actions}
+          {onOpenSidebar && (
+            <Button variant="secondary" size="sm" onClick={onOpenSidebar} icon={<Menu className="w-4 h-4" />} className="lg:hidden" aria-label="باز کردن منو">
+              منو
+            </Button>
+          )}
         </div>
       )}
     </div>

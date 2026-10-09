@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, FileSpreadsheet, RotateCcw, CheckCircle2, XCircle, Send, X, ChevronLeft } from 'lucide-react';
+import { Search, FileSpreadsheet, RotateCcw, CheckCircle2, XCircle, Send, X, ChevronLeft, BarChart3 } from 'lucide-react';
+import { PageHeader, Button } from './ui';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -8,6 +9,8 @@ import { studentFullName } from '../utils/studentName';
 import { buildAttendanceStats, StudentAttendanceStat, monthKeyOf } from '../utils/attendanceStats';
 import { DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { AttendanceAlertsCard, referralRefId } from './AttendanceAlertsCard';
+import { TrendTile } from './Sparkline';
+import { attendanceTrends } from '../utils/trends';
 import type { Student } from '../types';
 
 /** آمار تجمیعی هر دانش‌آموز + هشدارهای ماهانه؛ مشترک بین صفحه‌ی آمار و داشبوردها */
@@ -155,15 +158,13 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
 
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-black text-slate-900">آمار تأخیر و غیبت</h2>
-          <p className="text-xs text-slate-500 mt-0.5">غیبت‌های کلاسی (زنگ‌ها) در این آمار نیامده است؛ فقط غیبت روزانه‌ی مدرسه و تأخیرها.</p>
-        </div>
-        <button onClick={exportExcel} className="h-10 px-4 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-          <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> خروجی اکسل
-        </button>
-      </div>
+      <PageHeader
+        title="آمار تأخیر و غیبت"
+        subtitle="غیبت‌های کلاسی (زنگ‌ها) در این آمار نیامده است؛ فقط غیبت روزانهٔ مدرسه و تأخیرها."
+        icon={<BarChart3 className="w-5 h-5" />}
+        className="!mb-0"
+        actions={<Button variant="secondary" onClick={exportExcel} icon={<FileSpreadsheet className="w-4 h-4" />}>خروجی اکسل</Button>}
+      />
 
       <AttendanceAlertsCard stats={monthStats} showDelays={isDisciplinaryVice} canRefer={canRefer} referred={referred} monthKey={monthKey}
         classNameOf={classNameOf} onRefer={(stat, kind) => setTarget({ stat, kind })} onOpenStudent={onSelectStudent} />
@@ -307,6 +308,23 @@ export const AttendanceAlertsPanel: React.FC<{ onOpenStats?: () => void; onSelec
         <button onClick={onOpenStats} className="text-xs font-bold text-teal-700 hover:text-teal-900 cursor-pointer">مشاهده آمار کامل تأخیر و غیبت ←</button>
       )}
       <ReferralDialog target={target} onClose={() => setTarget(null)} onSubmit={(note) => target && refer(target.stat, target.kind, monthKey, note)} />
+    </div>
+  );
+};
+
+/** روند ۱۴ روز اخیر تأخیر و غیبت غیرموجه (نمودار کوچک) برای صفحه‌ی اصلی انضباطی */
+export const AttendanceTrendsPanel: React.FC = () => {
+  const { students, morningDelays, morningAttendance, schoolAbsences, sessions } = useSchool();
+  const t = useMemo(
+    () => attendanceTrends(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, 14),
+    [students, morningDelays, morningAttendance, schoolAbsences, sessions]
+  );
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  return (
+    <div data-stagger className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <TrendTile label="تأخیرها" total={toPersianDigits(sum(t.delays))} hint="۱۴ روز اخیر" values={t.delays} color="#d97706" />
+      <TrendTile label="دقایق تأخیر" total={toPersianDigits(sum(t.minutes))} hint="۱۴ روز اخیر" values={t.minutes} color="#7c3aed" />
+      <TrendTile label="غیبت غیرموجه" total={toPersianDigits(sum(t.absences))} hint="۱۴ روز اخیر" values={t.absences} color="#e11d48" />
     </div>
   );
 };

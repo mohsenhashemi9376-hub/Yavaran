@@ -29,6 +29,8 @@ import { EditClassModal } from './EditClassModal';
 import { AddTeacherModal } from './AddTeacherModal';
 import { EditTeacherModal } from './EditTeacherModal';
 import { TeacherClassesSummary } from './TeacherClassesSummary';
+import { MaybeAnimated } from './AnimatedNumber';
+import { ClassActivityTrends } from './ClassActivityTrends';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { QuickAddStudentModal } from './QuickAddStudentModal';
 import { 
@@ -586,7 +588,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             </div>
 
             {/* ۲. خلاصه وضعیت آماری با داده‌های واقعی */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {([
                 ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
                 ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-sky-600'],
@@ -611,15 +613,16 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   key={view}
                   type="button"
                   onClick={() => (view === 'grades' && activeGradePeriods.length === 0 ? setIsGradePeriodsOpen(true) : setCurrentView(view))}
-                  className={`p-3.5 rounded-2xl border shadow-xs hover:-translate-y-0.5 hover:shadow-md transition-all text-right cursor-pointer ${tone}`}
+                  className="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md hover:border-teal-200 transition-all text-right cursor-pointer"
+                  data-tone={tone}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold opacity-80 whitespace-nowrap">{label}</span>
-                    <div className={`bg-white shadow-xs rounded-xl p-2 ${iconTone}`}>
-                      <Icon className="w-3.5 h-3.5" />
+                    <span className="text-xs font-bold text-slate-500 whitespace-nowrap">{label}</span>
+                    <div className={`bg-slate-50 rounded-xl p-2 ${iconTone}`}>
+                      <Icon className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-black font-mono tabular-nums mt-2">{value}</div>
+                  <div className="text-2xl font-black text-slate-900 tabular-nums mt-2"><MaybeAnimated text={value} /></div>
                   <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1 whitespace-nowrap">
                     <span>{hint}</span>
                     <ChevronLeft className="w-3 h-3" />
@@ -627,6 +630,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </button>
               ))}
             </div>
+
+            <ClassActivityTrends />
 
             {/* ۲/۱. هشدار کاربرگ هفتگی */}
             {canAccessSection(currentUser, 'worksheets') && <WorksheetAlertsCard onOpen={() => setCurrentView('worksheets')} />}
@@ -636,7 +641,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               <h2 className="text-sm font-bold text-slate-800 mb-3.5">
                 مسیرهای کار روزمره معاونت آموزشی
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div data-stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {([
                   ['grades', 'کارپوشه ثبت نمره', Award, 'bg-emerald-50/60 border-emerald-200/80', 'text-emerald-600', 'bg-emerald-100/70 text-emerald-800 border-emerald-200'],
                   ['report_cards', 'کارنامه و سوابق تحصیلی', FileText, 'bg-sky-50/60 border-sky-200/80', 'text-sky-600', 'bg-sky-100/70 text-sky-800 border-sky-200'],
@@ -647,17 +652,18 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     key={view}
                     type="button"
                     onClick={() => setCurrentView(view)}
-                    className={`p-4 rounded-2xl border text-right flex flex-col gap-3 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer ${tone}`}
+                    className="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm text-right flex flex-col gap-3 hover:-translate-y-1 hover:shadow-md hover:border-teal-200 transition-all cursor-pointer"
+                    data-tone={tone}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 ${iconTone}`}>
+                      <div className={`w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 ${iconTone}`}>
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
                         <div className="font-bold text-slate-900 text-xs sm:text-sm">{title}</div>
                       </div>
                     </div>
-                    <span className={`self-end px-3 py-1 rounded-full border text-[11px] font-bold whitespace-nowrap ${pill}`}>
+                    <span className="self-end text-[11px] font-bold text-teal-700 whitespace-nowrap">
                       ورود به بخش ←
                     </span>
                   </button>

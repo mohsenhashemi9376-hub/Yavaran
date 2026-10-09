@@ -245,3 +245,21 @@ html.yv-confidential input, html.yv-confidential textarea, html.yv-confidential 
   table[data-stack] tbody td[colspan] { display: block; text-align: center !important; }
   table[data-stack] tbody td > * { max-width: 100%; }
 }
+
+/* ===== حرکت‌های ظریف: ورود پله‌ای کارت‌ها و حس فشردن دکمه ===== */
+@keyframes yv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+[data-stagger] > * { animation: yv-rise 0.38s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+[data-stagger] > *:nth-child(2) { animation-delay: 40ms; }
+[data-stagger] > *:nth-child(3) { animation-delay: 80ms; }
+[data-stagger] > *:nth-child(4) { animation-delay: 120ms; }
+[data-stagger] > *:nth-child(5) { animation-delay: 160ms; }
+[data-stagger] > *:nth-child(6) { animation-delay: 200ms; }
+[data-stagger] > *:nth-child(7) { animation-delay: 240ms; }
+[data-stagger] > *:nth-child(8) { animation-delay: 280ms; }
+[data-stagger] > *:nth-child(n+9) { animation-delay: 320ms; }
+button:not(:disabled):active, [role="button"]:active { transform: scale(0.97); }
+button { transition-property: transform, background-color, border-color, color, box-shadow, opacity; transition-duration: 150ms; }
+@media (prefers-reduced-motion: reduce) {
+  [data-stagger] > * { animation: none; }
+  button:not(:disabled):active, [role="button"]:active { transform: none; }
+}
