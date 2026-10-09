@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { User, SchoolClass } from '../types';
 import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
+import { useSchool } from '../context/SchoolContext';
+import { workshopTitle } from '../utils/workshops';
 import { 
   UserCheck, 
   Search, 
@@ -36,6 +38,8 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
   onSelectTeacherForProfile,
   onEditTeacher,
 }) => {
+  const { workshops } = useSchool();
+  const workshopsOf = (t: User) => workshops.filter((w) => w.teacherId === t.id);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState('');
   const [teacherClassFilter, setTeacherClassFilter] = useState('');
@@ -75,12 +79,13 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
         if (!teachesInClass) return false;
       }
 
-      if (assignmentFilter === 'assigned' && assignedClasses.length === 0) return false;
-      if (assignmentFilter === 'unassigned' && assignedClasses.length > 0) return false;
+      const hasAssignment = assignedClasses.length > 0 || workshopsOf(t).length > 0;
+      if (assignmentFilter === 'assigned' && !hasAssignment) return false;
+      if (assignmentFilter === 'unassigned' && hasAssignment) return false;
 
       return true;
     });
-  }, [allTeachers, classes, teacherSearch, teacherSubjectFilter, teacherClassFilter, assignmentFilter]);
+  }, [allTeachers, classes, workshops, teacherSearch, teacherSubjectFilter, teacherClassFilter, assignmentFilter]);
 
   const exportTeachersToExcel = () => {
     const rows = filteredTeachers.map((t, idx) => {
@@ -92,7 +97,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
         'نام معلم': t.name,
         'درس تدریسی': t.subjectSpecialty || t.subject || 'عمومی',
         'نام کاربری': t.username,
-        'کلاس‌های فعال': assignedClasses.map((c) => c.name).join('، ') || 'تعیین نشده',
+        'کلاس‌های فعال': [...assignedClasses.map((c) => c.name), ...workshopsOf(t).map((w) => workshopTitle(w))].join('، ') || 'تعیین نشده',
         'تعداد کلاس‌ها': assignedClasses.length,
         'وضعیت': 'فعال',
       };
@@ -307,6 +312,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                   const assignedClasses = classes.filter(
                     (c) => c.teacherIds.includes(teacher.id) || teacher.assignedClassIds.includes(c.id)
                   );
+                  const teacherWorkshops = workshopsOf(teacher);
                   const teachingSubject = teacher.subjectSpecialty || teacher.subject || 'عمومی';
 
                   return (
@@ -340,7 +346,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                       </td>
 
                       <td className="p-3.5">
-                        {assignedClasses.length > 0 ? (
+                        {assignedClasses.length > 0 || teacherWorkshops.length > 0 ? (
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {assignedClasses.map((cls) => (
                               <span
@@ -348,6 +354,18 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                                 className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium"
                               >
                                 {cls.name}
+                              </span>
+                            ))}
+                            {teacherWorkshops.map((w) => (
+                              <span
+                                key={w.id}
+                                className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${
+                                  w.category === 'scientific'
+                                    ? 'bg-sky-50 text-sky-800 border-sky-200'
+                                    : 'bg-violet-50 text-violet-800 border-violet-200'
+                                }`}
+                              >
+                                {workshopTitle(w)}
                               </span>
                             ))}
                           </div>
