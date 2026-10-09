@@ -1322,7 +1322,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="جستجوی دانش‌آموز یا کد ملی..."
+                    placeholder="جستجوی دانش‌آموز..."
                     value={reportCardSearch}
                     onChange={(e) => setReportCardSearch(e.target.value)}
                     className="pr-8 pl-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 w-full sm:w-60"
@@ -1350,79 +1350,68 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   return (
                     <div
                       key={item.student.id}
-                      className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs hover:border-teal-400 hover:shadow-sm transition flex flex-col justify-between gap-3"
+                      className="group bg-white rounded-3xl p-5 border border-slate-200/70 shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-teal-300 transition-all duration-200 flex flex-col gap-4"
                     >
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              {item.student.firstName[0]}
-                            </div>
-                            <div>
-                              <button
-                                type="button"
-                                onClick={() => onSelectStudent(item.student, 'grades')}
-                                className="font-bold text-slate-900 hover:text-teal-800 transition text-right text-sm hover:underline cursor-pointer"
-                              >
-                                {studentFullName(item.student)}
-                              </button>
-                              <div className="text-[11px] text-slate-400">
-                                کلاس {item.className} • کد: {item.student.studentCode || item.student.nationalId || '-'}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* نشان وضعیت معدل */}
-                          {hasGpa && (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isExcellent 
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                                : isWeak
-                                  ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                                  : 'bg-slate-100 text-slate-700'
-                            }`}>
-                              {isExcellent ? 'ممتاز' : isWeak ? 'نیازمند تلاش' : 'عادی'}
-                            </span>
-                          )}
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-600 to-emerald-500 text-white flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm">
+                          {item.student.firstName[0]}
                         </div>
-
-                        {/* خلاصه معدل و نمرات */}
-                        <div className="mt-4 p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
-                          <div>
-                            <span className="text-[11px] text-slate-500">معدل محاسبه شده:</span>
-                            <div className={`inline-block text-base font-black font-mono mt-1 px-3 py-0.5 rounded-xl whitespace-nowrap ${scorePillClass(hasGpa ? item.gpa! : null)}`}>
-                              {hasGpa ? toPersianDigits(item.gpa!) : '—'}
-                            </div>
-                          </div>
-
-                          <div className="text-left">
-                            <span className="text-[11px] text-slate-500">دروس ثبت شده:</span>
-                            <div className="text-sm font-bold font-mono text-slate-700 mt-0.5">
-                              {toPersianDigits(item.gradesCount)} درس
-                            </div>
+                        <div className="min-w-0 flex-1">
+                          <button
+                            type="button"
+                            onClick={() => onSelectStudent(item.student, 'grades')}
+                            className="block max-w-full truncate font-extrabold text-slate-900 hover:text-teal-800 transition text-right text-[15px] leading-7 cursor-pointer"
+                          >
+                            {studentFullName(item.student)}
+                          </button>
+                          <div className="text-xs text-slate-500 leading-6">
+                            کلاس {item.className}
                           </div>
                         </div>
-
-                        {/* دروس دارای افت در صورت وجود */}
-                        {item.weakSubjects.length > 0 && (
-                          <div className="mt-2 text-[11px] text-rose-700 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3 shrink-0" />
-                            <span className="truncate">افت در: {item.weakSubjects.join('، ')}</span>
-                          </div>
+                        {hasGpa && (
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                            isExcellent
+                              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                              : isWeak
+                                ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
+                                : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
+                          }`}>
+                            {isExcellent ? 'ممتاز' : isWeak ? 'نیازمند تلاش' : 'عادی'}
+                          </span>
                         )}
                       </div>
 
-                      {/* دکمه‌های اقدام کارنامه */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => onSelectStudent(item.student, 'grades')}
-                          className="flex-1 py-1.5 px-3 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>مشاهده کارنامه رسمی</span>
-                        </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                          <div className="text-[11px] text-slate-500 mb-1">معدل محاسبه‌شده</div>
+                          <div className={`inline-flex items-center justify-center min-w-[3rem] text-lg font-black tabular-nums px-3 py-0.5 rounded-xl ${scorePillClass(hasGpa ? item.gpa! : null)}`}>
+                            {hasGpa ? toPersianDigits(item.gpa!) : '—'}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                          <div className="text-[11px] text-slate-500 mb-1">دروس ثبت‌شده</div>
+                          <div className="text-lg font-black text-slate-800 tabular-nums">
+                            {toPersianDigits(item.gradesCount)} <span className="text-xs font-semibold text-slate-500">درس</span>
+                          </div>
+                        </div>
                       </div>
+
+                      {item.weakSubjects.length > 0 && (
+                        <div className="text-xs text-rose-700 bg-rose-50 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">افت در: {item.weakSubjects.join('، ')}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => onSelectStudent(item.student, 'grades')}
+                        className="mt-auto w-full py-2.5 px-4 bg-teal-800 hover:bg-teal-900 text-white rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>مشاهده کارنامه رسمی</span>
+                        <ChevronLeft className="w-4 h-4 opacity-70 group-hover:-translate-x-0.5 transition" />
+                      </button>
                     </div>
                   );
                 })}

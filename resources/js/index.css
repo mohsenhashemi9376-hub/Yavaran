@@ -132,3 +132,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 4) { background-color: rgb(240 253 250 / 0.7); border-color: rgb(153 246 228 / 0.8); }
 .edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 5) { background-color: rgb(255 251 235 / 0.7); border-color: rgb(253 230 138 / 0.8); }
 .edu-pastel .grid > [class~="bg-white"][class~="rounded-2xl"][class~="border"]:nth-child(6n + 6) { background-color: rgb(255 241 242 / 0.7); border-color: rgb(254 205 211 / 0.8); }
+
+/* ارقام و متن فارسی با font-mono نباید به فونت مونواسپیس سیستم برگردند */
+.font-mono {
+  font-family: 'Vazirmatn', sans-serif !important;
+  font-variant-numeric: tabular-nums;
+}
