@@ -8,6 +8,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
 import { EducationalDashboard } from './components/EducationalDashboard';
 import { NurturingDashboard } from './components/NurturingDashboard';
+import { ConfidentialGuard } from './components/ConfidentialGuard';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
 import { AttendanceModal } from './components/AttendanceModal';
@@ -202,6 +203,7 @@ const MainApp: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
+          <ConfidentialGuard />
           {/* Render Tab Views with strict role isolation */}
           {isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
             <TeacherDashboard

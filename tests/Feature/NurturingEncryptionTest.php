@@ -43,7 +43,7 @@ class NurturingEncryptionTest extends TestCase
         foreach ([StudentObservation::class, NurturingDossier::class, CoachEvaluation::class] as $class) {
             /** @var \App\Models\NurturingRecord $m */
             $m = new $class;
-            $this->assertSame('encrypted', $m->getCasts()['data'], $class);
+            $this->assertSame(\App\Casts\NurturingEncrypted::class, $m->getCasts()['data'], $class);
         }
     }
 

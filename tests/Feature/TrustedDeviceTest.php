@@ -117,6 +117,7 @@ class TrustedDeviceTest extends TestCase
 
         $this->actingAs($coach)->postJson('/api/profile', [
             'current_password' => 'Str0ng-Pass!', 'new_password' => 'New-Strong-1', 'new_password_confirmation' => 'New-Strong-1',
+            'code' => $this->currentTotp(self::SECRET),
         ])->assertOk();
 
         $this->assertDatabaseCount('trusted_devices', 0);

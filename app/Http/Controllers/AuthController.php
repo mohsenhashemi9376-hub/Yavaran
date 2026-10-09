@@ -83,6 +83,13 @@ class AuthController extends Controller
         RateLimiter::clear($throttleKey);
         RateLimiter::clear($accountKey);
 
+        // شبکه/ساعت غیرمجاز: ورود مربی و معاون تربیتی پیش از هر چیز رد و ثبت می‌شود
+        if (NurturingSession::applies($user) && ($block = NurturingSession::accessBlock($request, $user))) {
+            \App\Support\NurturingAudit::log($user, 'login', 'security', null, $block, false);
+
+            return response()->json(['success' => false, 'message' => NurturingSession::message($block)], 403);
+        }
+
         $dirty = false;
         if (Hash::needsRehash($user->password)) {
             $user->password = Hash::make($password);

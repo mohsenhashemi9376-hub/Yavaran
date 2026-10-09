@@ -49,9 +49,27 @@ final class NurturingSession
         return $ready = Schema::hasColumn('users', 'sessions_revoked_at');
     }
 
+    /** @return string|null 'ip' | 'hours' اگر دسترسی از این شبکه/ساعت مجاز نیست */
+    public static function accessBlock(Request $request, User $user): ?string
+    {
+        $allowed = array_values(array_filter(array_map('trim', explode(',', (string) config('app.nurturing_allowed_ips', '')))));
+        if ($allowed !== [] && ! \Symfony\Component\HttpFoundation\IpUtils::checkIp((string) $request->ip(), $allowed)) {
+            return 'ip';
+        }
+        if ($user->role === 'coach' && config('app.nurturing_enforce_hours') && SecurityAlerts::isOffHours()) {
+            return 'hours';
+        }
+
+        return null;
+    }
+
     /** @return string|null دلیل نامعتبر بودن نشست؛ null = معتبر */
     public static function violation(Request $request, User $user): ?string
     {
+        if ($block = self::accessBlock($request, $user)) {
+            return $block;
+        }
+
         $loginAt = (int) $request->session()->get(self::LOGIN_AT, 0);
         $now = now()->getTimestamp();
 
@@ -92,6 +110,12 @@ final class NurturingSession
 
     public static function message(string $reason): string
     {
+        if ($reason === 'ip') {
+            return 'دسترسی به این بخش فقط از شبکه‌ی مجاز مدرسه امکان‌پذیر است.';
+        }
+        if ($reason === 'hours') {
+            return 'دسترسی به پرونده‌های تربیتی فقط در ساعت مدرسه امکان‌پذیر است.';
+        }
         if ($reason === 'expired') {
             return 'مدت نشست شما به پایان رسید. برای ادامه دوباره وارد شوید.';
         }

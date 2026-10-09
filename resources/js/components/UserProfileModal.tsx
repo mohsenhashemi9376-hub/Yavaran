@@ -38,6 +38,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const needsCode = ['coach', 'vice_nurturing'].includes(currentUser.role) && !!security?.twoFactorEnabled;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -46,6 +48,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
+    setTotpCode('');
     setErrors({});
     setEditing(true);
   };
@@ -69,6 +72,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         username: toEnglishDigits(username.trim()),
         new_password: newPassword ? toEnglishDigits(newPassword) : undefined,
         new_password_confirmation: newPassword ? toEnglishDigits(confirmPassword) : undefined,
+        code: needsCode ? toEnglishDigits(totpCode.trim()) : undefined,
       });
       await reloadFromServer();
       showToast('ذخیره شد', res?.message || 'اطلاعات حساب کاربری به‌روزرسانی شد.', 'success');
@@ -333,7 +337,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 ['current_password', 'رمز عبور فعلی', currentPassword, setCurrentPassword, 'password', 'current-password'],
                 ['new_password', 'رمز عبور جدید (اختیاری)', newPassword, setNewPassword, 'password', 'new-password'],
                 ['new_password_confirmation', 'تکرار رمز عبور جدید', confirmPassword, setConfirmPassword, 'password', 'new-password'],
-              ] as const).map(([key, label, value, setter, type, ac]) => (
+                ...(needsCode ? [['code', 'کد ۶ رقمی برنامه‌ی احراز هویت', totpCode, setTotpCode, 'text', 'one-time-code']] : []),
+              ] as unknown as readonly (readonly [string, string, string, (v: string) => void, string, string])[]).map(([key, label, value, setter, type, ac]) => (
                 <div key={key}>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">{label}</label>
                   <input

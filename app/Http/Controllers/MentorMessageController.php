@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -146,7 +145,7 @@ class MentorMessageController extends Controller
     /** عنوان و متن پیام را یک‌جا رمز می‌کند (AES-256) */
     public static function seal(string $title, string $content): string
     {
-        return Crypt::encryptString(json_encode(['title' => $title, 'content' => $content], JSON_UNESCAPED_UNICODE));
+        return \App\Support\NurturingCrypt::encryptString(json_encode(['title' => $title, 'content' => $content], JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -156,7 +155,7 @@ class MentorMessageController extends Controller
     public static function open(string $title, string $content): array
     {
         try {
-            $data = json_decode(Crypt::decryptString($content), true);
+            $data = json_decode(\App\Support\NurturingCrypt::decryptString($content), true);
             if (is_array($data) && isset($data['content'])) {
                 return ['title' => (string) ($data['title'] ?? ''), 'content' => (string) $data['content']];
             }

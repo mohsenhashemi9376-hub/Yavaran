@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
 /**
  * پایه‌ی مدل‌های پرونده‌های تربیتی و مشاهدات رفتاری.
  *
- * تمام محتوای متنی رکورد (ستون data) با کست `encrypted` لاراول (AES-256 با APP_KEY) رمزنگاری می‌شود
+ * تمام محتوای متنی رکورد (ستون data) با کست NurturingEncrypted (AES-256 با کلید اختصاصی؛ بدون تنظیم آن APP_KEY) رمزنگاری می‌شود
  * تا در دیتابیس متن ساده ذخیره نشود. فقط ستون‌های ایندکس (student_id, record_date, coach_id)
  * که حاوی متن حساس نیستند خوانا می‌مانند.
  *
@@ -35,21 +33,12 @@ abstract class NurturingRecord extends Model
 
     protected function casts(): array
     {
-        return ['data' => 'encrypted'];
+        return ['data' => \App\Casts\NurturingEncrypted::class];
     }
 
     /**
      * رکوردهای قدیمی که هنوز رمزنگاری نشده‌اند همچنان خوانده می‌شوند (و هنگام اولین خواندن رمزنگاری می‌شوند).
      */
-    public function fromEncryptedString($value)
-    {
-        try {
-            return parent::fromEncryptedString($value);
-        } catch (DecryptException) {
-            return $value;
-        }
-    }
-
     protected static function booted(): void
     {
         static::retrieved(static function (self $record): void {
@@ -57,7 +46,7 @@ abstract class NurturingRecord extends Model
             if (is_string($raw) && $raw !== '' && in_array($raw[0], ['{', '['], true)) {
                 try {
                     DB::table($record->getTable())->where('id', $record->getKey())
-                        ->update(['data' => Crypt::encryptString($raw)]);
+                        ->update(['data' => \App\Support\NurturingCrypt::encryptString($raw)]);
                 } catch (\Throwable) {
                     // رمزنگاری با اجرای دستور nurturing:encrypt انجام می‌شود
                 }

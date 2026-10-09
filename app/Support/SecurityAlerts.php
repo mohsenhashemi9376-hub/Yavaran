@@ -230,5 +230,33 @@ final class SecurityAlerts
             'priority' => 'urgent',
             'ref_id' => $type,
         ]);
+
+        EitaaNotifier::send($title, $message);
+    }
+
+    /** تغییر نام کاربری یا رمز توسط خود مربی/معاون تربیتی: اعلان به معاون تربیتی (برای معاون: مدیر) و ایتا */
+    public static function credentialsChanged(User $user, bool $password, bool $username): void
+    {
+        try {
+            if (! self::watched($user)) {
+                return;
+            }
+            $what = implode(' و ', array_filter([$password ? 'رمز عبور' : null, $username ? 'نام کاربری' : null]));
+            self::raise($user, 'credentials_changed', 'تغییر اطلاعات ورود حساب', sprintf('«%s» %s حساب خود را تغییر داد. اگر خودِ او نبوده، فوراً نشست‌ها را ببندید.', $user->name, $what));
+        } catch (\Throwable) {
+        }
+    }
+
+    /** هشدار امنیتی عمومی (بدون حساب مشخص) برای معاون تربیتی و مدیر، مثلاً گسست زنجیره‌ی دفتر دسترسی */
+    public static function system(string $type, string $title, string $message): void
+    {
+        try {
+            $receivers = DB::table('users')->where('is_active', true)->whereIn('role', ['vice_nurturing', 'admin'])->pluck('id')->all();
+            Notifier::send($receivers, [
+                'title' => 'هشدار امنیتی: '.$title, 'message' => $message, 'type' => 'announcement', 'priority' => 'urgent', 'ref_id' => $type,
+            ]);
+            EitaaNotifier::send($title, $message);
+        } catch (\Throwable) {
+        }
     }
 }

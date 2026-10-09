@@ -665,8 +665,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </div>
             </div>
 
-            {/* ۴. خلاصه وضعیت کلاس‌های اساتید */}
-            <TeacherClassesSummary teachers={allTeachers} classes={classes} sessions={sessions} />
+            {/* ۴. آخرین جلسه‌ی هر کلاس */}
+            <TeacherClassesSummary classes={classes} sessions={sessions} />
 
           </div>
         )}

@@ -21,6 +21,30 @@ return [
     /* دستگاه مطمئن: پس از ورود دومرحله‌ای موفق، در همان دستگاه فقط رمز عبور کافی است (روز) */
     'trusted_device_days' => (int) env('TRUSTED_DEVICE_DAYS', 180),
 
+    /*
+     * کلید اختصاصی رمزنگاری اطلاعات تربیتی (جدا از APP_KEY). NURTURING_KEY مقدار base64 یا فایل کلید خارج از public_html (NURTURING_KEY_FILE).
+     * ساخت کلید: php artisan nurturing:generate-key ؛ چرخش: php artisan nurturing:rotate-key
+     */
+    'nurturing_key' => env('NURTURING_KEY'),
+    'nurturing_key_file' => env('NURTURING_KEY_FILE'),
+    'nurturing_key_previous' => env('NURTURING_KEY_PREVIOUS'),
+
+    /* پشتیبان رمزنگاری‌شده با کلیدی جدا از APP_KEY و NURTURING_KEY؛ مدت نگهداری (روز) */
+    'backup_key' => env('BACKUP_KEY'),
+    'backup_keep_days' => (int) env('BACKUP_KEEP_DAYS', 7),
+
+    /* هشدارهای امنیتی در ایتا (ربات ایتایار): توکن ربات و شناسه‌ی کانال/گروه */
+    'eitaa_token' => env('EITAA_TOKEN'),
+    'eitaa_chat_id' => env('EITAA_CHAT_ID'),
+    'eitaa_api_base' => env('EITAA_API_BASE', 'https://eitaayar.ir/api'),
+
+    /*
+     * محدودیت دسترسی مربی و معاون تربیتی: فهرست IP/CIDR مجاز (با ویرگول؛ خالی = بدون محدودیت)
+     * و اجبار ساعت مدرسه برای مربی (معاون تربیتی همیشه مجاز است).
+     */
+    'nurturing_allowed_ips' => env('NURTURING_ALLOWED_IPS'),
+    'nurturing_enforce_hours' => (bool) env('NURTURING_ENFORCE_HOURS', false),
+
     /* دستگاه مطمئن برای مربی و معاون تربیتی کوتاه‌تر است (روز) */
     'trusted_device_days_nurturing' => (int) env('TRUSTED_DEVICE_DAYS_NURTURING', 14),
 

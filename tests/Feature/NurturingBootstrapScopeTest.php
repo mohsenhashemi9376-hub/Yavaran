@@ -67,7 +67,8 @@ class NurturingBootstrapScopeTest extends TestCase
         $data = $this->bootstrapAs($coach);
 
         $this->assertSame(['stu-mine'], $this->ids($data['nurturingDossiers']));
-        $this->assertSame(['stu-mine'], $this->ids($data['observations']));
+        // مشاهده‌گری‌هایی که خود مربی نوشته، حتی برای دانش‌آموز خارج از کلاس‌های فعلی، برایش می‌آید
+        $this->assertSame(['stu-mine', 'stu-other'], $this->ids($data['observations']));
         $this->assertSame(['stu-mine'], $this->ids($data['coachEvaluations']));
     }
 

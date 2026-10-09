@@ -121,7 +121,7 @@ class ObservationAuthorshipTest extends TestCase
         $this->assertStringNotContainsString('راز-مربی-دیگر', $this->actingAs($this->coach)->getJson('/api/bootstrap')->getContent());
     }
 
-    public function test_coach_loses_access_to_own_old_observations_when_reassigned_to_another_class(): void
+    public function test_coach_keeps_read_access_to_own_old_observations_when_reassigned_but_cannot_edit_them(): void
     {
         $this->save($this->coach, [$this->obs('o-mine')])->assertOk();
         $this->makeClass('cls-2');
@@ -131,7 +131,7 @@ class ObservationAuthorshipTest extends TestCase
         DB::table('users')->where('id', $this->coach->id)->update(['data' => json_encode($profile)]);
         $this->coach->refresh();
 
-        $this->assertSame([], $this->visibleIds($this->coach));
+        $this->assertSame(['o-mine'], $this->visibleIds($this->coach));
         $this->save($this->coach, [$this->obs('o-mine', 'تغییر')])->assertForbidden();
     }
 

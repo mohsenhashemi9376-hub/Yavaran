@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\NurturingSession;
+use App\Support\SecurityAlerts;
+use App\Support\Totp;
 use App\Support\PasswordRules;
 use App\Support\Sync\SyncService;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +30,7 @@ class ProfileController extends Controller
             'username' => ['nullable', 'string', 'min:3', 'max:100'],
             'new_password' => ['nullable', 'string', 'min:6', 'max:191'],
             'new_password_confirmation' => ['nullable', 'string', 'max:191'],
+            'code' => ['nullable', 'string', 'max:16'],
         ], [
             'current_password.required' => 'لطفاً رمز عبور فعلی خود را وارد کنید.',
             'username.min' => 'نام کاربری باید حداقل ۳ کاراکتر باشد.',
@@ -37,6 +41,15 @@ class ProfileController extends Controller
         $current = trim(Digits::toEnglish($validated['current_password']));
         if (! $user->password || ! password_verify($current, $user->password)) {
             throw ValidationException::withMessages(['current_password' => 'رمز عبور فعلی اشتباه است.']);
+        }
+
+        // مربی و معاون تربیتی: تغییر نام کاربری/رمز علاوه بر رمز فعلی، کد برنامه‌ی احراز هویت (TOTP) هم می‌خواهد
+        $needsCode = NurturingSession::applies($user) && $user->hasTwoFactor() && ! $user->mustChangePassword();
+        if ($needsCode) {
+            $code = Digits::toEnglish((string) ($validated['code'] ?? ''));
+            if ($code === '' || Totp::verify(Crypt::decryptString((string) $user->two_factor_secret), $code) === null) {
+                throw ValidationException::withMessages(['code' => 'برای تغییر نام کاربری یا رمز، کد برنامه‌ی احراز هویت را وارد کنید.']);
+            }
         }
 
         $newUsername = isset($validated['username']) ? trim(Digits::toEnglish($validated['username'])) : '';
@@ -101,6 +114,7 @@ class ProfileController extends Controller
         if ($newPassword !== '') {
             \App\Support\TrustedDevices::revokeAll($user->id); // با تغییر رمز، اعتماد همه‌ی دستگاه‌ها لغو می‌شود
         }
+        SecurityAlerts::credentialsChanged($user, $newPassword !== '', isset($changes['username']));
 
         return response()->json([
             'success' => true,

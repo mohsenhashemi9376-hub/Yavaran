@@ -195,3 +195,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 
 .font-mono { font-variant-numeric: tabular-nums; }
+
+/* ===== محافظت ظاهری اطلاعات محرمانه تربیتی (مربی و معاون تربیتی) ===== */
+.yv-watermark { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; background-repeat: repeat; }
+html.yv-confidential body { -webkit-user-select: none; user-select: none; }
+html.yv-confidential input, html.yv-confidential textarea, html.yv-confidential [contenteditable] { -webkit-user-select: text; user-select: text; }
+@media print {
+  html.yv-confidential body * { display: none !important; }
+  html.yv-confidential body::before { content: 'چاپ اطلاعات تربیتی مجاز نیست.'; display: block; padding: 2rem; font-size: 1.25rem; }
+}
