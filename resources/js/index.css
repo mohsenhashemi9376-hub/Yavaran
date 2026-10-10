@@ -299,3 +299,7 @@ button { transition-property: transform, background-color, border-color, color, 
   button[data-compact] > span:not(:only-child), button[data-compact] > span:only-child:not([class*="w-"]) { display: none; }
   [data-crumb] { display: none !important; }
 }
+
+/* جدول‌هایی که باید در عرض صفحه جا شوند (بدون اسکرول افقی): سلول‌ها می‌شکنند */
+.yv-fit-table { min-width: 0 !important; width: 100%; }
+.yv-fit-table th, .yv-fit-table td { white-space: normal !important; }
