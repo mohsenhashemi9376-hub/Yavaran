@@ -966,7 +966,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجوی نام دانش‌آموز، کد ملی، مربی یا برچسب..."
+                placeholder="جستجوی دانش‌آموز یا کد ملی…"
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-10 pl-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
