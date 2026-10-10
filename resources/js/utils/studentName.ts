@@ -28,10 +28,13 @@ export function studentFullName(s: { firstName?: string; lastName?: string } | n
   return `${s.lastName || ''} ${s.firstName || ''}`.trim();
 }
 
-/** ترتیب الفبایی فارسی: نام خانوادگی، سپس نام */
+const normKey = (v?: string) =>
+  (v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\u200f]/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** ترتیب الفبایی فارسی: نام خانوادگی، سپس نام (یکسان‌سازی ي/ك و نیم‌فاصله) */
 export function compareStudents(a: { firstName?: string; lastName?: string }, b: { firstName?: string; lastName?: string }): number {
   return (
-    (a.lastName || '').localeCompare(b.lastName || '', 'fa') ||
-    (a.firstName || '').localeCompare(b.firstName || '', 'fa')
+    normKey(a.lastName).localeCompare(normKey(b.lastName), 'fa') ||
+    normKey(a.firstName).localeCompare(normKey(b.firstName), 'fa')
   );
 }

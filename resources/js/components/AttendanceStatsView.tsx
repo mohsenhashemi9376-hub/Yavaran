@@ -6,7 +6,7 @@ import { PageHeader, Button } from './ui';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { buildAttendanceStats, StudentAttendanceStat, monthKeyOf } from '../utils/attendanceStats';
 import { DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { AttendanceAlertsCard, referralRefId } from './AttendanceAlertsCard';
@@ -125,7 +125,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
         && (mu === null || s.unexcusedAbsences >= mu)
         && (me === null || s.excusedAbsences >= me)
         && (!onlyPending || s.pendingDeductions > 0))
-      .sort((a, b) => sort === 'name' ? studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa')
+      .sort((a, b) => sort === 'name' ? compareStudents(a.student, b.student)
         : sort === 'delays' ? b.delayCount - a.delayCount
         : sort === 'unexcused' ? b.unexcusedAbsences - a.unexcusedAbsences
         : b.delayMinutes - a.delayMinutes);

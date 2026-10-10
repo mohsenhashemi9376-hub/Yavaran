@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { SchoolClass, Student, WorksheetRecord, WorksheetWeek } from '../types';
 import { isDeadlinePassed, weekTitle, worksheetKey } from './worksheets';
-import { studentFullName } from './studentName';
+import { studentFullName, compareStudents } from './studentName';
 
 type Row = Record<string, string | number>;
 
@@ -23,7 +23,7 @@ export const uniqueSheetName = (name: string, used: Set<string>): string => {
 };
 
 const sortedStudents = (students: Student[], classId: string): Student[] =>
-  students.filter((s) => s.classId === classId).sort((a, b) => studentFullName(a).localeCompare(studentFullName(b), 'fa'));
+  students.filter((s) => s.classId === classId).sort(compareStudents);
 
 /** ردیف‌های یک کلاس در یک هفته */
 export const buildWeekRows = (students: Student[], records: Map<string, WorksheetRecord>, classId: string, weekStart: string): Row[] =>
