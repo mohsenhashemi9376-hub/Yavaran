@@ -236,7 +236,7 @@ const WorkshopFormModal: React.FC<{
 
 /** تب «کارگاه‌های انتخابی» در صفحه برنامه دروس و اساتید */
 export const WorkshopsSection: React.FC = () => {
-  const { workshops, updateWorkshop, deleteWorkshop, assignableStaff, isAdmin, isEducationalVice, showToast } = useSchool();
+  const { workshops, updateWorkshop, deleteWorkshop, assignableStaff, isAdmin, isEducationalVice, showToast, showConfirm } = useSchool();
   const canManage = isAdmin || isEducationalVice;
   const [enrolling, setEnrolling] = useState<Workshop | null>(null);
   const [form, setForm] = useState<{ workshop?: Workshop; category: Workshop['category'] } | null>(null);
@@ -327,10 +327,18 @@ export const WorkshopsSection: React.FC = () => {
                           aria-label="حذف کارگاه"
                           onClick={() => {
                             const warn = w.studentIds.length > 0 ? ` فهرست ${toPersianDigits(w.studentIds.length)} دانش‌آموز آن هم پاک می‌شود.` : '';
-                            if (window.confirm(`کارگاه «${w.name}» (پایه ${w.gradeLevel === 9 ? 'نهم' : 'هشتم'}) حذف شود؟${warn}`)) {
+                            showConfirm({
+                              title: 'حذف شود؟',
+                              message: `کارگاه «${w.name}» (پایه ${w.gradeLevel === 9 ? 'نهم' : 'هشتم'}) حذف شود؟${warn}`,
+                              confirmLabel: 'بله، حذف شود',
+                              cancelLabel: 'انصراف',
+                              isDangerous: true,
+                              onConfirm: () => {
                               deleteWorkshop(w.id);
                               showToast('کارگاه حذف شد.', 'success');
-                            }
+                            
+                              },
+                            });
                           }}
                           className="w-8 h-8 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 flex items-center justify-center cursor-pointer"
                         >

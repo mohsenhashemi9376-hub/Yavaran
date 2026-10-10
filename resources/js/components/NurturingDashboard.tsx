@@ -287,7 +287,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
-    showToast
+    showToast, showConfirm
   } = useSchool();
 
   const todayInfo = getTodayShamsi();
@@ -487,7 +487,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const handleSaveCoachEval = (e: React.FormEvent) => {
     e.preventDefault();
     if (!evalStudentId) {
-      alert('لطفاً دانش‌آموز مورد نظر را انتخاب فرمایید.');
+      showToast('لطفاً دانش‌آموز مورد نظر را انتخاب فرمایید.', 'error');
       return;
     }
 
@@ -574,14 +574,14 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const handleSaveObservation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentForObs || !obsContent.trim()) {
-      alert('لطفاً متن یادداشت مشاهده‌گری را وارد نمایید.');
+      showToast('لطفاً متن یادداشت مشاهده‌گری را وارد نمایید.', 'error');
       return;
     }
 
     // خودکار: لحظه‌ی ثبت از ساعت سامانه؛ دستی: مقدار واردشده (پس از اعتبارسنجی)
     const when = obsDateManual || editingObsId ? parseShamsiDateTime(obsDate, obsTime) : getNowShamsi();
     if (!when) {
-      alert('تاریخ (مثل 1404/08/20) یا ساعت (مثل 10:30) معتبر نیست. می‌توانید دکمه‌ی «اکنون» را بزنید.');
+      showToast('تاریخ (مثل 1404/08/20) یا ساعت (مثل 10:30) معتبر نیست. می‌توانید دکمه‌ی «اکنون» را بزنید.', 'error');
       return;
     }
 
@@ -668,7 +668,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const handleSaveSectionEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDossierStudent || !activeSectionModal || !sectionEntryContent.trim()) {
-      alert('لطفاً متن یادداشت را وارد فرمایید.');
+      showToast('لطفاً متن یادداشت را وارد فرمایید.', 'error');
       return;
     }
 
@@ -711,7 +711,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const handleSaveTemperamentOverview = () => {
     if (!selectedDossierStudent) return;
     updateTemperamentOverview(selectedDossierStudent.id, tempType, tempPhysical, tempBehavioral);
-    alert('اطلاعات تحلیل مزاج با موفقیت ثبت گردید.');
+    showToast('اطلاعات تحلیل مزاج با موفقیت ثبت گردید.', 'success');
   };
 
   const handleSaveSummaryOverview = () => {
@@ -719,7 +719,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     const strList = summaryStrengths.split('\n').map((s) => s.trim()).filter(Boolean);
     const grList = summaryGrowth.split('\n').map((s) => s.trim()).filter(Boolean);
     updateNurturingSummaryOverview(selectedDossierStudent.id, summaryOverall, strList, grList);
-    alert('جمعبندی و راهبردهای کلی پرونده تربیتی ذخیره شد.');
+    showToast('جمعبندی و راهبردهای کلی پرونده تربیتی ذخیره شد.', 'success');
   };
 
   // Student class helper
@@ -966,7 +966,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجوی نام دانش‌آموز، کد ملی، مربی یا برچسب..."
+                placeholder="جستجوی دانش‌آموز یا کد ملی…"
                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-10 pl-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -1916,9 +1916,17 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (confirm('آیا از حذف این مشاهده اطمینان دارید؟')) {
+                                    showConfirm({
+                                      title: 'حذف شود؟',
+                                      message: 'آیا از حذف این مشاهده اطمینان دارید؟',
+                                      confirmLabel: 'بله، حذف شود',
+                                      cancelLabel: 'انصراف',
+                                      isDangerous: true,
+                                      onConfirm: () => {
                                       deleteStudentObservation(obs.id);
-                                    }
+                                    
+                                      },
+                                    });
                                   }}
                                   className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 cursor-pointer"
                                   title="حذف"
@@ -2183,9 +2191,17 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`آیا از حذف ارزیابی رشدی «${studentFullName(student)}» در دوره ${ev.period} اطمینان دارید؟`)) {
+                            showConfirm({
+                              title: 'حذف شود؟',
+                              message: `آیا از حذف ارزیابی رشدی «${studentFullName(student)}» در دوره ${ev.period} اطمینان دارید؟`,
+                              confirmLabel: 'بله، حذف شود',
+                              cancelLabel: 'انصراف',
+                              isDangerous: true,
+                              onConfirm: () => {
                               deleteCoachEvaluation(ev.id);
-                            }
+                            
+                              },
+                            });
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                           title="حذف ارزیابی"
@@ -2529,9 +2545,17 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (confirm('آیا از حذف این یادداشت اطمینان دارید؟')) {
+                                  showConfirm({
+                                    title: 'حذف شود؟',
+                                    message: 'آیا از حذف این یادداشت اطمینان دارید؟',
+                                    confirmLabel: 'بله، حذف شود',
+                                    cancelLabel: 'انصراف',
+                                    isDangerous: true,
+                                    onConfirm: () => {
                                     deleteDossierSectionEntry(selectedDossierStudent.id, activeSectionModal, entry.id);
-                                  }
+                                  
+                                    },
+                                  });
                                 }}
                                 className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 cursor-pointer"
                                 title="حذف"

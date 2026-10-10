@@ -32,6 +32,30 @@ const process = (table: HTMLTableElement) => {
     }
   }
   if (!table.hasAttribute('data-stack')) table.setAttribute('data-stack', '');
+  // جدول‌های پرستون (مثل ثبت نمرات): مقادیر دو‌به‌دو کنار هم تا کارت‌ها خیلی بلند نشوند
+  const dense = headers.length >= 7;
+  if (dense !== table.hasAttribute('data-dense')) table.toggleAttribute('data-dense', dense);
+};
+
+/**
+ * موبایل: هدر صفحه‌های داخلی فشرده می‌شود —
+ * دکمه‌های «بازگشت به …» و «منو» فقط آیکن می‌مانند و مسیر «پیشخوان اصلی / …» پنهان می‌شود (CSS در index.css).
+ */
+const compactHeaders = () => {
+  document.querySelectorAll('button').forEach((b) => {
+    const txt = textOf(b);
+    const sidebar = b.getAttribute('aria-label') === 'باز کردن نوار کناری';
+    const back = txt.startsWith('بازگشت به');
+    if ((sidebar || back) && !b.hasAttribute('data-compact')) {
+      if (!b.getAttribute('aria-label')) b.setAttribute('aria-label', txt || 'بازگشت');
+      b.setAttribute('data-compact', '');
+    }
+  });
+  document.querySelectorAll('main div').forEach((d) => {
+    if (d.hasAttribute('data-crumb') || d.children.length > 4) return;
+    const t = textOf(d);
+    if (t.length < 70 && t.startsWith('پیشخوان اصلی')) d.setAttribute('data-crumb', '');
+  });
 };
 
 export function enableResponsiveTables(): void {
@@ -40,6 +64,7 @@ export function enableResponsiveTables(): void {
   const run = () => {
     scheduled = false;
     document.querySelectorAll('table').forEach((t) => process(t as HTMLTableElement));
+    compactHeaders();
   };
   const schedule = () => {
     if (scheduled) return;

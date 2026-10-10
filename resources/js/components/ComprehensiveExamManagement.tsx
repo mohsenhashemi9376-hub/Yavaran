@@ -49,7 +49,7 @@ const isInvalid = (v: string | undefined) => {
 };
 
 export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementProps> = ({ onBack, onOpenSidebar }) => {
-  const { classes, students, comprehensiveExams, saveComprehensiveExam, showToast } = useSchool();
+  const { classes, students, comprehensiveExams, saveComprehensiveExam, showToast, showConfirm } = useSchool();
 
   const [classId, setClassId] = useState<string>(classes[0]?.id || '');
   const [active, setActive] = useState<ExamSubjectKey[]>(EXAM_SUBJECTS.map((s) => s.key));
@@ -82,7 +82,17 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   }, [classId]);
 
   const changeClass = (id: string) => {
-    if (dirty && !window.confirm('تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟')) return;
+    if (dirty) {
+      showConfirm({
+        title: 'تغییرات ذخیره‌نشده',
+        message: 'تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟',
+        confirmLabel: 'بله، ادامه',
+        cancelLabel: 'ماندن در صفحه',
+        isDangerous: true,
+        onConfirm: () => setClassId(id),
+      });
+      return;
+    }
     setClassId(id);
   };
 

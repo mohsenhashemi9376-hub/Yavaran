@@ -52,7 +52,7 @@ import { AddClassModal } from './AddClassModal';
 import { EditClassModal } from './EditClassModal';
 import { AddTeacherModal } from './AddTeacherModal';
 import { EditTeacherModal } from './EditTeacherModal';
-import { AttendanceAlertsPanel } from './AttendanceStatsView';
+import { AttendanceAlertsPanel, AttendanceTrendsPanel } from './AttendanceStatsView';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
@@ -340,9 +340,9 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               
               {/* ۱. هدر پیشخوان معاونت اجرایی */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="text-lg sm:text-xl font-black text-slate-900">
                         سلام، {currentUser?.name || 'همکار گرامی'}
                       </h1>
@@ -359,7 +359,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   </div>
 
                   {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       id="btn-mobile-sidebar-toggle"
@@ -381,13 +381,15 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
 
+              <AttendanceTrendsPanel />
+
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {/* کارت ۱: کل دانش‌آموزان فعال */}
                 <button
                   type="button"
                   onClick={() => setCurrentView('students')}
-                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-500/50 hover:shadow-sm transition text-right group cursor-pointer"
+                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-teal-500/50 hover:shadow-sm transition text-right group cursor-pointer flex flex-col items-stretch justify-start"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">کل دانش‌آموزان</span>
@@ -398,8 +400,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   <div className="text-2xl font-black text-slate-900 mt-2 font-mono">
                     {toPersianDigits(students.length)}
                   </div>
-                  <div className="text-[11px] text-teal-700 mt-1 flex items-center gap-1 font-medium">
-                    <span>مدیریت فهرست دانش‌آموزان</span>
+                  <div className="text-[11px] text-teal-700 mt-auto pt-1 flex items-center gap-1 font-medium">
+                    <span>مدیریت فهرست</span>
                     <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition" />
                   </div>
                 </button>
@@ -408,7 +410,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => openMorning('absent')}
-                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-400 hover:shadow-sm transition text-right group cursor-pointer"
+                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-400 hover:shadow-sm transition text-right group cursor-pointer flex flex-col items-stretch justify-start"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">غایبان امروز</span>
@@ -419,7 +421,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   <div className="text-2xl font-black text-rose-700 mt-2 font-mono">
                     {toPersianDigits(morningToday.absent)}
                   </div>
-                  <div className="text-[11px] text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                  <div className="text-[11px] text-rose-600 mt-auto pt-1 flex items-center gap-1 font-medium">
                     <span>مشاهده و ثبت غیبت‌ها</span>
                     <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition" />
                   </div>
@@ -429,7 +431,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => openMorning('late')}
-                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-400 hover:shadow-sm transition text-right group cursor-pointer"
+                  className="hover:scale-[1.01] bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-amber-400 hover:shadow-sm transition text-right group cursor-pointer flex flex-col items-stretch justify-start"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">تأخیرهای امروز</span>
@@ -440,7 +442,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   <div className="text-2xl font-black text-amber-700 mt-2 font-mono">
                     {toPersianDigits(morningToday.late)}
                   </div>
-                  <div className="text-[11px] text-amber-600 mt-1 flex items-center gap-1 font-medium">
+                  <div className="text-[11px] text-amber-600 mt-auto pt-1 flex items-center gap-1 font-medium">
                     <span>مشاهده دفتر تأخیر ورود</span>
                     <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition" />
                   </div>
@@ -450,7 +452,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setCurrentView('warnings')}
-                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-400 hover:shadow-sm transition text-right group cursor-pointer"
+                  className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-400 hover:shadow-sm transition text-right group cursor-pointer flex flex-col items-stretch justify-start"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-500">نیازمند پیگیری</span>
@@ -461,7 +463,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   <div className="text-2xl font-black text-indigo-900 mt-2 font-mono">
                     {toPersianDigits(urgentNeedsCount)}
                   </div>
-                  <div className="text-[11px] text-indigo-700 mt-1 flex items-center gap-1 font-medium">
+                  <div className="text-[11px] text-indigo-700 mt-auto pt-1 flex items-center gap-1 font-medium">
                     <span>رسیدگی به موارد بحرانی</span>
                     <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition" />
                   </div>

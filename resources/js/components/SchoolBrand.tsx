@@ -68,7 +68,7 @@ export const SchoolBrand: React.FC<SchoolBrandProps> = ({
 
       {/* 2. School Name & Academic Year Information */}
       <div className="text-right flex flex-col justify-center min-w-0">
-        <h1 className="text-xs sm:text-sm md:text-base font-black text-slate-900 leading-tight tracking-tight truncate">
+        <h1 className="text-xs sm:text-sm md:text-base font-black text-slate-900 leading-tight tracking-tight line-clamp-2 sm:line-clamp-none sm:truncate">
           {schoolName}
         </h1>
 

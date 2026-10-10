@@ -72,7 +72,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     teachingAccessibleSessions,
     teacherEvaluations,
     schoolAnnouncements: allAnnouncements,
-    deleteAttendanceSession 
+    deleteAttendanceSession, showConfirm
   } = useSchool();
 
   const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
@@ -794,9 +794,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                   </button>
                                   <button
                                     onClick={() => {
-                                      if (window.confirm('آیا از حذف این جلسه اطمینان دارید؟')) {
+                                      showConfirm({
+                                        title: 'حذف شود؟',
+                                        message: 'آیا از حذف این جلسه اطمینان دارید؟',
+                                        confirmLabel: 'بله، حذف شود',
+                                        cancelLabel: 'انصراف',
+                                        isDangerous: true,
+                                        onConfirm: () => {
                                         deleteAttendanceSession(session.id);
-                                      }
+                                      
+                                        },
+                                      });
                                     }}
                                     className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                                     title="حذف جلسه"

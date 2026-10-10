@@ -35,6 +35,7 @@ import {
   FileText
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { PageHeader, Button } from './ui';
 
 // Qualitative Rating Configs
 export const QUALITATIVE_RATING_MAP: Record<QualitativeRating, {
@@ -131,7 +132,7 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
     deleteTeacherEvaluation,
     addSchoolAnnouncement,
     deleteSchoolAnnouncement,
-    currentUser
+    currentUser, showConfirm
   } = useSchool();
 
   const teachers = allTeachers || [];
@@ -401,44 +402,19 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
   return (
     <div className="space-y-6 font-['Vazirmatn',sans-serif]">
       
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
-            <Award className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 leading-8">ارزیابی کیفی عملکرد دبیران</h2>
-            <p className="text-xs text-slate-500 leading-6">
-              سنجش ۵ شاخص آموزشی همراه با بازخورد، نقاط قوت و محورهای ارتقاء
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setIsAnnouncementModalOpen(true)}
-            className="h-10 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Bell className="w-4 h-4 text-indigo-600" />
-            <span>اطلاعیه جدید</span>
-          </button>
-          <button
-            onClick={handleExportEvaluationsExcel}
-            className="h-10 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            <span>خروجی اکسل</span>
-          </button>
-          <button
-            onClick={() => handleOpenNewEvaluation()}
-            className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20"
-          >
-            <Plus className="w-4 h-4" />
-            <span>ثبت ارزیابی</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="ارزیابی کیفی عملکرد دبیران"
+        subtitle="سنجش ۵ شاخص آموزشی همراه با بازخورد، نقاط قوت و محورهای ارتقاء"
+        icon={<Award className="w-5 h-5" />}
+        className="!mb-0"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setIsAnnouncementModalOpen(true)} icon={<Bell className="w-4 h-4" />}>اطلاعیه جدید</Button>
+            <Button variant="secondary" onClick={handleExportEvaluationsExcel} icon={<FileSpreadsheet className="w-4 h-4" />}>خروجی اکسل</Button>
+            <Button onClick={() => handleOpenNewEvaluation()} icon={<Plus className="w-4 h-4" />}>ثبت ارزیابی</Button>
+          </>
+        }
+      />
 
       {/* KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -636,9 +612,17 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
                     {isEvaluated && (
                       <button
                         onClick={() => {
-                          if (confirm(`آیا از حذف ارزیابی ${teacher.name} اطمینان دارید؟`)) {
+                          showConfirm({
+                            title: 'حذف شود؟',
+                            message: `آیا از حذف ارزیابی ${teacher.name} اطمینان دارید؟`,
+                            confirmLabel: 'بله، حذف شود',
+                            cancelLabel: 'انصراف',
+                            isDangerous: true,
+                            onConfirm: () => {
                             deleteTeacherEvaluation(evalItem.id);
-                          }
+                          
+                            },
+                          });
                         }}
                         className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                         title="حذف ارزیابی"
@@ -694,9 +678,17 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
 
                     <button
                       onClick={() => {
-                        if (confirm('آیا از حذف این اطلاعیه اطمینان دارید؟')) {
+                        showConfirm({
+                          title: 'حذف شود؟',
+                          message: 'آیا از حذف این اطلاعیه اطمینان دارید؟',
+                          confirmLabel: 'بله، حذف شود',
+                          cancelLabel: 'انصراف',
+                          isDangerous: true,
+                          onConfirm: () => {
                           deleteSchoolAnnouncement(ann.id);
-                        }
+                        
+                          },
+                        });
                       }}
                       className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer transition"
                       title="حذف اطلاعیه"

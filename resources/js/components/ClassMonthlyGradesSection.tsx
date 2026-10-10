@@ -59,7 +59,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     isEducationalVice,
     canTeachClassAndSubject,
     isGradePeriodOpen,
-    sessions
+    sessions, showConfirm
   } = useSchool();
 
   const classStudents = useMemo(() => {
@@ -166,7 +166,13 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   // Quick fill score for all students (e.g. 20, 19, clear)
   const handleQuickFill = (scoreVal: string) => {
     if (!isGradePeriodOpen(activePeriodKey)) return;
-    if (confirm(`آیا می‌خواهید نمره «${toPersianDigits(scoreVal || 'خالی')}» برای تمام دانش‌آموزان کلاس در این ماه ثبت شود؟`)) {
+    showConfirm({
+      title: 'تأیید عملیات',
+      message: `آیا می‌خواهید نمره «${toPersianDigits(scoreVal || 'خالی')}» برای تمام دانش‌آموزان کلاس در این ماه ثبت شود؟`,
+      confirmLabel: 'بله، انجام شود',
+      cancelLabel: 'انصراف',
+      isDangerous: false,
+      onConfirm: () => {
       setDraftGrades((prev) => {
         const updated = { ...prev };
         classStudents.forEach((stu) => {
@@ -177,7 +183,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
         });
         return updated;
       });
-    }
+    
+      },
+    });
   };
 
   // Save all grades in this subject & class

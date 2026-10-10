@@ -30,7 +30,7 @@ export const BellPeriodsManagementSection: React.FC = () => {
     classes,
     isAdminOrVice,
     isEducationalVice,
-    isAdmin
+    isAdmin, showConfirm
   } = useSchool();
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -158,19 +158,35 @@ export const BellPeriodsManagementSection: React.FC = () => {
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`آیا از حذف "${name}" از فهرست ساعات مصوب مدرسه مطمئن هستید؟`)) {
+    showConfirm({
+      title: 'حذف شود؟',
+      message: `آیا از حذف "${name}" از فهرست ساعات مصوب مدرسه مطمئن هستید؟`,
+      confirmLabel: 'بله، حذف شود',
+      cancelLabel: 'انصراف',
+      isDangerous: true,
+      onConfirm: () => {
       deleteBellPeriod(id);
       setSuccessMsg(`زنگ ${name} با موفقیت حذف شد.`);
       setTimeout(() => setSuccessMsg(null), 3000);
-    }
+    
+      },
+    });
   };
 
   const handleResetDefaults = () => {
-    if (confirm('آیا مایلید ساعات و زنگ‌های مدرسه به تنظیمات استاندارد اولیه (۴ زنگ مصوب متوسطه اول) بازگردانده شوند؟')) {
+    showConfirm({
+      title: 'تأیید عملیات',
+      message: 'آیا مایلید ساعات و زنگ‌های مدرسه به تنظیمات استاندارد اولیه (۴ زنگ مصوب متوسطه اول) بازگردانده شوند؟',
+      confirmLabel: 'بله، انجام شود',
+      cancelLabel: 'انصراف',
+      isDangerous: false,
+      onConfirm: () => {
       resetBellPeriodsToDefault();
       setSuccessMsg('زنگ‌های مصوب با موفقیت به مقادیر پیش‌فرض استاندارد بازنشانی شدند.');
       setTimeout(() => setSuccessMsg(null), 3500);
-    }
+    
+      },
+    });
   };
 
   return (

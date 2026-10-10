@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits } from '../utils/persianDate';
+import { useTheme } from '../context/ThemeContext';
 
 const ROLES = ['coach', 'vice_nurturing'];
 
@@ -17,6 +18,7 @@ const isEditable = (el: EventTarget | null): boolean => {
  */
 export const ConfidentialGuard: React.FC = () => {
   const { currentUser } = useSchool();
+  const { theme } = useTheme();
   const active = !!currentUser && ROLES.includes(currentUser.role);
 
   useEffect(() => {
@@ -46,9 +48,9 @@ export const ConfidentialGuard: React.FC = () => {
     const now = new Date();
     const stamp = toPersianDigits(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
     const esc = (s: string) => s.replace(/[<>&"']/g, '');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><text x="160" y="100" text-anchor="middle" transform="rotate(-24 160 100)" font-family="Vazirmatn,sans-serif" font-size="15" font-weight="700" fill="rgba(15,23,42,0.07)">${esc(currentUser.name)} · ${stamp} · محرمانه</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><text x="160" y="100" text-anchor="middle" transform="rotate(-24 160 100)" font-family="Vazirmatn,sans-serif" font-size="15" font-weight="700" fill="${theme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(15,23,42,0.07)'}">${esc(currentUser.name)} · ${stamp} · محرمانه</text></svg>`;
     return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
-  }, [active, currentUser?.name]);
+  }, [active, currentUser?.name, theme]);
 
   if (!active) return null;
   return <div aria-hidden="true" className="yv-watermark" style={{ backgroundImage: background }} />;

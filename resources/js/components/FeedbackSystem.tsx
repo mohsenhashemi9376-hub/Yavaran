@@ -34,14 +34,15 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({ toast, onC
 
   return (
     <div 
-      className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] max-w-md w-[92%] sm:w-auto animate-in fade-in slide-in-from-top-4 duration-200"
+      className="fixed left-1/2 -translate-x-1/2 z-[100] max-w-md w-[92%] sm:w-auto animate-in fade-in slide-in-from-top-4 duration-200"
+      style={{ top: 'max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))' }}
       dir="rtl"
       role="status"
       aria-live="polite"
     >
-      <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border shadow-xl ${bgStyles}`}>
+      <div className={`relative overflow-hidden flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border shadow-xl ${bgStyles}`}>
         <div className="flex items-center gap-2.5">
-          <IconComponent className="w-5 h-5 shrink-0" />
+          <IconComponent className="w-5 h-5 shrink-0 yv-pop" />
           <span className="text-xs sm:text-sm font-bold leading-normal">{toast.message}</span>
         </div>
         <button
@@ -53,6 +54,7 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({ toast, onC
         >
           <X className="w-4 h-4" />
         </button>
+        <span className="yv-toast-bar" aria-hidden="true" />
       </div>
     </div>
   );

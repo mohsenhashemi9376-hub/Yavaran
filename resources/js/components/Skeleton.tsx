@@ -17,3 +17,10 @@ export const DashboardSkeleton: React.FC = () => (
     <Skeleton className="h-56 rounded-2xl" />
   </div>
 );
+
+/** اسکلت فهرست (چند ردیف) برای زمان بارگذاری داده‌ی یک پنجره یا بخش */
+export const ListSkeleton: React.FC<{ rows?: number }> = ({ rows = 4 }) => (
+  <div className="space-y-2.5" role="status" aria-label="در حال بارگذاری">
+    {Array.from({ length: rows }).map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
+  </div>
+);

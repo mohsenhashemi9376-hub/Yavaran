@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { User, SchoolClass } from '../types';
+import { User, SchoolClass, Workshop } from '../types';
 import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { workshopTitle } from '../utils/workshops';
@@ -38,8 +38,28 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
   onSelectTeacherForProfile,
   onEditTeacher,
 }) => {
-  const { workshops } = useSchool();
-  const workshopsOf = (t: User) => workshops.filter((w) => w.teacherId === t.id);
+  const { workshops, updateWorkshop, showConfirm, isAdmin, isEducationalVice } = useSchool();
+  const canManageWorkshops = isAdmin || isEducationalVice;
+  // کارگاه‌های هر استاد فقط از تخصیص صریح (teacherId) می‌آید؛ کارگاه‌های هم‌نام و هم‌پایه یک‌بار نمایش داده می‌شوند
+  const workshopsOf = (t: User) => {
+    const seen = new Set<string>();
+    return workshops.filter((w) => {
+      if (!w.teacherId || w.teacherId !== t.id) return false;
+      const key = `${w.category}|${w.name.trim()}|${w.gradeLevel}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const unassignWorkshop = (w: Workshop, t: User) =>
+    showConfirm({
+      title: 'برداشتن استاد از کارگاه؟',
+      message: `«${t.name}» از مسئولیت ${workshopTitle(w)} برداشته شود؟ کارگاه بدون استاد می‌ماند.`,
+      confirmLabel: 'بله، برداشته شود',
+      cancelLabel: 'انصراف',
+      isDangerous: true,
+      onConfirm: () => updateWorkshop(w.id, { teacherId: undefined, teacherName: undefined }),
+    });
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState('');
   const [teacherClassFilter, setTeacherClassFilter] = useState('');
@@ -296,8 +316,8 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-xs">
+          <div>
+            <table className="yv-fit-table w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">نام و نام خانوادگی</th>
@@ -359,13 +379,25 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                             {teacherWorkshops.map((w) => (
                               <span
                                 key={w.id}
-                                className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${
+                                title={workshopTitle(w)}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${
                                   w.category === 'scientific'
                                     ? 'bg-sky-50 text-sky-800 border-sky-200'
                                     : 'bg-violet-50 text-violet-800 border-violet-200'
                                 }`}
                               >
-                                {workshopTitle(w)}
+                                <span>{w.category === 'scientific' ? 'علمی' : 'مهارتی'} {w.name} · {w.gradeLevel === 9 ? 'نهم' : 'هشتم'}</span>
+                                {canManageWorkshops && (
+                                  <button
+                                    type="button"
+                                    onClick={() => unassignWorkshop(w, teacher)}
+                                    aria-label="برداشتن استاد از این کارگاه"
+                                    title="برداشتن استاد از این کارگاه"
+                                    className="opacity-60 hover:opacity-100 cursor-pointer leading-none"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
                               </span>
                             ))}
                           </div>

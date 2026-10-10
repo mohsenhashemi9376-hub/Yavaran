@@ -137,11 +137,11 @@ html[data-theme="dark"] .yv-login {
   border-bottom: 1px solid rgb(201 164 92 / 0.45);
 }
 .yv-login__logo {
-  padding: 0.5rem;
+  padding: 0.75rem 1.1rem;
   border-radius: 1.5rem;
-  background: rgb(255 255 255 / 0.1);
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.18), 0 12px 30px -10px rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(6px);
+  /* آرم رسمی سبز تیره است؛ روی زمینهٔ سفید دیده می‌شود */
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.5), 0 14px 34px -10px rgb(0 0 0 / 0.55);
 }
 
 /* ==========================================================================
@@ -447,3 +447,28 @@ html[data-lux] main .grid > :nth-child(8) { animation-delay: 0.28s; }
 }
 html[data-theme="dark"] .yv-empty__title { color: #e7f2f0; }
 html[data-theme="dark"] .yv-empty__desc { color: #8fa9a6; }
+
+/* آرم رسمی روی زمینهٔ روشن؛ در تم تاریک هم پلاک سفید می‌ماند */
+.yv-loader-logo { background: #fff !important; }
+
+/* ---------- موبایل: هدر خلوت‌تر؛ تغییر تم داخل برگهٔ «بیشتر» است ---------- */
+@media (max-width: 479.98px) {
+  html[data-lux] .yv-header .yv-theme-toggle.yv-lux-only { display: none; }
+}
+
+/* ---------- موبایل: صفحهٔ ورود با آرم بزرگ در بالای برگه ---------- */
+.yv-login-hero { display: none; }
+@media (max-width: 767.98px) {
+  .yv-login-hero {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9rem;
+    position: fixed; inset: 0 0 auto 0; height: 46dvh; z-index: 0; text-align: center;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .yv-login-hero img { width: min(34vw, 8.5rem); height: auto; filter: drop-shadow(0 14px 22px rgb(10 79 74 / 0.28)); animation: yv-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .yv-login-hero__title { font-weight: 900; font-size: 1.05rem; color: var(--yv-brand-deep); }
+  .yv-login-hero__sub { font-size: 0.72rem; color: color-mix(in oklab, var(--yv-ink) 60%, transparent); }
+  /* آرم داخل برگه تکراری است؛ در موبایل فقط عنوان باقی می‌ماند */
+  .yv-login__logo { display: none; }
+}
+html[data-theme="dark"] .yv-login-hero img { background: #fff; padding: 0.6rem 0.8rem; border-radius: 1.4rem; }
+html[data-theme="dark"] .yv-login-hero__title { color: var(--yv-ink); }

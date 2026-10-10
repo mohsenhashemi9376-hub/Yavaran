@@ -40,7 +40,8 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
     allCoaches,
     sessions,
     morningDelays,
-    schoolAbsences
+    schoolAbsences,
+    showConfirm
   } = useSchool();
 
   const [activeTab, setActiveTab] = useState<'backup' | 'school_info' | 'reset'>('backup');
@@ -62,7 +63,13 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
       
       // Strict confirmation before restoring
       showToast('آماده بازیابی', 'لطفاً عملیات جایگزینی داده‌ها را تأیید کنید.', 'info');
-      if (window.confirm('بازیابی اطلاعات:\nبا این کار اطلاعات فعلی مدرسه با داده‌های فایل انتخاب‌شده جایگزین خواهند شد.\nآیا ادامه می‌دهید؟')) {
+      showConfirm({
+        title: 'بازیابی اطلاعات از فایل پشتیبان؟',
+        message: 'بازیابی اطلاعات:\nبا این کار اطلاعات فعلی مدرسه با داده‌های فایل انتخاب‌شده جایگزین خواهند شد.\nآیا ادامه می‌دهید؟',
+        confirmLabel: 'بله، جایگزین شود',
+        cancelLabel: 'انصراف',
+        isDangerous: true,
+        onConfirm: () => {
         try {
           setIsImporting(true);
           const success = importDatabaseJson(jsonContent);
@@ -77,7 +84,9 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
         } finally {
           setIsImporting(false);
         }
-      }
+      
+        },
+      });
     };
     reader.readAsText(file);
     e.target.value = '';

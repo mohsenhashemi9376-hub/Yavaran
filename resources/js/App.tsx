@@ -9,6 +9,7 @@ import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
 import { EducationalDashboard } from './components/EducationalDashboard';
 import { NurturingDashboard } from './components/NurturingDashboard';
 import { ConfidentialGuard } from './components/ConfidentialGuard';
+import { BrandSplash } from './components/BrandSplash';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
 import { AttendanceModal } from './components/AttendanceModal';
@@ -24,7 +25,6 @@ import { CoachProfileModal } from './components/CoachProfileModal';
 import { EditTeacherModal } from './components/EditTeacherModal';
 import { EditCoachModal } from './components/EditCoachModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { YavaranLogo } from './components/YavaranLogo';
 import { SchoolClass, AttendanceSession, Student, User } from './types';
 import { GraduationCap, Sparkles, CheckCircle2, Shield, Calendar, Users, ShieldAlert, BookOpen } from 'lucide-react';
 import { getTodayShamsi } from './utils/persianDate';
@@ -433,31 +433,7 @@ const AuthGate: React.FC = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-5 font-['Vazirmatn',sans-serif] p-6 text-center" role="status" aria-live="polite">
-      <div className="yv-loader-logo">
-        <YavaranLogo size="xl" />
-      </div>
-      <div className="text-sm font-black text-slate-800">مدرسه یاوران ولایت</div>
-      {authStatus === 'offline' ? (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500">ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.</p>
-          <button
-            type="button"
-            onClick={() => reloadFromServer()}
-            className="yv-btn-primary px-5 py-2.5 text-white font-bold text-xs rounded-xl transition cursor-pointer"
-          >
-            تلاش مجدد
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <div className="yv-loader-bar" />
-          <p className="text-xs text-slate-400">در حال آماده‌سازی سامانه…</p>
-        </div>
-      )}
-    </div>
-  );
+  return <BrandSplash offline={authStatus === 'offline'} onRetry={() => reloadFromServer()} />;
 };
 
 export default function App() {

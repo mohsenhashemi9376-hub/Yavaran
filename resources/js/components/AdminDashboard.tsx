@@ -613,7 +613,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200/60">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200/60 max-w-full truncate">
                     {schoolSettings.schoolName || 'دبیرستان یاوران ولایت'}
                   </span>
                   <span className="text-xs text-slate-400">•</span>
@@ -624,10 +624,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => setCurrentFullScreenView('settings')}
-                      className="text-[11px] font-bold text-teal-700 hover:text-teal-800 hover:underline mr-1 cursor-pointer"
+                      className="text-[11px] font-bold text-teal-700 hover:text-teal-800 hover:underline mr-1 cursor-pointer inline-flex items-center gap-1 whitespace-nowrap"
                       title="تنظیمات مشخصات مدرسه و سال تحصیلی"
+                      aria-label="تنظیمات مدرسه"
                     >
-                      (تنظیمات مدرسه)
+                      <Settings className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">تنظیمات مدرسه</span>
                     </button>
                   )}
                 </div>

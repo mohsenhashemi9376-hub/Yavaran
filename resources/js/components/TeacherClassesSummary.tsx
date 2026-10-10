@@ -126,7 +126,7 @@ export const TeacherClassesSummary: React.FC<Props> = ({ classes, sessions }) =>
         <p className="text-xs text-slate-500 mt-0.5">۵ جلسهٔ اخیر هر کلاس با مبحث تدریس‌شده و تکلیف</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div data-stagger className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {rows.map(({ cls, own, recent, homework }) => (
           <div key={cls.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">

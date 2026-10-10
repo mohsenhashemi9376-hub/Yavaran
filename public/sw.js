@@ -1,5 +1,5 @@
 /* Service Worker — مدرسه یاوران ولایت (PWA) */
-const VERSION = 'yavaran-v1.2.0';
+const VERSION = 'yavaran-v1.3.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const FONT_CACHE = `${VERSION}-fonts`;
@@ -7,8 +7,8 @@ const FONT_CACHE = `${VERSION}-fonts`;
 const SHELL_URLS = [
   '/',
   '/manifest.json',
-  '/yavaran-logo.svg',
-  '/logo.svg',
+  '/brand/emblem-192.png',
+  '/brand/logo-full.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',

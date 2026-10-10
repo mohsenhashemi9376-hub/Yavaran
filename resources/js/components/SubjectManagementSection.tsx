@@ -25,6 +25,7 @@ export const SubjectManagementSection: React.FC = () => {
     assignTeacherToSubject,
     deleteAcademicSubject,
     resetSubjectsToJuniorHighStandards,
+    showConfirm
   } = useSchool();
 
   // Access control: only Admin and Educational Vice can edit
@@ -59,24 +60,32 @@ export const SubjectManagementSection: React.FC = () => {
 
   const handleDeleteSubject = (subj: AcademicSubject) => {
     if (!canManage) return;
-    const confirmDelete = window.confirm(
-      `آیا از حذف درس «${subj.name}» از چارت آموزشی متوسطه اول اطمینان دارید؟`
-    );
-    if (confirmDelete) {
-      deleteAcademicSubject(subj.id);
-      showToast(`درس «${subj.name}» با موفقیت حذف شد.`);
-    }
+    showConfirm({
+      title: 'حذف درس؟',
+      message: `آیا از حذف درس «${subj.name}» از چارت آموزشی متوسطه اول اطمینان دارید؟`,
+      confirmLabel: 'بله، حذف شود',
+      cancelLabel: 'انصراف',
+      isDangerous: true,
+      onConfirm: () => {
+        deleteAcademicSubject(subj.id);
+        showToast(`درس «${subj.name}» با موفقیت حذف شد.`);
+      },
+    });
   };
 
   const handleResetToStandards = () => {
     if (!canManage) return;
-    const confirmReset = window.confirm(
-      'آیا مایلید تمام عناوین درسی به چارت مصوب و استاندارد دوره اول دبیرستان (متوسطه اول: هفتم، هشتم، نهم) بازنشانی شوند؟'
-    );
-    if (confirmReset) {
-      resetSubjectsToJuniorHighStandards();
-      showToast('چارت درسی به استاندارد آموزش و پرورش بازنشانی شد.');
-    }
+    showConfirm({
+      title: 'بازنشانی چارت درسی؟',
+      message: 'آیا مایلید تمام عناوین درسی به چارت مصوب و استاندارد دوره اول دبیرستان (متوسطه اول: هفتم، هشتم، نهم) بازنشانی شوند؟',
+      confirmLabel: 'بله، بازنشانی شود',
+      cancelLabel: 'انصراف',
+      isDangerous: true,
+      onConfirm: () => {
+        resetSubjectsToJuniorHighStandards();
+        showToast('چارت درسی به استاندارد آموزش و پرورش بازنشانی شد.');
+      },
+    });
   };
 
   const handleQuickAssignTeacher = (subjectId: string, teacherId: string) => {

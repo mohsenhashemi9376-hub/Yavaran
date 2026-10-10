@@ -96,6 +96,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     >
       <ThemeToggle className="yv-login__theme" />
 
+      {/* موبایل: آرم رسمی بزرگ بالای برگهٔ ورود (در دسکتاپ پنهان است) */}
+      <section className="yv-login-hero" aria-hidden="true">
+        <img src="/brand/logo-full.png" alt="" width={789} height={1266} decoding="async" />
+        <p className="yv-login-hero__title">مجتمع تربیتی آموزشی یاوران ولایت</p>
+        <p className="yv-login-hero__sub">سامانه مدیریت آموزشی، انضباطی و تربیتی</p>
+      </section>
+
       <div className="yv-login__card w-full max-w-md font-['Vazirmatn',sans-serif] animate-in fade-in zoom-in-95 duration-300">
         <div className="yv-login__hero text-white px-6 pt-8 pb-7 relative">
           <button
@@ -109,7 +116,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
           <div className="flex flex-col items-center text-center space-y-4 relative">
             <div className="yv-login__logo">
-              <YavaranLogo size="lg" />
+              <YavaranLogo variant="full" size="sm" />
             </div>
             <div>
               <h3 className="text-xl font-black text-white tracking-tight">مدرسه یاوران ولایت</h3>

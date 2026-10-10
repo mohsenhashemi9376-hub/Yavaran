@@ -12,6 +12,7 @@ import {
   formatDelayText,
 } from '../utils/morningAttendance';
 import { studentFullName } from '../utils/studentName';
+import { ParentPhoneButton } from './ParentPhoneButton';
 import { closedReasonMessage } from '../utils/schoolCalendar';
 import { SchoolHolidaysPanel } from './SchoolHolidaysPanel';
 
@@ -564,7 +565,10 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                     <div className="text-sm font-extrabold whitespace-nowrap">
                       {studentFullName(student)}
                     </div>
-                    <div className="text-[11px] opacity-70 mt-0.5 truncate">{classNameOf(student.classId)}</div>
+                    <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] opacity-70 truncate">{classNameOf(student.classId)}</span>
+                      <ParentPhoneButton student={student} compact />
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -775,6 +779,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                           {studentFullName(s)}
                         </button>
                         <ExcusedBadge excused={Boolean(todayRecords.get(s.id)?.isExcused)} />
+                        <ParentPhoneButton student={s} compact />
                       </div>
                       {todayRecords.get(s.id)?.absenceNote && (
                         <div className="mt-1.5 bg-rose-50/60 border border-rose-200/60 text-rose-900 text-xs p-2 rounded-lg">
@@ -835,6 +840,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                       >
                         {studentFullName(student)}
                       </button>
+                      <div className="mt-1"><ParentPhoneButton student={student} compact /></div>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{classNameOf(student.classId)}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-700 font-bold">{toPersianDigits(rec.entryTime || '—')}</td>
