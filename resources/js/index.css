@@ -276,8 +276,8 @@ button { transition-property: transform, background-color, border-color, color, 
 /* ===== بازخورد لمسی: آیکن تب فعال، تیک متحرک و نوار زمان پیام ===== */
 @keyframes yv-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .yv-pop, .yv-nav-pop { animation: yv-pop 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
-@keyframes yv-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-.yv-toast-bar { position: absolute; inset-inline: 0; bottom: 0; height: 3px; background: rgb(255 255 255 / 0.55); transform-origin: right; animation: yv-bar 4s linear forwards; }
+@keyframes yv-toast-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.yv-toast-bar { position: absolute; inset-inline: 0; bottom: 0; height: 3px; background: rgb(255 255 255 / 0.55); transform-origin: right; animation: yv-toast-shrink 4s linear forwards; }
 @media (prefers-reduced-motion: reduce) {
   .animate-in, .yv-pop, .yv-nav-pop, .yv-toast-bar { animation: none; }
 }
