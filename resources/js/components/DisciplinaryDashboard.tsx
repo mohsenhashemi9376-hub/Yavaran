@@ -53,6 +53,7 @@ import { EditClassModal } from './EditClassModal';
 import { AddTeacherModal } from './AddTeacherModal';
 import { EditTeacherModal } from './EditTeacherModal';
 import { AttendanceAlertsPanel, AttendanceTrendsPanel } from './AttendanceStatsView';
+import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { AddCoachModal } from './AddCoachModal';
 import { EditCoachModal } from './EditCoachModal';
@@ -380,6 +381,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onOpenStats={() => { setAttendanceTab('stats'); setCurrentView('attendance'); }}
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
+
+              <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
               <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
 

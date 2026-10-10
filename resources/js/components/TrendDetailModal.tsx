@@ -14,10 +14,11 @@ export interface TrendDetailRow {
 /** جزئیات پشت هر کادر آماری داشبورد (۱۴ روز اخیر) */
 export const TrendDetailModal: React.FC<{
   title: string;
+  hint?: string;
   rows: TrendDetailRow[];
   onClose: () => void;
   onRowClick?: (id: string) => void;
-}> = ({ title, rows, onClose, onRowClick }) => {
+}> = ({ title, hint = '۱۴ روز اخیر', rows, onClose, onRowClick }) => {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', h);
@@ -35,7 +36,7 @@ export const TrendDetailModal: React.FC<{
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>
-            <div className="text-[11px] text-slate-400 mt-0.5">۱۴ روز اخیر • {toPersianDigits(rows.length)} مورد</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{toPersianDigits(hint)} • {toPersianDigits(rows.length)} مورد</div>
           </div>
           <button type="button" onClick={onClose} aria-label="بستن" className="p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 cursor-pointer">
             <X className="w-5 h-5" />
@@ -43,7 +44,7 @@ export const TrendDetailModal: React.FC<{
         </div>
         <div className="overflow-y-auto p-3 space-y-1.5">
           {rows.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">در ۱۴ روز اخیر موردی ثبت نشده است.</div>
+            <div className="py-10 text-center text-sm text-slate-400">موردی ثبت نشده است.</div>
           ) : (
             rows.map((r) => {
               const body = (
@@ -54,7 +55,7 @@ export const TrendDetailModal: React.FC<{
                   </div>
                   <div className="shrink-0 flex items-center gap-2 text-[11px]">
                     {r.badge && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold">{r.badge}</span>}
-                    <span className="text-slate-400 tabular-nums">{toPersianDigits(r.date)}</span>
+                    <span className="text-slate-400 tabular-nums">{r.date ? toPersianDigits(r.date) : ''}</span>
                   </div>
                 </>
               );
