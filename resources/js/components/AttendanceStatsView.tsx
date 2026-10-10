@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Search, FileSpreadsheet, RotateCcw, CheckCircle2, XCircle, Send, X, ChevronLeft, BarChart3, AlertTriangle } from 'lucide-react';
@@ -332,7 +333,7 @@ export const AttendanceAlertsPanel: React.FC<{ onOpenStats?: () => void; onSelec
         <span className="text-[11px] font-bold text-teal-700 flex items-center gap-0.5 shrink-0">مشاهده <ChevronLeft className="w-3.5 h-3.5" /></span>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center sm:p-4"
           dir="rtl"
@@ -354,7 +355,7 @@ export const AttendanceAlertsPanel: React.FC<{ onOpenStats?: () => void; onSelec
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
       <ReferralDialog target={target} onClose={() => setTarget(null)} onSubmit={(note) => target && refer(target.stat, target.kind, monthKey, note)} />
     </>
   );
