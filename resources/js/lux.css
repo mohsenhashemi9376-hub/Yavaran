@@ -66,7 +66,6 @@ html[data-lux] body {
   background-image:
     radial-gradient(60rem 30rem at 85% -10%, rgb(20 184 166 / 0.10), transparent 60%),
     radial-gradient(50rem 28rem at -5% 10%, rgb(201 164 92 / 0.08), transparent 60%);
-  background-attachment: fixed;
   color: var(--yv-ink);
 }
 html[data-lux] .yv-header {
@@ -434,7 +433,7 @@ html[data-theme="dark"] .yv-skeleton { background-image: linear-gradient(100deg,
 
 /* ورود نرم کارت‌ها هنگام باز شدن صفحه */
 @keyframes yv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-html[data-lux] main .grid > :nth-child(-n+8) { animation: yv-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-lux] main .grid > :nth-child(-n+8) { animation: yv-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 html[data-lux] main .grid > :nth-child(2) { animation-delay: 0.04s; }
 html[data-lux] main .grid > :nth-child(3) { animation-delay: 0.08s; }
 html[data-lux] main .grid > :nth-child(4) { animation-delay: 0.12s; }

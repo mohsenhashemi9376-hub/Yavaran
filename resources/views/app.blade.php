@@ -63,7 +63,7 @@
     </style>
     @vite('resources/js/main.tsx')
   </head>
-  <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] antialiased selection:bg-emerald-500 selection:text-white">
+  <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] selection:bg-emerald-500 selection:text-white">
     <div id="root">
       <div class="yv-boot" role="status" aria-live="polite" aria-label="در حال آماده‌سازی">
         <div class="yv-boot__halo" aria-hidden="true"></div>
