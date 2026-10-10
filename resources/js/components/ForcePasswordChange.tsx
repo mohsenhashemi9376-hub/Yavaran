@@ -97,7 +97,7 @@ export const ForcePasswordChange: React.FC = () => {
         <div className="yv-login__hero text-white px-6 pt-8 pb-7">
           <div className="flex flex-col items-center text-center space-y-3">
             <div className="yv-login__logo">
-              <YavaranLogo size="lg" />
+              <YavaranLogo variant="full" size="xs" />
             </div>
             <h3 className="text-xl font-black">تغییر رمز عبور</h3>
             <p className="text-xs text-teal-100/80 leading-6">

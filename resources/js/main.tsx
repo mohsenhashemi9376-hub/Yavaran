@@ -5,9 +5,11 @@ import './index.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { enablePersianDigits } from './utils/persianizeDom';
 import { enableResponsiveTables } from './utils/responsiveTables';
+import { enableSheetGestures } from './utils/sheetGestures';
 
 enablePersianDigits();
 enableResponsiveTables();
+enableSheetGestures();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

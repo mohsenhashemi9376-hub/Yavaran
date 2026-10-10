@@ -436,7 +436,7 @@ const AuthGate: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-5 font-['Vazirmatn',sans-serif] p-6 text-center" role="status" aria-live="polite">
       <div className="yv-loader-logo">
-        <YavaranLogo size="xl" />
+        <YavaranLogo variant="full" size="md" />
       </div>
       <div className="text-sm font-black text-slate-800">مدرسه یاوران ولایت</div>
       {authStatus === 'offline' ? (

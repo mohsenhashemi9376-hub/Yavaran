@@ -321,7 +321,7 @@ export const AttendanceTrendsPanel: React.FC = () => {
   );
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   return (
-    <div data-stagger className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 gap-3 [&>*:nth-child(3)]:col-span-2 sm:[&>*:nth-child(3)]:col-span-1">
       <TrendTile label="تأخیرها" total={toPersianDigits(sum(t.delays))} hint="۱۴ روز اخیر" values={t.delays} color="#d97706" />
       <TrendTile label="دقایق تأخیر" total={toPersianDigits(sum(t.minutes))} hint="۱۴ روز اخیر" values={t.minutes} color="#7c3aed" />
       <TrendTile label="غیبت غیرموجه" total={toPersianDigits(sum(t.absences))} hint="۱۴ روز اخیر" values={t.absences} color="#e11d48" />

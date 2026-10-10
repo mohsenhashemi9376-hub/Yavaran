@@ -11,7 +11,7 @@ export const ClassActivityTrends: React.FC = () => {
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   const homeworkShare = sum(t.sessions) > 0 ? Math.round((sum(t.homework) / sum(t.sessions)) * 100) : 0;
   return (
-    <div data-stagger className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 gap-3 [&>*:nth-child(3)]:col-span-2 sm:[&>*:nth-child(3)]:col-span-1">
       <TrendTile label="جلسات ثبت‌شده" total={toPersianDigits(sum(t.sessions))} hint="۱۴ روز اخیر" values={t.sessions} color="#0f766e" />
       <TrendTile label="جلسات دارای تکلیف" total={toPersianDigits(sum(t.homework))} hint="۱۴ روز اخیر" values={t.homework} color="#d97706" />
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col justify-between">

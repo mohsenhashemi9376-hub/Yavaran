@@ -263,3 +263,32 @@ button { transition-property: transform, background-color, border-color, color, 
   [data-stagger] > * { animation: none; }
   button:not(:disabled):active, [role="button"]:active { transform: none; }
 }
+
+/* ===== سازگاری کلاس‌های animate-in (قبلاً تعریف نشده بودند و هیچ حرکتی نداشتند) ===== */
+@keyframes yv-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes yv-fade-zoom { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes yv-fade-down { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+.animate-in { animation: yv-fade 0.18s ease-out both; }
+.animate-in.zoom-in-95 { animation-name: yv-fade-zoom; animation-duration: 0.2s; }
+.animate-in[class*="slide-in-from-bottom"] { animation-name: yv-rise; animation-duration: 0.25s; }
+.animate-in[class*="slide-in-from-top"] { animation-name: yv-fade-down; animation-duration: 0.22s; }
+
+/* ===== بازخورد لمسی: آیکن تب فعال، تیک متحرک و نوار زمان پیام ===== */
+@keyframes yv-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.yv-pop, .yv-nav-pop { animation: yv-pop 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+@keyframes yv-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.yv-toast-bar { position: absolute; inset-inline: 0; bottom: 0; height: 3px; background: rgb(255 255 255 / 0.55); transform-origin: right; animation: yv-bar 4s linear forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-in, .yv-pop, .yv-nav-pop, .yv-toast-bar { animation: none; }
+}
+
+/* جدول‌های پرستون در موبایل: دو ستون داخل هر کارت و شماره‌ی ردیف به‌صورت نشان کوچک */
+@media (max-width: 767.98px) {
+  table[data-stack][data-dense] tbody tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 0.9rem; padding-top: 0.5rem; }
+  table[data-stack][data-dense] tbody td { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 0.2rem; }
+  table[data-stack][data-dense] tbody td:nth-child(2),
+  table[data-stack][data-dense] tbody td:last-child { grid-column: 1 / -1; }
+  table[data-stack][data-dense] tbody td[data-label="ردیف"] { position: absolute; left: 0.75rem; top: 0.55rem; padding: 0 !important; border: 0 !important; font-size: 11px; color: rgb(148 163 184); width: auto; }
+  table[data-stack][data-dense] tbody td[data-label="ردیف"]::before { display: none; }
+  table[data-stack][data-dense] tbody td:nth-child(2)::before { display: none; }
+}

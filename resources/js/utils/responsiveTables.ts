@@ -32,6 +32,9 @@ const process = (table: HTMLTableElement) => {
     }
   }
   if (!table.hasAttribute('data-stack')) table.setAttribute('data-stack', '');
+  // جدول‌های پرستون (مثل ثبت نمرات): مقادیر دو‌به‌دو کنار هم تا کارت‌ها خیلی بلند نشوند
+  const dense = headers.length >= 7;
+  if (dense !== table.hasAttribute('data-dense')) table.toggleAttribute('data-dense', dense);
 };
 
 export function enableResponsiveTables(): void {

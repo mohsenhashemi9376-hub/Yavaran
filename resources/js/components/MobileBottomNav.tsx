@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { MoreHorizontal, X } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
+import { tapFeedback } from '../utils/sheetGestures';
+import { useTheme } from '../context/ThemeContext';
+import { Moon, Sun } from 'lucide-react';
 
 export interface MobileNavItem {
   id: string;
@@ -29,6 +32,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onSelect,
 }) => {
   const [moreOpen, setMoreOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const moreActive = moreItems.some((i) => i.id === activeId);
 
   useEffect(() => {
@@ -39,6 +43,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   }, [moreOpen]);
 
   const pick = (id: string) => {
+    tapFeedback();
     setMoreOpen(false);
     onSelect(id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -72,7 +77,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   active ? 'bg-emerald-100' : ''
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon key={active ? 'on' : 'off'} className={`w-5 h-5 ${active ? 'yv-nav-pop' : ''}`} />
                 {item.badge ? (
                   <span className="absolute -top-0.5 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center">
                     {toPersianDigits(item.badge > 99 ? 99 : item.badge)}
@@ -111,7 +116,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           aria-label="سایر بخش‌ها"
           onClick={(e) => e.target === e.currentTarget && setMoreOpen(false)}
         >
-          <div className="bg-white w-full rounded-t-3xl shadow-2xl p-4 pb-6 max-h-[85dvh] overflow-y-auto">
+          <div className="bg-white w-full rounded-t-3xl shadow-2xl p-4 pb-6 max-h-[85dvh] overflow-y-auto" style={{ animation: 'yv-sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both' }}>
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300" aria-hidden="true" />
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-black text-slate-900">سایر بخش‌ها</h3>
               <button
@@ -149,6 +155,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 );
               })}
             </div>
+            <button
+              type="button"
+              onClick={() => { tapFeedback(); toggleTheme(); }}
+              className="mt-3 w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-700 cursor-pointer active:bg-slate-100"
+            >
+              <span className="flex items-center gap-2">
+                {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                {theme === 'dark' ? 'حالت تاریک' : 'حالت روشن'}
+              </span>
+              <span className="text-teal-700">تغییر</span>
+            </button>
           </div>
         </div>
       )}
