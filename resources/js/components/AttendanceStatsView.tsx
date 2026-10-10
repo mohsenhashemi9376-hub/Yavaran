@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, FileSpreadsheet, RotateCcw, CheckCircle2, XCircle, Send, X, ChevronLeft, BarChart3 } from 'lucide-react';
+import { Search, FileSpreadsheet, RotateCcw, CheckCircle2, XCircle, Send, X, ChevronLeft, BarChart3, AlertTriangle } from 'lucide-react';
 import { PageHeader, Button } from './ui';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
@@ -292,23 +292,71 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
   );
 };
 
-/** کارت هشدار ماهانه‌ی غیبت و تأخیر برای صفحه‌ی اصلی معاون انضباطی و مدیر */
+/**
+ * هشدار ماهانه‌ی غیبت غیرموجه و تأخیر مکرر برای صفحه‌ی اصلی معاون انضباطی و مدیر:
+ * فقط یک نوار کوچک با تعداد موارد؛ با لمس آن، فهرست کامل (با امکان ارجاع) در یک پنجره باز می‌شود.
+ */
 export const AttendanceAlertsPanel: React.FC<{ onOpenStats?: () => void; onSelectStudent?: (s: Student) => void }> = ({ onOpenStats, onSelectStudent }) => {
   const { classes, isDisciplinaryVice } = useSchool();
   const { stats, monthKey } = useAttendanceStats('month');
   const { referred, refer } = useReferrals(isDisciplinaryVice);
   const [target, setTarget] = useState<{ stat: StudentAttendanceStat; kind: 'absence' | 'delay' } | null>(null);
-  const hasAlerts = stats.some((s) => s.monthUnexcused >= 3 || (isDisciplinaryVice && s.monthDelayCount >= 3));
-  if (!hasAlerts) return null;
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !target && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, target]);
+
+  const absenceCount = stats.filter((s) => s.monthUnexcused >= 3).length;
+  const delayCount = isDisciplinaryVice ? stats.filter((s) => s.monthDelayCount >= 3).length : 0;
+  if (absenceCount + delayCount === 0) return null;
+
   return (
-    <div className="space-y-2">
-      <AttendanceAlertsCard stats={stats} showDelays={isDisciplinaryVice} canRefer={isDisciplinaryVice} referred={referred} monthKey={monthKey}
-        classNameOf={(id) => classes.find((c) => c.id === id)?.name || '—'} onRefer={(stat, kind) => setTarget({ stat, kind })} onOpenStudent={onSelectStudent} />
-      {onOpenStats && (
-        <button onClick={onOpenStats} className="text-xs font-bold text-teal-700 hover:text-teal-900 cursor-pointer">مشاهده آمار کامل تأخیر و غیبت ←</button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        className="w-full flex items-center gap-3 bg-white border border-rose-200/80 hover:border-rose-300 rounded-2xl px-4 py-2.5 shadow-sm text-right cursor-pointer transition"
+      >
+        <span className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0"><AlertTriangle className="w-4 h-4" /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-xs font-extrabold text-slate-800">هشدارهای این ماه</span>
+          <span className="flex items-center gap-1.5 flex-wrap mt-0.5">
+            {absenceCount > 0 && <span className="text-[11px] font-bold text-rose-700 bg-rose-50 rounded-full px-2 py-0.5">{toPersianDigits(absenceCount)} غیبت غیرموجه</span>}
+            {delayCount > 0 && <span className="text-[11px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5">{toPersianDigits(delayCount)} تأخیر مکرر</span>}
+          </span>
+        </span>
+        <span className="text-[11px] font-bold text-teal-700 flex items-center gap-0.5 shrink-0">مشاهده <ChevronLeft className="w-3.5 h-3.5" /></span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center sm:p-4"
+          dir="rtl"
+          onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}
+        >
+          <div className="bg-slate-50 w-full sm:max-w-3xl max-h-[88vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="هشدارهای این ماه">
+            <div className="px-5 py-3.5 bg-white border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+              <h3 className="font-black text-slate-900 text-sm">هشدارهای غیبت و تأخیر این ماه</h3>
+              <div className="flex items-center gap-2">
+                {onOpenStats && (
+                  <button type="button" onClick={() => { setOpen(false); onOpenStats(); }} className="text-[11px] font-bold text-teal-700 hover:text-teal-900 cursor-pointer">آمار کامل ←</button>
+                )}
+                <button type="button" onClick={() => setOpen(false)} aria-label="بستن" className="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100 flex items-center justify-center cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div className="overflow-y-auto p-4">
+              <AttendanceAlertsCard stats={stats} showDelays={isDisciplinaryVice} canRefer={isDisciplinaryVice} referred={referred} monthKey={monthKey}
+                classNameOf={(id) => classes.find((c) => c.id === id)?.name || '—'} onRefer={(stat, kind) => setTarget({ stat, kind })} onOpenStudent={(stu) => { setOpen(false); onSelectStudent?.(stu); }} maxRows={8} />
+            </div>
+          </div>
+        </div>
       )}
       <ReferralDialog target={target} onClose={() => setTarget(null)} onSubmit={(note) => target && refer(target.stat, target.kind, monthKey, note)} />
-    </div>
+    </>
   );
 };
 
