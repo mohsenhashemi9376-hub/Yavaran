@@ -381,7 +381,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
 
-              <AttendanceTrendsPanel />
+              <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
 
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
