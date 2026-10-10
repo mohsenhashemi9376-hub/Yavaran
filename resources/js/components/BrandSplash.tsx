@@ -13,7 +13,7 @@ interface BrandSplashProps {
 export const BrandSplash: React.FC<BrandSplashProps> = ({ offline = false, onRetry }) => (
   <div className="yv-boot" role="status" aria-live="polite" aria-label={offline ? 'ارتباط با سرور برقرار نشد' : 'در حال آماده‌سازی'}>
     <div className="yv-boot__halo" aria-hidden="true" />
-    <img className="yv-boot__logo" src="/brand/logo-full.png" width={789} height={1266} alt="آرم مجتمع تربیتی آموزشی یاوران ولایت" decoding="async" />
+    <img className="yv-boot__logo" src="/brand/logo-full.png" width={741} height={1219} alt="آرم مجتمع تربیتی آموزشی یاوران ولایت" decoding="async" />
     {offline ? (
       <>
         <div className="yv-boot__hint">ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.</div>

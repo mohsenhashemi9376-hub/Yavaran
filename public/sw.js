@@ -1,5 +1,5 @@
 /* Service Worker — مدرسه یاوران ولایت (PWA) */
-const VERSION = 'yavaran-v1.3.0';
+const VERSION = 'yavaran-v1.4.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const FONT_CACHE = `${VERSION}-fonts`;
