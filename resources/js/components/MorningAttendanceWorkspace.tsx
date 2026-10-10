@@ -546,7 +546,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           دانش‌آموزی با این فیلتر یافت نشد.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2">
+        <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
           {visibleStudents.map((student) => {
             const rec = todayRecords.get(student.id);
             const present = rec?.status === 'present';
