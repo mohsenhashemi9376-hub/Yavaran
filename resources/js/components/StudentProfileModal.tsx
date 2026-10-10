@@ -251,6 +251,21 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [classSessions, currentStudent]);
 
+  // آمار تکالیف انجام‌نشده به تفکیک درس (کلاس)
+  const homeworkBySubject = useMemo(() => {
+    const map = new Map<string, { subject: string; notDone: number; incomplete: number; total: number }>();
+    sessionLogs.forEach((l) => {
+      if (!l.homeworkStatus) return;
+      const key = l.session.subjectId || l.session.subject || 'نامشخص';
+      const row = map.get(key) || { subject: l.session.subject || 'نامشخص', notDone: 0, incomplete: 0, total: 0 };
+      row.total++;
+      if (l.homeworkStatus === 'not_done') row.notDone++;
+      else if (l.homeworkStatus === 'incomplete') row.incomplete++;
+      map.set(key, row);
+    });
+    return Array.from(map.values()).sort((x, y) => y.notDone + y.incomplete - (x.notDone + x.incomplete));
+  }, [sessionLogs]);
+
   // سوابق یکپارچه غیبت و تأخیر: صبحگاه (سامانه جدید + دفترهای قدیمی) و کلاسی
   const attendanceRecords = useMemo(() => {
     type Row = {
@@ -739,6 +754,30 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </div>
           </div>
         </div>
+
+        {homeworkBySubject.length > 0 && (
+          <div className="mx-5 sm:mx-7 mt-3 bg-white p-4 rounded-2xl shadow-xs">
+            <div className="text-slate-500 text-xs mb-2">تکالیف انجام‌نشده به تفکیک درس</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+              {homeworkBySubject.map((h) => (
+                <div key={h.subject} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-bold text-slate-700 truncate">{h.subject}</span>
+                  <span className="shrink-0 flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-full font-bold ${h.notDone > 0 ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-400'}`}>
+                      {toPersianDigits(h.notDone)} انجام‌نشده
+                    </span>
+                    {h.incomplete > 0 && (
+                      <span className="px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700">
+                        {toPersianDigits(h.incomplete)} ناقص
+                      </span>
+                    )}
+                    <span className="text-slate-400">از {toPersianDigits(h.total)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* =========================================================================
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)

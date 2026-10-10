@@ -1,3 +1,4 @@
+import { compareStudents } from './studentName';
 import { toPersianDigits } from './persianDate';
 
 /** ساعت مرجع ورود: ۰۷:۰۰ صبح (دقیقه از نیمه‌شب) */
@@ -46,11 +47,7 @@ export function classMatchesMorningFilter(cls: { name: string; grade?: string },
 }
 
 /** مقایسه الفبایی فارسی بر اساس نام خانوادگی و سپس نام */
-export function compareByLastName(a: { lastName: string; firstName: string }, b: { lastName: string; firstName: string }): number {
-  return (
-    norm(a.lastName).localeCompare(norm(b.lastName), 'fa') || norm(a.firstName).localeCompare(norm(b.firstName), 'fa')
-  );
-}
+export const compareByLastName = compareStudents;
 
 /** آمار صبحگاه امروز: غایب = دانش‌آموزی که حضورش ثبت نشده؛ متأخر = حاضر با delay_minutes > 0 */
 export function getMorningTodayStats(

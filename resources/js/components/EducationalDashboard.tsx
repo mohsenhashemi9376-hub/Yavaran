@@ -31,6 +31,7 @@ import { EditTeacherModal } from './EditTeacherModal';
 import { TeacherClassesSummary } from './TeacherClassesSummary';
 import { MaybeAnimated } from './AnimatedNumber';
 import { ClassActivityTrends } from './ClassActivityTrends';
+import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { TeacherProfileModal } from './TeacherProfileModal';
 import { QuickAddStudentModal } from './QuickAddStudentModal';
 import { 
@@ -630,6 +631,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </button>
               ))}
             </div>
+
+            <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
             <ClassActivityTrends />
 

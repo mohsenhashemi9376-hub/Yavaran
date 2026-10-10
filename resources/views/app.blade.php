@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>مدرسه یاوران ولایت</title>
-    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2" />
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-startup-image" href="/splash/1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
     <link rel="apple-touch-startup-image" href="/splash/1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
@@ -28,7 +28,7 @@
     <meta name="apple-mobile-web-app-title" content="یاوران ولایت" />
     <meta name="application-name" content="یاوران ولایت" />
     <meta name="msapplication-TileColor" content="#0b4838" />
-    <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
+    <meta name="msapplication-TileImage" content="/icons/icon-192.png?v=2" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="description" content="سامانه جامع مدیریت آموزشی، انضباطی و تربیتی مدرسه یاوران ولایت شامل مدیریت دروس و تخصیص اساتید دوره اول متوسطه، دفتر نمرات و مانیتورینگ کارنامه، و پنل‌های معاونت تربیتی و انضباطی" />
     <meta property="og:title" content="مدرسه یاوران ولایت" />
@@ -63,11 +63,11 @@
     </style>
     @vite('resources/js/main.tsx')
   </head>
-  <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] antialiased selection:bg-emerald-500 selection:text-white">
+  <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] selection:bg-emerald-500 selection:text-white">
     <div id="root">
       <div class="yv-boot" role="status" aria-live="polite" aria-label="در حال آماده‌سازی">
         <div class="yv-boot__halo" aria-hidden="true"></div>
-        <img class="yv-boot__logo" src="/brand/logo-full.png" width="789" height="1266" alt="آرم مجتمع تربیتی آموزشی یاوران ولایت" decoding="async" fetchpriority="high" />
+        <img class="yv-boot__logo" src="/brand/logo-full.png" width="741" height="1219" alt="آرم مجتمع تربیتی آموزشی یاوران ولایت" decoding="async" fetchpriority="high" />
         <div class="yv-boot__bar" aria-hidden="true"><i></i></div>
         <div class="yv-boot__hint">در حال آماده‌سازی سامانه…</div>
         <div class="yv-boot__foot">سامانه مدیریت آموزشی، انضباطی و تربیتی</div>

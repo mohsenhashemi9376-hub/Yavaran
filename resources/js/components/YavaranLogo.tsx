@@ -33,8 +33,8 @@ export const YavaranLogo: React.FC<YavaranLogoProps> = ({
       <img
         src="/brand/logo-full.png"
         alt={alt}
-        width={789}
-        height={1266}
+        width={741}
+        height={1219}
         decoding="async"
         draggable={false}
         className={`${width} h-auto select-none object-contain ${className}`}

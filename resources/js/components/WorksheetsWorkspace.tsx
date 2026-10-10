@@ -15,7 +15,7 @@ import { useSchool } from '../context/SchoolContext';
 import { Student, WorksheetStatus } from '../types';
 import { hasPermission } from '../utils/permissions';
 import { dateToShamsiString, getShamsiWeekRange, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { exportWorksheetTermExcel, exportWorksheetWeekExcel } from '../utils/worksheetExport';
 import { isDeadlinePassed, shiftWeek, summarizeClassWeek, weekStartOf, weekTitle, worksheetKey } from '../utils/worksheets';
 
@@ -74,7 +74,7 @@ export const WorksheetsWorkspace: React.FC = () => {
     const map = new Map<string, Student[]>();
     myClasses.forEach((c) => map.set(c.id, []));
     students.forEach((s) => map.get(s.classId)?.push(s));
-    map.forEach((list) => list.sort((a, b) => studentFullName(a).localeCompare(studentFullName(b), 'fa')));
+    map.forEach((list) => list.sort(compareStudents));
     return map;
   }, [myClasses, students]);
 

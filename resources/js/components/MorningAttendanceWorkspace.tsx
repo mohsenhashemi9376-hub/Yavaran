@@ -546,7 +546,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           دانش‌آموزی با این فیلتر یافت نشد.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
           {visibleStudents.map((student) => {
             const rec = todayRecords.get(student.id);
             const present = rec?.status === 'present';
@@ -554,18 +554,18 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
             return (
               <div
                 key={student.id}
-                className={`rounded-2xl p-3.5 transition ${
+                className={`rounded-xl px-2.5 py-2 transition ${
                   present
                     ? 'bg-emerald-50/70 border border-emerald-200/80 text-emerald-900'
                     : 'bg-rose-50/70 border border-rose-200/80 text-rose-900'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-extrabold whitespace-nowrap">
+                    <div className="text-[13px] font-extrabold truncate">
                       {studentFullName(student)}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
                       <span className="text-[11px] opacity-70 truncate">{classNameOf(student.classId)}</span>
                       <ParentPhoneButton student={student} compact />
                     </div>
@@ -580,7 +580,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                       e.stopPropagation();
                       handleBadgeClick(student, present);
                     }}
-                    className={`shrink-0 min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer active:scale-95 ${
+                    className={`shrink-0 min-h-[30px] px-3 py-1 rounded-full text-[11px] font-bold border transition cursor-pointer active:scale-95 ${
                       present
                         ? 'bg-emerald-100/80 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                         : 'bg-rose-100/80 text-rose-700 border-rose-200 hover:bg-rose-100'
@@ -647,15 +647,15 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                 })()}
 
                 {present && rec && (
-                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-[11px] opacity-70">ورود: {toPersianDigits(rec.entryTime || '')}</span>
                     {delayed && (
-                      <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
                         {formatDelayText(rec.delayMinutes, 'صبحگاه')}
                       </span>
                     )}
                     {delayed && (
-                      <DelayOverride minutes={rec.delayMinutes} onSave={(m) => setMorningDelayMinutes(rec.id, m)} />
+                      <DelayOverride compact minutes={rec.delayMinutes} onSave={(m) => setMorningDelayMinutes(rec.id, m)} />
                     )}
                   </div>
                 )}

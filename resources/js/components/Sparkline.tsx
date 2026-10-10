@@ -28,13 +28,21 @@ export const Sparkline: React.FC<{ values: number[]; color?: string; height?: nu
   );
 };
 
-export const TrendTile: React.FC<{ label: string; total: number | string; hint: string; values: number[]; color: string }> = ({ label, total, hint, values, color }) => (
-  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 sm:p-4">
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-xs font-bold text-slate-500">{label}</span>
-      <span className="text-[11px] text-slate-400">{hint}</span>
-    </div>
-    <div className="text-2xl font-black text-slate-900 mt-1">{total}</div>
-    <div className="mt-2"><Sparkline values={values} color={color} height={36} /></div>
-  </div>
-);
+export const TrendTile: React.FC<{ label: string; total: number | string; hint: string; values: number[]; color: string; onClick?: () => void }> = ({ label, total, hint, values, color, onClick }) => {
+  const body = (
+    <>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-bold text-slate-500">{label}</span>
+        <span className="text-[11px] text-slate-400">{hint}</span>
+      </div>
+      <div className="text-2xl font-black text-slate-900 mt-1">{total}</div>
+      <div className="mt-2"><Sparkline values={values} color={color} height={36} /></div>
+    </>
+  );
+  const cls = 'bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 sm:p-4';
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${cls} block w-full text-right hover:border-teal-200 hover:shadow-md transition cursor-pointer`}>{body}</button>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+};

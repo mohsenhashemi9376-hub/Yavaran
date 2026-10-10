@@ -51,3 +51,50 @@ export function sessionTrends(sessions: AttendanceSession[], n = 14) {
     homework: count(days, sessions.filter((s) => (s.homeworkDescription || '').trim()).map((s) => s.date)),
   };
 }
+
+export interface TrendDetail { id: string; date: string; studentId?: string; sessionId?: string; title: string; subtitle?: string; badge?: string }
+
+/** فهرست رویدادهای تأخیر و غیبت غیرموجه n روز اخیر (جدیدترین اول) */
+export function attendanceDetails(
+  students: Student[],
+  src: AttendanceSources,
+  kind: 'delays' | 'absences',
+  classNameOf: (classId: string) => string,
+  n = 14
+): TrendDetail[] {
+  const days = new Set(lastShamsiDays(n));
+  const rows: TrendDetail[] = [];
+  students.forEach((s) => {
+    const base = { studentId: s.id, title: `${s.lastName || ''} ${s.firstName || ''}`.trim(), subtitle: classNameOf(s.classId) };
+    if (kind === 'delays') {
+      delayEventsOf(s, src).forEach((e, i) => {
+        if (days.has(norm(e.date))) rows.push({ ...base, id: `d-${s.id}-${e.date}-${i}`, date: e.date, badge: `${e.minutes} دقیقه` });
+      });
+    } else {
+      absenceEventsOf(s, src).forEach((e, i) => {
+        if (!e.excused && days.has(norm(e.date))) rows.push({ ...base, id: `a-${s.id}-${e.date}-${i}`, date: e.date, badge: 'غیرموجه' });
+      });
+    }
+  });
+  return rows.sort((a, b) => norm(b.date).localeCompare(norm(a.date)));
+}
+
+/** جلسات n روز اخیر؛ در حالت homework فقط جلسات دارای تکلیف (جدیدترین اول) */
+export function sessionDetails(
+  sessions: AttendanceSession[],
+  onlyHomework: boolean,
+  classNameOf: (classId: string) => string,
+  n = 14
+): TrendDetail[] {
+  const days = new Set(lastShamsiDays(n));
+  return sessions
+    .filter((s) => days.has(norm(s.date)) && (!onlyHomework || (s.homeworkDescription || '').trim()))
+    .map((s) => ({
+      id: s.id,
+      sessionId: s.id,
+      date: s.date,
+      title: `${classNameOf(s.classId)} • ${s.subject}${s.teacherName ? ` • ${s.teacherName}` : ''}`,
+      subtitle: onlyHomework ? `تکلیف: ${(s.homeworkDescription || '').trim()}` : s.lessonTopic || undefined,
+    }))
+    .sort((a, b) => norm(b.date).localeCompare(norm(a.date)));
+}

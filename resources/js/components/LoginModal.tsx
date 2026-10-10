@@ -98,7 +98,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
       {/* موبایل: آرم رسمی بزرگ بالای برگهٔ ورود (در دسکتاپ پنهان است) */}
       <section className="yv-login-hero" aria-hidden="true">
-        <img src="/brand/logo-full.png" alt="" width={789} height={1266} decoding="async" />
+        <img src="/brand/logo-full.png" alt="" width={741} height={1219} decoding="async" />
         <p className="yv-login-hero__title">مجتمع تربیتی آموزشی یاوران ولایت</p>
         <p className="yv-login-hero__sub">سامانه مدیریت آموزشی، انضباطی و تربیتی</p>
       </section>

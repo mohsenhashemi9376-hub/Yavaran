@@ -6,12 +6,13 @@ import { PageHeader, Button } from './ui';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest } from '../lib/serverSync';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { buildAttendanceStats, StudentAttendanceStat, monthKeyOf } from '../utils/attendanceStats';
 import { DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { AttendanceAlertsCard, referralRefId } from './AttendanceAlertsCard';
 import { TrendTile } from './Sparkline';
-import { attendanceTrends } from '../utils/trends';
+import { attendanceTrends, attendanceDetails } from '../utils/trends';
+import { TrendDetailModal } from './TrendDetailModal';
 import type { Student } from '../types';
 
 /** آمار تجمیعی هر دانش‌آموز + هشدارهای ماهانه؛ مشترک بین صفحه‌ی آمار و داشبوردها */
@@ -125,7 +126,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
         && (mu === null || s.unexcusedAbsences >= mu)
         && (me === null || s.excusedAbsences >= me)
         && (!onlyPending || s.pendingDeductions > 0))
-      .sort((a, b) => sort === 'name' ? studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa')
+      .sort((a, b) => sort === 'name' ? compareStudents(a.student, b.student)
         : sort === 'delays' ? b.delayCount - a.delayCount
         : sort === 'unexcused' ? b.unexcusedAbsences - a.unexcusedAbsences
         : b.delayMinutes - a.delayMinutes);
@@ -362,18 +363,36 @@ export const AttendanceAlertsPanel: React.FC<{ onOpenStats?: () => void; onSelec
 };
 
 /** روند ۱۴ روز اخیر تأخیر و غیبت غیرموجه (نمودار کوچک) برای صفحه‌ی اصلی انضباطی */
-export const AttendanceTrendsPanel: React.FC = () => {
-  const { students, morningDelays, morningAttendance, schoolAbsences, sessions } = useSchool();
+export const AttendanceTrendsPanel: React.FC<{ onSelectStudent?: (student: Student) => void }> = ({ onSelectStudent }) => {
+  const { students, classes, morningDelays, morningAttendance, schoolAbsences, sessions } = useSchool();
+  const [detail, setDetail] = useState<'delays' | 'minutes' | 'absences' | null>(null);
   const t = useMemo(
     () => attendanceTrends(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, 14),
     [students, morningDelays, morningAttendance, schoolAbsences, sessions]
   );
+  const detailRows = useMemo(
+    () => detail
+      ? attendanceDetails(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, detail === 'absences' ? 'absences' : 'delays', (id) => classes.find((c) => c.id === id)?.name || '—')
+      : [],
+    [detail, students, classes, morningDelays, morningAttendance, schoolAbsences, sessions]
+  );
   const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
   return (
     <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 gap-3 [&>*:nth-child(3)]:col-span-2 sm:[&>*:nth-child(3)]:col-span-1">
-      <TrendTile label="تأخیرها" total={toPersianDigits(sum(t.delays))} hint="۱۴ روز اخیر" values={t.delays} color="#d97706" />
-      <TrendTile label="دقایق تأخیر" total={toPersianDigits(sum(t.minutes))} hint="۱۴ روز اخیر" values={t.minutes} color="#7c3aed" />
-      <TrendTile label="غیبت غیرموجه" total={toPersianDigits(sum(t.absences))} hint="۱۴ روز اخیر" values={t.absences} color="#e11d48" />
+      <TrendTile label="تأخیرها" total={toPersianDigits(sum(t.delays))} hint="۱۴ روز اخیر" values={t.delays} color="#d97706" onClick={() => setDetail('delays')} />
+      <TrendTile label="دقایق تأخیر" total={toPersianDigits(sum(t.minutes))} hint="۱۴ روز اخیر" values={t.minutes} color="#7c3aed" onClick={() => setDetail('minutes')} />
+      <TrendTile label="غیبت غیرموجه" total={toPersianDigits(sum(t.absences))} hint="۱۴ روز اخیر" values={t.absences} color="#e11d48" onClick={() => setDetail('absences')} />
+      {detail && (
+        <TrendDetailModal
+          title={detail === 'absences' ? 'غیبت غیرموجه' : detail === 'minutes' ? 'دقایق تأخیر' : 'تأخیرها'}
+          rows={detailRows}
+          onRowClick={onSelectStudent ? (rid) => {
+            const stu = students.find((x) => x.id === detailRows.find((r) => r.id === rid)?.studentId);
+            if (stu) { setDetail(null); onSelectStudent(stu); }
+          } : undefined}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   );
 };

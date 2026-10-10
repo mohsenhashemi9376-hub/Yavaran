@@ -59,7 +59,7 @@ import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCa
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { buildWorkshopList } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
-import { studentFullName, normalizeStudentName, compareStudents, splitListName } from '../utils/studentName';
+import { studentFullName, compareStudents, splitListName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, delayDeductionId, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 
 interface SchoolContextType {
@@ -343,9 +343,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rawClasses, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
   const [rawStudents, setStudents] = useState<Student[]>([]);
-  // نمایش یکسان: نام‌های ثبت‌گروهی قدیمی اصلاح و همه‌جا الفبایی (نام خانوادگی، نام) مرتب می‌شود
+  // همان‌چه در کادر «نام خانوادگی» و «نام» وارد شده بدون تغییر نگه داشته می‌شود و الفبایی بر اساس نام خانوادگی مرتب می‌شود
   const students = useMemo<Student[]>(
-    () => rawStudents.map(normalizeStudentName).sort(compareStudents),
+    () => [...rawStudents].sort(compareStudents),
     [rawStudents]
   );
   const [rawSessions, setSessions] = useState<AttendanceSession[]>([]);
