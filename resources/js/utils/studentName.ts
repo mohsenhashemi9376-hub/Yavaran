@@ -29,9 +29,9 @@ export function studentFullName(s: { firstName?: string; lastName?: string } | n
 }
 
 const normKey = (v?: string) =>
-  (v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\u200f]/g, ' ').replace(/\s+/g, ' ').trim();
+  (v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c\u200f]+/g, '');
 
-/** ترتیب الفبایی فارسی: نام خانوادگی، سپس نام (یکسان‌سازی ي/ك و نیم‌فاصله) */
+/** ترتیب الفبایی فارسی: نام خانوادگی، سپس نام (بدون توجه به فاصله و نیم‌فاصله، یکسان‌سازی ي/ك) */
 export function compareStudents(a: { firstName?: string; lastName?: string }, b: { firstName?: string; lastName?: string }): number {
   return (
     normKey(a.lastName).localeCompare(normKey(b.lastName), 'fa') ||
