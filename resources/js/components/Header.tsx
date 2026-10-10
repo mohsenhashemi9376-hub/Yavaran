@@ -40,6 +40,37 @@ interface HeaderProps {
   onSelectTab?: (tab: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher') => void;
 }
 
+/** کلید دوپنلی «پنل معاونت / پنل آموزشی» برای کاربری که هم معاون و هم دبیر است */
+const DualPanelTabs: React.FC<{
+  currentActiveTab: string;
+  onSelectTab: (tab: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher') => void;
+  full?: boolean;
+}> = ({ currentActiveTab, onSelectTab, full = false }) => (
+  <div
+    role="tablist"
+    aria-label="انتخاب پنل کاری"
+    className={`items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold ${full ? 'flex w-full' : 'inline-flex'}`}
+  >
+    {([
+      ['main', 'پنل معاونت', currentActiveTab !== 'teacher', 'bg-teal-800'],
+      ['teacher', 'پنل آموزشی', currentActiveTab === 'teacher', 'bg-emerald-800'],
+    ] as const).map(([tab, label, active, activeBg]) => (
+      <button
+        key={tab}
+        type="button"
+        role="tab"
+        aria-selected={active}
+        onClick={() => onSelectTab(tab)}
+        className={`${full ? 'flex-1 min-w-0' : 'min-w-[6.5rem]'} px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
+          active ? `${activeBg} text-white shadow-xs` : 'text-slate-600 hover:bg-slate-200/70'
+        }`}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
 export const Header: React.FC<HeaderProps> = ({
   onOpenNewClassModal,
   onOpenNewTeacherModal,
@@ -243,33 +274,9 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </nav>
             ) : currentUser.isAlsoTeacher && currentUser.role !== 'teacher' ? (
-              <div
-                role="tablist"
-                aria-label="انتخاب پنل کاری"
-                className="inline-flex shrink-0 items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={currentActiveTab !== 'teacher'}
-                  onClick={() => onSelectTab('main')}
-                  className={`min-w-[6.5rem] px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
-                    currentActiveTab !== 'teacher' ? 'bg-teal-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200/70'
-                  }`}
-                >
-                  پنل معاونت
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={currentActiveTab === 'teacher'}
-                  onClick={() => onSelectTab('teacher')}
-                  className={`min-w-[6.5rem] px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
-                    currentActiveTab === 'teacher' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-200/70'
-                  }`}
-                >
-                  پنل آموزشی
-                </button>
+              // در موبایل جای کافی نیست؛ همین کلید در ردیف جداگانه‌ی زیر هدر نمایش داده می‌شود
+              <div className="hidden sm:inline-flex shrink-0">
+                <DualPanelTabs currentActiveTab={currentActiveTab} onSelectTab={onSelectTab} />
               </div>
             ) : null
           )}
@@ -524,6 +531,12 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
         </div>
+
+        {onSelectTab && !isAdmin && currentUser.role !== 'coach' && currentUser.role !== 'teacher' && currentUser.isAlsoTeacher && (
+          <div className="sm:hidden pb-2">
+            <DualPanelTabs currentActiveTab={currentActiveTab} onSelectTab={onSelectTab} full />
+          </div>
+        )}
 
         {onSelectTab && currentUser.role === 'coach' && currentUser.isAlsoTeacher && (
           <div className="sm:hidden pb-2">
