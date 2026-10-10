@@ -340,9 +340,9 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               
               {/* ۱. هدر پیشخوان معاونت اجرایی */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="text-lg sm:text-xl font-black text-slate-900">
                         سلام، {currentUser?.name || 'همکار گرامی'}
                       </h1>
@@ -359,7 +359,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   </div>
 
                   {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       id="btn-mobile-sidebar-toggle"
