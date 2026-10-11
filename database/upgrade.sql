@@ -304,3 +304,61 @@ CREATE TABLE IF NOT EXISTS `school_holidays` (
   UNIQUE KEY `school_holidays_holiday_date_unique` (`holiday_date`),
   KEY `school_holidays_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- صندوق پیام داخلی (مدیر، معاونین و مربیان)
+CREATE TABLE IF NOT EXISTS `inbox_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `thread_id` bigint unsigned DEFAULT NULL,
+  `sender_id` varchar(100) NOT NULL,
+  `priority` varchar(20) NOT NULL DEFAULT 'normal',
+  `subject` varchar(191) NOT NULL,
+  `body` longtext NOT NULL,
+  `student_id` varchar(100) DEFAULT NULL,
+  `sender_starred` tinyint(1) NOT NULL DEFAULT 0,
+  `sender_archived_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `inbox_messages_thread_id_index` (`thread_id`),
+  KEY `inbox_messages_sender_id_index` (`sender_id`),
+  KEY `inbox_messages_student_id_index` (`student_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `inbox_recipients` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `message_id` bigint unsigned NOT NULL,
+  `user_id` varchar(100) NOT NULL,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `starred` tinyint(1) NOT NULL DEFAULT 0,
+  `archived_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `inbox_recipients_message_id_user_id_unique` (`message_id`, `user_id`),
+  KEY `inbox_recipients_message_id_index` (`message_id`),
+  KEY `inbox_recipients_user_id_index` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `inbox_attachments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `message_id` bigint unsigned NOT NULL,
+  `name` varchar(191) NOT NULL,
+  `mime` varchar(100) NOT NULL,
+  `size` int unsigned NOT NULL,
+  `path` varchar(100) DEFAULT NULL,
+  `content` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `inbox_attachments_message_id_index` (`message_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `endpoint` text NOT NULL,
+  `endpoint_hash` varchar(64) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `push_subscriptions_endpoint_hash_unique` (`endpoint_hash`),
+  KEY `push_subscriptions_user_id_index` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
