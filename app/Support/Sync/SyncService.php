@@ -316,7 +316,7 @@ final class SyncService
         if ($id !== 'ws-'.$studentId.'-'.$weekKey) {
             abort(422, 'شناسه‌ی رکورد کاربرگ نامعتبر است.');
         }
-        if (! isset($data->status) || ! in_array($data->status, ['complete', 'partial', 'absent'], true)) {
+        if (! isset($data->status) || ! in_array($data->status, ['complete', 'partial', 'absent', 'none'], true)) {
             abort(422, 'وضعیت کاربرگ نامعتبر است.');
         }
         $data->classId = (string) $classId;

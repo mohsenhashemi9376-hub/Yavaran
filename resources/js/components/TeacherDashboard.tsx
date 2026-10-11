@@ -68,7 +68,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     accessibleClasses, 
     teachingAccessibleClasses,
     students, 
-    accessibleSessions, 
     teachingAccessibleSessions,
     teacherEvaluations,
     schoolAnnouncements: allAnnouncements,
@@ -124,9 +123,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     ? teachingAccessibleClasses 
     : accessibleClasses;
 
-  const teacherSessions = teachingAccessibleSessions && teachingAccessibleSessions.length > 0 
-    ? teachingAccessibleSessions 
-    : accessibleSessions;
+  // فقط جلسات درس‌های خود استاد (بدون بازگشت به فهرست همه جلسات)
+  const teacherSessions = teachingAccessibleSessions;
 
   const [selectedClassForMonthlyGrades, setSelectedClassForMonthlyGrades] = useState<string>(
     teacherClasses.length > 0 ? teacherClasses[0].id : ''

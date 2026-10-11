@@ -135,6 +135,21 @@ const MainApp: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // باز کردن پرونده دانش‌آموز از پیوند داخل صندوق پیام
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<{ studentId?: string }>).detail?.studentId;
+      const st = students.find((x) => x.id === id);
+      if (st) {
+        setSelectedStudentForProfile(st);
+        setProfileInitialTab('overview');
+        setStudentProfileModalOpen(true);
+      }
+    };
+    window.addEventListener('yavaran:open-student', onOpen);
+    return () => window.removeEventListener('yavaran:open-student', onOpen);
+  }, [students]);
+
   // Modal triggers
   const handleOpenNewAttendance = (classId?: string, subject?: string) => {
     setTargetSubjectForAttendance(subject);

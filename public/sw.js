@@ -1,5 +1,5 @@
 /* Service Worker — مدرسه یاوران ولایت (PWA) */
-const VERSION = 'yavaran-v1.4.0';
+const VERSION = 'yavaran-v1.5.0';
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const FONT_CACHE = `${VERSION}-fonts`;
@@ -99,3 +99,30 @@ function cacheFirst(request, cacheName) {
     });
   });
 }
+
+
+/* اعلان فوری صندوق پیام: متن ثابت است و هیچ بخشی از محتوای پیام در اعلان نمایش داده نمی‌شود */
+self.addEventListener('push', (event) => {
+  event.waitUntil(
+    self.registration.showNotification('پیام فوری جدید', {
+      body: 'یک پیام فوری در صندوق پیام مدرسه منتظر شماست. برای مشاهده، برنامه را باز کنید.',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/favicon-48.png',
+      tag: 'inbox-urgent',
+      renotify: true,
+      dir: 'rtl',
+      lang: 'fa',
+      data: { url: '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => 'focus' in c);
+      return open ? open.focus() : self.clients.openWindow('/');
+    })
+  );
+});

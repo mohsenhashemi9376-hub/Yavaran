@@ -35,6 +35,10 @@ const BUTTONS: { status: WorksheetStatus; label: string; icon: React.ElementType
   { status: 'absent', label: 'غایب', icon: UserX, on: 'bg-slate-600 border-slate-600 text-white shadow-sm' },
 ];
 
+/** وضعیت تحویل؛ رکورد فقط‌یادداشت (none) یعنی هنوز تحویل نداده */
+const deliveredStatus = (r?: { status: WorksheetStatus | 'none' }): WorksheetStatus | undefined =>
+  r && r.status !== 'none' ? r.status : undefined;
+
 const addDays = (shamsi: string, days: number): string => {
   const d = shamsiStringToDate(shamsi);
   d.setDate(d.getDate() + days);
@@ -101,7 +105,7 @@ export const WorksheetsWorkspace: React.FC = () => {
   const delivered = sum.complete + sum.partial;
 
   const visible = list.filter((s) => {
-    const st = records.get(worksheetKey(s.id, weekStart))?.status;
+    const st = deliveredStatus(records.get(worksheetKey(s.id, weekStart)));
     return filter === 'all' ? true : filter === 'missing' ? !st : st === filter;
   });
 
@@ -128,12 +132,12 @@ export const WorksheetsWorkspace: React.FC = () => {
 
   const toggle = (s: Student, status: WorksheetStatus) => {
     if (!canRecord) return;
-    const current = records.get(worksheetKey(s.id, weekStart))?.status;
+    const current = deliveredStatus(records.get(worksheetKey(s.id, weekStart)));
     setWorksheetStatus(s, weekStart, current === status ? null : status);
   };
 
   const completeAllMissing = () => {
-    const targets = list.filter((s) => !records.has(worksheetKey(s.id, weekStart)));
+    const targets = list.filter((s) => !deliveredStatus(records.get(worksheetKey(s.id, weekStart))));
     if (targets.length === 0) return;
     showConfirm({
       title: 'همه کامل تحویل داده‌اند؟',
@@ -370,7 +374,7 @@ export const WorksheetsWorkspace: React.FC = () => {
         <ul className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 overflow-hidden">
           {visible.map((s, idx) => {
             const rec = records.get(worksheetKey(s.id, weekStart));
-            const status = rec?.status;
+            const status = deliveredStatus(rec);
             return (
               <li key={s.id} className="px-3 sm:px-4 py-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
@@ -379,7 +383,7 @@ export const WorksheetsWorkspace: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</div>
                     {!status && <div className="text-[11px] font-bold text-rose-600 mt-0.5">تحویل نداده</div>}
-                    {rec?.note && noteFor !== s.id && <div className="text-[11px] text-slate-500 mt-0.5 truncate">{rec.note}</div>}
+                    {rec?.note && noteFor !== s.id && <div className="text-[11px] text-sky-700 mt-0.5 truncate">یادداشت: {rec.note}</div>}
                   </div>
                   </div>
 
@@ -403,8 +407,7 @@ export const WorksheetsWorkspace: React.FC = () => {
                         </button>
                       );
                     })}
-                    {canRecord && !status && <span className="w-11 shrink-0" aria-hidden="true" />}
-                    {canRecord && status && (
+                    {canRecord && (
                       <button
                         type="button"
                         onClick={() => setNoteFor(noteFor === s.id ? null : s.id)}
@@ -418,15 +421,15 @@ export const WorksheetsWorkspace: React.FC = () => {
                   </div>
                 </div>
 
-                {canRecord && noteFor === s.id && status && (
+                {canRecord && noteFor === s.id && (
                   <input
                     autoFocus
                     defaultValue={rec?.note || ''}
-                    maxLength={200}
-                    placeholder="یادداشت کوتاه (مثلاً کدام بخش ناقص است)"
+                    maxLength={500}
+                    placeholder="یادداشت فردی درباره این دانش‌آموز در این هفته (مربی هم می‌بیند)"
                     onBlur={(e) => {
                       const v = e.target.value.trim();
-                      if (v !== (rec?.note || '')) setWorksheetStatus(s, weekStart, status, v || null);
+                      if (v !== (rec?.note || '')) setWorksheetStatus(s, weekStart, status ?? null, v || null);
                       setNoteFor(null);
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}

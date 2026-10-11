@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
+use App\Http\Controllers\InboxController;
 use App\Http\Controllers\MentorMessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NurturingAuditController;
@@ -46,6 +47,20 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::post('profile', [ProfileController::class, 'update'])
             ->middleware('throttle:20,1')
             ->name('api.profile.update');
+        Route::prefix('inbox')->middleware('throttle:240,1')->group(function (): void {
+            Route::get('/', [InboxController::class, 'index'])->name('api.inbox.index');
+            Route::get('users', [InboxController::class, 'users'])->name('api.inbox.users');
+            Route::get('summary', [InboxController::class, 'summary'])->name('api.inbox.summary');
+            Route::post('/', [InboxController::class, 'store'])->middleware('throttle:30,1')->name('api.inbox.store');
+            Route::post('read-all', [InboxController::class, 'readAll'])->name('api.inbox.read-all');
+            Route::get('push-key', [InboxController::class, 'pushKey'])->name('api.inbox.push-key');
+            Route::post('push', [InboxController::class, 'pushSubscribe'])->name('api.inbox.push');
+            Route::post('push/remove', [InboxController::class, 'pushUnsubscribe'])->name('api.inbox.push.remove');
+            Route::post('{message}/flag', [InboxController::class, 'flag'])->whereNumber('message')->name('api.inbox.flag');
+            Route::get('attachments/{attachment}', [InboxController::class, 'download'])->whereNumber('attachment')->name('api.inbox.download');
+            Route::get('{message}/thread', [InboxController::class, 'thread'])->whereNumber('message')->name('api.inbox.thread');
+            Route::post('{message}/read', [InboxController::class, 'read'])->whereNumber('message')->name('api.inbox.read');
+        });
         Route::prefix('mentor-messages')->middleware('throttle:120,1')->group(function (): void {
             Route::post('/', [MentorMessageController::class, 'store'])->name('api.mentor-messages.store');
             Route::get('active', [MentorMessageController::class, 'active'])->name('api.mentor-messages.active');

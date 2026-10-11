@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Student, SchoolClass, DisciplinaryNote } from '../types';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -220,7 +221,7 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
   const parsedDeduction = deductionInput.trim() !== '' ? Number(deductionInput) : 0;
   const isDeductionValid = !isNaN(parsedDeduction) && parsedDeduction > 0 && parsedDeduction <= 20;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in"
       dir="rtl"
@@ -581,6 +582,7 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
 
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
