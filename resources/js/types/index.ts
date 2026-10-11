@@ -406,7 +406,8 @@ export interface WorksheetRecord {
   studentId: string;
   classId: string;
   weekStart: string; // شنبه‌ی هفته: "1405/07/15"
-  status: WorksheetStatus;
+  /** 'none': فقط یادداشت فردی؛ کاربرگ هنوز تحویل داده نشده */
+  status: WorksheetStatus | 'none';
   note?: string | null;
   recordedBy?: string; // توسط سرور تعیین می‌شود
   recordedById?: string;

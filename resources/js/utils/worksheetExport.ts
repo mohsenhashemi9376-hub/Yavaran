@@ -32,7 +32,7 @@ export const buildWeekRows = (students: Student[], records: Map<string, Workshee
     return {
       'ردیف': i + 1,
       'نام و نام خانوادگی': studentFullName(s),
-      'وضعیت کاربرگ': r ? STATUS_CELL[r.status] : STATUS_CELL.missing,
+      'وضعیت کاربرگ': r && r.status !== 'none' ? STATUS_CELL[r.status] : STATUS_CELL.missing,
       'یادداشت': r?.note || '',
       'ثبت‌کننده': r?.recordedBy || '',
     };
@@ -56,7 +56,7 @@ export const buildTermMatrix = (students: Student[], records: Map<string, Worksh
     let absent = 0;
     weekStarts.forEach((w) => {
       const r = records.get(worksheetKey(s.id, w));
-      const status = r?.status ?? 'missing';
+      const status = !r || r.status === 'none' ? 'missing' : r.status;
       row[`هفته ${weekTitle(w)}`] = STATUS_CELL[status];
       if (status === 'complete') complete++;
       else if (status === 'partial') partial++;

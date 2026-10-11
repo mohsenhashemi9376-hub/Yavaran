@@ -46,7 +46,7 @@ export const summarizeClassWeek = (
   const s: WeekClassSummary = { total: students.length, complete: 0, partial: 0, absent: 0, missing: 0, untouched: true };
   for (const st of students) {
     const r = records.get(worksheetKey(st.id, weekStart));
-    if (!r) s.missing++;
+    if (!r || r.status === 'none') s.missing++;
     else {
       s[r.status]++;
       s.untouched = false;
@@ -119,8 +119,8 @@ export const computeWorksheetAlerts = (
       for (const st of list) {
         const r = records.get(worksheetKey(st.id, w.weekStart));
         const chain = streakChain.get(st.id) || { count: 0, broken: false };
-        if (!r || r.status === 'partial') {
-          (r ? partial : missing).push(st);
+        if (!r || r.status === 'none' || r.status === 'partial') {
+          (r && r.status === 'partial' ? partial : missing).push(st);
           if (!chain.broken) chain.count++;
         } else if (r.status === 'complete') {
           chain.broken = true;
@@ -158,5 +158,5 @@ export const studentWorksheetHistory = (
   worksheets.forEach((r) => r.studentId === studentId && starts.add(r.weekStart));
   return Array.from(starts)
     .sort((a, b) => (a < b ? 1 : -1))
-    .map((weekStart) => ({ weekStart, status: records.get(worksheetKey(studentId, weekStart))?.status ?? ('missing' as const) }));
+    .map((weekStart) => ({ weekStart, status: ((s) => (!s || s === 'none' ? ('missing' as const) : s))(records.get(worksheetKey(studentId, weekStart))?.status) }));
 };

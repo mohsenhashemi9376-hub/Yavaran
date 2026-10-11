@@ -2094,8 +2094,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const id = worksheetId(student.id, weekStart);
     setWorksheets((prev) => {
       const rest = prev.filter((r) => r.id !== id);
-      if (status === null) return rest; // «تحویل نداده» = بدون رکورد
       const old = prev.find((r) => r.id === id);
+      const nextNote = note === undefined ? old?.note ?? null : note;
+      // «تحویل نداده» = بدون رکورد؛ مگر یادداشت فردی داشته باشد (رکورد فقط‌یادداشت)
+      if (status === null && !nextNote) return rest;
       return [
         ...rest,
         {
@@ -2103,8 +2105,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           studentId: student.id,
           classId: student.classId,
           weekStart,
-          status,
-          note: note === undefined ? old?.note ?? null : note,
+          status: status ?? 'none',
+          note: nextNote,
           recordedById: currentUser.id,
           recordedBy: currentUser.name,
           updatedAt: new Date().toISOString(),
@@ -2118,8 +2120,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const next = [...prev];
       for (const s of list) {
         const id = worksheetId(s.id, weekStart);
-        if (next.some((r) => r.id === id)) continue; // فقط «تحویل نداده»ها
-        next.push({ id, studentId: s.id, classId: s.classId, weekStart, status: 'complete', note: null, recordedById: currentUser.id, recordedBy: currentUser.name, updatedAt: new Date().toISOString() });
+        const idx = next.findIndex((r) => r.id === id);
+        if (idx >= 0 && next[idx].status !== 'none') continue; // فقط «تحویل نداده»ها
+        next.splice(idx >= 0 ? idx : next.length, idx >= 0 ? 1 : 0, { id, studentId: s.id, classId: s.classId, weekStart, status: 'complete', note: idx >= 0 ? next[idx].note ?? null : null, recordedById: currentUser.id, recordedBy: currentUser.name, updatedAt: new Date().toISOString() });
       }
       return next;
     });
