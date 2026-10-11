@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, CheckCheck, Download, Inbox, Paperclip, PenSquare, Reply, Search, Send, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowRight, BellRing, CheckCheck, Download, Eye, GraduationCap, Inbox, Paperclip, PenSquare, Reply, Search, Send, Star, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
+import { studentFullName } from '../utils/studentName';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
 
 type Priority = 'urgent' | 'important' | 'normal';
-type Box = 'inbox' | 'sent' | 'compose';
+type Box = 'inbox' | 'sent' | 'archived' | 'compose';
 
 interface InboxMessage {
   id: number;
@@ -20,7 +21,10 @@ interface InboxMessage {
   isMine: boolean;
   isRead: boolean;
   recipients: { id: string; name: string; readAt: string | null }[];
-  attachments: { id: number; name: string; size: number }[];
+  attachments: { id: number; name: string; size: number; mime?: string }[];
+  studentId?: string | null;
+  starred?: boolean;
+  archived?: boolean;
 }
 
 interface InboxUser {
@@ -65,6 +69,13 @@ const call = async <T,>(method: 'GET' | 'POST', url: string, body?: FormData): P
   return data as T;
 };
 
+/** ساخت FormData از یک شیء ساده (با مقدار بولی 1/0 برای اعتبارسنجی لاراول) */
+const jsonForm = (o: Record<string, boolean | undefined>): FormData => {
+  const fd = new FormData();
+  Object.entries(o).forEach(([k, v]) => v !== undefined && fd.append(k, v ? '1' : '0'));
+  return fd;
+};
+
 const formatWhen = (iso: string | null): string => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -78,20 +89,165 @@ const PriorityChip: React.FC<{ p: Priority }> = ({ p }) => (
   <span className={`shrink-0 px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${PRIORITY[p].chip}`}>{PRIORITY[p].label}</span>
 );
 
+/** پیوست‌های پیام: تصویر با پیش‌نمایش، PDF با باز کردن در تب جدید، بقیه دانلود */
+const AttachmentList: React.FC<{ items: InboxMessage['attachments'] }> = ({ items }) => (
+  <div className="mt-2 flex flex-wrap gap-2">
+    {items.map((a) => {
+      const isImage = (a.mime || '').startsWith('image/');
+      const isPdf = a.mime === 'application/pdf';
+      return (
+        <div key={a.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden max-w-full">
+          {isImage && (
+            <a href={`/api/inbox/attachments/${a.id}?inline=1`} target="_blank" rel="noopener noreferrer" aria-label={`پیش‌نمایش ${a.name}`}>
+              <img src={`/api/inbox/attachments/${a.id}?inline=1`} alt={a.name} loading="lazy" className="max-h-40 w-auto object-contain bg-slate-50" />
+            </a>
+          )}
+          <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700">
+            <span className="truncate max-w-[12rem]">{a.name}</span>
+            <span className="text-slate-400 font-normal shrink-0">{formatSize(a.size)}</span>
+            {isPdf && (
+              <a href={`/api/inbox/attachments/${a.id}?inline=1`} target="_blank" rel="noopener noreferrer" className="text-teal-700 inline-flex items-center gap-1 shrink-0"><Eye className="w-4 h-4" />پیش‌نمایش</a>
+            )}
+            <a href={`/api/inbox/attachments/${a.id}`} className="text-teal-700 inline-flex items-center gap-1 shrink-0" aria-label={`دانلود ${a.name}`}><Download className="w-4 h-4" />دانلود</a>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+/** پیوند به پرونده دانش‌آموزِ موضوع پیام */
+const StudentChip: React.FC<{ studentId: string; onOpen: () => void }> = ({ studentId, onOpen }) => {
+  const { students, classes } = useSchool();
+  const st = students.find((x) => x.id === studentId);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!st) return;
+        onOpen();
+        window.dispatchEvent(new CustomEvent('yavaran:open-student', { detail: { studentId } }));
+      }}
+      disabled={!st}
+      className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800 disabled:opacity-70 cursor-pointer"
+    >
+      <GraduationCap className="w-4 h-4" />
+      <span>{st ? `پرونده ${studentFullName(st)} • ${classes.find((c) => c.id === st.classId)?.name || ''}` : 'دانش‌آموز (بدون دسترسی به پرونده)'}</span>
+    </button>
+  );
+};
+
+const urlBase64ToUint8Array = (b64: string): Uint8Array => {
+  const padded = (b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(padded);
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+};
+
+/** فعال/غیرفعال‌کردن اعلان فوری روی همین دستگاه (فقط پیام فوری؛ بدون نمایش متن) */
+const PushToggle: React.FC = () => {
+  const [key, setKey] = useState<string | null>(null);
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const supported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  useEffect(() => {
+    if (!supported) return;
+    call<{ key: string | null }>('GET', '/api/inbox/push-key').then((d) => setKey(d.key)).catch(() => undefined);
+    navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription()).then((sub) => setOn(Boolean(sub))).catch(() => undefined);
+  }, [supported]);
+
+  if (!supported || !key) return null;
+
+  const toggle = async () => {
+    setBusy(true);
+    setNote('');
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        const fd = new FormData();
+        fd.append('endpoint', existing.endpoint);
+        await call('POST', '/api/inbox/push/remove', fd).catch(() => undefined);
+        await existing.unsubscribe();
+        setOn(false);
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        setNote('اجازه اعلان در مرورگر داده نشد.');
+        return;
+      }
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+      const fd = new FormData();
+      fd.append('endpoint', sub.endpoint);
+      await call('POST', '/api/inbox/push', fd);
+      setOn(true);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'فعال‌سازی اعلان انجام نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button type="button" onClick={toggle} disabled={busy} aria-pressed={on} className={`px-3 py-2 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60 ${on ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+        <BellRing className="w-4 h-4" />
+        <span>{on ? 'اعلان فوری روی گوشی: فعال' : 'فعال‌سازی اعلان فوری روی این دستگاه'}</span>
+      </button>
+      {note && <span role="alert" className="text-[11px] font-bold text-rose-600">{note}</span>}
+    </span>
+  );
+};
+
 /** فرم نوشتن پیام (پیام جدید یا پاسخ) */
 const Composer: React.FC<{
   users: InboxUser[];
   fixedRecipients?: string[];
   replyTo?: number;
   initialSubject?: string;
+  draftKey: string;
   onSent: () => void;
-}> = ({ users, fixedRecipients, replyTo, initialSubject = '', onSent }) => {
-  const [selected, setSelected] = useState<string[]>(fixedRecipients || []);
-  const [subject, setSubject] = useState(initialSubject);
-  const [body, setBody] = useState('');
-  const [priority, setPriority] = useState<Priority>('normal');
-  const [file, setFile] = useState<File | null>(null);
+}> = ({ users, fixedRecipients, replyTo, initialSubject = '', draftKey, onSent }) => {
+  const { currentUser, students, classes } = useSchool();
+  const storageKey = `inbox-draft:${currentUser.id}:${draftKey}`;
+  const draft = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? (JSON.parse(raw) as { selected?: string[]; subject?: string; body?: string; priority?: Priority; studentId?: string }) : null;
+    } catch {
+      return null;
+    }
+  }, [storageKey]);
+  const [selected, setSelected] = useState<string[]>(fixedRecipients || draft?.selected || []);
+  const [subject, setSubject] = useState(draft?.subject ?? initialSubject);
+  const [body, setBody] = useState(draft?.body ?? '');
+  const [priority, setPriority] = useState<Priority>(draft?.priority ?? 'normal');
+  const [files, setFiles] = useState<File[]>([]);
+  const [studentId, setStudentId] = useState<string>(draft?.studentId || '');
+  const [studentSearch, setStudentSearch] = useState('');
   const [search, setSearch] = useState('');
+
+  // پیش‌نویس خودکار (فقط متن؛ پیوست‌ها ذخیره نمی‌شوند)
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        if (!body.trim() && !subject.trim() && selected.length === 0 && !studentId) localStorage.removeItem(storageKey);
+        else localStorage.setItem(storageKey, JSON.stringify({ selected: fixedRecipients ? undefined : selected, subject, body, priority, studentId }));
+      } catch {
+        /* فضای ذخیره‌سازی در دسترس نیست */
+      }
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [selected, subject, body, priority, studentId, storageKey, fixedRecipients]);
+
+  const studentMatches = useMemo(() => {
+    const q = studentSearch.trim();
+    if (!q) return [];
+    return students.filter((st) => `${st.lastName} ${st.firstName}`.includes(q)).slice(0, 6);
+  }, [students, studentSearch]);
+  const pickedStudent = students.find((st) => st.id === studentId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -119,7 +275,8 @@ const Composer: React.FC<{
     e.preventDefault();
     if (selected.length === 0) return setError('حداقل یک گیرنده انتخاب کنید.');
     if (!body.trim()) return setError('متن پیام را بنویسید.');
-    if (file && file.size > 3 * 1024 * 1024) return setError('حجم پیوست باید کمتر از ۳ مگابایت باشد.');
+    if (files.some((f) => f.size > 3 * 1024 * 1024)) return setError('حجم هر پیوست باید کمتر از ۳ مگابایت باشد.');
+    if (files.reduce((n, f) => n + f.size, 0) > 10 * 1024 * 1024) return setError('مجموع حجم پیوست‌ها باید کمتر از ۱۰ مگابایت باشد.');
     setBusy(true);
     setError('');
     try {
@@ -129,8 +286,14 @@ const Composer: React.FC<{
       fd.append('body', body.trim());
       fd.append('priority', priority);
       if (replyTo) fd.append('replyTo', String(replyTo));
-      if (file) fd.append('attachment', file);
+      if (studentId) fd.append('studentId', studentId);
+      files.forEach((f) => fd.append('attachments[]', f));
       await call('POST', '/api/inbox', fd);
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        /* بدون ذخیره‌سازی */
+      }
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال پیام انجام نشد.');
@@ -206,6 +369,39 @@ const Composer: React.FC<{
         </div>
       </div>
 
+      {!replyTo && (
+        <div>
+          {pickedStudent ? (
+            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-violet-800">
+              <GraduationCap className="w-4 h-4" />
+              <span>درباره: {studentFullName(pickedStudent)} • {classes.find((c) => c.id === pickedStudent.classId)?.name || ''}</span>
+              <button type="button" onClick={() => setStudentId('')} className="text-rose-600 cursor-pointer" aria-label="حذف دانش‌آموز">×</button>
+            </div>
+          ) : (
+            <div className="relative">
+              <input
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="پیام درباره یک دانش‌آموز؟ (اختیاری — نام را جستجو کنید)"
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-violet-400"
+              />
+              {studentMatches.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                  {studentMatches.map((st) => (
+                    <li key={st.id}>
+                      <button type="button" onClick={() => { setStudentId(st.id); setStudentSearch(''); }} className="w-full text-right px-3 py-2 text-xs hover:bg-violet-50 cursor-pointer">
+                        <span className="font-bold text-slate-800">{studentFullName(st)}</span>
+                        <span className="text-slate-400"> • {classes.find((c) => c.id === st.classId)?.name || ''}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
@@ -217,23 +413,37 @@ const Composer: React.FC<{
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer">
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files || []);
+              setFiles((cur) => [...cur, ...picked].slice(0, 5));
+              if (fileRef.current) fileRef.current.value = '';
+            }}
+          />
+          <button type="button" disabled={files.length >= 5} onClick={() => fileRef.current?.click()} className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-700 inline-flex items-center gap-1.5 cursor-pointer">
             <Paperclip className="w-4 h-4" />
-            <span>پیوست (تا ۳ مگابایت)</span>
+            <span>پیوست (تا ۵ فایل، هرکدام ۳ مگابایت)</span>
           </button>
-          {file && (
-            <span className="text-[11px] text-slate-600 truncate max-w-[12rem]">
-              {file.name}{' '}
-              <button type="button" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ''; }} className="text-rose-600 font-bold cursor-pointer">حذف</button>
-            </span>
-          )}
         </div>
         <button type="submit" disabled={busy} className="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white text-sm font-extrabold inline-flex items-center gap-2 cursor-pointer">
           <Send className="w-4 h-4" />
           <span>{busy ? 'در حال ارسال...' : 'ارسال'}</span>
         </button>
       </div>
+      {files.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-100 text-[11px] text-slate-700">
+              <span className="truncate max-w-[10rem]">{f.name}</span>
+              <button type="button" onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} className="text-rose-600 font-bold cursor-pointer" aria-label="حذف پیوست">حذف</button>
+            </li>
+          ))}
+        </ul>
+      )}
       {error && <div role="alert" className="text-xs font-bold text-rose-600">{error}</div>}
     </form>
   );
@@ -252,9 +462,9 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
   const [thread, setThread] = useState<InboxMessage[]>([]);
   const [replying, setReplying] = useState(false);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'urgent' | 'starred'>('all');
 
-  const load = useCallback(async (which: 'inbox' | 'sent') => {
+  const load = useCallback(async (which: 'inbox' | 'sent' | 'archived') => {
     setLoading(true);
     setError('');
     try {
@@ -308,6 +518,24 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
     }
   };
 
+  const setFlag = async (m: InboxMessage, patch: { starred?: boolean; archived?: boolean }) => {
+    try {
+      const res = await call<{ unread: number }>('POST', `/api/inbox/${m.id}/flag`, jsonForm(patch));
+      setUnread(res.unread);
+      onUnreadChange(res.unread);
+      if (patch.archived !== undefined) {
+        // پیام از فهرست جاری خارج می‌شود (بایگانی یا بازگردانی)
+        setMessages((list) => list.filter((x) => x.id !== m.id));
+        setOpenId(null);
+      } else {
+        setMessages((list) => list.map((x) => (x.id === m.id ? { ...x, ...patch } : x)));
+        setThread((list) => list.map((x) => (x.id === m.id ? { ...x, ...patch } : x)));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'انجام نشد.');
+    }
+  };
+
   const markAllRead = async () => {
     try {
       await call('POST', '/api/inbox/read-all');
@@ -324,6 +552,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
     return messages.filter((m) => {
       if (filter === 'unread' && !(box === 'inbox' && !m.isRead)) return false;
       if (filter === 'urgent' && m.priority !== 'urgent') return false;
+      if (filter === 'starred' && !m.starred) return false;
       if (!q) return true;
       return (
         m.subject.includes(q) ||
@@ -357,7 +586,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
             <div className="min-w-0">
               <h2 className="text-base font-black text-slate-900">صندوق پیام</h2>
               <div className="text-[11px] text-slate-500">
-                {box === 'inbox' ? `${toPersianDigits(messages.length)} پیام دریافتی • ${toPersianDigits(unread)} خوانده‌نشده` : box === 'sent' ? `${toPersianDigits(messages.length)} پیام ارسالی` : 'پیام جدید'}
+                {box === 'archived' ? `${toPersianDigits(messages.length)} پیام بایگانی‌شده` : box === 'inbox' ? `${toPersianDigits(messages.length)} پیام دریافتی • ${toPersianDigits(unread)} خوانده‌نشده` : box === 'sent' ? `${toPersianDigits(messages.length)} پیام ارسالی` : 'پیام جدید'}
               </div>
             </div>
           </div>
@@ -372,7 +601,9 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
               <span className={`min-w-[1.4rem] px-1.5 py-0.5 rounded-full text-[10px] font-extrabold text-center ${unread > 0 ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{toPersianDigits(unread)}</span>
             </button>
             <button type="button" className={tabCls('sent')} onClick={() => setBox('sent')}><Send className="w-4 h-4" /><span>ارسالی</span></button>
+            <button type="button" className={tabCls('archived')} onClick={() => setBox('archived')}><Archive className="w-4 h-4" /><span>بایگانی</span></button>
             <button type="button" className={tabCls('compose')} onClick={() => setBox('compose')}><PenSquare className="w-4 h-4" /><span>پیام جدید</span></button>
+            <PushToggle />
             {box === 'inbox' && unread > 0 && (
               <button type="button" onClick={markAllRead} className="mr-auto px-3 py-2 rounded-xl text-xs font-bold text-teal-800 hover:bg-teal-50 inline-flex items-center gap-1.5 cursor-pointer">
                 <CheckCheck className="w-4 h-4" /><span>همه خوانده شد</span>
@@ -392,7 +623,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                 className="w-full text-xs bg-white border border-slate-200 focus:border-teal-500 rounded-xl pr-9 pl-3 py-2.5 outline-none"
               />
             </div>
-            {([['all', 'همه'], ['unread', 'خوانده‌نشده'], ['urgent', 'فوری']] as const).map(([k, label]) => (
+            {([['all', 'همه'], ['unread', 'خوانده‌نشده'], ['urgent', 'فوری'], ['starred', 'ستاره‌دار']] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
@@ -411,6 +642,14 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-black text-slate-900">{thread[0]?.subject}</h3>
+                <span className="mr-auto inline-flex items-center gap-1">
+                  <button type="button" onClick={() => setFlag(root, { starred: !root.starred })} aria-pressed={Boolean(root.starred)} aria-label="ستاره‌دار" title="ستاره‌دار" className={`p-2 rounded-xl hover:bg-slate-100 cursor-pointer ${root.starred ? 'text-amber-500' : 'text-slate-400'}`}>
+                    <Star className="w-4 h-4" fill={root.starred ? 'currentColor' : 'none'} />
+                  </button>
+                  <button type="button" onClick={() => setFlag(root, { archived: !root.archived })} aria-label={root.archived ? 'بازگردانی از بایگانی' : 'بایگانی'} title={root.archived ? 'بازگردانی از بایگانی' : 'بایگانی'} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 cursor-pointer">
+                    {root.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                  </button>
+                </span>
                 <PriorityChip p={thread.reduce<Priority>((best, m) => (['urgent', 'important', 'normal'].indexOf(m.priority) < ['urgent', 'important', 'normal'].indexOf(best) ? m.priority : best), 'normal')} />
               </div>
               {thread.map((m) => (
@@ -424,11 +663,8 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1">به: {m.recipients.map((r) => (r.id === String(currentUser.id) ? 'شما' : r.name)).join('، ')}</div>
                   <p className="text-sm text-slate-800 leading-7 mt-2 whitespace-pre-wrap break-words">{m.body}</p>
-                  {m.attachments.map((a) => (
-                    <a key={a.id} href={`/api/inbox/attachments/${a.id}`} className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700">
-                      <Download className="w-4 h-4 text-teal-700" /><span className="truncate max-w-[14rem]">{a.name}</span><span className="text-slate-400 font-normal">{formatSize(a.size)}</span>
-                    </a>
-                  ))}
+                  {m.studentId && <StudentChip studentId={m.studentId} onOpen={onClose} />}
+                  {m.attachments.length > 0 && <AttachmentList items={m.attachments} />}
                   {m.isMine && m.recipients.length > 0 && (
                     <div className="text-[10px] text-slate-400 mt-2">{m.recipients.map((r) => `${r.name}: ${r.readAt ? 'خوانده شد' : 'خوانده‌نشده'}`).join(' • ')}</div>
                   )}
@@ -437,6 +673,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
               {replying ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
                   <Composer
+                    draftKey={`reply-${root.threadId}`}
                     users={users}
                     fixedRecipients={replyTargets}
                     replyTo={thread[thread.length - 1]?.id}
@@ -456,7 +693,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
             </div>
           ) : box === 'compose' ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-4">
-              <Composer users={users} onSent={() => setBox('sent')} />
+              <Composer draftKey="new" users={users} onSent={() => setBox('sent')} />
             </div>
           ) : loading ? (
             <div className="py-16 text-center text-sm text-slate-400">در حال بارگذاری...</div>
@@ -464,28 +701,29 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
             <div role="alert" className="py-16 text-center text-sm font-bold text-rose-600">{error}</div>
           ) : visibleMessages.length === 0 ? (
             <div className="py-16 text-center text-sm text-slate-400">
-              {messages.length > 0 ? 'پیامی با این جستجو یا فیلتر پیدا نشد.' : box === 'inbox' ? 'پیامی دریافت نشده است.' : 'هنوز پیامی نفرستاده‌اید.'}
+              {messages.length > 0 ? 'پیامی با این جستجو یا فیلتر پیدا نشد.' : box === 'inbox' ? 'پیامی دریافت نشده است.' : box === 'archived' ? 'پیام بایگانی‌شده‌ای وجود ندارد.' : 'هنوز پیامی نفرستاده‌اید.'}
             </div>
           ) : (
             <ul className="space-y-2">
               {visibleMessages.map((m) => {
                 const unreadRow = box === 'inbox' && !m.isRead;
                 return (
-                  <li key={m.id}>
+                  <li key={m.id} className="relative">
                     <button
                       type="button"
                       onClick={() => openMessage(m)}
-                      className={`w-full text-right rounded-2xl border p-3.5 transition cursor-pointer hover:shadow-sm ${unreadRow ? 'bg-white border-teal-300' : 'bg-white/70 border-slate-200'}`}
+                      className={`w-full text-right rounded-2xl border p-3.5 pl-20 transition cursor-pointer hover:shadow-sm ${unreadRow ? 'bg-white border-teal-300' : 'bg-white/70 border-slate-200'}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           {unreadRow && <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" aria-label="خوانده‌نشده" />}
                           <span className={`text-sm truncate ${unreadRow ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
-                            {box === 'sent' ? `به: ${m.recipients.map((r) => r.name).join('، ')}` : m.senderName}
+                            {box === 'sent' || m.isMine ? `به: ${m.recipients.map((r) => r.name).join('، ')}` : m.senderName}
                           </span>
-                          {box === 'inbox' && m.senderRole && <span className="text-[10px] text-slate-400 shrink-0">{ROLE_LABEL[m.senderRole] || ''}</span>}
+                          {!m.isMine && m.senderRole && <span className="text-[10px] text-slate-400 shrink-0">{ROLE_LABEL[m.senderRole] || ''}</span>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          {m.studentId && <GraduationCap className="w-3.5 h-3.5 text-violet-500" aria-label="درباره دانش‌آموز" />}
                           {m.attachments.length > 0 && <Paperclip className="w-3.5 h-3.5 text-slate-400" />}
                           <PriorityChip p={m.priority} />
                         </div>
@@ -493,6 +731,14 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                       <div className={`text-xs mt-1 truncate ${unreadRow ? 'font-extrabold text-slate-800' : 'text-slate-600'}`}>{m.subject}</div>
                       <div className="text-[11px] text-slate-400 mt-0.5">{formatWhen(m.createdAt)}</div>
                     </button>
+                    <div className="absolute left-2 top-2 flex items-center gap-0.5">
+                      <button type="button" onClick={() => setFlag(m, { starred: !m.starred })} aria-pressed={Boolean(m.starred)} aria-label="ستاره‌دار" className={`p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer ${m.starred ? 'text-amber-500' : 'text-slate-300'}`}>
+                        <Star className="w-4 h-4" fill={m.starred ? 'currentColor' : 'none'} />
+                      </button>
+                      <button type="button" onClick={() => setFlag(m, { archived: box !== 'archived' })} aria-label={box === 'archived' ? 'بازگردانی' : 'بایگانی'} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-600 cursor-pointer">
+                        {box === 'archived' ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </li>
                 );
               })}

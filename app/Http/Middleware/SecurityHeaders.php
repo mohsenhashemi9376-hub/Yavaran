@@ -48,6 +48,11 @@ class SecurityHeaders
             return;
         }
 
+        // پیش‌نمایش درون‌خطی پیوست‌های صندوق پیام (فقط تصویر/PDF): نمایشگر PDF مرورگر با object-src 'none' کار نمی‌کند
+        if ($request->is('api/inbox/attachments/*') && $request->boolean('inline')) {
+            return;
+        }
+
         $directives = [
             "default-src 'self'",
             "script-src 'self' 'nonce-{$nonce}'",

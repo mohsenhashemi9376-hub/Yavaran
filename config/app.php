@@ -31,6 +31,17 @@ return [
 
     /* پشتیبان رمزنگاری‌شده با کلیدی جدا از APP_KEY و NURTURING_KEY؛ مدت نگهداری (روز) */
     'backup_key' => env('BACKUP_KEY'),
+
+    /*
+     * اعلان فوری صندوق پیام روی گوشی (Web Push بدون متن). ساخت کلید: php artisan inbox:vapid-generate
+     * مقدار VAPID_PRIVATE_KEY به‌صورت base64 فایل PEM است.
+     */
+    'vapid_public' => env('VAPID_PUBLIC_KEY'),
+    'vapid_private' => env('VAPID_PRIVATE_KEY'),
+    'vapid_subject' => env('VAPID_SUBJECT', 'mailto:admin@localhost'),
+
+    /* پاک‌سازی خودکار پیام‌های قدیمی صندوق پیام (روز) */
+    'inbox_retention_days' => (int) env('INBOX_RETENTION_DAYS', 365),
     'backup_keep_days' => (int) env('BACKUP_KEEP_DAYS', 7),
 
     /* هشدارهای امنیتی در ایتا (ربات ایتایار): توکن ربات و شناسه‌ی کانال/گروه */
