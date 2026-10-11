@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, CheckCheck, Download, Inbox, Paperclip, PenSquare, Reply, Send, X } from 'lucide-react';
+import { ArrowRight, CheckCheck, Download, Inbox, Paperclip, PenSquare, Reply, Search, Send, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
 
@@ -96,6 +96,22 @@ const Composer: React.FC<{
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const GROUPS: { label: string; match: (u: InboxUser) => boolean }[] = [
+    { label: 'همه مربیان', match: (u) => u.role === 'coach' },
+    { label: 'همه معاونین', match: (u) => u.role.startsWith('vice_') },
+    { label: 'مدیر', match: (u) => u.role === 'admin' },
+    { label: 'کادر کل', match: () => true },
+  ];
+  const groupIds = (g: { match: (u: InboxUser) => boolean }) => users.filter(g.match).map((u) => u.id);
+  const groupActive = (g: { match: (u: InboxUser) => boolean }) => {
+    const ids = groupIds(g);
+    return ids.length > 0 && ids.every((id) => selected.includes(id));
+  };
+  const toggleGroup = (g: { match: (u: InboxUser) => boolean }) => {
+    const ids = groupIds(g);
+    setSelected((s) => (ids.every((id) => s.includes(id)) ? s.filter((x) => !ids.includes(x)) : Array.from(new Set([...s, ...ids]))));
+  };
+
   const shown = users.filter((u) => !search.trim() || u.name.includes(search.trim()) || (ROLE_LABEL[u.role] || '').includes(search.trim()));
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
@@ -135,6 +151,24 @@ const Composer: React.FC<{
               placeholder="جستجوی نام یا سمت"
               className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-teal-500 w-40"
             />
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap mb-2" role="group" aria-label="انتخاب گروهی">
+            {GROUPS.map((g) => {
+              const count = groupIds(g).length;
+              if (count === 0) return null;
+              const on = groupActive(g);
+              return (
+                <button
+                  key={g.label}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleGroup(g)}
+                  className={`px-3 py-1.5 rounded-full border text-[11px] font-bold cursor-pointer ${on ? 'bg-teal-700 border-teal-700 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {g.label} ({toPersianDigits(count)})
+                </button>
+              );
+            })}
           </div>
           <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-1 rounded-xl border border-slate-100">
             {shown.length === 0 && <div className="text-xs text-slate-400 p-3 col-span-full text-center">گیرنده‌ای یافت نشد.</div>}
@@ -217,6 +251,8 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
   const [openId, setOpenId] = useState<number | null>(null);
   const [thread, setThread] = useState<InboxMessage[]>([]);
   const [replying, setReplying] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
 
   const load = useCallback(async (which: 'inbox' | 'sent') => {
     setLoading(true);
@@ -234,6 +270,8 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
   }, [onUnreadChange]);
 
   useEffect(() => {
+    setQuery('');
+    setFilter('all');
     if (box !== 'compose') load(box);
   }, [box, load]);
 
@@ -281,6 +319,22 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
     }
   };
 
+  const visibleMessages = useMemo(() => {
+    const q = query.trim();
+    return messages.filter((m) => {
+      if (filter === 'unread' && !(box === 'inbox' && !m.isRead)) return false;
+      if (filter === 'urgent' && m.priority !== 'urgent') return false;
+      if (!q) return true;
+      return (
+        m.subject.includes(q) ||
+        m.body.includes(q) ||
+        m.senderName.includes(q) ||
+        m.recipients.some((r) => r.name.includes(q)) ||
+        m.attachments.some((a) => a.name.includes(q))
+      );
+    });
+  }, [messages, query, filter, box]);
+
   const root = useMemo(() => thread.find((m) => m.id === openId) || thread[0], [thread, openId]);
   const replyTargets = useMemo(() => {
     if (!root) return [];
@@ -324,6 +378,31 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                 <CheckCheck className="w-4 h-4" /><span>همه خوانده شد</span>
               </button>
             )}
+          </div>
+        )}
+
+        {!openId && box !== 'compose' && (
+          <div className="px-4 sm:px-6 pt-3 flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[10rem]">
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="جستجو در موضوع، متن، نام و پیوست"
+                className="w-full text-xs bg-white border border-slate-200 focus:border-teal-500 rounded-xl pr-9 pl-3 py-2.5 outline-none"
+              />
+            </div>
+            {([['all', 'همه'], ['unread', 'خوانده‌نشده'], ['urgent', 'فوری']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={filter === k}
+                onClick={() => setFilter(k)}
+                className={`px-3 py-2 rounded-full border text-[11px] font-bold cursor-pointer ${filter === k ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
 
@@ -383,11 +462,13 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
             <div className="py-16 text-center text-sm text-slate-400">در حال بارگذاری...</div>
           ) : error ? (
             <div role="alert" className="py-16 text-center text-sm font-bold text-rose-600">{error}</div>
-          ) : messages.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">{box === 'inbox' ? 'پیامی دریافت نشده است.' : 'هنوز پیامی نفرستاده‌اید.'}</div>
+          ) : visibleMessages.length === 0 ? (
+            <div className="py-16 text-center text-sm text-slate-400">
+              {messages.length > 0 ? 'پیامی با این جستجو یا فیلتر پیدا نشد.' : box === 'inbox' ? 'پیامی دریافت نشده است.' : 'هنوز پیامی نفرستاده‌اید.'}
+            </div>
           ) : (
             <ul className="space-y-2">
-              {messages.map((m) => {
+              {visibleMessages.map((m) => {
                 const unreadRow = box === 'inbox' && !m.isRead;
                 return (
                   <li key={m.id}>

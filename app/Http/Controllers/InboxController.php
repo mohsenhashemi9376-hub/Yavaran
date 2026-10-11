@@ -45,7 +45,21 @@ class InboxController extends Controller
     {
         $me = $this->actor($request);
 
-        return response()->json(['unread' => $this->unreadCount($me)]);
+        // پیام‌های فوریِ خوانده‌نشده برای نمایش کادر هشدار وسط صفحه
+        $urgent = DB::table('inbox_messages as m')
+            ->join('inbox_recipients as r', function ($join) use ($me) {
+                $join->on('r.message_id', '=', 'm.id')->where('r.user_id', '=', (string) $me->id);
+            })
+            ->whereNull('r.read_at')
+            ->where('m.priority', 'urgent')
+            ->orderBy('m.created_at')
+            ->limit(5)
+            ->get(['m.*']);
+
+        return response()->json([
+            'unread' => $this->unreadCount($me),
+            'urgent' => $this->present($urgent, $me),
+        ]);
     }
 
     /** صندوق ورودی یا ارسالی */
