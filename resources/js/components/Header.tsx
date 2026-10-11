@@ -1,4 +1,5 @@
 import { NotificationBell } from './NotificationBell';
+import { InboxButton } from './InboxButton';
 import React, { useState, useEffect, useRef } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -324,6 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
             <ThemeToggle className="yv-lux-only" />
 
             {/* 4. اعلان‌ها (Notifications) */}
+            <InboxButton />
             <NotificationBell />
 
             {/* 3. اطلاعات کاربر و منوی حساب (User Menu) */}
