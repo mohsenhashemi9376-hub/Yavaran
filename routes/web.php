@@ -26,6 +26,14 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         ->middleware('throttle:30,1')
         ->name('api.login');
 
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
+        ->middleware('throttle:5,1')
+        ->name('api.password.forgot');
+
+    Route::post('auth/recover-password', [AuthController::class, 'recoverPassword'])
+        ->middleware('throttle:10,1')
+        ->name('api.password.recover');
+
     Route::post('auth/two-factor', [AuthController::class, 'twoFactorLogin'])
         ->middleware('throttle:30,1')
         ->name('api.login.two-factor');
