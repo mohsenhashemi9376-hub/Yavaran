@@ -879,14 +879,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const teachingAccessibleSessions = isTeacher
     ? sessions.filter((s) => teachingClassIdsSet.has(s.classId) && isOwnTeachingSession(s))
     : hasTeachingLoad
-    ? sessions.filter(
-        (s) =>
-          teachingClassIdsSet.has(s.classId) &&
-          (s.teacherId === currentUser.id ||
-            (currentUser.teachingClassIds && currentUser.teachingClassIds.includes(s.classId)) ||
-            (currentUser.teachingAssignments && currentUser.teachingAssignments.some((ta) => ta.classIds.includes(s.classId))))
-      )
-    : sessions;
+    ? sessions.filter((s) => teachingClassIdsSet.has(s.classId) && isOwnTeachingSession(s))
+    : isAdminOrVice
+    ? sessions
+    : [];
 
   const canTeachClassAndSubject = (classId: string, subjectNameOrId?: string): boolean => {
     if (isAdmin || isEducationalVice) return true;
