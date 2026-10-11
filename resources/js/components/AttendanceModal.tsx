@@ -1,5 +1,6 @@
 import { closedReasonMessage, normalizeShamsi } from '../utils/schoolCalendar';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSchool } from '../context/SchoolContext';
 import {
   AttendanceSession,
@@ -773,7 +774,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       </div>
 
       {/* پاپ‌آپ ثبت اخطار کلاسی */}
-      {warningStudent && (
+      {warningStudent && createPortal(
         <div className="fixed inset-0 z-60 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl shadow-slate-900/10 overflow-hidden">
             <div className="px-6 pt-6 pb-2 flex items-center justify-between">
@@ -844,10 +845,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </form>
           </div>
         </div>
-      )}
+        , document.body)}
 
       {/* تأیید خروج بدون ذخیره */}
-      {showExitConfirm && (
+      {showExitConfirm && createPortal(
         <div className="fixed inset-0 z-60 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 space-y-4 text-center">
             <h3 className="text-base font-extrabold text-slate-900">خروج بدون ذخیره؟</h3>
@@ -873,7 +874,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </div>
           </div>
         </div>
-      )}
+        , document.body)}
     </div>
   );
 };
