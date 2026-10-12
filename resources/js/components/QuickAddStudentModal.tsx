@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { nationalIdError, phoneError } from '../utils/validators';
 import { useSchool } from '../context/SchoolContext';
 import { X, UserPlus, Users, Check, Loader2 } from 'lucide-react';
 
@@ -37,6 +38,12 @@ export const QuickAddStudentModal: React.FC<QuickAddStudentModalProps> = ({
 
     if (!firstName.trim() || !lastName.trim() || !selectedClassId) {
       setErrorText('لطفاً نام، نام خانوادگی و کلاس را مشخص نمایید.');
+      return;
+    }
+
+    const fieldError = nationalIdError(nationalId) || phoneError(parentPhone);
+    if (fieldError) {
+      setErrorText(fieldError);
       return;
     }
 

@@ -125,7 +125,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const { students, workshopClasses: allWorkshopClasses } = useSchool();
+  const { students, workshopClasses: allWorkshopClasses, currentUser, showToast, showConfirm, clearBaselessHomeworkStatuses, countBaselessHomeworkStatuses } = useSchool();
   const classes = React.useMemo(() => [...classesProp, ...allWorkshopClasses], [classesProp, allWorkshopClasses]);
   // ردیفی که لیست اسامی غائبین/تأخیرها در آن باز شده است
   const [expanded, setExpanded] = useState<{ id: string; kind: 'absent' | 'late' } | null>(null);
@@ -257,6 +257,34 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
               >
                 <Plus className="w-4 h-4" />
                 <span>ثبت جلسه کلاسی جدید</span>
+              </button>
+            )}
+
+            {currentUser?.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const n = countBaselessHomeworkStatuses();
+                  if (n === 0) {
+                    showToast('وضعیت تکلیف بی‌مبنایی پیدا نشد.', 'info');
+                    return;
+                  }
+                  showConfirm({
+                    title: 'پاک‌سازی وضعیت‌های تکلیف بی‌مبنا',
+                    message: `${toPersianDigits(n)} وضعیت «انجام شده» در جلساتی ثبت شده که تکلیفی برای ارزیابی نداشته‌اند (مقدار پیش‌فرض قدیمی فرم). این وضعیت‌ها به «بدون وضعیت» تبدیل شوند؟ ارزیابی‌های «ناقص» و «انجام نشده» دست نمی‌خورند و این کار قابل بازگشت نیست.`,
+                    confirmLabel: 'بله، پاک شود',
+                    cancelLabel: 'انصراف',
+                    isDangerous: true,
+                    onConfirm: () => {
+                      const done = clearBaselessHomeworkStatuses();
+                      showToast(`${toPersianDigits(done)} وضعیت تکلیف پاک‌سازی شد.`, 'success');
+                    },
+                  });
+                }}
+                className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold transition cursor-pointer border border-amber-200"
+                title="حذف وضعیت‌های «انجام شده»ی پیش‌فرض قدیمی که تکلیفی برای ارزیابی نداشته‌اند"
+              >
+                پاک‌سازی وضعیت تکلیف قدیمی
               </button>
             )}
 

@@ -3,6 +3,7 @@ import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
 import { staleObservationStudents } from '../utils/observationGap';
+import { isFutureShamsi, FUTURE_DATE_MESSAGE } from '../utils/validators';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toEnglishDigits, tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -26,6 +27,7 @@ import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
+import { EmptyState } from './EmptyState';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -597,6 +599,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     const when = obsDateManual || editingObsId ? parseShamsiDateTime(obsDate, obsTime) : getNowShamsi();
     if (!when) {
       showToast('تاریخ (مثل 1404/08/20) یا ساعت (مثل 10:30) معتبر نیست. می‌توانید دکمه‌ی «اکنون» را بزنید.', 'error');
+      return;
+    }
+
+    if (isFutureShamsi(when.date)) {
+      showToast(FUTURE_DATE_MESSAGE, 'error');
       return;
     }
 
@@ -1314,6 +1321,20 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </div>
           )}
 
+          {filteredStudents.length === 0 && (
+            <EmptyState
+              title="دانش‌آموزی برای نمایش وجود ندارد"
+              hint="کلاس یا جستجوی انتخاب‌شده دانش‌آموزی ندارد یا هنوز کلاسی به شما اختصاص داده نشده است. فیلتر کلاس را بررسی کنید."
+            />
+          )}
+          {onlyStaleObs && staleObsStudents.length === 0 && filteredStudents.length > 0 && (
+            <EmptyState
+              title="همه‌ی دانش‌آموزان مشاهده‌گری اخیر دارند"
+              hint="برای هیچ دانش‌آموزی بیش از ۲ هفته‌ی درسی مشاهده‌گری ثبت‌نشده باقی نمانده است."
+              actionLabel="نمایش همه دانش‌آموزان"
+              onAction={() => setOnlyStaleObs(false)}
+            />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {(onlyStaleObs ? staleObsStudents.map((e) => e.student) : filteredStudents).map((student) => {
               const studentObs = observations.filter((o) => o.studentId === student.id);

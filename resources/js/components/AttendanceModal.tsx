@@ -1,4 +1,5 @@
 import { closedReasonMessage, normalizeShamsi } from '../utils/schoolCalendar';
+import { isFutureShamsi } from '../utils/validators';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSchool } from '../context/SchoolContext';
@@ -390,6 +391,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     }
     if (!course) {
       showToast('لطفاً درس و کلاس را انتخاب نمایید.', 'error');
+      return;
+    }
+    if (isFutureShamsi(date.trim())) {
+      showToast('ثبت حضور و غیاب برای تاریخ آینده ممکن نیست.', 'error');
       return;
     }
 

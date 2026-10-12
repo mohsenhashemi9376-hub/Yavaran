@@ -1,5 +1,6 @@
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { baselessHomeworkRecords } from '../utils/homework';
 import { 
   User, 
   SchoolClass, 
@@ -239,6 +240,10 @@ interface SchoolContextType {
   updateCoach: (id: string, updatedData: Partial<User>) => void;
   deleteCoach: (id: string) => boolean;
   
+  /** پاک‌سازی وضعیت‌های تکلیفِ بی‌مبنا؛ خروجی: تعداد رکورد اصلاح‌شده */
+  clearBaselessHomeworkStatuses: () => number;
+  /** تعداد رکوردهای تکلیفِ بی‌مبنا (بدون تغییر) */
+  countBaselessHomeworkStatuses: () => number;
   saveAttendanceSession: (session: Omit<AttendanceSession, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => string;
   deleteAttendanceSession: (id: string) => void;
 
@@ -294,6 +299,8 @@ interface SchoolContextType {
   // Feedback Toast & Confirmation System (راهنمای کاربر و بازخورد عملیات)
   toast: { id: string; message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (messageOrTitle: string, messageOrType?: string, type?: 'success' | 'error' | 'info') => void;
+  /** وضعیت ذخیره‌ی تغییرات روی سرور */
+  syncState: 'idle' | 'saving' | 'error';
   hideToast: () => void;
   confirmDialog: {
     isOpen: boolean;
@@ -519,6 +526,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     syncRef.current = new SyncEngine((error) => syncErrorHandlerRef.current(error));
   }
   const syncEngine = syncRef.current;
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'error'>('idle');
+  useEffect(() => {
+    setSyncState(syncEngine.state);
+    return syncEngine.subscribe(() => setSyncState(syncEngine.state));
+  }, [syncEngine]);
 
   const applyServerData = useCallback((payload: BootstrapPayload) => {
     const d = (payload.data || {}) as NonNullable<BootstrapPayload['data']>;
@@ -2037,6 +2049,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  /** حذف وضعیت‌های «انجام شده»ی پیش‌فرض قدیمی که تکلیفی برای ارزیابی نداشته‌اند؛ تعداد رکوردهای اصلاح‌شده را برمی‌گرداند */
+  const clearBaselessHomeworkStatuses = (): number => {
+    const targets = baselessHomeworkRecords(sessions);
+    if (targets.size === 0) return 0;
+    let count = 0;
+    targets.forEach((ids) => { count += ids.length; });
+    setSessions((prev) =>
+      prev.map((s) => {
+        const ids = targets.get(s.id);
+        if (!ids) return s;
+        const records = { ...s.records };
+        ids.forEach((id) => {
+          const { homeworkStatus: _removed, ...rest } = records[id];
+          records[id] = rest;
+        });
+        return { ...s, records };
+      })
+    );
+    return count;
+  };
+
   const deleteAttendanceSession = (id: string) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
     showToast('جلسه حضور و غیاب حذف شد.', 'info');
@@ -2846,6 +2879,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         hideToast,
         confirmDialog,
         showConfirm,
+        syncState,
+        clearBaselessHomeworkStatuses,
+        countBaselessHomeworkStatuses: () => Array.from(baselessHomeworkRecords(sessions).values()).reduce((n, ids) => n + ids.length, 0),
         closeConfirm,
       }}
     >

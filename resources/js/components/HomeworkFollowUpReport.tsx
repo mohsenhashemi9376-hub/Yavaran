@@ -7,6 +7,7 @@ import { homeworkOutcome, HomeworkOutcome } from '../utils/classroomActivity';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { previousCourseSession } from '../utils/homework';
+import { EmptyState } from './EmptyState';
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 const OUTCOME_LABEL: Record<HomeworkOutcome, string> = {
@@ -226,9 +227,25 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {rows.length === 0 ? (
-          <div className="text-center py-12 text-xs text-slate-400">
-            موردی برای نمایش نیست. تکلیف در هنگام ثبت حضور و غیاب توسط استاد ارزیابی می‌شود.
-          </div>
+          (() => {
+            const narrowed = Boolean(classId || subject || month || search.trim() || filter !== 'all');
+            if (narrowed) {
+              return (
+                <EmptyState
+                  title="با فیلترهای فعلی موردی پیدا نشد"
+                  hint="ممکن است در این کلاس، درس یا ماه، تکلیف انجام‌نشده یا ناقصی ثبت نشده باشد یا نام جستجوشده وجود نداشته باشد."
+                  actionLabel="پاک‌کردن فیلترها"
+                  onAction={() => { setClassId(''); setSubject(''); setMonth(0); setSearch(''); setFilter('all'); }}
+                />
+              );
+            }
+            return (
+              <EmptyState
+                title="تکلیف انجام‌نشده یا ناقصی ثبت نشده است"
+                hint="وضعیت تکلیف هنگام ثبت حضور و غیاب جلسه‌ی بعد توسط استاد ثبت می‌شود و فقط برای درس‌هایی که جلسه‌ی قبلشان تکلیف داشته، معنا دارد."
+              />
+            );
+          })()
         ) : (
           <ul className="divide-y divide-slate-100">
             {rows.map((r, i) => {

@@ -22,6 +22,7 @@ import {
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
 import { summarizeActivity } from '../utils/classroomActivity';
+import { nationalIdError, phoneError } from '../utils/validators';
 import {
   X,
   User,
@@ -510,6 +511,12 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const handleSaveStudentInfo = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    const fieldError = nationalIdError(editNationalId) || phoneError(editParentPhone);
+    if (fieldError) {
+      showToast('اطلاعات نامعتبر', fieldError, 'error');
+      return;
+    }
 
     setIsSubmitting(true);
     try {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
+import { nationalIdError, phoneError } from '../utils/validators';
 import { 
   X, 
   Search, 
@@ -105,6 +106,11 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
     if (isSubmitting) return;
     if (!firstName.trim() || !lastName.trim()) {
       setErrorText('لطفاً نام و نام خانوادگی دانش‌آموز را وارد کنید.');
+      return;
+    }
+    const fieldError = nationalIdError(nationalId) || phoneError(parentPhone);
+    if (fieldError) {
+      setErrorText(fieldError);
       return;
     }
 

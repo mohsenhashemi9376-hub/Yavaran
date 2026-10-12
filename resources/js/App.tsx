@@ -10,6 +10,7 @@ import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
 import { EducationalDashboard } from './components/EducationalDashboard';
 import { NurturingDashboard } from './components/NurturingDashboard';
 import { ConfidentialGuard } from './components/ConfidentialGuard';
+import { SyncStatusBadge } from './components/SyncStatusBadge';
 import { BrandSplash } from './components/BrandSplash';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
@@ -222,6 +223,7 @@ const MainApp: React.FC = () => {
         <ViewDateBar />
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           <ConfidentialGuard />
+          <SyncStatusBadge />
           {/* Render Tab Views with strict role isolation */}
           {isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
             <TeacherDashboard
