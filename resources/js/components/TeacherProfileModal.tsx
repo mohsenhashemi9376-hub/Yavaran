@@ -212,7 +212,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-slate-400 block">کلاس‌های مجاز:</span>
                 <span className="text-[11px] font-bold text-indigo-700 font-mono">
-                  {toPersianDigits(teacherClasses.length)} کلاس مجاز
+                  {toPersianDigits(teacherClasses.length + teacherWorkshops.length)} کلاس مجاز
                 </span>
               </div>
 
@@ -241,29 +241,22 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
                       </div>
                     );
                   })}
+                  {teacherWorkshops.map((w) => (
+                    <div key={w.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900">{workshopTitle(w)}</div>
+                        {(w.day || w.period) && (
+                          <div className="text-[10px] text-slate-500 mt-0.5">{[w.day, w.period].filter(Boolean).join(' • ')}</div>
+                        )}
+                      </div>
+                      <div className="text-left font-mono font-bold text-[11px] text-indigo-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        {toPersianDigits(w.studentIds.length)} دانش‌آموز
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {teacherWorkshops.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  <span className="text-[11px] text-slate-400 block">کارگاه‌های علمی و مهارتی:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {teacherWorkshops.map((w) => (
-                      <div key={w.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-2">
-                        <div>
-                          <div className="font-bold text-slate-900">{workshopTitle(w)}</div>
-                          {(w.day || w.period) && (
-                            <div className="text-[10px] text-slate-500 mt-0.5">{[w.day, w.period].filter(Boolean).join(' • ')}</div>
-                          )}
-                        </div>
-                        <div className="font-bold text-[11px] text-indigo-700 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0">
-                          {toPersianDigits(w.studentIds.length)} دانش‌آموز
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* تعداد جلسات */}
