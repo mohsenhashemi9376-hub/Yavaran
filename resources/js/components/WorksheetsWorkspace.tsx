@@ -1,3 +1,4 @@
+import { ShamsiDatePicker } from './ShamsiDatePicker';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarClock,
@@ -268,13 +269,11 @@ export const WorksheetsWorkspace: React.FC = () => {
                   {label} همین هفته
                 </button>
               ))}
-              <input
-                dir="ltr"
-                inputMode="numeric"
+              <ShamsiDatePicker
                 value={deadlineText}
-                onChange={(e) => setDeadlineText(e.target.value)}
-                placeholder="1405/07/19"
-                className="w-32 text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-600 font-mono text-center"
+                onChange={setDeadlineText}
+                fallbackDate={addDays(weekStart, 4)}
+                className="w-32 text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-600 font-mono text-center cursor-pointer"
               />
               <button type="button" onClick={() => saveDeadline(deadlineText)} className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-extrabold cursor-pointer">
                 ذخیره
