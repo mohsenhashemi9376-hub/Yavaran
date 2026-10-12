@@ -24,6 +24,7 @@ import { TaughtLessonsView } from './TaughtLessonsView';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
+import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -949,6 +950,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
                 {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+                {currentView === 'homework_followup' && 'پیگیری تکالیف'}
                 {currentView === 'worksheets' && 'کاربرگ هفتگی'}
                 {currentView === 'audit' && 'گزارش دسترسی‌ها'}
               </span>
@@ -1261,6 +1263,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
+      {currentView === 'homework_followup' && <HomeworkFollowUpReport onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'worksheets' && <WorksheetsWorkspace />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 

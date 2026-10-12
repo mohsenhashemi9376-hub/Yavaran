@@ -8,6 +8,7 @@ import {
   GraduationCap, 
   Award, 
   ClipboardCheck,
+  ClipboardList,
   FileText, 
   BarChart3, 
   AlertTriangle,
@@ -36,6 +37,7 @@ export type EducationalViewType =
   | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
+  | 'homework_followup'
   | 'worksheets'
   | 'students' 
   | 'attendance' 
@@ -187,6 +189,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           tooltip: 'کارنامه و سوابق تحصیلی',
           icon: FileText,
           count: totalReportCards > 0 ? totalReportCards : undefined,
+        },
+        {
+          id: 'homework_followup',
+          label: 'پیگیری تکالیف',
+          tooltip: 'دانش‌آموزانی که تکلیف را انجام نداده‌اند',
+          icon: ClipboardList,
         },
         {
           id: 'reports',

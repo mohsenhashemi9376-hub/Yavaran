@@ -1,4 +1,4 @@
-import { AttendanceSession } from '../types';
+import { AttendanceSession, StudentAttendanceRecord } from '../types';
 import { toEnglishDigits, toPersianDigits } from './persianDate';
 
 export interface ActivitySummary {
@@ -24,6 +24,18 @@ export const PERIOD_MONTH: Record<string, number | undefined> = {
   term2Final: 3,
 };
 
+export type HomeworkOutcome = 'excellent' | 'done' | 'incomplete' | 'not_done';
+
+/** وضعیت تکلیف یک دانش‌آموز در یک جلسه؛ null برای غایب/موجه یا بدون رکورد */
+export function homeworkOutcome(rec?: StudentAttendanceRecord): HomeworkOutcome | null {
+  if (!rec || rec.status === 'absent' || rec.status === 'excused') return null;
+  const a = rec.classroomActivity;
+  if (a === 'excellent') return 'excellent';
+  if (rec.homeworkStatus === 'incomplete' || a === 'incomplete') return 'incomplete';
+  if (rec.homeworkStatus === 'not_done') return 'not_done';
+  return 'done';
+}
+
 export function summarizeActivity(
   sessions: AttendanceSession[],
   studentId: string,
@@ -37,13 +49,11 @@ export function summarizeActivity(
       if (!same) return;
     }
     if (opts.month && Number(toEnglishDigits(s.date).split('/')[1]) !== opts.month) return;
-    const rec = s.records?.[studentId];
-    if (!rec || rec.status === 'absent' || rec.status === 'excused') return;
-    // وضعیت تکلیف (انجام شده / ناقص / انجام نشده)؛ ارزیابی قدیمی «عالی» هم همچنان شمرده می‌شود
-    const a = rec.classroomActivity;
-    if (a === 'excellent') out.excellent++;
-    else if (rec.homeworkStatus === 'incomplete' || a === 'incomplete') out.incomplete++;
-    else if (rec.homeworkStatus === 'not_done') out.notDone++;
+    const outcome = homeworkOutcome(s.records?.[studentId]);
+    if (!outcome) return;
+    if (outcome === 'excellent') out.excellent++;
+    else if (outcome === 'incomplete') out.incomplete++;
+    else if (outcome === 'not_done') out.notDone++;
     else out.done++;
     out.total++;
   });

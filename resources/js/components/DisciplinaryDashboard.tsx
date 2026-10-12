@@ -41,6 +41,7 @@ import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
+import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
@@ -879,6 +880,15 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
               onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')}
             />
+          )}
+
+          {/* ========================================================================= */}
+          {/* پیگیری تکالیف (currentView === 'homework_followup') */}
+          {currentView === 'homework_followup' && (
+            <div className="space-y-3">
+              <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
+              <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} />
+            </div>
           )}
 
           {/* ========================================================================= */}

@@ -113,6 +113,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   comprehensive_exam: ['comprehensive-exam'],
   report_cards: ['report-cards'],
   reports: ['analytics-reports'],
+  homework_followup: ['analytics-reports'],
   settings: ['school-settings'],
   announcements: ['manage-announcements'],
   teacher_evaluation: ['evaluate-teachers'],

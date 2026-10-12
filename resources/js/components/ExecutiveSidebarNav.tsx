@@ -11,6 +11,7 @@ import {
   HeartHandshake, 
   AlertTriangle,
   FileSpreadsheet, 
+  ClipboardList,
   Package,
   Settings,
   X, 
@@ -29,6 +30,7 @@ export type ExecutiveViewType =
   | 'teachers' 
   | 'coaches' 
   | 'warnings' 
+  | 'homework_followup'
   | 'reports' 
   | 'settings';
 
@@ -192,6 +194,12 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
           // بند ۱۰: نشانگر اعلان فقط بر اساس داده واقعی و در صورت بزرگتر از صفر بودن
           count: totalWarnings > 0 ? totalWarnings : undefined,
           isWarning: true,
+        },
+        {
+          id: 'homework_followup',
+          label: 'پیگیری تکالیف',
+          tooltip: 'دانش‌آموزانی که تکلیف را انجام نداده‌اند',
+          icon: ClipboardList,
         },
         {
           id: 'reports',
