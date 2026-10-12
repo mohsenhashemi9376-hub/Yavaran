@@ -118,7 +118,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
         'درس تدریسی': t.subjectSpecialty || t.subject || 'عمومی',
         'نام کاربری': t.username,
         'کلاس‌های فعال': [...assignedClasses.map((c) => c.name), ...workshopsOf(t).map((w) => workshopTitle(w))].join('، ') || 'تعیین نشده',
-        'تعداد کلاس‌ها': assignedClasses.length,
+        'تعداد کلاس‌ها': assignedClasses.length + workshopsOf(t).length,
         'وضعیت': 'فعال',
       };
     });
@@ -380,13 +380,9 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                               <span
                                 key={w.id}
                                 title={workshopTitle(w)}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${
-                                  w.category === 'scientific'
-                                    ? 'bg-sky-50 text-sky-800 border-sky-200'
-                                    : 'bg-violet-50 text-violet-800 border-violet-200'
-                                }`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium"
                               >
-                                <span>{w.category === 'scientific' ? 'علمی' : 'مهارتی'} {w.name} · {w.gradeLevel === 9 ? 'نهم' : 'هشتم'}</span>
+                                <span>کارگاه {w.name} · {w.gradeLevel === 9 ? 'نهم' : 'هشتم'}</span>
                                 {canManageWorkshops && (
                                   <button
                                     type="button"
