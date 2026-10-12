@@ -15,6 +15,7 @@ import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { previousCourseSession } from '../utils/homework';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -187,6 +188,22 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     () => (course ? studentsOfClass(course.classId) : []).slice().sort(compareByLastName),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [students, course?.classId, sessionClasses]
+  );
+
+  // وضعیت «انجام شده / ناقص / انجام نشده» مربوط به تکلیف جلسه قبل همین درس است
+  const prevSession = useMemo(
+    () =>
+      course
+        ? previousCourseSession(sessions, {
+            id: editingSessionId || '',
+            classId: course.classId,
+            subjectId: course.subjectId,
+            subject: course.subjectName,
+            date,
+            periodNumber,
+          })
+        : undefined,
+    [sessions, course, date, periodNumber, editingSessionId]
   );
 
   const findSlotSession = (opt: CourseOption | undefined, period: number, forDate: string) =>
@@ -561,6 +578,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           </div>
 
           <div>
+ 
             <label htmlFor="textarea-homework" className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700 mb-1.5">
               <NotebookPen className="w-3.5 h-3.5 text-sky-600" />
               <span>تکلیف جلسه</span>
@@ -593,6 +611,19 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
         {/* لیست دانش‌آموزان */}
         <div className="px-3 sm:px-4 pt-3 pb-28 border-t border-slate-100 space-y-2.5">
+          {classStudents.length > 0 && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-900">
+              {prevSession ? (
+                <>
+                  <b>تکلیف جلسه قبل ({toPersianDigits(prevSession.date)}):</b>{' '}
+                  {(prevSession.homeworkDescription || '').trim() || 'تکلیفی ثبت نشده بود'}
+                  <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است.</span>
+                </>
+              ) : (
+                <>جلسه قبلی برای این درس ثبت نشده است؛ وضعیت تکلیف از جلسه بعد قابل ثبت است.</>
+              )}
+            </div>
+          )}
           {classStudents.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-400">دانش‌آموزی در این کلاس ثبت نشده است.</div>
           ) : (
@@ -708,9 +739,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
-                  {status !== 'absent' && (
+                  {status !== 'absent' && prevSession && (
                     <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">وضعیت تکلیف:</span>
+                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">تکلیف جلسه قبل:</span>
                       {([
                         ['done', 'انجام شده', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
                         ['incomplete', 'ناقص', 'bg-amber-50 text-amber-700 border-amber-200'],

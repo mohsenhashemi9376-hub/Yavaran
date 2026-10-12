@@ -6,6 +6,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
+import { homeworkProblemStudentCount } from '../utils/homework';
+import { lastShamsiDays } from '../utils/trends';
 import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
@@ -51,6 +53,7 @@ import {
   Users, 
   Sparkles, 
   BarChart3, 
+  ClipboardList,
   Lightbulb, 
   ArrowUpRight, 
   Eye, 
@@ -310,6 +313,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // نمرات ثبت‌نشده: فقط بازه‌های فعال‌شده توسط معاون آموزش مبنای محاسبه‌اند
   // = [مجموع دانش‌آموزان هر درس × بازه‌های فعال] − [نمرات ثبت‌شده همان بازه‌ها]
   const activeGradePeriods = gradePeriods.filter((p) => p.isActive);
+  const homeworkProblemCount = useMemo(() => homeworkProblemStudentCount(sessions, lastShamsiDays(14)), [sessions]);
+
   const { totalUngradedGrades } = useMemo(() => {
     if (activeGradePeriods.length === 0) return { totalUngradedGrades: 0 };
     const subjectClassIds = new Map<string, Set<string>>();
@@ -596,7 +601,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
                 ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-sky-600'],
                 ['teachers', 'کادر اساتید', toPersianDigits(allTeachers.length), 'لیست دبیران', GraduationCap, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
-                ['reports', 'معدل کل', schoolAverageGrade === '—' ? '—' : toPersianDigits(schoolAverageGrade), 'گزارش آماری', BarChart3, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
+                ['homework_followup', 'پیگیری تکالیف', toPersianDigits(homeworkProblemCount), homeworkProblemCount === 0 ? 'مورد باز نیست' : 'دانش‌آموز نیازمند پیگیری', ClipboardList, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
                 [
                   'grades',
                   'نمره ثبت‌نشده',

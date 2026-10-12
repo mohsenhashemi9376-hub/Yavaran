@@ -6,6 +6,7 @@ import { Student } from '../types';
 import { homeworkOutcome, HomeworkOutcome } from '../utils/classroomActivity';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
+import { previousCourseSession } from '../utils/homework';
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 const OUTCOME_LABEL: Record<HomeworkOutcome, string> = {
@@ -67,6 +68,9 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         const student = stuMap.get(sid);
         const outcome = homeworkOutcome(sess.records[sid]);
         if (!student || !outcome || !classIds.has(student.classId)) return;
+        // وضعیت ثبت‌شده در این جلسه مربوط به تکلیف «جلسه قبل» همین درس است
+        const prev = previousCourseSession(sessions, sess);
+        if (!prev) return;
         const row = byStudent.get(sid) || {
           student,
           className: nurturingClasses.find((c) => c.id === student.classId)?.name || '',
@@ -78,8 +82,8 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         row.total++;
         if (outcome === 'not_done' || outcome === 'incomplete') {
           row.details.push({
-            sessionId: sess.id, date: sess.date, subject: sess.subject || 'کلاس درس',
-            homework: (sess.homeworkDescription || '').trim(), outcome,
+            sessionId: sess.id, date: prev.date, subject: sess.subject || 'کلاس درس',
+            homework: (prev.homeworkDescription || '').trim(), outcome,
           });
         }
         byStudent.set(sid, row);
@@ -90,7 +94,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
       .filter((r) => (!onlyProblem || r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
       .map((r) => ({ ...r, details: r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date))) }))
       .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
-  }, [scoped, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
+  }, [scoped, sessions, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
 
   const totalNotDone = rows.reduce((s, r) => s + r.notDone, 0);
   const totalIncomplete = rows.reduce((s, r) => s + r.incomplete, 0);
