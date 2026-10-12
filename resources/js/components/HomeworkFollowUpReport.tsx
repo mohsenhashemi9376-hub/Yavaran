@@ -209,12 +209,16 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
                       <div className="font-bold text-sm text-slate-900 truncate">{studentFullName(r.student)}</div>
                       <div className="text-[11px] text-slate-500">{r.className}</div>
                     </button>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700">
-                      {toPersianDigits(r.notDone)} انجام‌نشده
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 hidden sm:inline">
-                      {toPersianDigits(r.incomplete)} ناقص
-                    </span>
+                    {r.notDone > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 whitespace-nowrap">
+                        {toPersianDigits(r.notDone)} انجام‌نشده
+                      </span>
+                    )}
+                    {r.incomplete > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
+                        {toPersianDigits(r.incomplete)} ناقص
+                      </span>
+                    )}
                     <span className="text-[11px] text-slate-500 hidden sm:inline w-20 text-left">
                       {toPersianDigits(pct(r))}٪ از {toPersianDigits(r.total)}
                     </span>
