@@ -8,7 +8,7 @@ import { TrendDetailModal } from './TrendDetailModal';
 
 /** کادر کوچک «غایبین امروز» (صبحگاه) با دسترسی سریع به فهرست نام‌ها */
 export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student) => void }> = ({ onSelectStudent }) => {
-  const { students, classes, morningAttendance, todayClosedReason } = useSchool();
+  const { students, classes, morningAttendance, schoolAbsences, todayClosedReason } = useSchool();
   const [open, setOpen] = useState(false);
   const today = useMemo(() => getTodayShamsi(), []);
 
@@ -20,16 +20,27 @@ export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student)
     return students.filter((s) => !present.has(s.id));
   }, [students, morningAttendance, today.formattedDate, todayClosedReason]);
 
-  const rows = useMemo(
-    () =>
-      absentees.map((s) => ({
+  // موجه/غیرموجه و دلیلی که معاون انضباطی ثبت کرده (از ثبت صبحگاه یا ثبت غیبت مدرسه)؛ هر کدام که موجه بودن را مشخص کرده باشد
+  const rows = useMemo(() => {
+    const date = today.formattedDate;
+    const morningById = new Map((morningAttendance || []).filter((r) => r.date === date && r.status === 'absent').map((r) => [r.studentId, r]));
+    const absenceById = new Map((schoolAbsences || []).filter((r) => r.date === date).map((r) => [r.studentId, r]));
+    return absentees.map((s) => {
+      const m = morningById.get(s.id);
+      const a = absenceById.get(s.id);
+      const excused = m?.isExcused ?? a?.isExcused;
+      const reason = [m?.absenceNote, a?.reason, a?.notes].map((t) => (t || '').trim()).filter((t, i, arr) => t && arr.indexOf(t) === i).join(' — ');
+      return {
         id: s.id,
         date: '',
         title: studentFullName(s),
         subtitle: classes.find((c) => c.id === s.classId)?.name || '—',
-      })),
-    [absentees, classes]
-  );
+        badge: excused === true ? 'موجه' : 'غیرموجه',
+        badgeTone: (excused === true ? 'good' : 'bad') as 'good' | 'bad',
+        note: reason ? `دلیل ثبت‌شده: ${reason}${a?.recordedBy ? ` (ثبت: ${a.recordedBy})` : ''}` : undefined,
+      };
+    });
+  }, [absentees, classes, morningAttendance, schoolAbsences, today.formattedDate]);
 
   return (
     <>

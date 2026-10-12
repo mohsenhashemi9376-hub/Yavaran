@@ -162,9 +162,17 @@ export class SyncEngine {
   /** شمارنده تغییرات ارسال‌شده (برای تشخیص تداخل با بروزرسانی پس‌زمینه) */
   version = 0;
   private onError: (error: ApiError, collection: CollectionKey) => void;
+  /** حالت فقط‌مشاهده: تغییرات محلی به سرور ارسال نمی‌شود (مثلاً هنگام مشاهده‌ی اطلاعات روزهای گذشته) */
+  private readOnly = false;
+  private onBlocked: (() => void) | null = null;
 
   constructor(onError: (error: ApiError, collection: CollectionKey) => void) {
     this.onError = onError;
+  }
+
+  setReadOnly(on: boolean, onBlocked?: () => void): void {
+    this.readOnly = on;
+    this.onBlocked = on ? onBlocked ?? null : null;
   }
 
   get isIdle(): boolean {
@@ -211,6 +219,11 @@ export class SyncEngine {
     });
 
     if (upserts.length === 0 && deletes.length === 0) return;
+
+    if (this.readOnly) {
+      this.onBlocked?.(); // اسنپ‌شات دست‌نخورده می‌ماند تا با بازگشت به امروز، داده‌ی سرور جایگزین شود
+      return;
+    }
 
     this.snapshots.set(collection, next);
     this.version += 1;

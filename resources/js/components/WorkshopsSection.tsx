@@ -79,7 +79,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
 
         <div className="px-5 pt-3 space-y-2.5 shrink-0">
           <div className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            فقط دانش‌آموزان کلاس‌های پایه {workshop.gradeLevel === 9 ? 'نهم' : 'هشتم'} فهرست می‌شوند.
+            فقط دانش‌آموزان کلاس‌های پایه {workshop.gradeLevel === 9 ? 'نهم' : 'هشتم'} فهرست می‌شوند. دانش‌آموزی که در یک کارگاه {workshop.category === 'scientific' ? 'علمی' : 'مهارتی'} دیگر عضو است، در این کارگاه قابل انتخاب نیست.
           </div>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
@@ -94,22 +94,30 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
           <div className="text-[11px] text-slate-500">{toPersianDigits(selected.size)} نفر انتخاب شده است.</div>
         </div>
 
-        <div className="px-5 py-3 overflow-y-auto flex-1 min-h-0">
+        <div className="px-5 py-3 overflow-y-auto overflow-x-hidden flex-1 min-h-0">
           <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100">
             {candidates.map((s) => {
               const other = otherMembership.get(s.id);
+              // عضو کارگاه موازی (همان پایه و همان دسته): تا زمانی که از آن کارگاه خارج نشود، قابل انتخاب نیست
+              const locked = !!other && !selected.has(s.id);
               return (
-                <label key={s.id} className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-slate-50/80 text-sm">
-                  <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} className="w-4 h-4 accent-emerald-600" />
-                  <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">
-                    {studentFullName(s)}
-                  </span>
-                  <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
-                  {other && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold whitespace-nowrap">
-                      ثبت‌شده در کارگاه دیگر ({other})
+                <label
+                  key={s.id}
+                  title={locked ? `ابتدا باید از کارگاه «${other}» خارج شود.` : undefined}
+                  className={`flex items-start gap-2.5 px-3 py-2.5 text-sm ${locked ? 'bg-slate-50/70 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50/80'}`}
+                >
+                  <input type="checkbox" checked={selected.has(s.id)} disabled={locked} onChange={() => toggle(s.id)} className="w-4 h-4 mt-1 shrink-0 accent-emerald-600 disabled:cursor-not-allowed" />
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-baseline gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800 break-words">{studentFullName(s)}</span>
+                      <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
                     </span>
-                  )}
+                    {other && (
+                      <span className="mt-1 inline-block max-w-full px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold leading-5 break-words">
+                        {locked ? 'عضو کارگاه' : 'عضو کارگاه دیگر هم هست'} {other}
+                      </span>
+                    )}
+                  </span>
                 </label>
               );
             })}

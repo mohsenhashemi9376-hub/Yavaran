@@ -28,11 +28,13 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'current_password' => ['required', 'string', 'max:191'],
             'username' => ['nullable', 'string', 'min:3', 'max:100'],
+            'email' => ['nullable', 'email:filter', 'max:150'],
             'new_password' => ['nullable', 'string', 'min:6', 'max:191'],
             'new_password_confirmation' => ['nullable', 'string', 'max:191'],
             'code' => ['nullable', 'string', 'max:16'],
         ], [
             'current_password.required' => 'لطفاً رمز عبور فعلی خود را وارد کنید.',
+            'email.email' => 'نشانی ایمیل معتبر نیست.',
             'username.min' => 'نام کاربری باید حداقل ۳ کاراکتر باشد.',
             'username.max' => 'نام کاربری نباید بیش از ۱۰۰ کاراکتر باشد.',
             'new_password.min' => 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.',
@@ -105,10 +107,16 @@ class ProfileController extends Controller
             }
         }
 
+        if (array_key_exists('email', $validated) && trim((string) $validated['email']) !== trim((string) ($profile->email ?? ''))) {
+            $profile->email = trim((string) $validated['email']);
+            $changes['email_changed'] = true; // فقط برای عبور از بررسی «بدون تغییر»؛ ستونی نیست
+        }
+
         if ($changes === []) {
             throw ValidationException::withMessages(['username' => 'تغییری برای ذخیره وجود ندارد.']);
         }
 
+        unset($changes['email_changed']);
         $changes['data'] = json_encode($profile, SyncService::JSON_FLAGS);
         $user->forceFill($changes)->save();
         if ($newPassword !== '') {

@@ -9,6 +9,8 @@ export interface TrendDetailRow {
   title: string;
   subtitle?: string;
   badge?: string;
+  badgeTone?: 'good' | 'bad'; // رنگ نشان: سبز (مثلاً موجه) یا قرمز (مثلاً غیرموجه)
+  note?: string; // توضیح چندخطی زیر ردیف (مثلاً دلیل ثبت‌شده)
 }
 
 /** جزئیات پشت هر کادر آماری داشبورد (۱۴ روز اخیر) */
@@ -49,12 +51,15 @@ export const TrendDetailModal: React.FC<{
             rows.map((r) => {
               const body = (
                 <>
-                  <div className="min-w-0 text-right">
+                  <div className="min-w-0 flex-1 text-right">
                     <div className="text-xs font-extrabold text-slate-800 truncate">{r.title}</div>
                     {r.subtitle && <div className="text-[11px] text-slate-500 mt-0.5 truncate">{r.subtitle}</div>}
+                    {r.note && <div className="text-[11px] text-slate-600 mt-1 leading-5 whitespace-normal break-words">{r.note}</div>}
                   </div>
                   <div className="shrink-0 flex items-center gap-2 text-[11px]">
-                    {r.badge && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold">{r.badge}</span>}
+                    {r.badge && (
+                      <span className={`px-2 py-0.5 rounded-full font-bold ${r.badgeTone === 'good' ? 'bg-emerald-100 text-emerald-700' : r.badgeTone === 'bad' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{r.badge}</span>
+                    )}
                     <span className="text-slate-400 tabular-nums">{r.date ? toPersianDigits(r.date) : ''}</span>
                   </div>
                 </>

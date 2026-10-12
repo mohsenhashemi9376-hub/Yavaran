@@ -26,6 +26,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
   // Form Fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('123');
   const [showPassword, setShowPassword] = useState(false);
@@ -46,6 +47,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
       if (teacher) {
         setName(teacher.name || '');
         setPhone(teacher.phone || '');
+        setEmail(teacher.email || '');
         setUsername(teacher.username || '');
         setPassword(''); // رمز فعلی قابل نمایش نیست؛ خالی = بدون تغییر
       } else {
@@ -104,6 +106,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
 
     const trimmedName = name.trim();
     const finalPhone = toEnglishDigits(phone.trim()) || undefined;
+    const finalEmail = email.trim() || undefined;
     const finalPassword = password.trim() || (isEditMode ? undefined : '123');
 
     try {
@@ -113,6 +116,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
         updateTeacher(teacher.id, {
           name: trimmedName,
           phone: finalPhone,
+          email: finalEmail,
           username: finalUsername,
           password: finalPassword,
         });
@@ -125,6 +129,7 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
           password: finalPassword,
           roleTitle: 'استاد و دبیر',
           phone: finalPhone,
+          email: finalEmail,
           assignedClassIds: [],
         });
         showToast('ثبت موفق', `معلم جدید «${trimmedName}» با موفقیت تعریف شد.`, 'success');
@@ -230,6 +235,18 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
                 className={`${fieldClass} text-left`}
                 dir="ltr"
               />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">ایمیل (برای ارسال رمز موقت)</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              className={`${fieldClass} text-left`}
+              dir="ltr"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

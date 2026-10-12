@@ -53,7 +53,7 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
-import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi } from '../utils/persianDate';
+import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
 import { buildGradePeriodList } from '../utils/gradePeriods';
@@ -106,6 +106,13 @@ interface SchoolContextType {
   closedReasonOf: (date: string) => ClosedReason | null;
   /** امروز تعطیل است؟ */
   todayClosedReason: ClosedReason | null;
+  /** روز انتخاب‌شده برای مشاهده‌ی اطلاعات گذشته (YYYY/MM/DD)؛ null = امروز */
+  viewDate: string | null;
+  /** مشاهده‌ی اطلاعات یک روز گذشته (فقط‌مشاهده)؛ null برای بازگشت به امروز */
+  changeViewDate: (date: string | null) => Promise<boolean>;
+  /** ثبت دیرهنگام: اجازه‌ی ثبت و ویرایش برای روز گذشته‌ی انتخاب‌شده */
+  lateEntry: boolean;
+  changeLateEntry: (on: boolean) => void;
   addSchoolHoliday: (date: string, title?: string | null) => void;
   removeSchoolHoliday: (date: string) => void;
   /** علامت‌گذاری کاربرگ هفتگی: status=null یعنی «تحویل نداده» (حذف رکورد) */
@@ -373,6 +380,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
+  const [viewDate, setViewDateState] = useState<string | null>(null);
+  const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
@@ -593,6 +602,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const resetClientState = useCallback(() => {
     syncEngine.clear();
+    syncEngine.setReadOnly(false);
+    applyViewDate(null);
+    applyLateEntry(false);
+    setViewDateState(null);
+    setLateEntryState(false);
     setAllUsers([]);
     setCurrentUserId('');
     setClasses([]);
@@ -744,6 +758,57 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     lastToastRef.current = { message, time: now };
 
     setToast({ id: String(now), message, type });
+  };
+
+  const lastBlockedToastRef = useRef(0);
+
+  const enterReadOnly = () =>
+    syncEngine.setReadOnly(true, () => {
+      if (Date.now() - lastBlockedToastRef.current < 4000) return;
+      lastBlockedToastRef.current = Date.now();
+      showToast('در حالت مشاهده‌ی روزهای گذشته، تغییرات ذخیره نمی‌شود. برای ثبت، «ثبت دیرهنگام» را فعال کنید.', 'info');
+    });
+
+  /** ثبت دیرهنگام برای روز گذشته‌ی انتخاب‌شده را روشن/خاموش می‌کند (فقط وقتی روزی برای مشاهده انتخاب شده) */
+  const changeLateEntry = (on: boolean) => {
+    if (on && !viewDate) return;
+    applyLateEntry(on);
+    setLateEntryState(on);
+    if (on) syncEngine.setReadOnly(false);
+    else enterReadOnly();
+  };
+
+  /**
+   * مشاهده‌ی اطلاعات ثبت‌شده در یک روز گذشته. «امروز» در کل سامانه همان روز می‌شود و داشبوردها داده‌ی آن روز را نشان می‌دهند.
+   * این حالت فقط‌مشاهده است: تغییرات ذخیره نمی‌شود و با بازگشت به امروز، داده‌ی سرور دوباره بارگذاری می‌شود.
+   */
+  const changeViewDate = async (date: string | null): Promise<boolean> => {
+    const clean = date ? toEnglishDigits(date).trim() : null;
+    const today = getRealTodayShamsiString();
+    if (clean) {
+      const hit = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(clean);
+      if (!hit || Number(hit[2]) < 1 || Number(hit[2]) > 12 || Number(hit[3]) < 1 || Number(hit[3]) > getDaysInShamsiMonth(Number(hit[1]), Number(hit[2]))) {
+        showToast('تاریخ را مثل 1405/07/19 وارد کنید.', 'error');
+        return false;
+      }
+      const norm = `${hit[1]}/${hit[2].padStart(2, '0')}/${hit[3].padStart(2, '0')}`;
+      if (norm > today) { showToast('تاریخ آینده قابل مشاهده نیست.', 'error'); return false; }
+      if (norm === today) return changeViewDate(null);
+      await syncEngine.flush(); // تغییرات در صف، پیش از ورود به حالت مشاهده ذخیره شود
+      applyLateEntry(false);
+      setLateEntryState(false);
+      enterReadOnly();
+      applyViewDate(norm);
+      setViewDateState(norm);
+      return true;
+    }
+    applyViewDate(null);
+    applyLateEntry(false);
+    setViewDateState(null);
+    setLateEntryState(false);
+    await loadFromServer(false); // حذف هر تغییر محلیِ ذخیره‌نشده و بازگشت به داده‌ی سرور
+    syncEngine.setReadOnly(false);
+    return true;
   };
 
   const hideToast = () => {
@@ -1263,9 +1328,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const toggleMorningAttendance = (student: Student) => {
     const today = getTodayShamsi();
     const id = morningRecordId(today.formattedDate, student.id);
-    const now = tehranNow();
     const nowIso = new Date().toISOString();
-    const entryTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const entryTime = getEntryClock();
 
     setMorningAttendance((prev) => {
       const existing = prev.find((r) => r.id === id);
@@ -2626,6 +2690,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isClosedDay,
         closedReasonOf: (date: string) => closedReasonOf(date, schoolHolidays),
         todayClosedReason: closedReasonOf(getTodayShamsi().formattedDate, schoolHolidays),
+        viewDate,
+        changeViewDate,
+        lateEntry,
+        changeLateEntry,
         addSchoolHoliday,
         removeSchoolHoliday,
         setWorksheetStatus,

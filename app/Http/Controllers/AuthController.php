@@ -131,6 +131,18 @@ class AuthController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /** فراموشی رمز: رمز موقت به ایمیل ثبت‌شده فرستاده می‌شود؛ پاسخ همیشه یکسان است (لو ندادن وجود حساب/ایمیل) */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate(['username' => ['required', 'string', 'max:100']]);
+        \App\Support\PasswordRecovery::sendTemporaryPassword(trim(Digits::toEnglish($data['username'])), $request->ip());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'اگر برای این حساب ایمیل ثبت شده باشد، رمز موقت به آن ارسال شد. اگر ایمیلی دریافت نکردید، به مسئول سامانه مراجعه کنید.',
+        ]);
+    }
+
     /** خروج از همه‌ی دستگاه‌های دیگر (نشست‌های دیگر با تغییر هش رمز نامعتبر می‌شوند)؛ نشست جاری باقی می‌ماند */
     public function logoutOtherDevices(Request $request): JsonResponse
     {

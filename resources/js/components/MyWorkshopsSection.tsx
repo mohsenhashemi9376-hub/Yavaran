@@ -17,7 +17,12 @@ export const MyWorkshopsSection: React.FC = () => {
 
   const roster = (w: Workshop) =>
     students
-      .filter((s) => w.studentIds.includes(s.id) && gradeLevelOfClass(classById.get(s.classId)) === w.gradeLevel)
+      .filter((s) => {
+        if (!w.studentIds.includes(s.id)) return false;
+        // کلاس دانش‌آموزان پایه‌های دیگر برای استاد ارسال نمی‌شود؛ پس بررسی پایه فقط وقتی کلاس شناخته‌شده است
+        const cls = classById.get(s.classId);
+        return !cls || gradeLevelOfClass(cls) === w.gradeLevel;
+      })
       .sort(compareByLastName);
 
   return (
@@ -67,7 +72,9 @@ export const MyWorkshopsSection: React.FC = () => {
                   <div key={s.id} className="flex items-center gap-3 px-3 py-2.5 text-sm">
                     <span className="w-6 text-center text-xs font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
                     <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">{studentFullName(s)}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
+                    {classById.get(s.classId)?.name && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
+                    )}
                   </div>
                 ))}
                 {roster(open).length === 0 && <div className="py-8 text-center text-xs text-slate-400">دانش‌آموزی تخصیص داده نشده است.</div>}

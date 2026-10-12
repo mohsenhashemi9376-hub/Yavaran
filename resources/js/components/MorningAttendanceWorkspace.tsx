@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, Menu, Sunrise, Check, Clock, UserX, BellRing, History, Pencil, Search, X, ChevronDown, Save } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceRecord, Student } from '../types';
-import { getTodayShamsi, tehranNow, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
+import { getTodayShamsi, getEntryClock, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import {
   MORNING_FILTERS,
   MorningFilterKey,
@@ -254,8 +254,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
 
     if (!present) {
       // غایب ← حاضر: بدون دیالوگ، با امکان بازگردانی
-      const now = tehranNow();
-      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const time = getEntryClock();
       toggleMorningAttendance(student);
       setRevertConfirmId(null);
       setUndoToast({ student, time });
