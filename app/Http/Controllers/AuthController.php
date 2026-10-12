@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\TwoFactorController;
 use App\Models\User;
 use App\Support\Digits;
+use App\Support\NurturingAudit;
 use App\Support\NurturingSession;
 use App\Support\PasswordConfirmation;
 use App\Support\PasswordRules;
@@ -175,6 +176,37 @@ class AuthController extends Controller
         $user = $request->user();
 
         return response()->json(['fresh' => ! $user->requiresReauth() || PasswordConfirmation::isFresh()]);
+    }
+
+    /** تأیید کد ورود دومرحله‌ای پیش از خروجی اکسل از اطلاعات محرمانه‌ی تربیتی؛ هر خروجی در دفتر دسترسی ثبت می‌شود */
+    public function confirmExport(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+
+        if (! $user->hasTwoFactor()) {
+            return response()->json(['success' => false, 'message' => 'ابتدا ورود دومرحله‌ای را در حساب خود فعال کنید.'], 422);
+        }
+
+        $key = 'export-2fa:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            SecurityAlerts::lockout($user, 'کد دومرحله‌ای خروجی اکسل');
+
+            return response()->json(['success' => false, 'message' => 'تعداد تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره تلاش کنید.'], 429);
+        }
+
+        if (! TwoFactorController::verifyLoginCode($user, $data['code'])) {
+            RateLimiter::hit($key, 300);
+            NurturingAudit::log($user, 'export', 'export', null, null, false);
+
+            return response()->json(['success' => false, 'message' => 'کد وارد‌شده درست نیست.'], 422);
+        }
+
+        RateLimiter::clear($key);
+        NurturingAudit::log($user, 'export', 'export', null, null, true);
+
+        return response()->json(['success' => true]);
     }
 
     /** تأیید مجدد رمز عبور برای ورود به بخش‌های محرمانه (پرونده‌های تربیتی) */

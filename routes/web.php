@@ -44,6 +44,9 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::post('auth/confirm-password', [AuthController::class, 'confirmPassword'])
             ->middleware('throttle:20,1')
             ->name('api.confirm-password');
+        Route::post('auth/confirm-export', [AuthController::class, 'confirmExport'])
+            ->middleware('throttle:20,1')
+            ->name('api.confirm-export');
         Route::post('auth/keep-alive', [AuthController::class, 'keepAlive'])
             ->middleware('throttle:30,1')
             ->name('api.keep-alive');
