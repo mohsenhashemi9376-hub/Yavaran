@@ -574,6 +574,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
                   <button
                     type="button"
                     id="btn-mobile-educational-sidebar-toggle"
@@ -632,8 +633,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </button>
               ))}
             </div>
-
-            <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
             <ClassActivityTrends />
 

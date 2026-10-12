@@ -361,7 +361,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   </div>
 
                   {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
                     <button
                       type="button"
                       id="btn-mobile-sidebar-toggle"
@@ -382,8 +383,6 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onOpenStats={() => { setAttendanceTab('stats'); setCurrentView('attendance'); }}
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
-
-              <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
               <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
 
