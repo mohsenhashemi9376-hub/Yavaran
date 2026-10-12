@@ -41,6 +41,8 @@ export type NurturingViewType =
 
 export interface NurturingSidebarCounts {
   observations?: number;
+  /** دانش‌آموزان بدون مشاهده‌گری در ۲ هفته‌ی اخیر */
+  staleObservations?: number;
   dossiers?: number;
   evaluations?: number;
   coaches?: number;
@@ -70,6 +72,8 @@ interface NavItemDef {
   tooltip: string;
   icon: React.ElementType;
   count?: number;
+  /** تعداد هشدار (نشان کهربایی) */
+  alert?: number;
   isWarning?: boolean;
   isExpandable?: boolean;
 }
@@ -120,6 +124,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
   const effectiveClassFilter = singleClassId ?? (sidebarClassIds.has(selectedClassFilter) ? selectedClassFilter : 'all');
 
   const totalObservations = counts?.observations ?? actualObservations.length ?? 0;
+  const staleObservations = counts?.staleObservations ?? 0;
   const totalDossiers = counts?.dossiers ?? 0;
   const totalEvaluations = counts?.evaluations ?? 0;
   const totalCoaches = counts?.coaches ?? 0;
@@ -194,6 +199,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           tooltip: 'ثبت و پیگیری مشاهدات رفتاری و عاطفی',
           icon: Eye,
           count: totalObservations > 0 ? totalObservations : undefined,
+          alert: staleObservations > 0 ? staleObservations : undefined,
         },
         {
           id: 'student_observations',
@@ -464,6 +470,11 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
                     {/* نشانگر تعداد (بج) در حالت باز - فقط در صورت وجود عدد مثبت */}
                     {!isCollapsed && (
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {item.alert !== undefined && item.alert > 0 && (
+                          <span title="دانش‌آموزان بدون مشاهده‌گری در ۲ هفته‌ی اخیر" className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            ⚠ {toPersianDigits(item.alert)}
+                          </span>
+                        )}
                         {item.count !== undefined && item.count > 0 && (
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                             active

@@ -51,6 +51,27 @@ final class DataExporter
      */
     private function rows(User $user, AccessPolicy $policy, string $collection, string $table): array
     {
+        $rows = $this->rawRows($user, $policy, $collection, $table);
+        // زمان ثبت دانش‌آموز برای مربی و معاون تربیتی (دانش‌آموز تازه‌وارد هشدار «بدون مشاهده‌گری» نمی‌گیرد)
+        if ($collection === 'students' && $rows !== [] && in_array($user->role, ['coach', 'vice_nurturing'], true)) {
+            $created = DB::table('students')->pluck('created_at', 'id')->all();
+            foreach ($rows as $i => $json) {
+                $d = json_decode($json, true);
+                if (is_array($d) && isset($d['id'], $created[$d['id']]) && $created[$d['id']]) {
+                    $d['createdAt'] = str_replace(' ', 'T', (string) $created[$d['id']]).'Z';
+                    $rows[$i] = json_encode($d, SyncService::JSON_FLAGS);
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function rawRows(User $user, AccessPolicy $policy, string $collection, string $table): array
+    {
         if (! $policy->canRead($collection) || ! CollectionRegistry::ensureTable($table)) {
             return [];
         }

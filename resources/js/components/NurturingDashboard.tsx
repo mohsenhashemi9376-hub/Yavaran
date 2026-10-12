@@ -2,7 +2,7 @@ import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
-import { lastShamsiDays } from '../utils/trends';
+import { staleObservationStudents } from '../utils/observationGap';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toEnglishDigits, tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -291,6 +291,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
+    schoolHolidays,
     security,
     showToast, showConfirm
   } = useSchool();
@@ -547,13 +548,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [onlyStaleObs, setOnlyStaleObs] = useState(false);
   const staleObsStudents = useMemo(() => {
     if (nurturingLocked) return [];
-    const recent = new Set(lastShamsiDays(14).map((d) => toEnglishDigits(d)));
-    const covered = new Set(
-      observations.filter((o) => recent.has(toEnglishDigits(o.date || ''))).map((o) => o.studentId)
-    );
-    return filteredStudents.filter((st) => !covered.has(st.id));
-  }, [filteredStudents, observations, nurturingLocked]);
-  const staleObsIds = useMemo(() => new Set(staleObsStudents.map((st) => st.id)), [staleObsStudents]);
+    return staleObservationStudents(filteredStudents, observations, schoolHolidays);
+  }, [filteredStudents, observations, nurturingLocked, schoolHolidays]);
+  const staleObsIds = useMemo(() => new Set(staleObsStudents.map((e) => e.student.id)), [staleObsStudents]);
+  const staleObsInfo = useMemo(() => new Map(staleObsStudents.map((e) => [e.student.id, e])), [staleObsStudents]);
 
   // Overall points / praises count
   const totalEncouragementPoints = useMemo(() => {
@@ -853,6 +851,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         }}
         counts={{
           observations: totalObservationsCount,
+          staleObservations: staleObsStudents.length,
           dossiers: studentsWithDossierCount,
           evaluations: coachEvaluations.length,
           coaches: allCoaches.length,
@@ -1303,7 +1302,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 min-w-0 text-xs text-amber-900 leading-6">
                 <b>هشدار:</b> برای {toPersianDigits(staleObsStudents.length)} دانش‌آموز در ۲ هفته‌ی گذشته مشاهده‌گری ثبت نشده است
-                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((st) => studentFullName(st)).join('، ')})`}.
+                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((e) => studentFullName(e.student)).join('، ')})`}.
               </div>
               <button
                 type="button"
@@ -1316,7 +1315,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {(onlyStaleObs ? filteredStudents.filter((st) => staleObsIds.has(st.id)) : filteredStudents).map((student) => {
+            {(onlyStaleObs ? staleObsStudents.map((e) => e.student) : filteredStudents).map((student) => {
               const studentObs = observations.filter((o) => o.studentId === student.id);
               const latestObs = studentObs[0];
 
@@ -1350,7 +1349,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     </span>
                     {staleObsIds.has(student.id) && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap">
-                        ۲ هفته بدون مشاهده
+                        {(() => {
+                          const days = staleObsInfo.get(student.id)?.daysSince;
+                          return days == null ? 'هرگز مشاهده نشده' : `${toPersianDigits(days)} روز بدون مشاهده`;
+                        })()}
                       </span>
                     )}
                   </div>
