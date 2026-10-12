@@ -38,6 +38,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
   const [name, setName] = useState('');
   const [roleTitle, setRoleTitle] = useState('مربی تربیتی یاوران ولایت');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('123');
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +64,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
         setName(coach.name || '');
         setRoleTitle(coach.coachRoleTitle || coach.roleTitle || 'مربی تربیتی یاوران ولایت');
         setPhone(coach.phone || '');
+        setEmail(coach.email || '');
         setUsername(coach.username || '');
         setPassword(''); // رمز فعلی قابل نمایش نیست؛ خالی = بدون تغییر
         setIsActive(coach.isActive !== false);
@@ -144,6 +146,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
     const trimmedName = name.trim();
     const finalRoleTitle = roleTitle.trim() || 'مربی تربیتی یاوران ولایت';
     const finalPhone = phone.trim() || undefined;
+    const finalEmail = email.trim() || undefined;
     const finalPassword = password.trim() || (isEditMode ? undefined : '123');
 
     try {
@@ -155,6 +158,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
           roleTitle: finalRoleTitle,
           coachRoleTitle: finalRoleTitle,
           phone: finalPhone,
+          email: finalEmail,
           username: finalUsername,
           password: finalPassword,
           isActive,
@@ -170,6 +174,7 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
           roleTitle: finalRoleTitle,
           coachRoleTitle: finalRoleTitle,
           phone: finalPhone,
+          email: finalEmail,
           isActive,
           assignedClassIds: selectedClassIds,
         });
@@ -305,6 +310,20 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="۰۹۱۲۱۲۳۴۵۶۷"
+                  className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 font-mono outline-hidden focus:ring-2 focus:ring-teal-700 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  ایمیل (برای ارسال رمز موقت)
+                </label>
+                <input
+                  type="email"
+                  dir="ltr"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
                   className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2.5 font-mono outline-hidden focus:ring-2 focus:ring-teal-700 transition"
                 />
               </div>

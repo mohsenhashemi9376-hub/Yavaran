@@ -57,6 +57,7 @@ export interface User {
   coachRoleTitle?: string; // سمت تخصصی مربی
   isActive?: boolean; // وضعیت فعالیت
   phone?: string;
+  email?: string; // برای ارسال رمز موقت در فراموشی رمز
   avatar?: string;
   assignedClassIds: string[]; // Class IDs teacher or coach is allowed to access
   assignedSubjectIds?: string[]; // شناسه دروس تخصیص یافته

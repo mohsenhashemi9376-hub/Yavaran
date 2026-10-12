@@ -35,6 +35,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [logoutOthersPassword, setLogoutOthersPassword] = useState('');
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -45,6 +46,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const openEdit = () => {
     setUsername(currentUser.username || '');
+    setEmail(currentUser.email || '');
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -70,6 +72,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       const res = await apiRequest<{ message: string }>('POST', '/api/profile', {
         current_password: currentPassword,
         username: toEnglishDigits(username.trim()),
+        email: email.trim(),
         new_password: newPassword ? toEnglishDigits(newPassword) : undefined,
         new_password_confirmation: newPassword ? toEnglishDigits(confirmPassword) : undefined,
         code: needsCode ? toEnglishDigits(totpCode.trim()) : undefined,
@@ -326,7 +329,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span>تغییر نام کاربری و رمز عبور</span>
+              <span>تغییر نام کاربری، ایمیل و رمز عبور</span>
             </button>
           ) : (
             <form onSubmit={saveCredentials} className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30 space-y-3">
@@ -334,6 +337,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {errors.general && <div role="alert" className="text-[11px] font-bold text-rose-700 bg-rose-50 rounded-lg p-2">{errors.general}</div>}
               {([
                 ['username', 'نام کاربری', username, setUsername, 'text', 'username'],
+                ['email', 'ایمیل (برای دریافت رمز موقت در صورت فراموشی رمز)', email, setEmail, 'email', 'email'],
                 ['current_password', 'رمز عبور فعلی', currentPassword, setCurrentPassword, 'password', 'current-password'],
                 ['new_password', 'رمز عبور جدید (اختیاری)', newPassword, setNewPassword, 'password', 'new-password'],
                 ['new_password_confirmation', 'تکرار رمز عبور جدید', confirmPassword, setConfirmPassword, 'password', 'new-password'],
