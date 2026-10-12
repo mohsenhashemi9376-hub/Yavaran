@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronLeft, ClipboardCheck } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ClipboardCheck } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
 import { computeWorksheetAlerts, weekStartOf, weekTitle } from '../utils/worksheets';
 
 interface Props {
@@ -15,12 +14,10 @@ interface Props {
  */
 export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
   const { students, classes, worksheets, worksheetWeeks } = useSchool();
-  const [openWeek, setOpenWeek] = useState<string | null>(null);
 
   const alerts = useMemo(() => computeWorksheetAlerts(students, classes, worksheets, worksheetWeeks), [students, classes, worksheets, worksheetWeeks]);
   const currentWeek = worksheetWeeks.find((w) => w.weekStart === weekStartOf());
   const hasIssues = alerts.weeks.length > 0;
-  const latest = alerts.weeks[0];
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3.5" id="worksheet-alerts-card">
@@ -58,59 +55,36 @@ export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
         </div>
       ) : (
         <div className="space-y-2">
-          {alerts.weeks.map((w) => {
-            const total = w.classes.reduce((n, c) => n + c.missing.length + c.partial.length, 0);
+          {alerts.weeks.slice(0, 3).map((w) => {
+            const missing = w.classes.reduce((n, c) => n + c.missing.length, 0);
+            const partial = w.classes.reduce((n, c) => n + c.partial.length, 0);
             const untouched = w.classes.filter((c) => c.untouched).length;
-            const expanded = openWeek === w.weekStart || (openWeek === null && w === latest);
             return (
-              <div key={w.weekStart} className="rounded-xl border border-rose-200 bg-rose-50/40">
-                <button
-                  type="button"
-                  onClick={() => setOpenWeek(expanded ? '' : w.weekStart)}
-                  className="w-full px-3.5 py-3 flex items-center gap-2 text-right cursor-pointer"
-                  aria-expanded={expanded}
-                >
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span className="text-xs font-extrabold text-rose-900">هفته‌ی {weekTitle(w.weekStart)}</span>
-                  <span className="text-[11px] text-slate-500">(مهلت {toPersianDigits(w.deadline)})</span>
-                  <span className="mr-auto text-[11px] font-bold text-rose-700">
-                    {total > 0 && `${toPersianDigits(total)} دانش‌آموز`}
-                    {total > 0 && untouched > 0 && ' • '}
-                    {untouched > 0 && `${toPersianDigits(untouched)} کلاس ثبت‌نشده`}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition ${expanded ? 'rotate-180' : ''}`} />
-                </button>
-
-                {expanded && (
-                  <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-rose-100 pt-3">
-                    {w.classes.map((c) => (
-                      <div key={c.classId} className="text-xs">
-                        <div className="font-extrabold text-slate-800 mb-1">{c.className}</div>
-                        {c.untouched ? (
-                          <div className="text-amber-800 font-bold">هنوز هیچ کاربرگی برای این کلاس ثبت نشده است.</div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {c.missing.map((s) => (
-                              <span key={s.id} className={`px-2 py-1 rounded-lg border font-bold ${alerts.streaks.has(s.id) ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                                {studentFullName(s)} — تحویل نداده
-                                {alerts.streaks.has(s.id) && ` • ${toPersianDigits(alerts.streaks.get(s.id) as number)} هفته پیاپی`}
-                              </span>
-                            ))}
-                            {c.partial.map((s) => (
-                              <span key={s.id} className={`px-2 py-1 rounded-lg border font-bold ${alerts.streaks.has(s.id) ? 'bg-amber-600 text-white border-amber-600' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                                {studentFullName(s)} — ناقص
-                                {alerts.streaks.has(s.id) && ` • ${toPersianDigits(alerts.streaks.get(s.id) as number)} هفته پیاپی`}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                key={w.weekStart}
+                type="button"
+                onClick={onOpen}
+                className="w-full rounded-xl border border-rose-200 bg-rose-50/40 hover:bg-rose-50 px-3.5 py-3 flex items-center gap-2 flex-wrap text-right cursor-pointer"
+              >
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span className="text-xs font-extrabold text-rose-900">هفته‌ی {weekTitle(w.weekStart)}</span>
+                <span className="text-[11px] text-slate-500">(مهلت {toPersianDigits(w.deadline)})</span>
+                <span className="mr-auto flex items-center gap-1.5 text-[11px] font-bold">
+                  {missing > 0 && <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 border border-rose-200">تحویل نداده {toPersianDigits(missing)}</span>}
+                  {partial > 0 && <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200">ناقص {toPersianDigits(partial)}</span>}
+                  {untouched > 0 && <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">{toPersianDigits(untouched)} کلاس ثبت‌نشده</span>}
+                </span>
+              </button>
             );
           })}
+          {alerts.streaks.size > 0 && (
+            <div className="text-[11px] font-bold text-rose-700">
+              {toPersianDigits(alerts.streaks.size)} دانش‌آموز دو هفته‌ی پیاپی (یا بیشتر) تحویل نداده‌اند.
+            </div>
+          )}
+          <button type="button" onClick={onOpen} className="text-[11px] font-bold text-teal-800 hover:underline cursor-pointer">
+            فهرست کامل دانش‌آموزان در «باز کردن کاربرگ»
+          </button>
         </div>
       )}
     </div>

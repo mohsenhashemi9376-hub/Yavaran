@@ -18,7 +18,8 @@ import { hasPermission } from '../utils/permissions';
 import { dateToShamsiString, getShamsiWeekRange, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { exportWorksheetTermExcel, exportWorksheetWeekExcel } from '../utils/worksheetExport';
-import { isDeadlinePassed, shiftWeek, summarizeClassWeek, weekStartOf, weekTitle, worksheetKey } from '../utils/worksheets';
+import { WorksheetAlertsDetail } from './WorksheetAlertsDetail';
+import { computeWorksheetAlerts, isDeadlinePassed, isDeadlineReached, shiftWeek, summarizeClassWeek, weekStartOf, weekTitle, worksheetKey } from '../utils/worksheets';
 
 type Filter = 'all' | 'missing' | WorksheetStatus;
 
@@ -131,13 +132,25 @@ export const WorksheetsWorkspace: React.FC = () => {
     setDeadlineOpen(false);
   };
 
+  // آمار کامل تحویل‌نشده‌ها (هفته‌های دارای مهلت گذشته) برای کلاس‌های قابل مشاهده
+  const alerts = useMemo(
+    () => computeWorksheetAlerts(students, myClasses, worksheets, worksheetWeeks),
+    [students, myClasses, worksheets, worksheetWeeks]
+  );
+
+  /** تا نرسیدن روز تعیین‌شده برای تحویل، ثبت وضعیت کاربرگ ممکن نیست */
+  const notYetDue = !!deadline && !isDeadlineReached(deadline);
+  const warnNotDue = () => showToast('هنوز روز تعیین‌شده برای تحویل کاربرگ نرسیده است.', 'info');
+
   const toggle = (s: Student, status: WorksheetStatus) => {
     if (!canRecord) return;
+    if (notYetDue) return warnNotDue();
     const current = deliveredStatus(records.get(worksheetKey(s.id, weekStart)));
     setWorksheetStatus(s, weekStart, current === status ? null : status);
   };
 
   const completeAllMissing = () => {
+    if (notYetDue) return warnNotDue();
     const targets = list.filter((s) => !deliveredStatus(records.get(worksheetKey(s.id, weekStart))));
     if (targets.length === 0) return;
     showConfirm({
@@ -288,6 +301,13 @@ export const WorksheetsWorkspace: React.FC = () => {
         )}
       </div>
 
+      {alerts.weeks.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
+          <h3 className="text-sm font-black text-slate-900">آمار کل: دانش‌آموزان تحویل‌نداده و ناقص (هفته‌های دارای مهلت گذشته)</h3>
+          <WorksheetAlertsDetail alerts={alerts} />
+        </div>
+      )}
+
       {/* انتخاب کلاس */}
       {myClasses.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -394,12 +414,12 @@ export const WorksheetsWorkspace: React.FC = () => {
                         <button
                           key={b.status}
                           type="button"
-                          disabled={!canRecord}
+                          aria-disabled={!canRecord || notYetDue}
                           aria-pressed={on}
                           onClick={() => toggle(s, b.status)}
                           className={`flex-1 sm:flex-none sm:min-w-[4.25rem] min-w-0 h-11 px-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-1 transition active:scale-95 ${
                             on ? b.on : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                          } ${canRecord ? 'cursor-pointer' : 'cursor-default opacity-90'} ${!canRecord && !on ? 'opacity-40' : ''}`}
+                          } ${canRecord ? 'cursor-pointer' : 'cursor-default opacity-90'} ${(!canRecord || notYetDue) && !on ? 'opacity-40' : ''}`}
                         >
                           <Icon className="w-4 h-4" />
                           <span>{b.label}</span>
