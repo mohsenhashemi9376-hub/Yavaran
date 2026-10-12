@@ -27,6 +27,7 @@ const ACTIONS: Record<string, { label: string; icon: React.ElementType; tone: st
   create: { label: 'ثبت', icon: FilePlus2, tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   update: { label: 'ویرایش', icon: Pencil, tone: 'bg-amber-50 text-amber-800 border-amber-200' },
   delete: { label: 'حذف', icon: Trash2, tone: 'bg-rose-50 text-rose-700 border-rose-200' },
+  export: { label: 'خروجی اکسل', icon: List, tone: 'bg-violet-50 text-violet-700 border-violet-200' },
   alert: { label: 'هشدار امنیتی', icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
 

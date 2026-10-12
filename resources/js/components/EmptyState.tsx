@@ -1,34 +1,26 @@
 import React from 'react';
+import { Inbox } from 'lucide-react';
 
-interface EmptyStateProps {
-  icon: React.ElementType;
+interface Props {
   title: string;
-  description?: string;
-  /** دکمه اقدام اختیاری (مثلاً «ثبت اولین جلسه») */
+  /** علت خالی بودن و کار بعدی */
+  hint?: string;
   actionLabel?: string;
   onAction?: () => void;
-  tone?: 'teal' | 'emerald' | 'amber';
-  className?: string;
 }
 
-/** وضعیت خالی دوستانه: آیکن، تیتر، توضیح کوتاه و (در صورت نیاز) یک دکمه اقدام */
-export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  onAction,
-  tone = 'teal',
-  className = '',
-}) => (
-  <div className={`yv-empty yv-empty--${tone} ${className}`} dir="rtl">
-    <div className="yv-empty__icon" aria-hidden="true">
-      <Icon className="w-6 h-6" />
-    </div>
-    <h4 className="yv-empty__title">{title}</h4>
-    {description && <p className="yv-empty__desc">{description}</p>}
+/** حالت خالی توضیحی: چرا چیزی نمایش داده نمی‌شود و کاربر بعد از آن چه کند */
+export const EmptyState: React.FC<Props> = ({ title, hint, actionLabel, onAction }) => (
+  <div className="text-center py-12 px-4 space-y-2" role="note">
+    <Inbox className="w-8 h-8 text-slate-300 mx-auto" />
+    <div className="text-sm font-bold text-slate-600">{title}</div>
+    {hint && <p className="text-xs text-slate-400 leading-6 max-w-sm mx-auto">{hint}</p>}
     {actionLabel && onAction && (
-      <button type="button" onClick={onAction} className="yv-btn-primary yv-empty__action">
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-1 px-3.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 cursor-pointer"
+      >
         {actionLabel}
       </button>
     )}

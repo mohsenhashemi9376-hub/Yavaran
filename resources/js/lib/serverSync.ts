@@ -71,7 +71,7 @@ export interface BootstrapPayload {
   userId?: string;
   serverTime?: number;
   /** وضعیت ورود دومرحله‌ای کاربر جاری */
-  security?: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired?: boolean };
+  security?: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired?: boolean; reauthEnabled?: boolean; reauthMinutes?: number };
   /** رمز عبور باید پیش از هر کاری تغییر کند */
   mustChangePassword?: boolean;
   data?: Record<CollectionKey, SyncRow[]>;
@@ -159,6 +159,9 @@ export class SyncEngine {
   private snapshots = new Map<CollectionKey, Map<string, string>>();
   private chain: Promise<void> = Promise.resolve();
   private pendingCount = 0;
+  /** آخرین ارسال ناموفق بوده و هنوز ارسال موفقی پس از آن نبوده است */
+  private failed = false;
+  private listeners = new Set<() => void>();
   /** شمارنده تغییرات ارسال‌شده (برای تشخیص تداخل با بروزرسانی پس‌زمینه) */
   version = 0;
   private onError: (error: ApiError, collection: CollectionKey) => void;
@@ -179,6 +182,20 @@ export class SyncEngine {
     return this.pendingCount === 0;
   }
 
+  /** وضعیت ذخیره‌سازی برای نمایش به کاربر */
+  get state(): 'idle' | 'saving' | 'error' {
+    return this.pendingCount > 0 ? 'saving' : this.failed ? 'error' : 'idle';
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  private notify(): void {
+    this.listeners.forEach((l) => l());
+  }
+
   /** ثبت نسخه دریافتی از سرور به‌عنوان مبنای مقایسه */
   reset(collections: Partial<Record<CollectionKey, SyncRow[]>>): void {
     this.snapshots.clear();
@@ -193,6 +210,8 @@ export class SyncEngine {
 
   clear(): void {
     this.snapshots.clear();
+    this.failed = false;
+    this.notify();
   }
 
   /** محاسبه تفاوت و ارسال تغییرات یک مجموعه به سرور */
@@ -256,17 +275,20 @@ export class SyncEngine {
 
   private enqueue(collection: CollectionKey, batch: { upserts: UpsertItem[]; deletes: string[] }): void {
     this.pendingCount += 1;
+    this.notify();
     this.chain = this.chain
       .then(() => apiRequest('POST', '/api/sync', { collection, ...batch }))
       .then(
-        () => undefined,
+        () => { this.failed = false; },
         (error: unknown) => {
+          this.failed = true;
           const apiError = error instanceof ApiError ? error : new ApiError(500, defaultMessage(500));
           this.onError(apiError, collection);
         }
       )
       .finally(() => {
         this.pendingCount -= 1;
+        this.notify();
       });
   }
 

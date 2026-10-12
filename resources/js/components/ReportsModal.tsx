@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ExportTwoFactorModal } from './ExportTwoFactorModal';
 import { useSchool } from '../context/SchoolContext';
 import { 
   exportClassAttendanceToExcel, 
@@ -28,7 +29,8 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
   onClose,
   onOpenAcademicGrades,
 }) => {
-  const { classes, students, sessions, allTeachers, allCoaches, coachEvaluations } = useSchool();
+  const { classes, students, sessions, allTeachers, allCoaches, coachEvaluations, security } = useSchool();
+  const [exportGateOpen, setExportGateOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || '');
   const [selectedTeacherId, setSelectedTeacherId] = useState(allTeachers[0]?.id || '');
   const [selectedCoachId, setSelectedCoachId] = useState(allCoaches[0]?.id || '');
@@ -56,10 +58,22 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
   const handleExportCoach = () => {
     const coach = allCoaches.find((c) => c.id === selectedCoachId);
     if (!coach) return;
+    // گزارش مربی شامل ارزیابی‌های محرمانه‌ی تربیتی است؛ برای مربی و معاون تربیتی کد دومرحله‌ای دوباره خواسته می‌شود
+    if (security.twoFactorRequired) {
+      setExportGateOpen(true);
+      return;
+    }
     exportCoachReportToExcel(coach, classes, students, coachEvaluations || []);
   };
 
+  const confirmCoachExport = () => {
+    setExportGateOpen(false);
+    const coach = allCoaches.find((c) => c.id === selectedCoachId);
+    if (coach) exportCoachReportToExcel(coach, classes, students, coachEvaluations || []);
+  };
+
   return (
+    <>
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in" dir="rtl">
       <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -228,5 +242,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
         </div>
       </div>
     </div>
+    <ExportTwoFactorModal isOpen={exportGateOpen} onClose={() => setExportGateOpen(false)} onConfirmed={confirmCoachExport} />
+    </>
   );
 };

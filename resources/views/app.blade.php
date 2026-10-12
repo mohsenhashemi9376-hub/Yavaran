@@ -61,6 +61,12 @@
     html[data-theme="dark"] .yv-boot__bar{background:rgba(255,255,255,.12)}
     @media (prefers-reduced-motion:reduce){.yv-boot__halo,.yv-boot__logo,.yv-boot__name,.yv-boot__bar,.yv-boot__hint{animation:none}.yv-boot__bar i{animation-duration:2.6s}}
     </style>
+    {{-- پیش‌بارگذاری فونت‌های اصلی: جلوگیری از جابه‌جایی متن (پرش صفحه) هنگام جایگزینی فونت --}}
+    @php
+      foreach (['Regular', 'Medium', 'Bold', 'ExtraBold'] as $w) {
+        try { echo '<link rel="preload" as="font" type="font/woff2" crossorigin href="'.e(\Illuminate\Support\Facades\Vite::asset("resources/fonts/Vazirmatn-UI-FD-{$w}.woff2")).'" />'; } catch (\Throwable $e) {}
+      }
+    @endphp
     @vite('resources/js/main.tsx')
   </head>
   <body class="bg-slate-50 text-slate-900 font-['Vazirmatn',sans-serif] selection:bg-emerald-500 selection:text-white">

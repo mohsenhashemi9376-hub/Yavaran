@@ -1,5 +1,6 @@
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { baselessHomeworkRecords } from '../utils/homework';
 import { 
   User, 
   SchoolClass, 
@@ -160,7 +161,7 @@ interface SchoolContextType {
   reloadFromServer: () => Promise<void>;
   login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
   verifyTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
-  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
+  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean; reauthEnabled: boolean; reauthMinutes: number };
   /** ورود دومرحله‌ای هنوز فعال نشده: سابقه‌ی مشاهده‌گری و پرونده‌های تربیتی نمایش داده نمی‌شود (ثبت مشاهده‌گری جدید آزاد است) */
   nurturingLocked: boolean;
   reloadAfterSecurityChange: () => Promise<void>;
@@ -239,6 +240,10 @@ interface SchoolContextType {
   updateCoach: (id: string, updatedData: Partial<User>) => void;
   deleteCoach: (id: string) => boolean;
   
+  /** پاک‌سازی وضعیت‌های تکلیفِ بی‌مبنا؛ خروجی: تعداد رکورد اصلاح‌شده */
+  clearBaselessHomeworkStatuses: () => number;
+  /** تعداد رکوردهای تکلیفِ بی‌مبنا (بدون تغییر) */
+  countBaselessHomeworkStatuses: () => number;
   saveAttendanceSession: (session: Omit<AttendanceSession, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => string;
   deleteAttendanceSession: (id: string) => void;
 
@@ -294,6 +299,8 @@ interface SchoolContextType {
   // Feedback Toast & Confirmation System (راهنمای کاربر و بازخورد عملیات)
   toast: { id: string; message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (messageOrTitle: string, messageOrType?: string, type?: 'success' | 'error' | 'info') => void;
+  /** وضعیت ذخیره‌ی تغییرات روی سرور */
+  syncState: 'idle' | 'saving' | 'error';
   hideToast: () => void;
   confirmDialog: {
     isOpen: boolean;
@@ -398,8 +405,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
-  const nurturingLocked = security.twoFactorRequired && !security.twoFactorEnabled;
+  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean; reauthEnabled: boolean; reauthMinutes: number }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30 });
+  const nurturingLocked = (security.twoFactorRequired && !security.twoFactorEnabled) || security.reauthRequired;
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -519,6 +526,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     syncRef.current = new SyncEngine((error) => syncErrorHandlerRef.current(error));
   }
   const syncEngine = syncRef.current;
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'error'>('idle');
+  useEffect(() => {
+    setSyncState(syncEngine.state);
+    return syncEngine.subscribe(() => setSyncState(syncEngine.state));
+  }, [syncEngine]);
 
   const applyServerData = useCallback((payload: BootstrapPayload) => {
     const d = (payload.data || {}) as NonNullable<BootstrapPayload['data']>;
@@ -602,7 +614,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
-    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
+    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
@@ -692,6 +704,43 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('focus', handleVisibility);
     };
   }, [loadFromServer, syncEngine]);
+
+  // قفل خودکار پرونده‌های تربیتی پس از بی‌فعالیتی: فعالیت واقعی کاربر مهلت را در سرور تمدید می‌کند،
+  // و در نبود فعالیت، پس از مهلت اطلاعات محرمانه از حافظه‌ی مرورگر پنهان و رمز دوباره خواسته می‌شود
+  const reauthEnabled = security.reauthEnabled;
+  const reauthLocked = security.reauthRequired;
+  const reauthMinutes = security.reauthMinutes;
+  useEffect(() => {
+    if (authStatus !== 'ready' || !reauthEnabled || reauthLocked) return;
+    const limit = Math.max(1, reauthMinutes) * 60_000;
+    let lastActivity = Date.now();
+    let lastPing = Date.now();
+    const lockNow = () => setSecurity((prev) => (prev.reauthRequired ? prev : { ...prev, reauthRequired: true }));
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastActivity > limit) {
+        lockNow();
+        return;
+      }
+      lastActivity = now;
+      // تمدید مهلت سرور حداکثر هر ۲ دقیقه، تا بدون فعالیت واقعی تمدید نشود
+      if (now - lastPing > 120_000) {
+        lastPing = now;
+        apiRequest<{ fresh: boolean }>('POST', '/api/auth/keep-alive')
+          .then((r) => { if (r && r.fresh === false) lockNow(); })
+          .catch(() => {});
+      }
+    };
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+    events.forEach((name) => window.addEventListener(name, onActivity, { passive: true }));
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity > limit) lockNow();
+    }, 15_000);
+    return () => {
+      events.forEach((name) => window.removeEventListener(name, onActivity));
+      window.clearInterval(timer);
+    };
+  }, [authStatus, reauthEnabled, reauthLocked, reauthMinutes]);
 
   // هشدار خروج در صورت وجود تغییرات ارسال‌نشده
   useEffect(() => {
@@ -2000,6 +2049,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  /** حذف وضعیت‌های «انجام شده»ی پیش‌فرض قدیمی که تکلیفی برای ارزیابی نداشته‌اند؛ تعداد رکوردهای اصلاح‌شده را برمی‌گرداند */
+  const clearBaselessHomeworkStatuses = (): number => {
+    const targets = baselessHomeworkRecords(sessions);
+    if (targets.size === 0) return 0;
+    let count = 0;
+    targets.forEach((ids) => { count += ids.length; });
+    setSessions((prev) =>
+      prev.map((s) => {
+        const ids = targets.get(s.id);
+        if (!ids) return s;
+        const records = { ...s.records };
+        ids.forEach((id) => {
+          const { homeworkStatus: _removed, ...rest } = records[id];
+          records[id] = rest;
+        });
+        return { ...s, records };
+      })
+    );
+    return count;
+  };
+
   const deleteAttendanceSession = (id: string) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
     showToast('جلسه حضور و غیاب حذف شد.', 'info');
@@ -2809,6 +2879,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         hideToast,
         confirmDialog,
         showConfirm,
+        syncState,
+        clearBaselessHomeworkStatuses,
+        countBaselessHomeworkStatuses: () => Array.from(baselessHomeworkRecords(sessions).values()).reduce((n, ids) => n + ids.length, 0),
         closeConfirm,
       }}
     >

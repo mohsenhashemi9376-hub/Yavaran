@@ -86,6 +86,8 @@ export interface Student {
   disciplinaryScore?: number; // alias for disciplineScore
   disciplinaryStatus?: DisciplinaryStatus; // وضعیت انضباطی
   disciplinaryNotes?: DisciplinaryNote[]; // لیست سوابق و یادداشت‌های انضباطی
+  /** زمان ثبت دانش‌آموز؛ فقط خواندنی و از سرور (برای مربی و معاون تربیتی) */
+  createdAt?: string;
 }
 
 export interface BellPeriod {

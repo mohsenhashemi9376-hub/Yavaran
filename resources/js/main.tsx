@@ -8,6 +8,9 @@ import { enableResponsiveTables } from './utils/responsiveTables';
 import { enableSheetGestures } from './utils/sheetGestures';
 import { enableScrollTopOnNavigate } from './utils/scrollTopOnNavigate';
 
+// بازیابی خودکار موقعیت اسکرول مرورگر با رندر دیرهنگام داده‌ها تداخل می‌کند و صفحه می‌پرد
+try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch { /* ignore */ }
+
 enablePersianDigits();
 enableResponsiveTables();
 enableSheetGestures();

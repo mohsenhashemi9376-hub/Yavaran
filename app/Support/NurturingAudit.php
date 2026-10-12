@@ -22,6 +22,7 @@ final class NurturingAudit
         'create' => 'ثبت',
         'update' => 'ویرایش',
         'delete' => 'حذف',
+        'export' => 'خروجی اکسل',
     ];
 
     public static function ensureTable(): bool

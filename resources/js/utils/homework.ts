@@ -45,3 +45,21 @@ export function homeworkProblemStudentCount(sessions: AttendanceSession[], days:
   });
   return ids.size;
 }
+
+/**
+ * وضعیت‌های «انجام شده»ی بی‌مبنا: جلسه‌ای که تکلیفی برای ارزیابی نداشته (جلسه قبل نبوده یا تکلیفی در آن ثبت نشده)
+ * ولی وضعیت «انجام شده» برای دانش‌آموز ثبت شده است؛ یعنی مقدار پیش‌فرض قدیمی فرم، نه ارزیابی استاد.
+ * @returns نگاشت شناسه‌ی جلسه ← شناسه‌ی دانش‌آموزان
+ */
+export function baselessHomeworkRecords(sessions: AttendanceSession[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  sessions.forEach((s) => {
+    const prev = previousCourseSession(sessions, s);
+    if (prev && (prev.homeworkDescription || '').trim()) return;
+    const ids = Object.entries(s.records || {})
+      .filter(([, r]) => r.homeworkStatus === 'done' && !r.classroomActivity)
+      .map(([id]) => id);
+    if (ids.length > 0) out.set(s.id, ids);
+  });
+  return out;
+}

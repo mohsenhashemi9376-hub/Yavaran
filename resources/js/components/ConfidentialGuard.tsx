@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits } from '../utils/persianDate';
 import { useTheme } from '../context/ThemeContext';
@@ -12,7 +12,7 @@ const isEditable = (el: EventTarget | null): boolean => {
 
 /**
  * محافظت ظاهری از اطلاعات محرمانه‌ی تربیتی برای مربی و معاون تربیتی:
- * واترمارک پخش‌شده با نام کاربر و ساعت (برای بازدارندگی از عکس گرفتن)، غیرفعال‌شدن چاپ،
+ * واترمارک با نام کاربر و ساعت که فقط هنگام تشخیص میانبرهای اسکرین‌شات ظاهر می‌شود، غیرفعال‌شدن چاپ،
  * و جلوگیری از کپی/برش/منوی راست‌کلیک خارج از فیلدهای ورودی.
  * این لایه فقط بازدارنده است؛ حفاظت اصلی در سرور اعمال می‌شود.
  */
@@ -20,11 +20,23 @@ export const ConfidentialGuard: React.FC = () => {
   const { currentUser } = useSchool();
   const { theme } = useTheme();
   const active = !!currentUser && ROLES.includes(currentUser.role);
+  const [shot, setShot] = useState(0);
 
   useEffect(() => {
     if (!active) return;
     document.documentElement.classList.add('yv-confidential');
     const block = (e: Event) => { if (!isEditable(e.target)) e.preventDefault(); };
+    let hideTimer: number | undefined;
+    const flash = () => {
+      setShot((n) => n + 1);
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setShot(0), 6000);
+    };
+    // مرورگر رویداد اسکرین‌شات ندارد؛ فقط میانبرهای صفحه‌کلید (PrintScreen، Win+Shift+S، Cmd+Shift+3/4/5) تشخیص داده می‌شود
+    const onShotKey = (e: KeyboardEvent) => {
+      const k = e.key;
+      if (k === 'PrintScreen' || k === 'Snapshot' || (e.metaKey && e.shiftKey)) flash();
+    };
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && ['p', 's'].includes(e.key.toLowerCase())) e.preventDefault();
     };
@@ -33,7 +45,12 @@ export const ConfidentialGuard: React.FC = () => {
     document.addEventListener('contextmenu', block);
     document.addEventListener('dragstart', block);
     document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onShotKey, true);
+    document.addEventListener('keyup', onShotKey, true);
     return () => {
+      window.clearTimeout(hideTimer);
+      document.removeEventListener('keydown', onShotKey, true);
+      document.removeEventListener('keyup', onShotKey, true);
       document.documentElement.classList.remove('yv-confidential');
       document.removeEventListener('copy', block);
       document.removeEventListener('cut', block);
@@ -52,6 +69,6 @@ export const ConfidentialGuard: React.FC = () => {
     return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
   }, [active, currentUser?.name, theme]);
 
-  if (!active) return null;
+  if (!active || shot === 0) return null;
   return <div aria-hidden="true" className="yv-watermark" style={{ backgroundImage: background }} />;
 };

@@ -4,7 +4,7 @@ import { useLayoutEffect } from 'react';
 export function useScrollTop(...deps: unknown[]): void {
   useLayoutEffect(() => {
     try {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
     } catch {

@@ -2,9 +2,11 @@ import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
+import { staleObservationStudents } from '../utils/observationGap';
+import { isFutureShamsi, FUTURE_DATE_MESSAGE } from '../utils/validators';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
-import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
+import { toEnglishDigits, tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
   Student, 
@@ -25,6 +27,7 @@ import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
+import { EmptyState } from './EmptyState';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -290,6 +293,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
+    schoolHolidays,
+    security,
     showToast, showConfirm
   } = useSchool();
 
@@ -541,6 +546,15 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     });
   }, [filteredStudents, coachEvaluations, observations]);
 
+  // دانش‌آموزانی که در ۲ هفته‌ی گذشته برایشان مشاهده‌گری ثبت نشده (وقتی سوابق قفل است، سوابق ناقص‌اند و هشدار نمایش داده نمی‌شود)
+  const [onlyStaleObs, setOnlyStaleObs] = useState(false);
+  const staleObsStudents = useMemo(() => {
+    if (nurturingLocked) return [];
+    return staleObservationStudents(filteredStudents, observations, schoolHolidays);
+  }, [filteredStudents, observations, nurturingLocked, schoolHolidays]);
+  const staleObsIds = useMemo(() => new Set(staleObsStudents.map((e) => e.student.id)), [staleObsStudents]);
+  const staleObsInfo = useMemo(() => new Map(staleObsStudents.map((e) => [e.student.id, e])), [staleObsStudents]);
+
   // Overall points / praises count
   const totalEncouragementPoints = useMemo(() => {
     let count = 0;
@@ -588,6 +602,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       return;
     }
 
+    if (isFutureShamsi(when.date)) {
+      showToast(FUTURE_DATE_MESSAGE, 'error');
+      return;
+    }
+
     const catObj = OBSERVATION_CATEGORIES.find((c) => c.key === obsCategory);
     const tags = obsTagsInput
       .split(',')
@@ -620,7 +639,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         recordedBy: currentUser.name || 'معاون تربیتی',
       });
       if (nurturingLocked) {
-        showToast('مشاهده‌گری ثبت شد. پس از فعال‌سازی ورود دومرحله‌ای قابل مشاهده است.', 'success');
+        showToast(security.reauthRequired ? 'مشاهده‌گری ثبت شد. پس از تأیید مجدد رمز عبور قابل مشاهده است.' : 'مشاهده‌گری ثبت شد. پس از فعال‌سازی ورود دومرحله‌ای قابل مشاهده است.', 'success');
       }
     }
 
@@ -839,6 +858,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         }}
         counts={{
           observations: totalObservationsCount,
+          staleObservations: staleObsStudents.length,
           dossiers: studentsWithDossierCount,
           evaluations: coachEvaluations.length,
           coaches: allCoaches.length,
@@ -1285,8 +1305,38 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </span>
           </div>
 
+          {staleObsStudents.length > 0 && (
+            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 min-w-0 text-xs text-amber-900 leading-6">
+                <b>هشدار:</b> برای {toPersianDigits(staleObsStudents.length)} دانش‌آموز در ۲ هفته‌ی گذشته مشاهده‌گری ثبت نشده است
+                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((e) => studentFullName(e.student)).join('، ')})`}.
+              </div>
+              <button
+                type="button"
+                onClick={() => setOnlyStaleObs((v) => !v)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
+              >
+                {onlyStaleObs ? 'نمایش همه دانش‌آموزان' : 'فقط همین دانش‌آموزان را نشان بده'}
+              </button>
+            </div>
+          )}
+
+          {filteredStudents.length === 0 && (
+            <EmptyState
+              title="دانش‌آموزی برای نمایش وجود ندارد"
+              hint="کلاس یا جستجوی انتخاب‌شده دانش‌آموزی ندارد یا هنوز کلاسی به شما اختصاص داده نشده است. فیلتر کلاس را بررسی کنید."
+            />
+          )}
+          {onlyStaleObs && staleObsStudents.length === 0 && filteredStudents.length > 0 && (
+            <EmptyState
+              title="همه‌ی دانش‌آموزان مشاهده‌گری اخیر دارند"
+              hint="برای هیچ دانش‌آموزی بیش از ۲ هفته‌ی درسی مشاهده‌گری ثبت‌نشده باقی نمانده است."
+              actionLabel="نمایش همه دانش‌آموزان"
+              onAction={() => setOnlyStaleObs(false)}
+            />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {filteredStudents.map((student) => {
+            {(onlyStaleObs ? staleObsStudents.map((e) => e.student) : filteredStudents).map((student) => {
               const studentObs = observations.filter((o) => o.studentId === student.id);
               const latestObs = studentObs[0];
 
@@ -1318,6 +1368,14 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     }`}>
                       {studentObs.length > 0 ? `${toPersianDigits(studentObs.length)} مشاهده` : 'بدون مشاهده'}
                     </span>
+                    {staleObsIds.has(student.id) && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap">
+                        {(() => {
+                          const days = staleObsInfo.get(student.id)?.daysSince;
+                          return days == null ? 'هرگز مشاهده نشده' : `${toPersianDigits(days)} روز بدون مشاهده`;
+                        })()}
+                      </span>
+                    )}
                   </div>
 
                   {/* Latest Observation snippet */}
@@ -1871,7 +1929,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               {nurturingLocked ? (
                 <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
                   <div className="font-black mb-1">سوابق مشاهده‌گری نمایش داده نمی‌شود</div>
-                  شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.
+                  {security.reauthRequired
+                    ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
+                    : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
                 </div>
               ) : (
               <div className="space-y-3">

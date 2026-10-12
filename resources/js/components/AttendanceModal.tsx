@@ -1,4 +1,5 @@
 import { closedReasonMessage, normalizeShamsi } from '../utils/schoolCalendar';
+import { isFutureShamsi } from '../utils/validators';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSchool } from '../context/SchoolContext';
@@ -73,6 +74,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     saveAttendanceSession,
     addDisciplinaryNote,
     showToast,
+    showConfirm,
     closedReasonOf,
     schoolHolidays,
   } = useSchool();
@@ -221,7 +223,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     const initial: Record<string, StudentAttendanceRecord> = {};
     studentsOfClass(classId)
       .forEach((st) => {
-        initial[st.id] = { studentId: st.id, status: 'present', homeworkStatus: 'done' };
+        initial[st.id] = { studentId: st.id, status: 'present' };
       });
     return initial;
   };
@@ -303,7 +305,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     lessonTopic.trim() ||
       homeworkDescription.trim() ||
       sessionNotes.trim() ||
-      Object.values(records).some((r) => r.status !== 'present' || r.note || r.disciplinaryWarning || (r.homeworkStatus && r.homeworkStatus !== 'done'))
+      Object.values(records).some((r) => r.status !== 'present' || r.note || r.disciplinaryWarning || r.homeworkStatus)
   );
 
   const handleRequestClose = () => {
@@ -381,7 +383,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   // ------------------------------------------------------------------
   const dayClosedReason = closedReasonOf(date);
 
-  const handleSave = () => {
+  const handleSave = (skipHomeworkCheck: boolean = false) => {
     if (isSubmitting) return;
     if (dayClosedReason) {
       showToast(closedReasonMessage(dayClosedReason), 'error');
@@ -389,6 +391,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     }
     if (!course) {
       showToast('لطفاً درس و کلاس را انتخاب نمایید.', 'error');
+      return;
+    }
+    if (isFutureShamsi(date.trim())) {
+      showToast('ثبت حضور و غیاب برای تاریخ آینده ممکن نیست.', 'error');
       return;
     }
 
@@ -401,11 +407,26 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       return;
     }
 
+    // یادآوری: جلسه قبل تکلیف داشته ولی وضعیت هیچ دانش‌آموز حاضری ثبت نشده است
+    if (!skipHomeworkCheck && prevSession && (prevSession.homeworkDescription || '').trim()) {
+      const attending = classStudents.filter((st) => (records[st.id]?.status ?? 'present') !== 'absent' && records[st.id]?.status !== 'excused');
+      if (attending.length > 0 && attending.every((st) => !records[st.id]?.homeworkStatus)) {
+        showConfirm({
+          title: 'وضعیت تکلیف ثبت نشده است',
+          message: 'جلسه قبل تکلیف داده شده بود، اما وضعیت تکلیف هیچ دانش‌آموزی ثبت نشده است. بدون ثبت وضعیت ذخیره شود؟',
+          confirmLabel: 'بله، ذخیره شود',
+          cancelLabel: 'بازگشت و ثبت وضعیت',
+          onConfirm: () => handleSave(true),
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const finalRecords: Record<string, StudentAttendanceRecord> = {};
       classStudents.forEach((st) => {
-        finalRecords[st.id] = records[st.id] || { studentId: st.id, status: 'present', homeworkStatus: 'done' };
+        finalRecords[st.id] = records[st.id] || { studentId: st.id, status: 'present' };
       });
 
       const bell = [...bellPeriods].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[periodNumber - 1];
@@ -617,7 +638,24 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 <>
                   <b>تکلیف جلسه قبل ({toPersianDigits(prevSession.date)}):</b>{' '}
                   {(prevSession.homeworkDescription || '').trim() || 'تکلیفی ثبت نشده بود'}
-                  <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است.</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRecords((prev) => {
+                        const next = { ...prev };
+                        classStudents.forEach((st) => {
+                          const cur = next[st.id] || ({ studentId: st.id, status: 'present' } as StudentAttendanceRecord);
+                          if (cur.status === 'absent' || cur.status === 'excused' || cur.homeworkStatus) return;
+                          next[st.id] = { ...cur, homeworkStatus: 'done' };
+                        });
+                        return next;
+                      })
+                    }
+                    className="mr-2 px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold cursor-pointer hover:bg-emerald-100"
+                  >
+                    همه انجام شده
+                  </button>
+                  <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است؛ پیش‌فرض بدون وضعیت است (با زدن دوباره‌ی گزینه‌ی انتخاب‌شده برداشته می‌شود).</span>
                 </>
               ) : (
                 <>جلسه قبلی برای این درس ثبت نشده است؛ وضعیت تکلیف از جلسه بعد قابل ثبت است.</>
@@ -747,13 +785,13 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                         ['incomplete', 'ناقص', 'bg-amber-50 text-amber-700 border-amber-200'],
                         ['not_done', 'انجام نشده', 'bg-rose-50 text-rose-700 border-rose-200'],
                       ] as const).map(([key, label, cls]) => {
-                        const active = (rec.homeworkStatus || 'done') === key;
+                        const active = rec.homeworkStatus === key;
                         return (
                           <button
                             key={key}
                             type="button"
                             aria-pressed={active}
-                            onClick={() => patchRecord(student.id, { homeworkStatus: key })}
+                            onClick={() => patchRecord(student.id, { homeworkStatus: active ? undefined : key })}
                             className={`min-h-[36px] px-3 rounded-xl border text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${cls} ${
                               active ? 'ring-2 ring-offset-1 ring-current shadow-sm' : 'opacity-60 hover:opacity-100'
                             }`}
@@ -806,7 +844,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           <button
             type="button"
             id="btn-save-attendance-session"
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={isSubmitting || !course || Boolean(dayClosedReason)}
             className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
           >

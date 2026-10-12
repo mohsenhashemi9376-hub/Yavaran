@@ -7,6 +7,7 @@ import { homeworkOutcome, HomeworkOutcome } from '../utils/classroomActivity';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { previousCourseSession } from '../utils/homework';
+import { EmptyState } from './EmptyState';
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 const OUTCOME_LABEL: Record<HomeworkOutcome, string> = {
@@ -18,6 +19,7 @@ const OUTCOME_LABEL: Record<HomeworkOutcome, string> = {
 
 interface Detail {
   sessionId: string;
+  recordedDate: string;
   date: string;
   subject: string;
   homework: string;
@@ -25,6 +27,7 @@ interface Detail {
 }
 
 interface Row {
+  streak: number;
   student: Student;
   className: string;
   notDone: number;
@@ -42,7 +45,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
   const [classId, setClassId] = useState('');
   const [subject, setSubject] = useState('');
   const [month, setMonth] = useState(0);
-  const [onlyProblem, setOnlyProblem] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'not_done' | 'incomplete' | 'students'>('all');
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -58,7 +61,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     [scoped]
   );
 
-  const rows = useMemo(() => {
+  const baseRows = useMemo(() => {
     const byStudent = new Map<string, Row>();
     const stuMap = new Map(students.map((s) => [s.id, s]));
     scoped.forEach((sess) => {
@@ -74,7 +77,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         const row = byStudent.get(sid) || {
           student,
           className: nurturingClasses.find((c) => c.id === student.classId)?.name || '',
-          notDone: 0, incomplete: 0, done: 0, total: 0, details: [],
+          streak: 0, notDone: 0, incomplete: 0, done: 0, total: 0, details: [],
         };
         if (outcome === 'not_done') row.notDone++;
         else if (outcome === 'incomplete') row.incomplete++;
@@ -82,7 +85,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         row.total++;
         if (outcome === 'not_done' || outcome === 'incomplete') {
           row.details.push({
-            sessionId: sess.id, date: prev.date, subject: sess.subject || 'کلاس درس',
+            sessionId: sess.id, recordedDate: sess.date, date: prev.date, subject: sess.subject || 'کلاس درس',
             homework: (prev.homeworkDescription || '').trim(), outcome,
           });
         }
@@ -91,14 +94,38 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     });
     const q = search.trim();
     return Array.from(byStudent.values())
-      .filter((r) => (!onlyProblem || r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
-      .map((r) => ({ ...r, details: r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date))) }))
-      .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
-  }, [scoped, sessions, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
+      .filter((r) => (r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
+      .map((r) => {
+        const details = r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
+        // تعداد جلسات پیاپیِ اخیر که تکلیف انجام‌نشده بوده (هر درس جداگانه)
+        const bySubject = new Map<string, Detail[]>();
+        details.forEach((d) => bySubject.set(d.subject, [...(bySubject.get(d.subject) || []), d]));
+        let streak = 0;
+        bySubject.forEach((_list, subj) => {
+          const allRecent = scoped
+            .filter((s) => (s.subject || 'کلاس درس') === subj && s.records?.[r.student.id] && homeworkOutcome(s.records[r.student.id]) && previousCourseSession(sessions, s))
+            .sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
+          let run = 0;
+          for (const s of allRecent) {
+            if (homeworkOutcome(s.records[r.student.id]) === 'not_done') run++;
+            else break;
+          }
+          streak = Math.max(streak, run);
+        });
+        return { ...r, details, streak };
+      });
+  }, [scoped, sessions, students, subject, month, search, classIds, nurturingClasses]);
 
-  const totalNotDone = rows.reduce((s, r) => s + r.notDone, 0);
-  const totalIncomplete = rows.reduce((s, r) => s + r.incomplete, 0);
-  const withNotDone = rows.filter((r) => r.notDone > 0).length;
+  const rows = useMemo(() => {
+    return baseRows
+      .filter((r) => (filter === 'not_done' ? r.notDone > 0 : filter === 'incomplete' ? r.incomplete > 0 : filter === 'students' ? r.notDone > 0 : true))
+      .map((r) => (filter === 'all' || filter === 'students' ? r : { ...r, details: r.details.filter((d) => d.outcome === filter) }))
+      .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
+  }, [baseRows, filter]);
+
+  const totalNotDone = baseRows.reduce((s, r) => s + r.notDone, 0);
+  const totalIncomplete = baseRows.reduce((s, r) => s + r.incomplete, 0);
+  const withNotDone = baseRows.filter((r) => r.notDone > 0).length;
   const pct = (r: Row) => (r.total ? Math.round(((r.notDone + r.incomplete) / r.total) * 100) : 0);
 
   const exportExcel = () => {
@@ -167,32 +194,58 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer w-fit">
-          <input type="checkbox" checked={onlyProblem} onChange={(e) => setOnlyProblem(e.target.checked)} />
-          <span>فقط دانش‌آموزانی که تکلیف را انجام نداده یا ناقص داده‌اند</span>
-        </label>
-
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl bg-rose-50 border border-rose-100 p-2.5">
+          <button
+            type="button"
+            aria-pressed={filter === 'not_done'}
+            onClick={() => setFilter(filter === 'not_done' ? 'all' : 'not_done')}
+            className={`rounded-xl bg-rose-50 border border-rose-100 p-2.5 cursor-pointer transition ${filter === 'not_done' ? 'ring-2 ring-rose-400 shadow-sm' : 'hover:bg-rose-100/60'}`}
+          >
             <div className="text-lg font-black text-rose-700">{toPersianDigits(totalNotDone)}</div>
             <div className="text-[10px] text-rose-700">تکلیف انجام‌نشده</div>
-          </div>
-          <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5">
+          </button>
+          <button
+            type="button"
+            aria-pressed={filter === 'incomplete'}
+            onClick={() => setFilter(filter === 'incomplete' ? 'all' : 'incomplete')}
+            className={`rounded-xl bg-amber-50 border border-amber-100 p-2.5 cursor-pointer transition ${filter === 'incomplete' ? 'ring-2 ring-amber-400 shadow-sm' : 'hover:bg-amber-100/60'}`}
+          >
             <div className="text-lg font-black text-amber-700">{toPersianDigits(totalIncomplete)}</div>
             <div className="text-[10px] text-amber-700">تکلیف ناقص</div>
-          </div>
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
+          </button>
+          <button
+            type="button"
+            aria-pressed={filter === 'students'}
+            onClick={() => setFilter(filter === 'students' ? 'all' : 'students')}
+            className={`rounded-xl bg-slate-50 border border-slate-200 p-2.5 cursor-pointer transition ${filter === 'students' ? 'ring-2 ring-slate-400 shadow-sm' : 'hover:bg-slate-100'}`}
+          >
             <div className="text-lg font-black text-slate-800">{toPersianDigits(withNotDone)}</div>
             <div className="text-[10px] text-slate-600">دانش‌آموز با انجام‌نشده</div>
-          </div>
+          </button>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {rows.length === 0 ? (
-          <div className="text-center py-12 text-xs text-slate-400">
-            موردی برای نمایش نیست. تکلیف در هنگام ثبت حضور و غیاب توسط استاد ارزیابی می‌شود.
-          </div>
+          (() => {
+            const narrowed = Boolean(classId || subject || month || search.trim() || filter !== 'all');
+            if (narrowed) {
+              return (
+                <EmptyState
+                  title="با فیلترهای فعلی موردی پیدا نشد"
+                  hint="ممکن است در این کلاس، درس یا ماه، تکلیف انجام‌نشده یا ناقصی ثبت نشده باشد یا نام جستجوشده وجود نداشته باشد."
+                  actionLabel="پاک‌کردن فیلترها"
+                  onAction={() => { setClassId(''); setSubject(''); setMonth(0); setSearch(''); setFilter('all'); }}
+                />
+              );
+            }
+            return (
+              <EmptyState
+                title="تکلیف انجام‌نشده یا ناقصی ثبت نشده است"
+                hint="وضعیت تکلیف هنگام ثبت حضور و غیاب جلسه‌ی بعد توسط استاد ثبت می‌شود و فقط برای درس‌هایی که جلسه‌ی قبلشان تکلیف داشته، معنا دارد."
+              />
+            );
+          })()
         ) : (
           <ul className="divide-y divide-slate-100">
             {rows.map((r, i) => {
@@ -212,6 +265,11 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
                     {r.notDone > 0 && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 whitespace-nowrap">
                         {toPersianDigits(r.notDone)} انجام‌نشده
+                      </span>
+                    )}
+                    {r.streak >= 2 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white whitespace-nowrap">
+                        {toPersianDigits(r.streak)} جلسه پیاپی
                       </span>
                     )}
                     {r.incomplete > 0 && (
@@ -238,7 +296,8 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
                       ) : (
                         r.details.map((d) => (
                           <div key={`${d.sessionId}`} className="flex items-center gap-2 text-xs flex-wrap">
-                            <span className="font-mono text-slate-700">{toPersianDigits(d.date)}</span>
+                            <span className="font-mono text-slate-700" title="تاریخ جلسه‌ای که تکلیف در آن داده شد">{toPersianDigits(d.date)}</span>
+                            <span className="text-[10px] text-slate-400">(وضعیت در جلسه {toPersianDigits(d.recordedDate)} ثبت شد)</span>
                             <span className="text-slate-500">{d.subject}</span>
                             <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${d.outcome === 'not_done' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                               {OUTCOME_LABEL[d.outcome]}
