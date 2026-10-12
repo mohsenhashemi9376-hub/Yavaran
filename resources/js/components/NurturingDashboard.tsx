@@ -24,6 +24,7 @@ import { TaughtLessonsView } from './TaughtLessonsView';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
+import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
@@ -856,11 +857,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         <TwoFactorRequiredBanner />
         {(currentView === null || currentView === 'dashboard') && <MyWorkshopsSection />}
-        {isNurturingVice && (currentView === null || currentView === 'dashboard') && (
-          <div className="flex justify-end">
-            <TodayAbsenteesChip onSelectStudent={onSelectStudent ? (stu) => onSelectStudent(stu, 'attendance') : undefined} />
-          </div>
-        )}
         {(currentView === null || currentView === 'dashboard') && (
           <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
             <div className="absolute left-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
@@ -886,6 +882,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
               {/* Mobile Drawer Button & Metrics */}
               <div className="flex flex-wrap items-center gap-3 shrink-0">
+                {isNurturingVice && (
+                  <TodayAbsenteesChip onSelectStudent={onSelectStudent ? (stu) => onSelectStudent(stu, 'attendance') : undefined} />
+                )}
                 <button
                   type="button"
                   id="btn-mobile-nurturing-sidebar-toggle"
@@ -949,6 +948,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
                 {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+                {currentView === 'homework_followup' && 'پیگیری تکالیف'}
                 {currentView === 'worksheets' && 'کاربرگ هفتگی'}
                 {currentView === 'audit' && 'گزارش دسترسی‌ها'}
               </span>
@@ -1261,6 +1261,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
+      {currentView === 'homework_followup' && <HomeworkFollowUpReport onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'worksheets' && <WorksheetsWorkspace />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 

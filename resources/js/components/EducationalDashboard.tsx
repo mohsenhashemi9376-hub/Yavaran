@@ -10,6 +10,7 @@ import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnal
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
 import { AnnouncementsManagement } from './AnnouncementsManagement';
+import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { WorksheetAlertsCard } from './WorksheetAlertsCard';
@@ -573,6 +574,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
                   <button
                     type="button"
                     id="btn-mobile-educational-sidebar-toggle"
@@ -631,8 +633,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </button>
               ))}
             </div>
-
-            <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
             <ClassActivityTrends />
 
@@ -1061,6 +1061,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           />
+        )}
+
+        {currentView === 'homework_followup' && (
+          <div className="space-y-3">
+            <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
+            <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu)} />
+          </div>
         )}
 
         {currentView === 'announcements' && (

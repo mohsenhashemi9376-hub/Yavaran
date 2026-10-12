@@ -41,6 +41,7 @@ import { getMorningTodayStats } from '../utils/morningAttendance';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
+import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
@@ -360,7 +361,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                   </div>
 
                   {/* دکمه منوی موبایل (فقط در موبایل و تبلت فعال است) */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
                     <button
                       type="button"
                       id="btn-mobile-sidebar-toggle"
@@ -381,8 +383,6 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                 onOpenStats={() => { setAttendanceTab('stats'); setCurrentView('attendance'); }}
                 onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
               />
-
-              <div className="flex justify-end"><TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} /></div>
 
               <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
 
@@ -879,6 +879,15 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
               onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')}
             />
+          )}
+
+          {/* ========================================================================= */}
+          {/* پیگیری تکالیف (currentView === 'homework_followup') */}
+          {currentView === 'homework_followup' && (
+            <div className="space-y-3">
+              <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
+              <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} />
+            </div>
           )}
 
           {/* ========================================================================= */}

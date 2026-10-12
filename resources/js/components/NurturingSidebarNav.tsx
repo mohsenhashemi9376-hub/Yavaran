@@ -36,6 +36,7 @@ export type NurturingViewType =
   | 'settings'
   | 'academic_and_discipline'
   | 'taught_lessons'
+  | 'homework_followup'
   | 'worksheets';
 
 export interface NurturingSidebarCounts {
@@ -238,6 +239,12 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           id: 'taught_lessons',
           label: 'درس‌های تدریس‌شده و تکالیف',
           tooltip: 'عنوان درس هر جلسه و تکلیف داده‌شده توسط استاد',
+          icon: ClipboardList,
+        },
+        {
+          id: 'homework_followup',
+          label: 'پیگیری تکالیف',
+          tooltip: 'دانش‌آموزانی که تکلیف را انجام نداده‌اند',
           icon: ClipboardList,
         },
       ],
