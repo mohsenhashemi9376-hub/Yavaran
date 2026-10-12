@@ -58,8 +58,8 @@ export const setServerClock = (serverEpochMs: number): void => {
   }
 };
 
-/** زمان فعلی به وقت تهران؛ مقادیر getHours/getDate/getDay معادل ساعت رسمی ایران هستند */
-export const tehranNow = (): Date => {
+/** ساعت واقعی تهران (بدون در نظر گرفتن «مشاهده‌ی روز گذشته») */
+const realTehranNow = (): Date => {
   const t = new Date(Date.now() + serverClockOffsetMs + TEHRAN_OFFSET_MS);
   return new Date(
     t.getUTCFullYear(),
@@ -70,6 +70,36 @@ export const tehranNow = (): Date => {
     t.getUTCSeconds(),
     t.getUTCMilliseconds()
   );
+};
+
+/** روزی که کاربر برای «مشاهده‌ی اطلاعات روزهای گذشته» انتخاب کرده؛ null = امروز واقعی */
+let viewDate: { y: number; m: number; d: number } | null = null;
+
+export const setViewDate = (shamsi: string | null): void => {
+  const hit = shamsi ? /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(toEnglishDigits(shamsi).trim()) : null;
+  viewDate = hit ? { y: Number(hit[1]), m: Number(hit[2]), d: Number(hit[3]) } : null;
+};
+
+/** تاریخ انتخاب‌شده برای مشاهده (YYYY/MM/DD) یا null */
+export const getViewDate = (): string | null =>
+  viewDate ? `${viewDate.y}/${String(viewDate.m).padStart(2, '0')}/${String(viewDate.d).padStart(2, '0')}` : null;
+
+/** امروزِ واقعی به‌صورت YYYY/MM/DD، مستقل از روز انتخاب‌شده برای مشاهده */
+export const getRealTodayShamsiString = (): string => {
+  const now = realTehranNow();
+  const j = jalaali.toJalaali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
+};
+
+/**
+ * زمان فعلی به وقت تهران؛ مقادیر getHours/getDate/getDay معادل ساعت رسمی ایران هستند.
+ * اگر روزی برای مشاهده انتخاب شده باشد، تاریخ همان روز (با ساعت واقعی) برمی‌گردد و همه‌ی بخش‌ها اطلاعات آن روز را نشان می‌دهند.
+ */
+export const tehranNow = (): Date => {
+  const real = realTehranNow();
+  if (!viewDate) return real;
+  const g = jalaali.toGregorian(viewDate.y, viewDate.m, viewDate.d);
+  return new Date(g.gy, g.gm - 1, g.gd, real.getHours(), real.getMinutes(), real.getSeconds(), real.getMilliseconds());
 };
 
 /**

@@ -1,3 +1,4 @@
+import { ViewDateBar } from './components/ViewDateBar';
 import React, { useState, useEffect, useRef } from 'react';
 import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
@@ -40,7 +41,8 @@ const MainApp: React.FC = () => {
     isDisciplinaryVice, 
     isNurturingVice,
     isCoach,
-    isAdminOrVice 
+    isAdminOrVice,
+    viewDate
   } = useSchool();
   
   const todayInfo = getTodayShamsi();
@@ -216,7 +218,8 @@ const MainApp: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
+      <main key={viewDate ?? 'today'} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
+        <ViewDateBar />
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           <ConfidentialGuard />
           {/* Render Tab Views with strict role isolation */}
