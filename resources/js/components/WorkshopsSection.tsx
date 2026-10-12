@@ -94,7 +94,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
           <div className="text-[11px] text-slate-500">{toPersianDigits(selected.size)} نفر انتخاب شده است.</div>
         </div>
 
-        <div className="px-5 py-3 overflow-y-auto flex-1 min-h-0">
+        <div className="px-5 py-3 overflow-y-auto overflow-x-hidden flex-1 min-h-0">
           <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100">
             {candidates.map((s) => {
               const other = otherMembership.get(s.id);
@@ -104,18 +104,20 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
                 <label
                   key={s.id}
                   title={locked ? `ابتدا باید از کارگاه «${other}» خارج شود.` : undefined}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 text-sm ${locked ? 'bg-slate-50/70 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50/80'}`}
+                  className={`flex items-start gap-2.5 px-3 py-2.5 text-sm ${locked ? 'bg-slate-50/70 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50/80'}`}
                 >
-                  <input type="checkbox" checked={selected.has(s.id)} disabled={locked} onChange={() => toggle(s.id)} className="w-4 h-4 accent-emerald-600 disabled:cursor-not-allowed" />
-                  <span className="flex-1 font-semibold text-slate-800 whitespace-nowrap">
-                    {studentFullName(s)}
-                  </span>
-                  <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
-                  {other && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold whitespace-nowrap">
-                      {locked ? 'عضو کارگاه' : 'عضو کارگاه دیگر هم هست'} {other}
+                  <input type="checkbox" checked={selected.has(s.id)} disabled={locked} onChange={() => toggle(s.id)} className="w-4 h-4 mt-1 shrink-0 accent-emerald-600 disabled:cursor-not-allowed" />
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-baseline gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800 break-words">{studentFullName(s)}</span>
+                      <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
                     </span>
-                  )}
+                    {other && (
+                      <span className="mt-1 inline-block max-w-full px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold leading-5 break-words">
+                        {locked ? 'عضو کارگاه' : 'عضو کارگاه دیگر هم هست'} {other}
+                      </span>
+                    )}
+                  </span>
                 </label>
               );
             })}
