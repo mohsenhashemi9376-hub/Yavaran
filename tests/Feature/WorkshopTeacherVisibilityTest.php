@@ -59,4 +59,34 @@ class WorkshopTeacherVisibilityTest extends TestCase
         $this->assertSame('', $member['nationalId']);
         $this->assertNull(collect($data['students'])->firstWhere('id', 's-out'));
     }
+    private function sessionPayload(string $teacherId): array
+    {
+        return ['collection' => 'sessions', 'deletes' => [], 'upserts' => [
+            ['id' => 'sess-ws-1', 'data' => [
+                'id' => 'sess-ws-1', 'classId' => 'ws-ai', 'teacherId' => $teacherId, 'teacherName' => 'استاد',
+                'subject' => 'کارگاه مهارتی هوش مصنوعی', 'date' => '1405/07/20', 'dayOfWeek' => 'شنبه',
+                'periodNumber' => 1, 'lessonTopic' => 'مقدمه', 'homeworkDescription' => 'تمرین ۱',
+                'records' => ['s-in' => ['studentId' => 's-in', 'status' => 'present']],
+                'createdAt' => '2026-10-12T00:00:00Z', 'updatedAt' => '2026-10-12T00:00:00Z',
+            ]],
+        ]];
+    }
+
+    public function test_workshop_teacher_can_record_a_session_like_a_regular_class(): void
+    {
+        [$teacher] = $this->setup8th('teacher');
+
+        $this->actingAs($teacher)->postJson('/api/sync', $this->sessionPayload($teacher->id))->assertOk();
+
+        $data = $this->bootstrap($teacher);
+        $this->assertSame('مقدمه', collect($data['sessions'])->firstWhere('id', 'sess-ws-1')['lessonTopic'] ?? null);
+    }
+
+    public function test_other_teacher_cannot_record_a_session_for_the_workshop(): void
+    {
+        [$teacher] = $this->setup8th('teacher');
+        $other = $this->makeUser('teacher');
+
+        $this->actingAs($other)->postJson('/api/sync', $this->sessionPayload($other->id))->assertStatus(403);
+    }
 }

@@ -3,7 +3,6 @@ import { useScrollTop } from '../utils/useScrollTop';
 import { apiRequest } from '../lib/serverSync';
 import { CircularModal } from './CircularModal';
 import { CircularAlertCard } from './CircularAlertCard';
-import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { useSchool } from '../context/SchoolContext';
 import { AppNotification, SchoolAnnouncement, SchoolClass, AttendanceSession, Student, StudentAttendanceRecord, QualitativeRating } from '../types';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -69,6 +68,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     teachingAccessibleClasses,
     students, 
     teachingAccessibleSessions,
+    workshopAssignments,
+    studentsOfClass,
     teacherEvaluations,
     schoolAnnouncements: allAnnouncements,
     deleteAttendanceSession, showConfirm
@@ -127,7 +128,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const teacherSessions = teachingAccessibleSessions;
 
   const [selectedClassForMonthlyGrades, setSelectedClassForMonthlyGrades] = useState<string>(
-    teacherClasses.length > 0 ? teacherClasses[0].id : ''
+    (teacherClasses.find((c) => !c.isWorkshop) || teacherClasses[0])?.id ?? ''
   );
   const [selectedSessionForModal, setSelectedSessionForModal] = useState<AttendanceSession | null>(null);
 
@@ -146,22 +147,34 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // Grouped subjects for this teacher (انتساب سه‌طرفه: کلاس + درس + استاد)
   const subjectGroups = React.useMemo(() => {
+    // هر کارگاه یک درس مستقل (با کلاس مجازی خودش) است
+    const workshopGroups = workshopAssignments.map((a) => ({
+      subjectId: a.subjectId,
+      subjectName: a.subjectName,
+      classes: teacherClasses.filter((c) => a.classIds.includes(c.id)),
+    }));
+    const regularClasses = teacherClasses.filter((c) => !c.isWorkshop);
     if (currentUser.teachingAssignments && currentUser.teachingAssignments.length > 0) {
-      return currentUser.teachingAssignments.map(a => ({
-        subjectId: a.subjectId || a.subjectName,
-        subjectName: a.subjectName,
-        classes: teacherClasses.filter(c => a.classIds.includes(c.id)),
-      }));
+      return [
+        ...currentUser.teachingAssignments.map(a => ({
+          subjectId: a.subjectId || a.subjectName,
+          subjectName: a.subjectName,
+          classes: regularClasses.filter(c => a.classIds.includes(c.id)),
+        })),
+        ...workshopGroups,
+      ];
     }
+    if (regularClasses.length === 0) return workshopGroups;
     const defaultSubject = currentUser.teachingSubject || currentUser.subject || 'درس تخصصی';
     return [
       {
         subjectId: defaultSubject,
         subjectName: defaultSubject,
-        classes: teacherClasses,
-      }
+        classes: regularClasses,
+      },
+      ...workshopGroups,
     ];
-  }, [currentUser, teacherClasses]);
+  }, [currentUser, teacherClasses, workshopAssignments]);
 
   // هر کارت = یک درس در یک کلاس
   const courseCards = React.useMemo(
@@ -190,9 +203,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   };
 
   // Teacher specific stats
-  const totalStudentsTaught = students.filter((s) => 
-    teacherClasses.some((c) => c.id === s.classId)
-  ).length;
+  const totalStudentsTaught = new Set(teacherClasses.flatMap((c) => studentsOfClass(c.id).map((s) => s.id))).size;
 
   const filteredSessions = teacherSessions.filter((s) => {
     if (selectedClassFilter !== 'all' && s.classId !== selectedClassFilter) return false;
@@ -207,7 +218,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return true;
   });
 
-  const currentGradeClass = teacherClasses.find(c => c.id === selectedClassForMonthlyGrades) || teacherClasses[0];
+  // دفتر نمرات مستمر مخصوص کلاس‌های درسی است (کارگاه‌ها درس ثبت‌شده ندارند)
+  const gradeClasses = teacherClasses.filter((c) => !c.isWorkshop);
+  const currentGradeClass = gradeClasses.find(c => c.id === selectedClassForMonthlyGrades) || gradeClasses[0];
   const userGreeting = getUserGreeting(currentUser);
 
   return (
@@ -293,11 +306,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </button>
                 </div>
 
-                <ClassMonthlyGradesSection
-                  classData={cls}
-                  onSelectStudent={onSelectStudent}
-                  initialSubjectId={selectedCourse.subjectId}
-                />
+                {!cls.isWorkshop && (
+                  <ClassMonthlyGradesSection
+                    classData={cls}
+                    onSelectStudent={onSelectStudent}
+                    initialSubjectId={selectedCourse.subjectId}
+                  />
+                )}
 
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
                   <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
@@ -400,8 +415,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 )
               )}
 
-              <MyWorkshopsSection />
-
               {/* SECTION: دروس و کلاس‌های تدریس (هر کارت = یک درس در یک کلاس) */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -424,7 +437,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {courseCards.map(({ key, cls, subjectId, subjectName }) => {
-                      const classStudents = students.filter((s) => s.classId === cls.id);
+                      const classStudents = studentsOfClass(cls.id);
                       const courseSessions = teacherSessions.filter(
                         (s) => s.classId === cls.id && (!s.subject || s.subject.includes(subjectName) || subjectName.includes(s.subject))
                       );
@@ -607,7 +620,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               <div className="space-y-4">
                 {subjectGroups.map((group, gIdx) => {
                   const totalGroupStudents = group.classes.reduce((sum, c) => {
-                    return sum + students.filter(s => s.classId === c.id).length;
+                    return sum + studentsOfClass(c.id).length;
                   }, 0);
 
                   return (
@@ -630,7 +643,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                           {group.classes.map((cls) => {
-                            const cStudents = students.filter(s => s.classId === cls.id);
+                            const cStudents = studentsOfClass(cls.id);
                             return (
                               <div key={cls.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                                 <div className="flex items-center justify-between">
@@ -847,7 +860,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
                       className="text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
                     >
-                      {teacherClasses.map(c => (
+                      {gradeClasses.map(c => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
@@ -905,7 +918,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
                     className="text-xs bg-slate-50 text-slate-900 border border-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
                   >
-                    {teacherClasses.map(c => (
+                    {gradeClasses.map(c => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
@@ -915,7 +928,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
 
               {currentGradeClass ? (() => {
-                const classStudents = students.filter(s => s.classId === currentGradeClass.id);
+                const classStudents = studentsOfClass(currentGradeClass.id);
                 return (
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
                     <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -1044,7 +1057,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {teacherClasses.map(cls => {
                     const cSessions = teacherSessions.filter(s => s.classId === cls.id);
-                    const cStudents = students.filter(s => s.classId === cls.id);
+                    const cStudents = studentsOfClass(cls.id);
 
                     return (
                       <div key={cls.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">

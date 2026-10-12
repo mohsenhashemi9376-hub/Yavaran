@@ -57,7 +57,7 @@ import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveA
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
 import { buildGradePeriodList } from '../utils/gradePeriods';
-import { buildWorkshopList } from '../utils/workshops';
+import { buildWorkshopList, workshopAsClass, workshopSubjectName } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 import { studentFullName, compareStudents, splitListName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, delayDeductionId, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
@@ -183,6 +183,18 @@ interface SchoolContextType {
   accessibleSessions: AttendanceSession[];
   teachingAccessibleClasses: SchoolClass[];
   teachingAccessibleSessions: AttendanceSession[];
+  /** کلاس‌های تحت مسئولیت تربیتی + کارگاه‌هایی که دانش‌آموز این کلاس‌ها در آن‌ها عضوند (برای گزارش درس و تکلیف) */
+  nurturingSessionClasses: SchoolClass[];
+  /** کلاس‌های عادی + کلاس‌های مجازی کارگاه‌ها (برای نمایش نام کلاس جلسه‌ها و گزارش‌ها) */
+  sessionClasses: SchoolClass[];
+  /** کلاس‌های مجازی همه کارگاه‌ها */
+  workshopClasses: SchoolClass[];
+  /** کلاس‌های مجازی کارگاه‌هایی که کاربر جاری مسئول آن‌هاست (مدیر/معاونین: همه) */
+  myWorkshopClasses: SchoolClass[];
+  /** انتساب «کلاس + درس» کارگاه‌های کاربر جاری (معادل teachingAssignments) */
+  workshopAssignments: { subjectId: string; subjectName: string; classIds: string[] }[];
+  /** دانش‌آموزان یک کلاس؛ برای کارگاه، اعضای تخصیص‌یافته به همان کارگاه */
+  studentsOfClass: (classId: string) => Student[];
   canTeachClassAndSubject: (classId: string, subjectNameOrId?: string) => boolean;
   
   // Actions
@@ -888,7 +900,31 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       )
     : classes;
 
-  const accessibleClassIds = new Set(accessibleClasses.map((c) => c.id));
+  // کارگاه‌ها: هر کارگاه یک کلاس مجازی است (جلسه، حضور و غیاب و گزارش دقیقاً مثل کلاس‌های عادی)
+  const workshopClasses = useMemo(() => workshops.map(workshopAsClass), [workshops]);
+  const sessionClasses = useMemo(() => [...classes, ...workshopClasses], [classes, workshopClasses]);
+  const isManagerRole = isAdmin || isEducationalVice || isDisciplinaryVice || isNurturingVice;
+  const myWorkshops = isManagerRole ? workshops : workshops.filter((w) => w.teacherId === currentUser.id);
+  const myWorkshopClasses = myWorkshops.map(workshopAsClass);
+  const workshopAssignments = workshops
+    .filter((w) => w.teacherId === currentUser.id)
+    .map((w) => ({ subjectId: `ws-subject-${w.id}`, subjectName: workshopSubjectName(w), classIds: [w.id] }));
+  const studentsOfClass = (classId: string): Student[] => {
+    const w = workshops.find((x) => x.id === classId);
+    if (!w) return students.filter((s) => s.classId === classId);
+    const members = new Set(w.studentIds);
+    return students.filter((s) => members.has(s.id));
+  };
+
+  const nurturingSessionClasses = (() => {
+    if (!isCoach) return [...nurturingClasses, ...workshopClasses];
+    const own = new Set(nurturingClasses.map((c) => c.id));
+    const ownStudentIds = new Set(students.filter((st) => own.has(st.classId)).map((st) => st.id));
+    const related = workshops.filter((w) => w.studentIds.some((id) => ownStudentIds.has(id))).map(workshopAsClass);
+    return [...nurturingClasses, ...related];
+  })();
+
+  const accessibleClassIds = new Set([...accessibleClasses, ...myWorkshopClasses].map((c) => c.id));
 
   // دبیر فقط جلسات خودش را می‌بیند: جلسه‌ای که خودش ثبت کرده یا درسی که در همان کلاس به او واگذار شده
   // (جلسات سایر دبیران در همان کلاس‌ها نمایش داده نمی‌شود)
@@ -915,6 +951,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const hasTeachingLoad =
     !isTeacher &&
     (Boolean(currentUser.isAlsoTeacher) ||
+      myWorkshopClasses.length > 0 ||
       (currentUser.teachingClassIds || []).length > 0 ||
       (currentUser.teachingAssignments || []).some((ta) => ta.classIds.length > 0));
 
@@ -923,7 +960,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (c) =>
           currentUser.assignedClassIds.includes(c.id) ||
           c.teacherIds.includes(currentUser.id)
-      )
+      ).concat(myWorkshopClasses)
     : hasTeachingLoad
     ? classes.filter((c) => {
         const directClassIds = currentUser.teachingClassIds || [];
@@ -933,9 +970,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           assignmentClassIds.includes(c.id) ||
           c.teacherIds.includes(currentUser.id)
         );
-      })
+      }).concat(myWorkshopClasses)
     : isAdminOrVice
-    ? classes
+    ? [...classes, ...workshopClasses]
     : [];
 
   const teachingClassIdsSet = new Set(teachingAccessibleClasses.map((c) => c.id));
@@ -951,6 +988,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const canTeachClassAndSubject = (classId: string, subjectNameOrId?: string): boolean => {
     if (isAdmin || isEducationalVice) return true;
+    if (workshops.some((w) => w.id === classId && w.teacherId === currentUser.id)) return true;
     if (isTeacher) {
       const teachesClass = currentUser.assignedClassIds.includes(classId) || classes.find((c) => c.id === classId)?.teacherIds.includes(currentUser.id);
       if (!teachesClass) return false;
@@ -2656,6 +2694,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         accessibleSessions,
         teachingAccessibleClasses,
         teachingAccessibleSessions,
+        sessionClasses,
+        workshopClasses,
+        nurturingSessionClasses,
+        myWorkshopClasses,
+        workshopAssignments,
+        studentsOfClass,
         canTeachClassAndSubject,
         addClass,
         updateClass,

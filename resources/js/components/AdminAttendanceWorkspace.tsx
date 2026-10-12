@@ -109,7 +109,7 @@ const AttendanceTabSwitch: React.FC<{
 
 export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> = ({
   sessions = [],
-  classes = [],
+  classes: classesProp = [],
   onBack,
   onOpenSidebar,
   onOpenNewAttendance,
@@ -125,7 +125,8 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const { students } = useSchool();
+  const { students, workshopClasses: allWorkshopClasses } = useSchool();
+  const classes = React.useMemo(() => [...classesProp, ...allWorkshopClasses], [classesProp, allWorkshopClasses]);
   // ردیفی که لیست اسامی غائبین/تأخیرها در آن باز شده است
   const [expanded, setExpanded] = useState<{ id: string; kind: 'absent' | 'late' } | null>(null);
   const toggleExpanded = (id: string, kind: 'absent' | 'late') =>

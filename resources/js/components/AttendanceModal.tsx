@@ -15,6 +15,7 @@ import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { previousCourseSession } from '../utils/homework';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -61,6 +62,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     currentUser,
     accessibleClasses,
     classes,
+    sessionClasses,
+    myWorkshopClasses,
+    workshopAssignments,
+    studentsOfClass,
     academicSubjects,
     bellPeriods,
     students,
@@ -106,7 +111,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   // فهرست «درس • کلاس» های قابل ثبت برای کاربر جاری
   // ------------------------------------------------------------------
   const courseOptions = useMemo<CourseOption[]>(() => {
-    const pool: SchoolClass[] = accessibleClasses.length > 0 ? accessibleClasses : classes;
+    const basePool: SchoolClass[] = accessibleClasses.length > 0 ? accessibleClasses : classes;
+    const pool: SchoolClass[] = [...basePool, ...myWorkshopClasses.filter((w) => !basePool.some((c) => c.id === w.id))];
     const poolById = new Map(pool.map((c) => [c.id, c]));
     const list: CourseOption[] = [];
     const push = (cls: SchoolClass, subjectId: string | undefined, subjectName: string) => {
@@ -119,7 +125,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         className: cls.name,
         subjectId: subject?.id ?? subjectId,
         subjectName: subject?.name ?? subjectName,
-        hoursPerWeek: subject?.hoursPerWeek && subject.hoursPerWeek > 0 ? Math.round(subject.hoursPerWeek) : 2,
+        hoursPerWeek: cls.isWorkshop ? 1 : subject?.hoursPerWeek && subject.hoursPerWeek > 0 ? Math.round(subject.hoursPerWeek) : 2,
       });
     };
 
@@ -133,27 +139,41 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       );
     } else {
       // مدیر/معاونین: همه دروس مرتبط با کلاس‌های قابل دسترس
-      pool.forEach((cls) =>
-        academicSubjects.filter((sub) => subjectAppliesToClass(sub, cls)).forEach((sub) => push(cls, sub.id, sub.name))
-      );
+      pool
+        .filter((cls) => !cls.isWorkshop)
+        .forEach((cls) =>
+          academicSubjects.filter((sub) => subjectAppliesToClass(sub, cls)).forEach((sub) => push(cls, sub.id, sub.name))
+        );
+    }
+    // کارگاه‌ها: هر کارگاه یک درس با ظرفیت یک جلسه در هفته
+    workshopAssignments.forEach((a) =>
+      a.classIds.forEach((cid) => {
+        const cls = poolById.get(cid);
+        if (cls) push(cls, a.subjectId, a.subjectName);
+      })
+    );
+    if (!currentUser.teachingAssignments?.length || currentUser.role === 'admin' || currentUser.role.startsWith('vice')) {
+      myWorkshopClasses.forEach((cls) => {
+        if (!list.some((o) => o.classId === cls.id)) push(cls, `ws-subject-${cls.id}`, cls.name);
+      });
     }
 
     // سازگاری: کلاس/درس ارسالی از بیرون یا جلسه در حال ویرایش
     if (existingSession) {
-      const cls = classes.find((c) => c.id === existingSession.classId);
+      const cls = sessionClasses.find((c) => c.id === existingSession.classId);
       if (cls) push(cls, existingSession.subjectId, existingSession.subject);
     }
     if (targetClassId) {
-      const cls = poolById.get(targetClassId) || classes.find((c) => c.id === targetClassId);
+      const cls = poolById.get(targetClassId) || sessionClasses.find((c) => c.id === targetClassId);
       if (cls && !list.some((o) => o.classId === targetClassId)) {
         push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی');
       }
     }
     if (list.length === 0) {
-      pool.forEach((cls) => push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی'));
+      pool.filter((c) => !c.isWorkshop).forEach((cls) => push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی'));
     }
     return list;
-  }, [accessibleClasses, classes, academicSubjects, currentUser, existingSession, targetClassId, targetSubject]);
+  }, [accessibleClasses, classes, sessionClasses, myWorkshopClasses, workshopAssignments, academicSubjects, currentUser, existingSession, targetClassId, targetSubject]);
 
   const course = courseOptions.find((o) => o.key === courseKey) || courseOptions[0];
 
@@ -165,8 +185,25 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const periodChoices = Array.from({ length: periodCount }, (_, i) => i + 1);
 
   const classStudents = useMemo(
-    () => students.filter((s) => s.classId === course?.classId).sort(compareByLastName),
-    [students, course?.classId]
+    () => (course ? studentsOfClass(course.classId) : []).slice().sort(compareByLastName),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [students, course?.classId, sessionClasses]
+  );
+
+  // وضعیت «انجام شده / ناقص / انجام نشده» مربوط به تکلیف جلسه قبل همین درس است
+  const prevSession = useMemo(
+    () =>
+      course
+        ? previousCourseSession(sessions, {
+            id: editingSessionId || '',
+            classId: course.classId,
+            subjectId: course.subjectId,
+            subject: course.subjectName,
+            date,
+            periodNumber,
+          })
+        : undefined,
+    [sessions, course, date, periodNumber, editingSessionId]
   );
 
   const findSlotSession = (opt: CourseOption | undefined, period: number, forDate: string) =>
@@ -182,8 +219,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
   const freshRecords = (classId: string): Record<string, StudentAttendanceRecord> => {
     const initial: Record<string, StudentAttendanceRecord> = {};
-    students
-      .filter((s) => s.classId === classId)
+    studentsOfClass(classId)
       .forEach((st) => {
         initial[st.id] = { studentId: st.id, status: 'present', homeworkStatus: 'done' };
       });
@@ -542,6 +578,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           </div>
 
           <div>
+ 
             <label htmlFor="textarea-homework" className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700 mb-1.5">
               <NotebookPen className="w-3.5 h-3.5 text-sky-600" />
               <span>تکلیف جلسه</span>
@@ -574,6 +611,19 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
         {/* لیست دانش‌آموزان */}
         <div className="px-3 sm:px-4 pt-3 pb-28 border-t border-slate-100 space-y-2.5">
+          {classStudents.length > 0 && (
+            <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-900">
+              {prevSession ? (
+                <>
+                  <b>تکلیف جلسه قبل ({toPersianDigits(prevSession.date)}):</b>{' '}
+                  {(prevSession.homeworkDescription || '').trim() || 'تکلیفی ثبت نشده بود'}
+                  <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است.</span>
+                </>
+              ) : (
+                <>جلسه قبلی برای این درس ثبت نشده است؛ وضعیت تکلیف از جلسه بعد قابل ثبت است.</>
+              )}
+            </div>
+          )}
           {classStudents.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-400">دانش‌آموزی در این کلاس ثبت نشده است.</div>
           ) : (
@@ -689,9 +739,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
-                  {status !== 'absent' && (
+                  {status !== 'absent' && prevSession && (
                     <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">وضعیت تکلیف:</span>
+                      <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">تکلیف جلسه قبل:</span>
                       {([
                         ['done', 'انجام شده', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
                         ['incomplete', 'ناقص', 'bg-amber-50 text-amber-700 border-amber-200'],

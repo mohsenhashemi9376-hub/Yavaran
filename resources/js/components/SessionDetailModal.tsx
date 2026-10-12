@@ -42,14 +42,14 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   onEdit,
   onSelectStudent,
 }) => {
-  const { classes, students } = useSchool();
+  const { sessionClasses, studentsOfClass } = useSchool();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent' | 'late' | 'excused'>('all');
 
   if (!isOpen || !session) return null;
 
-  const targetClass = classes.find((c) => c.id === session.classId);
-  const classStudents = students.filter((s) => s.classId === session.classId);
+  const targetClass = sessionClasses.find((c) => c.id === session.classId);
+  const classStudents = studentsOfClass(session.classId);
 
   // Compute session statistics
   let presentCount = 0;

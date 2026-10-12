@@ -112,6 +112,7 @@ export interface SchoolClass {
   defaultStartTime?: string; // ساعت شروع پیش‌فرض مصوب (مثلاً: 07:45)
   defaultEndTime?: string; // ساعت پایان پیش‌فرض مصوب (مثلاً: 09:15)
   defaultBellPeriodId?: string; // زنگ پیش‌فرض (مثلاً: bell-1)
+  isWorkshop?: boolean; // کلاس مجازی مشتق از یک کارگاه (شناسه = شناسه کارگاه؛ ذخیره نمی‌شود)
 }
 
 export type ClassroomActivity = 'excellent' | 'done' | 'incomplete';

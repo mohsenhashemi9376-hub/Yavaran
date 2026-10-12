@@ -147,4 +147,22 @@ class WorksheetAccessTest extends TestCase
         $this->saveWs($coach, [$this->rec('stu-mine')])->assertStatus(403);
         $this->assertSame([], $this->visible($coach));
     }
+
+    public function test_status_cannot_be_recorded_before_the_deadline_day(): void
+    {
+        $edu = $this->makeUser('vice_educational');
+        $future = ['id' => 'wk-1405-07-15', 'data' => ['id' => 'wk-1405-07-15', 'weekStart' => '1405/07/15', 'deadline' => '1500/01/01']];
+        $this->saveWs($edu, [$future], [], 'worksheetWeeks')->assertOk();
+
+        $this->saveWs($edu, [$this->rec('stu-mine', 'complete')])->assertStatus(422);
+        $this->assertDatabaseCount('worksheet_records', 0);
+
+        // یادداشت فردی بدون وضعیت آزاد است
+        $this->saveWs($edu, [$this->rec('stu-mine', 'none', '1405/07/15', ['note' => 'یادداشت'])])->assertOk();
+
+        // پس از رسیدن روز تعیین‌شده، ثبت وضعیت ممکن است
+        $past = ['id' => 'wk-1405-07-15', 'data' => ['id' => 'wk-1405-07-15', 'weekStart' => '1405/07/15', 'deadline' => '1400/01/01']];
+        $this->saveWs($edu, [$past], [], 'worksheetWeeks')->assertOk();
+        $this->saveWs($edu, [$this->rec('stu-mine', 'complete')])->assertOk();
+    }
 }

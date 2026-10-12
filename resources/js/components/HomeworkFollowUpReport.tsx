@@ -6,6 +6,7 @@ import { Student } from '../types';
 import { homeworkOutcome, HomeworkOutcome } from '../utils/classroomActivity';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
+import { previousCourseSession } from '../utils/homework';
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 const OUTCOME_LABEL: Record<HomeworkOutcome, string> = {
@@ -37,7 +38,7 @@ const monthOf = (date: string) => Number(toEnglishDigits(date).split('/')[1]);
 
 /** پیگیری تکالیف: چه کسی تکلیف کلاسی را انجام نداده است (معاون آموزشی، معاون تربیتی، مربی) */
 export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) => void }> = ({ onSelectStudent }) => {
-  const { nurturingClasses, students, sessions } = useSchool();
+  const { nurturingClasses, nurturingSessionClasses, students, sessions } = useSchool();
   const [classId, setClassId] = useState('');
   const [subject, setSubject] = useState('');
   const [month, setMonth] = useState(0);
@@ -45,10 +46,12 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // کلاس‌های دانش‌آموزی (برای محدودکردن دانش‌آموزان) جدا از کلاس‌های جلسه (شامل کارگاه‌ها) است
   const classIds = useMemo(() => new Set(nurturingClasses.map((c) => c.id)), [nurturingClasses]);
+  const sessionClassIds = useMemo(() => new Set(nurturingSessionClasses.map((c) => c.id)), [nurturingSessionClasses]);
   const scoped = useMemo(
-    () => sessions.filter((s) => classIds.has(s.classId) && (!classId || s.classId === classId)),
-    [sessions, classIds, classId]
+    () => sessions.filter((s) => sessionClassIds.has(s.classId) && (!classId || s.classId === classId)),
+    [sessions, sessionClassIds, classId]
   );
   const subjects = useMemo(
     () => Array.from(new Set(scoped.map((s) => s.subject).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fa')),
@@ -65,6 +68,9 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         const student = stuMap.get(sid);
         const outcome = homeworkOutcome(sess.records[sid]);
         if (!student || !outcome || !classIds.has(student.classId)) return;
+        // وضعیت ثبت‌شده در این جلسه مربوط به تکلیف «جلسه قبل» همین درس است
+        const prev = previousCourseSession(sessions, sess);
+        if (!prev) return;
         const row = byStudent.get(sid) || {
           student,
           className: nurturingClasses.find((c) => c.id === student.classId)?.name || '',
@@ -76,8 +82,8 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         row.total++;
         if (outcome === 'not_done' || outcome === 'incomplete') {
           row.details.push({
-            sessionId: sess.id, date: sess.date, subject: sess.subject || 'کلاس درس',
-            homework: (sess.homeworkDescription || '').trim(), outcome,
+            sessionId: sess.id, date: prev.date, subject: sess.subject || 'کلاس درس',
+            homework: (prev.homeworkDescription || '').trim(), outcome,
           });
         }
         byStudent.set(sid, row);
@@ -88,7 +94,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
       .filter((r) => (!onlyProblem || r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
       .map((r) => ({ ...r, details: r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date))) }))
       .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
-  }, [scoped, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
+  }, [scoped, sessions, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
 
   const totalNotDone = rows.reduce((s, r) => s + r.notDone, 0);
   const totalIncomplete = rows.reduce((s, r) => s + r.incomplete, 0);
@@ -140,7 +146,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           <select value={classId} onChange={(e) => { setClassId(e.target.value); setSubject(''); }} className={selectCls}>
             <option value="">همه کلاس‌ها</option>
-            {nurturingClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {nurturingSessionClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={subject} onChange={(e) => setSubject(e.target.value)} className={selectCls}>
             <option value="">همه دروس</option>
@@ -203,12 +209,16 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
                       <div className="font-bold text-sm text-slate-900 truncate">{studentFullName(r.student)}</div>
                       <div className="text-[11px] text-slate-500">{r.className}</div>
                     </button>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700">
-                      {toPersianDigits(r.notDone)} انجام‌نشده
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 hidden sm:inline">
-                      {toPersianDigits(r.incomplete)} ناقص
-                    </span>
+                    {r.notDone > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 whitespace-nowrap">
+                        {toPersianDigits(r.notDone)} انجام‌نشده
+                      </span>
+                    )}
+                    {r.incomplete > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
+                        {toPersianDigits(r.incomplete)} ناقص
+                      </span>
+                    )}
                     <span className="text-[11px] text-slate-500 hidden sm:inline w-20 text-left">
                       {toPersianDigits(pct(r))}٪ از {toPersianDigits(r.total)}
                     </span>
