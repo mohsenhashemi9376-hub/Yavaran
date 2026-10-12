@@ -42,7 +42,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
   const [classId, setClassId] = useState('');
   const [subject, setSubject] = useState('');
   const [month, setMonth] = useState(0);
-  const [onlyProblem, setOnlyProblem] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'not_done' | 'incomplete'>('all');
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     [scoped]
   );
 
-  const rows = useMemo(() => {
+  const baseRows = useMemo(() => {
     const byStudent = new Map<string, Row>();
     const stuMap = new Map(students.map((s) => [s.id, s]));
     scoped.forEach((sess) => {
@@ -91,14 +91,20 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     });
     const q = search.trim();
     return Array.from(byStudent.values())
-      .filter((r) => (!onlyProblem || r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
-      .map((r) => ({ ...r, details: r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date))) }))
-      .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
-  }, [scoped, sessions, students, subject, month, onlyProblem, search, classIds, nurturingClasses]);
+      .filter((r) => (r.notDone + r.incomplete > 0) && (!q || studentFullName(r.student).includes(q)))
+      .map((r) => ({ ...r, details: r.details.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date))) }));
+  }, [scoped, sessions, students, subject, month, search, classIds, nurturingClasses]);
 
-  const totalNotDone = rows.reduce((s, r) => s + r.notDone, 0);
-  const totalIncomplete = rows.reduce((s, r) => s + r.incomplete, 0);
-  const withNotDone = rows.filter((r) => r.notDone > 0).length;
+  const rows = useMemo(() => {
+    return baseRows
+      .filter((r) => (filter === 'not_done' ? r.notDone > 0 : filter === 'incomplete' ? r.incomplete > 0 : true))
+      .map((r) => (filter === 'all' ? r : { ...r, details: r.details.filter((d) => d.outcome === filter) }))
+      .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
+  }, [baseRows, filter]);
+
+  const totalNotDone = baseRows.reduce((s, r) => s + r.notDone, 0);
+  const totalIncomplete = baseRows.reduce((s, r) => s + r.incomplete, 0);
+  const withNotDone = baseRows.filter((r) => r.notDone > 0).length;
   const pct = (r: Row) => (r.total ? Math.round(((r.notDone + r.incomplete) / r.total) * 100) : 0);
 
   const exportExcel = () => {
@@ -167,20 +173,25 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
           </div>
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer w-fit">
-          <input type="checkbox" checked={onlyProblem} onChange={(e) => setOnlyProblem(e.target.checked)} />
-          <span>فقط دانش‌آموزانی که تکلیف را انجام نداده یا ناقص داده‌اند</span>
-        </label>
-
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl bg-rose-50 border border-rose-100 p-2.5">
+          <button
+            type="button"
+            aria-pressed={filter === 'not_done'}
+            onClick={() => setFilter(filter === 'not_done' ? 'all' : 'not_done')}
+            className={`rounded-xl bg-rose-50 border border-rose-100 p-2.5 cursor-pointer transition ${filter === 'not_done' ? 'ring-2 ring-rose-400 shadow-sm' : 'hover:bg-rose-100/60'}`}
+          >
             <div className="text-lg font-black text-rose-700">{toPersianDigits(totalNotDone)}</div>
             <div className="text-[10px] text-rose-700">تکلیف انجام‌نشده</div>
-          </div>
-          <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5">
+          </button>
+          <button
+            type="button"
+            aria-pressed={filter === 'incomplete'}
+            onClick={() => setFilter(filter === 'incomplete' ? 'all' : 'incomplete')}
+            className={`rounded-xl bg-amber-50 border border-amber-100 p-2.5 cursor-pointer transition ${filter === 'incomplete' ? 'ring-2 ring-amber-400 shadow-sm' : 'hover:bg-amber-100/60'}`}
+          >
             <div className="text-lg font-black text-amber-700">{toPersianDigits(totalIncomplete)}</div>
             <div className="text-[10px] text-amber-700">تکلیف ناقص</div>
-          </div>
+          </button>
           <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5">
             <div className="text-lg font-black text-slate-800">{toPersianDigits(withNotDone)}</div>
             <div className="text-[10px] text-slate-600">دانش‌آموز با انجام‌نشده</div>

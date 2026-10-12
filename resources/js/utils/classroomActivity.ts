@@ -26,14 +26,16 @@ export const PERIOD_MONTH: Record<string, number | undefined> = {
 
 export type HomeworkOutcome = 'excellent' | 'done' | 'incomplete' | 'not_done';
 
-/** وضعیت تکلیف یک دانش‌آموز در یک جلسه؛ null برای غایب/موجه یا بدون رکورد */
+/** وضعیت تکلیف یک دانش‌آموز در یک جلسه؛ null برای غایب/موجه، بدون رکورد یا بدون وضعیت ثبت‌شده */
 export function homeworkOutcome(rec?: StudentAttendanceRecord): HomeworkOutcome | null {
   if (!rec || rec.status === 'absent' || rec.status === 'excused') return null;
   const a = rec.classroomActivity;
   if (a === 'excellent') return 'excellent';
   if (rec.homeworkStatus === 'incomplete' || a === 'incomplete') return 'incomplete';
   if (rec.homeworkStatus === 'not_done') return 'not_done';
-  return 'done';
+  // بدون هیچ وضعیتی (استاد چیزی انتخاب نکرده یا جلسه قبل تکلیفی نبوده) = بدون ارزیابی
+  if (rec.homeworkStatus === 'done' || a === 'done') return 'done';
+  return null;
 }
 
 export function summarizeActivity(
