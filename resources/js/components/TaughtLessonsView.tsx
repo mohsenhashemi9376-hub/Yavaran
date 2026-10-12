@@ -6,8 +6,8 @@ import { BookOpen } from 'lucide-react';
 
 /** درس‌های تدریس‌شده و تکالیف داده‌شده در کلاس‌های مربی (ذیل «آموزش و انضباط») */
 export const TaughtLessonsView: React.FC = () => {
-  const { classes, nurturingClasses, sessions, currentUser } = useSchool();
-  const availableClasses = currentUser?.role === 'coach' ? nurturingClasses || [] : classes;
+  const { sessionClasses, nurturingSessionClasses, sessions, currentUser } = useSchool();
+  const availableClasses = currentUser?.role === 'coach' ? nurturingSessionClasses || [] : sessionClasses;
   const [selectedClassId, setSelectedClassId] = useState('all');
 
   const visibleSessions = useMemo(() => {
@@ -36,7 +36,7 @@ export const TaughtLessonsView: React.FC = () => {
           </select>
         </div>
       </div>
-      <TaughtLessonsLog sessions={visibleSessions} showClassName={(id) => classes.find((c) => c.id === id)?.name} />
+      <TaughtLessonsLog sessions={visibleSessions} showClassName={(id) => sessionClasses.find((c) => c.id === id)?.name} />
     </div>
   );
 };

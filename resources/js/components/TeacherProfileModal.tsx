@@ -34,7 +34,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
   teacher,
   onEdit,
 }) => {
-  const { classes, sessions, students, academicSubjects, workshops } = useSchool();
+  const { classes, sessionClasses, sessions, students, academicSubjects, workshops } = useSchool();
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -283,7 +283,7 @@ export const TeacherProfileModal: React.FC<TeacherProfileModalProps> = ({
               ) : (
                 <div className="space-y-1.5">
                   {recentSessions.map((session) => {
-                    const targetClass = classes.find((c) => c.id === session.classId);
+                    const targetClass = sessionClasses.find((c) => c.id === session.classId);
                     return (
                       <div 
                         key={session.id}

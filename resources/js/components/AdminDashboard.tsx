@@ -106,6 +106,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     isDisciplinaryVice,
     isNurturingVice,
     classes, 
+    sessionClasses,
     students, 
     sessions, 
     allTeachers,
@@ -505,7 +506,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Sessions
     sessions.forEach((sess) => {
-      const cls = classes.find((c) => c.id === sess.classId);
+      const cls = sessionClasses.find((c) => c.id === sess.classId);
       const recordsList = Object.values(sess.records || {}) as StudentAttendanceRecord[];
       const presentCount = recordsList.filter((r) => r.status === 'present').length;
       const absentCount = recordsList.filter((r) => r.status === 'absent').length;

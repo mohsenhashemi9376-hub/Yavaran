@@ -61,6 +61,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     currentUser,
     accessibleClasses,
     classes,
+    sessionClasses,
+    myWorkshopClasses,
+    workshopAssignments,
+    studentsOfClass,
     academicSubjects,
     bellPeriods,
     students,
@@ -106,7 +110,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   // فهرست «درس • کلاس» های قابل ثبت برای کاربر جاری
   // ------------------------------------------------------------------
   const courseOptions = useMemo<CourseOption[]>(() => {
-    const pool: SchoolClass[] = accessibleClasses.length > 0 ? accessibleClasses : classes;
+    const basePool: SchoolClass[] = accessibleClasses.length > 0 ? accessibleClasses : classes;
+    const pool: SchoolClass[] = [...basePool, ...myWorkshopClasses.filter((w) => !basePool.some((c) => c.id === w.id))];
     const poolById = new Map(pool.map((c) => [c.id, c]));
     const list: CourseOption[] = [];
     const push = (cls: SchoolClass, subjectId: string | undefined, subjectName: string) => {
@@ -119,7 +124,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         className: cls.name,
         subjectId: subject?.id ?? subjectId,
         subjectName: subject?.name ?? subjectName,
-        hoursPerWeek: subject?.hoursPerWeek && subject.hoursPerWeek > 0 ? Math.round(subject.hoursPerWeek) : 2,
+        hoursPerWeek: cls.isWorkshop ? 1 : subject?.hoursPerWeek && subject.hoursPerWeek > 0 ? Math.round(subject.hoursPerWeek) : 2,
       });
     };
 
@@ -133,27 +138,41 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       );
     } else {
       // مدیر/معاونین: همه دروس مرتبط با کلاس‌های قابل دسترس
-      pool.forEach((cls) =>
-        academicSubjects.filter((sub) => subjectAppliesToClass(sub, cls)).forEach((sub) => push(cls, sub.id, sub.name))
-      );
+      pool
+        .filter((cls) => !cls.isWorkshop)
+        .forEach((cls) =>
+          academicSubjects.filter((sub) => subjectAppliesToClass(sub, cls)).forEach((sub) => push(cls, sub.id, sub.name))
+        );
+    }
+    // کارگاه‌ها: هر کارگاه یک درس با ظرفیت یک جلسه در هفته
+    workshopAssignments.forEach((a) =>
+      a.classIds.forEach((cid) => {
+        const cls = poolById.get(cid);
+        if (cls) push(cls, a.subjectId, a.subjectName);
+      })
+    );
+    if (!currentUser.teachingAssignments?.length || currentUser.role === 'admin' || currentUser.role.startsWith('vice')) {
+      myWorkshopClasses.forEach((cls) => {
+        if (!list.some((o) => o.classId === cls.id)) push(cls, `ws-subject-${cls.id}`, cls.name);
+      });
     }
 
     // سازگاری: کلاس/درس ارسالی از بیرون یا جلسه در حال ویرایش
     if (existingSession) {
-      const cls = classes.find((c) => c.id === existingSession.classId);
+      const cls = sessionClasses.find((c) => c.id === existingSession.classId);
       if (cls) push(cls, existingSession.subjectId, existingSession.subject);
     }
     if (targetClassId) {
-      const cls = poolById.get(targetClassId) || classes.find((c) => c.id === targetClassId);
+      const cls = poolById.get(targetClassId) || sessionClasses.find((c) => c.id === targetClassId);
       if (cls && !list.some((o) => o.classId === targetClassId)) {
         push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی');
       }
     }
     if (list.length === 0) {
-      pool.forEach((cls) => push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی'));
+      pool.filter((c) => !c.isWorkshop).forEach((cls) => push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی'));
     }
     return list;
-  }, [accessibleClasses, classes, academicSubjects, currentUser, existingSession, targetClassId, targetSubject]);
+  }, [accessibleClasses, classes, sessionClasses, myWorkshopClasses, workshopAssignments, academicSubjects, currentUser, existingSession, targetClassId, targetSubject]);
 
   const course = courseOptions.find((o) => o.key === courseKey) || courseOptions[0];
 
@@ -165,8 +184,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const periodChoices = Array.from({ length: periodCount }, (_, i) => i + 1);
 
   const classStudents = useMemo(
-    () => students.filter((s) => s.classId === course?.classId).sort(compareByLastName),
-    [students, course?.classId]
+    () => (course ? studentsOfClass(course.classId) : []).slice().sort(compareByLastName),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [students, course?.classId, sessionClasses]
   );
 
   const findSlotSession = (opt: CourseOption | undefined, period: number, forDate: string) =>
@@ -182,8 +202,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
   const freshRecords = (classId: string): Record<string, StudentAttendanceRecord> => {
     const initial: Record<string, StudentAttendanceRecord> = {};
-    students
-      .filter((s) => s.classId === classId)
+    studentsOfClass(classId)
       .forEach((st) => {
         initial[st.id] = { studentId: st.id, status: 'present', homeworkStatus: 'done' };
       });

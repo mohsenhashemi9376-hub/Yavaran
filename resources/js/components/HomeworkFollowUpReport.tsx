@@ -37,7 +37,7 @@ const monthOf = (date: string) => Number(toEnglishDigits(date).split('/')[1]);
 
 /** پیگیری تکالیف: چه کسی تکلیف کلاسی را انجام نداده است (معاون آموزشی، معاون تربیتی، مربی) */
 export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) => void }> = ({ onSelectStudent }) => {
-  const { nurturingClasses, students, sessions } = useSchool();
+  const { nurturingClasses, nurturingSessionClasses, students, sessions } = useSchool();
   const [classId, setClassId] = useState('');
   const [subject, setSubject] = useState('');
   const [month, setMonth] = useState(0);
@@ -45,10 +45,12 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // کلاس‌های دانش‌آموزی (برای محدودکردن دانش‌آموزان) جدا از کلاس‌های جلسه (شامل کارگاه‌ها) است
   const classIds = useMemo(() => new Set(nurturingClasses.map((c) => c.id)), [nurturingClasses]);
+  const sessionClassIds = useMemo(() => new Set(nurturingSessionClasses.map((c) => c.id)), [nurturingSessionClasses]);
   const scoped = useMemo(
-    () => sessions.filter((s) => classIds.has(s.classId) && (!classId || s.classId === classId)),
-    [sessions, classIds, classId]
+    () => sessions.filter((s) => sessionClassIds.has(s.classId) && (!classId || s.classId === classId)),
+    [sessions, sessionClassIds, classId]
   );
   const subjects = useMemo(
     () => Array.from(new Set(scoped.map((s) => s.subject).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fa')),
@@ -140,7 +142,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           <select value={classId} onChange={(e) => { setClassId(e.target.value); setSubject(''); }} className={selectCls}>
             <option value="">همه کلاس‌ها</option>
-            {nurturingClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {nurturingSessionClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={subject} onChange={(e) => setSubject(e.target.value)} className={selectCls}>
             <option value="">همه دروس</option>

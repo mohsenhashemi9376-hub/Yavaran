@@ -546,6 +546,13 @@ final class AccessPolicy
             $ids[] = $course['classId'];
         }
 
+        // کارگاه‌ها: شناسه کارگاه همان شناسه «کلاس مجازی» آن است و استاد کارگاه جلسه‌هایش را مثل کلاس عادی ثبت می‌کند
+        if (CollectionRegistry::tableExists('workshops')) {
+            foreach (DB::table('workshops')->where('teacher_id', $this->user->id)->pluck('id') as $workshopId) {
+                $ids[] = (string) $workshopId;
+            }
+        }
+
         return $this->classIds = array_values(array_unique($ids));
     }
 

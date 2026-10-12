@@ -1,4 +1,4 @@
-import { Workshop } from '../types';
+import { SchoolClass, Workshop } from '../types';
 
 const BASE: { slug: string; name: string; category: Workshop['category'] }[] = [
   { slug: 'medicine', name: 'طب', category: 'scientific' },
@@ -39,4 +39,25 @@ export function gradeLevelOfClass(cls?: { name: string; grade?: string }): 8 | 9
   if (t.includes('هشتم')) return 8;
   if (t.includes('نهم')) return 9;
   return null;
+}
+
+/**
+ * هر کارگاه یک «کلاس مجازی» است تا جلسه‌هایش دقیقاً مثل کلاس‌های عادی ثبت و گزارش شود.
+ * شناسه کلاس همان شناسه کارگاه است؛ تنها تفاوت: دانش‌آموزان از فهرست اعضای کارگاه می‌آیند (نه از classId).
+ */
+export function workshopAsClass(w: Workshop): SchoolClass {
+  return {
+    id: w.id,
+    name: workshopTitle(w),
+    grade: w.gradeLevel === 9 ? 'نهم' : 'هشتم',
+    major: '',
+    academicYear: '',
+    teacherIds: w.teacherId ? [w.teacherId] : [],
+    isWorkshop: true,
+  };
+}
+
+/** نام درس جلسه‌های کارگاه */
+export function workshopSubjectName(w: Pick<Workshop, 'name' | 'category'>): string {
+  return `کارگاه ${w.category === 'scientific' ? 'علمی' : 'مهارتی'} ${w.name}`;
 }
