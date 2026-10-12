@@ -80,6 +80,22 @@ export const setViewDate = (shamsi: string | null): void => {
   viewDate = hit ? { y: Number(hit[1]), m: Number(hit[2]), d: Number(hit[3]) } : null;
 };
 
+/** ثبت دیرهنگام: ثبت اطلاعات برای روز انتخاب‌شده (گذشته) مجاز است */
+let lateEntry = false;
+export const setLateEntry = (on: boolean): void => {
+  lateEntry = on;
+};
+
+/**
+ * ساعت ثبت ورود «HH:MM». در حالت عادی ساعت فعلی تهران است؛ در ثبت دیرهنگام ساعت ورود واقعی روزِ گذشته معلوم نیست،
+ * پس ۰۷:۰۰ (بدون تأخیر) ثبت می‌شود و تأخیر در صورت لزوم دستی اصلاح می‌شود.
+ */
+export const getEntryClock = (): string => {
+  if (lateEntry && viewDate) return '07:00';
+  const now = tehranNow();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
+
 /** تاریخ انتخاب‌شده برای مشاهده (YYYY/MM/DD) یا null */
 export const getViewDate = (): string | null =>
   viewDate ? `${viewDate.y}/${String(viewDate.m).padStart(2, '0')}/${String(viewDate.d).padStart(2, '0')}` : null;

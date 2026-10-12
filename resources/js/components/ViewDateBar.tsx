@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarClock, Eye, RotateCcw } from 'lucide-react';
+import { CalendarClock, Eye, PencilLine, RotateCcw } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 import {
@@ -27,7 +27,7 @@ const QUICK: [string, number][] = [
  * این حالت فقط‌مشاهده است و چیزی در سامانه ذخیره نمی‌شود.
  */
 export const ViewDateBar: React.FC = () => {
-  const { viewDate, changeViewDate } = useSchool();
+  const { viewDate, changeViewDate, lateEntry, changeLateEntry, showConfirm } = useSchool();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -54,22 +54,49 @@ export const ViewDateBar: React.FC = () => {
     />
   );
 
+  const askLateEntry = () => {
+    if (!viewDate) return;
+    showConfirm({
+      title: 'فعال‌سازی ثبت دیرهنگام',
+      message: `از این لحظه هر چیزی ثبت یا ویرایش کنید، با تاریخ ${toPersianDigits(viewDate)} در سامانه ذخیره می‌شود (زمان واقعی ثبت هم نگه‌داشته می‌شود). ساعت ورود دانش‌آموزان در حضور صبحگاه ۰۷:۰۰ (بدون تأخیر) ثبت می‌شود و در صورت نیاز تأخیر را دستی اصلاح کنید. ادامه می‌دهید؟`,
+      confirmLabel: 'بله، ثبت دیرهنگام',
+      cancelLabel: 'انصراف',
+      onConfirm: () => changeLateEntry(true),
+    });
+  };
+
   if (viewDate) {
     return (
-      <div role="status" className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 mb-4 px-4 sm:px-6 lg:px-8 py-2.5 bg-amber-100 border-y border-amber-300 text-amber-950" dir="rtl">
+      <div
+        role="status"
+        className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 mb-4 px-4 sm:px-6 lg:px-8 py-2.5 border-y ${
+          lateEntry ? 'bg-rose-100 border-rose-300 text-rose-950' : 'bg-amber-100 border-amber-300 text-amber-950'
+        }`}
+        dir="rtl"
+      >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-2 text-xs font-extrabold">
-            <Eye className="w-4 h-4 shrink-0" />
-            <span>نمایش اطلاعات روز {toPersianDigits(formatShamsiWithWeekday(viewDate))}</span>
-            <span className="font-bold text-amber-800">— فقط مشاهده؛ تغییرات ذخیره نمی‌شود.</span>
+            {lateEntry ? <PencilLine className="w-4 h-4 shrink-0" /> : <Eye className="w-4 h-4 shrink-0" />}
+            <span>{lateEntry ? 'ثبت دیرهنگام برای روز' : 'نمایش اطلاعات روز'} {toPersianDigits(formatShamsiWithWeekday(viewDate))}</span>
+            <span className={`font-bold ${lateEntry ? 'text-rose-800' : 'text-amber-800'}`}>
+              {lateEntry ? '— تغییرات با تاریخ همین روز ذخیره می‌شود.' : '— فقط مشاهده؛ تغییرات ذخیره نمی‌شود.'}
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mr-auto">
             {picker}
             <button
               type="button"
+              onClick={() => (lateEntry ? changeLateEntry(false) : askLateEntry())}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-current bg-white/70 hover:bg-white text-xs font-extrabold cursor-pointer"
+            >
+              <PencilLine className="w-3.5 h-3.5" />
+              {lateEntry ? 'توقف ثبت دیرهنگام' : 'فعال‌سازی ثبت دیرهنگام'}
+            </button>
+            <button
+              type="button"
               disabled={busy}
               onClick={() => go(null)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-900 hover:bg-amber-950 text-white text-xs font-extrabold cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-extrabold cursor-pointer disabled:opacity-60"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               بازگشت به امروز

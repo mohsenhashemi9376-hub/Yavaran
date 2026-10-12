@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
+import { getEntryClock, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi, getDayOfWeekFromShamsi } from '../utils/persianDate';
@@ -223,10 +223,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const dayOfWeek = getDayOfWeekFromShamsi(cleanDate);
     const studentDisplayName = studentFullName(selectedStudent);
 
-    const now = tehranNow();
-    const arrivalTime =
-      editRecord?.arrivalTime ||
-      `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const arrivalTime = editRecord?.arrivalTime || getEntryClock();
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
