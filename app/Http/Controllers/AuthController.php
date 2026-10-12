@@ -168,6 +168,15 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'از همه‌ی دستگاه‌های دیگر خارج شدید.']);
     }
 
+    /** تمدید مهلت تأیید رمز هنگام فعالیت واقعی کاربر در صفحه (حرکت ماوس، تایپ، پیمایش)؛ بدون رمز هرگز تأیید جدید نمی‌دهد */
+    public function keepAlive(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return response()->json(['fresh' => ! $user->requiresReauth() || PasswordConfirmation::isFresh()]);
+    }
+
     /** تأیید مجدد رمز عبور برای ورود به بخش‌های محرمانه (پرونده‌های تربیتی) */
     public function confirmPassword(Request $request): JsonResponse
     {

@@ -44,6 +44,9 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::post('auth/confirm-password', [AuthController::class, 'confirmPassword'])
             ->middleware('throttle:20,1')
             ->name('api.confirm-password');
+        Route::post('auth/keep-alive', [AuthController::class, 'keepAlive'])
+            ->middleware('throttle:30,1')
+            ->name('api.keep-alive');
         Route::post('auth/logout-others', [AuthController::class, 'logoutOtherDevices'])
             ->middleware('throttle:10,1')
             ->name('api.logout-others');

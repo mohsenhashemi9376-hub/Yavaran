@@ -33,7 +33,7 @@ class NurturingSessionSecurityTest extends TestCase
 
     public function test_session_is_never_expired_automatically_but_sensitive_access_needs_password_after_six_hours(): void
     {
-        config(['app.require_password_reconfirm_nurturing' => true, 'app.reauth_minutes' => 360]);
+        config(['app.require_password_reconfirm_nurturing' => true, 'app.reauth_minutes' => 30]);
         $this->makeClass('cls-1');
         $this->makeStudent('stu-1', 'cls-1');
         $this->makeDossier('stu-1');

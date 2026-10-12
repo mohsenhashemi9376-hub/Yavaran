@@ -160,7 +160,7 @@ interface SchoolContextType {
   reloadFromServer: () => Promise<void>;
   login: (username: string, password?: string) => Promise<{ success: boolean; message?: string; requiresTwoFactor?: boolean }>;
   verifyTwoFactor: (code: string, trustDevice?: boolean) => Promise<{ success: boolean; message?: string; restart?: boolean }>;
-  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean };
+  security: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean; reauthEnabled: boolean; reauthMinutes: number };
   /** ورود دومرحله‌ای هنوز فعال نشده: سابقه‌ی مشاهده‌گری و پرونده‌های تربیتی نمایش داده نمی‌شود (ثبت مشاهده‌گری جدید آزاد است) */
   nurturingLocked: boolean;
   reloadAfterSecurityChange: () => Promise<void>;
@@ -398,8 +398,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false });
-  const nurturingLocked = security.twoFactorRequired && !security.twoFactorEnabled;
+  const [security, setSecurity] = useState<{ twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired: boolean; reauthEnabled: boolean; reauthMinutes: number }>({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30 });
+  const nurturingLocked = (security.twoFactorRequired && !security.twoFactorEnabled) || security.reauthRequired;
   const workshops = useMemo(() => buildWorkshopList(storedWorkshops), [storedWorkshops]);
   const gradePeriods = useMemo(() => buildGradePeriodList(storedGradePeriods), [storedGradePeriods]);
 
@@ -602,7 +602,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
-    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, ...(payload.security || {}) });
+    setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
     setGrades(nextGrades);
     setSchoolSettings(nextSettings);
@@ -692,6 +692,43 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('focus', handleVisibility);
     };
   }, [loadFromServer, syncEngine]);
+
+  // قفل خودکار پرونده‌های تربیتی پس از بی‌فعالیتی: فعالیت واقعی کاربر مهلت را در سرور تمدید می‌کند،
+  // و در نبود فعالیت، پس از مهلت اطلاعات محرمانه از حافظه‌ی مرورگر پنهان و رمز دوباره خواسته می‌شود
+  const reauthEnabled = security.reauthEnabled;
+  const reauthLocked = security.reauthRequired;
+  const reauthMinutes = security.reauthMinutes;
+  useEffect(() => {
+    if (authStatus !== 'ready' || !reauthEnabled || reauthLocked) return;
+    const limit = Math.max(1, reauthMinutes) * 60_000;
+    let lastActivity = Date.now();
+    let lastPing = Date.now();
+    const lockNow = () => setSecurity((prev) => (prev.reauthRequired ? prev : { ...prev, reauthRequired: true }));
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastActivity > limit) {
+        lockNow();
+        return;
+      }
+      lastActivity = now;
+      // تمدید مهلت سرور حداکثر هر ۲ دقیقه، تا بدون فعالیت واقعی تمدید نشود
+      if (now - lastPing > 120_000) {
+        lastPing = now;
+        apiRequest<{ fresh: boolean }>('POST', '/api/auth/keep-alive')
+          .then((r) => { if (r && r.fresh === false) lockNow(); })
+          .catch(() => {});
+      }
+    };
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'];
+    events.forEach((name) => window.addEventListener(name, onActivity, { passive: true }));
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity > limit) lockNow();
+    }, 15_000);
+    return () => {
+      events.forEach((name) => window.removeEventListener(name, onActivity));
+      window.clearInterval(timer);
+    };
+  }, [authStatus, reauthEnabled, reauthLocked, reauthMinutes]);
 
   // هشدار خروج در صورت وجود تغییرات ارسال‌نشده
   useEffect(() => {

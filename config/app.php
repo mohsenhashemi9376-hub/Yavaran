@@ -12,11 +12,11 @@ return [
     'require_two_factor_nurturing' => (bool) env('REQUIRE_2FA_NURTURING', true),
 
     /*
-     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۶ ساعت بی‌فعالیتی
+     * تأیید مجدد رمز عبور برای دسترسی به پرونده‌های تربیتی: پس از ورود و پس از هر ۳۰ دقیقه بی‌فعالیتی
      * (در همان نشست) باید رمز دوباره وارد شود.
      */
     'require_password_reconfirm_nurturing' => (bool) env('REQUIRE_REAUTH_NURTURING', true),
-    'reauth_minutes' => (int) env('REAUTH_MINUTES', 360),
+    'reauth_minutes' => (int) env('REAUTH_MINUTES', 30),
 
     /* دستگاه مطمئن: پس از ورود دومرحله‌ای موفق، در همان دستگاه فقط رمز عبور کافی است (روز) */
     'trusted_device_days' => (int) env('TRUSTED_DEVICE_DAYS', 180),

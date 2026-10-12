@@ -290,6 +290,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
+    security,
     showToast, showConfirm
   } = useSchool();
 
@@ -620,7 +621,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         recordedBy: currentUser.name || 'معاون تربیتی',
       });
       if (nurturingLocked) {
-        showToast('مشاهده‌گری ثبت شد. پس از فعال‌سازی ورود دومرحله‌ای قابل مشاهده است.', 'success');
+        showToast(security.reauthRequired ? 'مشاهده‌گری ثبت شد. پس از تأیید مجدد رمز عبور قابل مشاهده است.' : 'مشاهده‌گری ثبت شد. پس از فعال‌سازی ورود دومرحله‌ای قابل مشاهده است.', 'success');
       }
     }
 
@@ -1871,7 +1872,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               {nurturingLocked ? (
                 <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
                   <div className="font-black mb-1">سوابق مشاهده‌گری نمایش داده نمی‌شود</div>
-                  شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.
+                  {security.reauthRequired
+                    ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
+                    : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
                 </div>
               ) : (
               <div className="space-y-3">
