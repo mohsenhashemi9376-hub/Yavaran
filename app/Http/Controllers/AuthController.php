@@ -131,54 +131,6 @@ class AuthController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /** درخواست بازیابی رمز از صفحه‌ی ورود: به مسئول اعلان می‌رود؛ پاسخ همیشه یکسان است (لو ندادن وجود حساب) */
-    public function forgotPassword(Request $request): JsonResponse
-    {
-        $data = $request->validate(['username' => ['required', 'string', 'max:100']]);
-        \App\Support\PasswordRecovery::request(trim(Digits::toEnglish($data['username'])), $request->ip());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'درخواست شما برای مسئول سامانه ارسال شد. پس از تعیین رمز موقت توسط او، با آن وارد شوید.',
-        ]);
-    }
-
-    /** بازیابی با کلید سرور (PASSWORD_RECOVERY_KEY در .env): برای مدیری که رمزش را فراموش کرده */
-    public function recoverPassword(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'username' => ['required', 'string', 'max:100'],
-            'recovery_key' => ['required', 'string', 'max:191'],
-            'new_password' => ['required', 'string', 'max:191'],
-        ]);
-
-        $ipKey = 'recover:'.$request->ip();
-        if (RateLimiter::tooManyAttempts($ipKey, 5) || RateLimiter::tooManyAttempts('recover-global', 20)) {
-            return response()->json(['success' => false, 'message' => 'تعداد تلاش‌ها زیاد است. بعداً دوباره تلاش کنید.'], 429);
-        }
-
-        $username = trim(Digits::toEnglish($data['username']));
-        $plain = trim(Digits::toEnglish($data['new_password']));
-        $user = User::query()->where('username', $username)->first();
-
-        if (! \App\Support\PasswordRecovery::keyMatches($data['recovery_key']) || ! $user) {
-            RateLimiter::hit($ipKey, 900);
-            RateLimiter::hit('recover-global', 900);
-
-            return response()->json(['success' => false, 'message' => 'کلید بازیابی یا نام کاربری درست نیست، یا بازیابی در سرور فعال نشده است.'], 422);
-        }
-
-        if (mb_strlen($plain) < PasswordRules::minLengthFor($user->role) || PasswordRules::isWeak($plain, $user->username)) {
-            return response()->json(['success' => false, 'message' => 'رمز جدید ساده یا کوتاه است؛ رمز قوی‌تری انتخاب کنید.'], 422);
-        }
-
-        RateLimiter::clear($ipKey);
-        \App\Support\PasswordRecovery::apply($user, $plain, false);
-        SecurityAlerts::system('password_recovered', 'بازیابی رمز با کلید سرور', sprintf('رمز حساب «%s» با کلید بازیابی سرور عوض شد (IP: %s). اگر خودتان نبودید، کلید PASSWORD_RECOVERY_KEY را فوراً عوض یا حذف کنید.', $user->name, $request->ip()));
-
-        return response()->json(['success' => true, 'message' => 'رمز عبور تغییر کرد. اکنون با رمز جدید وارد شوید.']);
-    }
-
     /** خروج از همه‌ی دستگاه‌های دیگر (نشست‌های دیگر با تغییر هش رمز نامعتبر می‌شوند)؛ نشست جاری باقی می‌ماند */
     public function logoutOtherDevices(Request $request): JsonResponse
     {

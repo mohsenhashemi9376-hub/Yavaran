@@ -3,8 +3,7 @@ import { useSchool } from '../context/SchoolContext';
 import { YavaranLogo } from './YavaranLogo';
 import { ThemeToggle } from './ThemeToggle';
 import { TwoFactorHelp } from './TwoFactorHelp';
-import { apiRequest, ApiError } from '../lib/serverSync';
-import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Lock, User, KeyRound, AlertCircle, X, Eye, EyeOff, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -16,10 +15,7 @@ const inputClass =
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const { login, verifyTwoFactor } = useSchool();
-  const [step, setStep] = useState<'credentials' | 'code' | 'forgot' | 'recover'>('credentials');
-  const [recoveryKey, setRecoveryKey] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [infoMsg, setInfoMsg] = useState('');
+  const [step, setStep] = useState<'credentials' | 'code'>('credentials');
   const [code, setCode] = useState('');
   const [useRecovery, setUseRecovery] = useState(false);
   const [trustDevice, setTrustDevice] = useState(true);
@@ -34,9 +30,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       setStep('credentials');
       setCode('');
       setUseRecovery(false);
-      setRecoveryKey('');
-      setNewPassword('');
-      setInfoMsg('');
     }
   }, [isOpen]);
 
@@ -69,52 +62,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     } else {
       setErrorMsg(res.message || 'نام کاربری یا رمز عبور اشتباه است.');
     }
-  };
-
-  const goTo = (next: 'credentials' | 'forgot' | 'recover') => {
-    setStep(next);
-    setErrorMsg('');
-    setInfoMsg('');
-    setRecoveryKey('');
-    setNewPassword('');
-  };
-
-  /** درخواست رمز موقت از مسئول سامانه */
-  const handleForgotSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting || !username.trim()) return;
-    setErrorMsg('');
-    setIsSubmitting(true);
-    try {
-      const res = await apiRequest<{ message: string }>('POST', '/api/auth/forgot-password', { username: username.trim() });
-      setInfoMsg(res.message);
-    } catch (error) {
-      setErrorMsg(error instanceof ApiError ? error.message : 'ارسال درخواست انجام نشد. دوباره تلاش کنید.');
-    }
-    setIsSubmitting(false);
-  };
-
-  /** بازیابی با کلید سرور (برای مدیر) */
-  const handleRecoverSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setErrorMsg('');
-    setIsSubmitting(true);
-    try {
-      const res = await apiRequest<{ message: string }>('POST', '/api/auth/recover-password', {
-        username: username.trim(),
-        recovery_key: recoveryKey.trim(),
-        new_password: newPassword,
-      });
-      setPassword('');
-      setStep('credentials');
-      setRecoveryKey('');
-      setNewPassword('');
-      setInfoMsg(res.message);
-    } catch (error) {
-      setErrorMsg(error instanceof ApiError ? error.message : 'بازیابی انجام نشد. دوباره تلاش کنید.');
-    }
-    setIsSubmitting(false);
   };
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
@@ -188,75 +135,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {infoMsg && (
-            <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center gap-2 font-bold animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{infoMsg}</span>
-            </div>
-          )}
-
-          {step === 'forgot' || step === 'recover' ? (
-            <form onSubmit={step === 'forgot' ? handleForgotSubmit : handleRecoverSubmit} className="space-y-4" autoComplete="off">
-              <div className="text-center space-y-2">
-                <h4 className="text-base font-black text-slate-900">
-                  {step === 'forgot' ? 'فراموشی رمز عبور' : 'بازیابی با کلید سرور'}
-                </h4>
-                <p className="text-xs text-slate-500 leading-6">
-                  {step === 'forgot'
-                    ? 'نام کاربری یا شماره همراه خود را وارد کنید تا درخواست شما برای مسئول سامانه ارسال شود. او یک رمز موقت برایتان می‌گذارد و در ورود بعدی رمز را تغییر می‌دهید.'
-                    : 'ویژه‌ی مدیر سامانه: «کلید بازیابی» همان مقدار PASSWORD_RECOVERY_KEY در فایل .env سرور است.'}
-                </p>
-              </div>
-              <input
-                type="text"
-                required
-                autoFocus
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="نام کاربری یا شماره همراه"
-                className={`${inputClass} px-3 text-right`}
-              />
-              {step === 'recover' && (
-                <>
-                  <input
-                    type="password"
-                    required
-                    dir="ltr"
-                    value={recoveryKey}
-                    onChange={(e) => setRecoveryKey(e.target.value)}
-                    placeholder="کلید بازیابی"
-                    className={`${inputClass} px-3`}
-                  />
-                  <input
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="رمز عبور جدید (حداقل ۸ کاراکتر)"
-                    className={`${inputClass} px-3 text-right`}
-                  />
-                </>
-              )}
-              <button
-                type="submit"
-                disabled={isSubmitting || !username.trim() || (step === 'forgot' && !!infoMsg)}
-                className="yv-btn-primary w-full py-3.5 text-white font-bold text-sm rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-                <span>{step === 'forgot' ? 'ارسال درخواست به مسئول' : 'تعیین رمز جدید'}</span>
-              </button>
-              <div className="flex items-center justify-between text-[11px] font-bold">
-                <button type="button" onClick={() => goTo('credentials')} className="text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 cursor-pointer">
-                  <ArrowRight className="w-3.5 h-3.5" />
-                  <span>بازگشت به ورود</span>
-                </button>
-                <button type="button" onClick={() => goTo(step === 'forgot' ? 'recover' : 'forgot')} className="text-teal-700 hover:text-teal-900 cursor-pointer">
-                  {step === 'forgot' ? 'من مدیر سامانه‌ام (کلید سرور)' : 'درخواست از مسئول'}
-                </button>
-              </div>
-            </form>
-          ) : step === 'code' ? (
+          {step === 'code' ? (
             <form onSubmit={handleCodeSubmit} className="space-y-4" autoComplete="off">
               <div className="text-center space-y-2">
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center ring-8 ring-emerald-50/60">
@@ -377,11 +256,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                 <span>{isSubmitting ? 'در حال ورود…' : 'ورود امن به سامانه'}</span>
               </button>
-              <div className="text-center">
-                <button type="button" onClick={() => goTo('forgot')} className="text-[11px] font-bold text-teal-700 hover:text-teal-900 cursor-pointer">
-                  رمز عبورم را فراموش کرده‌ام
-                </button>
-              </div>
             </form>
           )}
 

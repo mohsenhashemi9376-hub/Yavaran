@@ -70,9 +70,6 @@ return [
     'nurturing_bulk_block_limit' => (int) env('NURTURING_BULK_BLOCK_LIMIT', 30),
     'nurturing_daily_view_limit' => (int) env('NURTURING_DAILY_VIEW_LIMIT', 150),
 
-    /* کلید بازیابی رمز (حداقل ۱۶ کاراکتر)؛ خالی = بازیابی با کلید خاموش */
-    'password_recovery_key' => env('PASSWORD_RECOVERY_KEY', ''),
-
     /* حداقل طول رمز عبور مربی و معاون تربیتی */
     'nurturing_password_min' => (int) env('NURTURING_PASSWORD_MIN', 8),
 
