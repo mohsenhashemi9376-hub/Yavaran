@@ -1,4 +1,5 @@
 import { MyWorkshopsSection } from './MyWorkshopsSection';
+import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
@@ -855,6 +856,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         <TwoFactorRequiredBanner />
         {(currentView === null || currentView === 'dashboard') && <MyWorkshopsSection />}
+        {isNurturingVice && (currentView === null || currentView === 'dashboard') && (
+          <div className="flex justify-end">
+            <TodayAbsenteesChip onSelectStudent={onSelectStudent ? (stu) => onSelectStudent(stu, 'attendance') : undefined} />
+          </div>
+        )}
         {(currentView === null || currentView === 'dashboard') && (
           <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-800/40 relative overflow-hidden">
             <div className="absolute left-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
