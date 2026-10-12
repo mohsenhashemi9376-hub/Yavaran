@@ -89,6 +89,8 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; }
   html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+  /* نوار آدرس مرورگر موبایل ارتفاع 100vh را عوض می‌کند و صفحه می‌پرد؛ dvh ثابت می‌ماند */
+  .min-h-screen { min-height: 100dvh; }
 
   /* مخفی‌سازی نوار اسکرول (اسکرول همچنان کار می‌کند) */
   * { scrollbar-width: none; }

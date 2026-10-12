@@ -21,10 +21,10 @@ function signature(): string {
 
 const toTop = () => {
   try {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-    document.querySelector('main')?.scrollTo?.({ top: 0 });
+    document.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'instant' });
   } catch {
     /* محیط بدون window */
   }
