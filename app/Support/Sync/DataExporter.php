@@ -9,6 +9,7 @@ use App\Support\NurturingAudit;
 use App\Policies\NurturingRecordPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * ساخت بسته اطلاعات اولیه (bootstrap) برای رابط کاربری بر اساس نقش کاربر.
@@ -105,7 +106,33 @@ final class DataExporter
 
         // دسترسی محدود (Scoped Access): مربی فقط دانش‌آموزان کلاس‌های خود را دریافت می‌کند
         if ($collection === 'students' && ! $policy->isManager() && $policy->isCoach()) {
-            $query->whereIn('class_id', $policy->accessibleClassIds());
+            $own = $policy->accessibleClassIds();
+            $extra = $this->workshopStudentIds($user);
+            $query->where(static function ($q) use ($own, $extra): void {
+                $q->whereIn('class_id', $own);
+                if ($extra !== []) {
+                    $q->orWhereIn('id', $extra);
+                }
+            });
+
+            // دانش‌آموزان کلاس‌های خود: رکورد کامل؛ اعضای کارگاه از کلاس‌های دیگر: فقط نام (فیلدهای محدود)
+            $rows = [];
+            foreach ($query->get(['class_id', 'data']) as $row) {
+                if (! is_string($row->data) || $row->data === '') {
+                    continue;
+                }
+                if (in_array($row->class_id, $own, true)) {
+                    $rows[] = $row->data;
+
+                    continue;
+                }
+                $d = json_decode($row->data, true);
+                if (is_array($d)) {
+                    $rows[] = json_encode(array_intersect_key($d, array_flip(self::TEACHER_STUDENT_FIELDS)) + ['studentCode' => '', 'nationalId' => '', 'parentPhone' => ''], SyncService::JSON_FLAGS);
+                }
+            }
+
+            return $rows;
         }
 
         // دبیر فقط جلسات خودش را دریافت می‌کند (نه جلسات سایر دبیران در همان کلاس‌ها)
@@ -147,6 +174,31 @@ final class DataExporter
     }
 
     /** فیلدهای دانش‌آموز که دبیر می‌بیند: فقط نام (بدون کد ملی، تلفن، یادداشت، سوابق انضباطی و ...) */
+    /**
+     * شناسه‌ی دانش‌آموزان کارگاه‌هایی که این کاربر استاد/مسئول آن‌هاست. این دانش‌آموزان ممکن است در کلاس‌های دیگری
+     * باشند؛ استاد کارگاه باید فهرست اعضای کارگاه خودش را ببیند (فقط همین دانش‌آموزان و همان فیلدهای محدود).
+     *
+     * @return array<int, string>
+     */
+    private function workshopStudentIds(User $user): array
+    {
+        if (! Schema::hasTable('workshops')) {
+            return [];
+        }
+
+        $ids = [];
+        foreach (DB::table('workshops')->where('teacher_id', $user->id)->pluck('data') as $json) {
+            $d = is_string($json) ? json_decode($json, true) : null;
+            foreach (is_array($d) && is_array($d['studentIds'] ?? null) ? $d['studentIds'] : [] as $id) {
+                if (is_string($id) && $id !== '') {
+                    $ids[$id] = true;
+                }
+            }
+        }
+
+        return array_keys($ids);
+    }
+
     public const TEACHER_STUDENT_FIELDS = ['id', 'classId', 'firstName', 'lastName', 'nameFormat'];
 
     /**
@@ -162,7 +214,14 @@ final class DataExporter
         switch ($collection) {
             case 'students':
                 $rows = [];
-                foreach ($query->whereIn('class_id', $classIds)->pluck('data') as $json) {
+                $extra = $this->workshopStudentIds($user);
+                $query->where(static function ($q) use ($classIds, $extra): void {
+                    $q->whereIn('class_id', $classIds);
+                    if ($extra !== []) {
+                        $q->orWhereIn('id', $extra);
+                    }
+                });
+                foreach ($query->pluck('data') as $json) {
                     $d = is_string($json) ? json_decode($json, true) : null;
                     if (! is_array($d)) {
                         continue;
