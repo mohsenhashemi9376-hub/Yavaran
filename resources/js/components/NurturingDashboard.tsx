@@ -2,9 +2,10 @@ import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
+import { lastShamsiDays } from '../utils/trends';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useEffect, useMemo } from 'react';
-import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
+import { toEnglishDigits, tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
   Student, 
@@ -541,6 +542,18 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       return hasImprovementNeeded || hasEmotionalOrFamilyConcerns || hasLowDiscipline;
     });
   }, [filteredStudents, coachEvaluations, observations]);
+
+  // دانش‌آموزانی که در ۲ هفته‌ی گذشته برایشان مشاهده‌گری ثبت نشده (وقتی سوابق قفل است، سوابق ناقص‌اند و هشدار نمایش داده نمی‌شود)
+  const [onlyStaleObs, setOnlyStaleObs] = useState(false);
+  const staleObsStudents = useMemo(() => {
+    if (nurturingLocked) return [];
+    const recent = new Set(lastShamsiDays(14).map((d) => toEnglishDigits(d)));
+    const covered = new Set(
+      observations.filter((o) => recent.has(toEnglishDigits(o.date || ''))).map((o) => o.studentId)
+    );
+    return filteredStudents.filter((st) => !covered.has(st.id));
+  }, [filteredStudents, observations, nurturingLocked]);
+  const staleObsIds = useMemo(() => new Set(staleObsStudents.map((st) => st.id)), [staleObsStudents]);
 
   // Overall points / praises count
   const totalEncouragementPoints = useMemo(() => {
@@ -1286,8 +1299,24 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </span>
           </div>
 
+          {staleObsStudents.length > 0 && (
+            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 min-w-0 text-xs text-amber-900 leading-6">
+                <b>هشدار:</b> برای {toPersianDigits(staleObsStudents.length)} دانش‌آموز در ۲ هفته‌ی گذشته مشاهده‌گری ثبت نشده است
+                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((st) => studentFullName(st)).join('، ')})`}.
+              </div>
+              <button
+                type="button"
+                onClick={() => setOnlyStaleObs((v) => !v)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
+              >
+                {onlyStaleObs ? 'نمایش همه دانش‌آموزان' : 'فقط همین دانش‌آموزان را نشان بده'}
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {filteredStudents.map((student) => {
+            {(onlyStaleObs ? filteredStudents.filter((st) => staleObsIds.has(st.id)) : filteredStudents).map((student) => {
               const studentObs = observations.filter((o) => o.studentId === student.id);
               const latestObs = studentObs[0];
 
@@ -1319,6 +1348,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                     }`}>
                       {studentObs.length > 0 ? `${toPersianDigits(studentObs.length)} مشاهده` : 'بدون مشاهده'}
                     </span>
+                    {staleObsIds.has(student.id) && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap">
+                        ۲ هفته بدون مشاهده
+                      </span>
+                    )}
                   </div>
 
                   {/* Latest Observation snippet */}
