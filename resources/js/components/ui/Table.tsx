@@ -11,7 +11,7 @@ export const Table: React.FC<TableProps> = ({
   ...props
 }) => {
   return (
-    <div className={`overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-2xs ${containerClassName}`}>
+    <div className={`yv-fit overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xs ${containerClassName}`}>
       <table className={`w-full text-right border-collapse text-xs sm:text-sm ${className}`} {...props}>
         {children}
       </table>

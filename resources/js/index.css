@@ -305,3 +305,17 @@ button { transition-property: transform, background-color, border-color, color, 
 /* جدول‌هایی که باید در عرض صفحه جا شوند (بدون اسکرول افقی): سلول‌ها می‌شکنند */
 .yv-fit-table { min-width: 0 !important; width: 100%; }
 .yv-fit-table th, .yv-fit-table td { white-space: normal !important; }
+
+/* FitTable: tables must never need horizontal scrolling */
+.yv-fit table { min-width: 0 !important; width: 100%; }
+.yv-fit th, .yv-fit td { white-space: normal !important; overflow-wrap: anywhere; }
+
+/* Full-view dialog: table rendered as stacked label/value cards */
+.yv-stack table, .yv-stack tbody { display: block; width: 100%; min-width: 0 !important; }
+.yv-stack thead { display: none; }
+.yv-stack tr { display: block; margin-bottom: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #fff; overflow: hidden; }
+.yv-stack td { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.5rem 0.875rem !important; border-bottom: 1px solid #f1f5f9; white-space: normal !important; text-align: right; }
+.yv-stack td:last-child { border-bottom: 0; }
+.yv-stack td[data-label]::before { content: attr(data-label); flex: 0 0 7rem; font-weight: 700; color: #64748b; font-size: 0.75rem; }
+.yv-stack td > * { min-width: 0; }
+.yv-stack .overflow-x-auto, .yv-stack .yv-fit { overflow: visible; border: 0; }

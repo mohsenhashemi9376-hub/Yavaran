@@ -61,6 +61,7 @@ import { hasPermission } from '../utils/permissions';
 import { studentWorksheetHistory, weekTitle, WORKSHEET_STATUS_LABEL } from '../utils/worksheets';
 import { studentFullName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
+import { FitTable } from './ui/FitTable';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets';
 
@@ -1297,7 +1298,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                       : 'سابقه‌ای برای این دانش‌آموز ثبت نشده است.'}
                 </div>
               ) : (
-                <div className="w-full border border-slate-200 rounded-2xl overflow-x-auto shadow-2xs">
+                <FitTable className="w-full border border-slate-200 rounded-2xl shadow-2xs">
                   <table className="w-full min-w-[750px] text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
@@ -1356,7 +1357,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </FitTable>
               )}
             </div>
           )}
@@ -1545,7 +1546,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <p>هنوز نمره رسمی برای این دانش‌آموز ثبت نشده است.</p>
                   </div>
                 ) : (
-                  <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+                  <FitTable className="border border-slate-200 rounded-xl shadow-2xs">
                     <table className="w-full text-right text-xs">
                       <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] sm:text-xs">
                         <tr>
@@ -1617,7 +1618,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </FitTable>
                 )}
               </div>
 

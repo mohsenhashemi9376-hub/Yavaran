@@ -8,6 +8,7 @@ import { dateToShamsiString, getTodayShamsi, toPersianDigits } from '../utils/pe
 import {
   Bell, Plus, Pencil, Trash2, Archive, ArchiveRestore, Paperclip, X, ArrowRight, Menu, Eye, Send, Users, CheckCircle2, Clock,
 } from 'lucide-react';
+import { FitTable } from './ui/FitTable';
 
 interface Props {
   onBack: () => void;
@@ -166,7 +167,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
             <p className="text-sm font-bold text-slate-600">هنوز بخشنامه‌ای ثبت نشده است.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <FitTable className="">
             <table className="w-full text-right text-xs">
               <thead className="bg-emerald-50/60 text-emerald-900 font-bold border-b border-emerald-100">
                 <tr>
@@ -229,7 +230,7 @@ export const AnnouncementsManagement: React.FC<Props> = ({ onBack, onOpenSidebar
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         )}
       </div>
 

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface DelayAnalyticsViewProps {
   onOpenNewDelayModal: (student?: Student) => void;
@@ -628,7 +629,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <FitTable className="">
           <table className="w-full text-right border-collapse">
             <thead>
               <tr className="bg-slate-100/80 text-slate-600 text-[11px] font-bold border-b border-slate-200">
@@ -863,7 +864,7 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
               )}
             </tbody>
           </table>
-        </div>
+        </FitTable>
       </div>
 
     </div>

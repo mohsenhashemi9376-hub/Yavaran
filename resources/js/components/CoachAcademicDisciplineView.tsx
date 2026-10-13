@@ -30,6 +30,7 @@ import {
   BellRing
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { FitTable } from './ui/FitTable';
 
 interface AbsenceDay {
   date: string;
@@ -568,7 +569,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
           <p>دانش‌آموزی با شرایط جستجوی فعلی یافت نشد.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <FitTable className="bg-white rounded-2xl border border-slate-200 shadow-xs">
           <table className="w-full table-fixed text-right text-xs">
             <thead className="bg-gradient-to-l from-indigo-50 via-slate-50 to-sky-50 text-slate-700 border-b border-slate-200 font-extrabold">
               <tr>
@@ -720,7 +721,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               })}
             </tbody>
           </table>
-        </div>
+        </FitTable>
       )}
 
       {/* ریز اطلاعات هر ستون (غیبت / تأخیر / تذکر) در کادر وسط صفحه */}
@@ -965,7 +966,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                   {academicSubjects.length === 0 ? (
                     <div className="text-center py-6 text-slate-400">درسی تعریف نشده است.</div>
                   ) : (
-                    <div className="border border-slate-200 rounded-2xl overflow-x-auto shadow-xs">
+                    <FitTable className="border border-slate-200 rounded-2xl shadow-xs">
                       <table className="w-full text-right text-xs">
                         <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                           <tr>
@@ -1038,7 +1039,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
                           })}
                         </tbody>
                       </table>
-                    </div>
+                    </FitTable>
                   )}
                 </div>
               )}

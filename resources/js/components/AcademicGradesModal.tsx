@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface AcademicGradesModalProps {
   isOpen: boolean;
@@ -454,7 +455,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
 
         {/* Grades Table */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
+          <FitTable className="border border-slate-200 rounded-xl shadow-xs">
             <table className="w-full min-w-[850px] text-right border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 text-[11px] sm:text-xs">
@@ -634,7 +635,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         </div>
 
         {/* Footer Actions */}

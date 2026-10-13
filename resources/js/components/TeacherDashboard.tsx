@@ -44,6 +44,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface TeacherDashboardProps {
   onOpenNewAttendance: (classId?: string, subject?: string) => void;
@@ -533,7 +534,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     description="با ثبت اولین حضور و غیاب، سوابق جلسات این‌جا نمایش داده می‌شود."
                   />
                 ) : (
-                  <div className="overflow-x-auto">
+                  <FitTable className="">
                     <table className="w-full text-xs text-right">
                       <thead>
                         <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
@@ -587,7 +588,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         })}
                       </tbody>
                     </table>
-                  </div>
+                  </FitTable>
                 )}
               </div>
 
@@ -747,7 +748,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     description="فیلترها را تغییر دهید یا جست‌وجو را پاک کنید."
                   />
                 ) : (
-                  <div className="overflow-x-auto">
+                  <FitTable className="">
                     <table className="w-full text-xs text-right">
                       <thead>
                         <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
@@ -829,7 +830,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         })}
                       </tbody>
                     </table>
-                  </div>
+                  </FitTable>
                 )}
               </div>
             </div>
@@ -946,7 +947,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       )}
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <FitTable className="">
                       <table className="w-full text-xs text-right">
                         <thead>
                           <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
@@ -996,7 +997,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           })}
                         </tbody>
                       </table>
-                    </div>
+                    </FitTable>
                   </div>
                 );
               })() : null}

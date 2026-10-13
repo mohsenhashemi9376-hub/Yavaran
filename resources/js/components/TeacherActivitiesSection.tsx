@@ -10,6 +10,7 @@ import {
   toPersianDigits,
 } from '../utils/persianDate';
 import { academicMonths, currentMonthKey, formatHours, monthKeyOf, parseHours } from '../utils/teacherActivities';
+import { FitTable } from './ui/FitTable';
 
 /** «فعالیت خارج مدرسه» — ثبت ساعات کار اضافه معلم (پنل معلمان) */
 export const TeacherActivitiesSection: React.FC = () => {
@@ -202,7 +203,7 @@ export const TeacherActivitiesSection: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="w-full overflow-x-auto">
+        <FitTable className="w-full">
           <table className="w-full text-right text-xs min-w-[650px]">
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
               <tr>
@@ -248,7 +249,7 @@ export const TeacherActivitiesSection: React.FC = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </FitTable>
         {mine.length === 0 && (
           <div className="py-10 text-center text-xs text-slate-400">در این ماه فعالیتی ثبت نشده است.</div>
         )}

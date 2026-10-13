@@ -89,6 +89,7 @@ import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
 import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -2944,7 +2945,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-900">
               وضعیت مشارکت تربیتی به تفکیک کلاس‌ها
             </div>
-            <div className="overflow-x-auto">
+            <FitTable className="">
               <table className="w-full text-xs text-right">
                 <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-100">
                   <tr>
@@ -2976,7 +2977,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   })}
                 </tbody>
               </table>
-            </div>
+            </FitTable>
           </div>
         </div>
       )}

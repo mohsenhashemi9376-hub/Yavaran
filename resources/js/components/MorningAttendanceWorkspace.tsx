@@ -15,6 +15,7 @@ import { studentFullName } from '../utils/studentName';
 import { ParentPhoneButton } from './ParentPhoneButton';
 import { closedReasonMessage } from '../utils/schoolCalendar';
 import { SchoolHolidaysPanel } from './SchoolHolidaysPanel';
+import { FitTable } from './ui/FitTable';
 
 export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
 
@@ -702,7 +703,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
               {archive.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">هنوز موردی تأیید و آرشیو نشده است.</div>
               ) : (
-                <div className="overflow-x-auto">
+                <FitTable className="">
                   <table className="w-full text-sm">
                     <thead className="bg-violet-50/30 text-violet-900">
                       <tr>
@@ -733,7 +734,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </FitTable>
               )}
             </div>
           </motion.div>
@@ -747,7 +748,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           <span>جدول غایبین صبحگاه امروز</span>
           <span className="text-xs font-bold opacity-70">({toPersianDigits(activeAbsentees.length)})</span>
         </div>
-        <div className="overflow-x-auto">
+        <FitTable className="">
           <table className="w-full text-sm">
             <thead className="bg-rose-50/50 text-rose-900">
               <tr>
@@ -798,7 +799,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           {activeAbsentees.length === 0 && (
             <div className="py-8 text-center text-xs text-slate-400">غایبی در انتظار پیگیری نیست.</div>
           )}
-        </div>
+        </FitTable>
       </div>
 
       {/* جدول تأخیرهای صبحگاه امروز */}
@@ -808,7 +809,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           <span>جدول تأخیرهای صبحگاه امروز</span>
           <span className="text-xs font-bold opacity-70">({toPersianDigits(activeDelays.length)})</span>
         </div>
-        <div className="overflow-x-auto">
+        <FitTable className="">
           <table className="w-full text-sm">
             <thead className="bg-amber-50/50 text-amber-900">
               <tr>
@@ -862,7 +863,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           {activeDelays.length === 0 && (
             <div className="py-8 text-center text-xs text-slate-400">تأخیری در انتظار پیگیری نیست.</div>
           )}
-        </div>
+        </FitTable>
       </div>
 
       {undoToast && (

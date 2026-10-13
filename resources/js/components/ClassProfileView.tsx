@@ -40,6 +40,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface ClassProfileViewProps {
   classData: SchoolClass;
@@ -532,7 +533,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                   دانش‌آموزی با عبارت «{studentSearch}» در این کلاس یافت نشد.
                 </div>
               ) : (
-                <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                <FitTable className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full text-right text-xs">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                       <tr>
@@ -647,7 +648,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                       })}
                     </tbody>
                   </table>
-                </div>
+                </FitTable>
               )}
 
             </div>

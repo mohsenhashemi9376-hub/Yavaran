@@ -33,6 +33,7 @@ import { useSchool } from '../context/SchoolContext';
 import { MorningAttendanceWorkspace, MorningStatusFilter } from './MorningAttendanceWorkspace';
 import { studentFullName } from '../utils/studentName';
 import { AttendanceStatsView } from './AttendanceStatsView';
+import { FitTable } from './ui/FitTable';
 
 type AttendanceTab = 'morning' | 'sessions' | 'stats';
 
@@ -376,7 +377,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
               <p className="text-[11px] text-slate-400">می‌توانید فیلترها را تغییر داده یا جلسه جدیدی ثبت کنید.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <FitTable className="">
               <table className="w-full text-right text-xs">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                   <tr>
@@ -501,7 +502,7 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
                   })}
                 </tbody>
               </table>
-            </div>
+            </FitTable>
           )}
         </div>
       )}

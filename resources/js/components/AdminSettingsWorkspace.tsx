@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { EditSubjectModal } from './EditSubjectModal';
 import { BellPeriodsManagementSection } from './BellPeriodsManagementSection';
+import { FitTable } from './ui/FitTable';
 
 interface AdminSettingsWorkspaceProps {
   onBack: () => void;
@@ -1071,7 +1072,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <FitTable className="rounded-xl border border-slate-200">
                   <table className="w-full text-right text-xs">
                     <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                       <tr>
@@ -1142,7 +1143,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </FitTable>
               )}
             </div>
           )}
@@ -1238,7 +1239,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <FitTable className="rounded-xl border border-slate-200">
                 <table className="w-full text-right text-xs">
                   <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                     <tr>
@@ -1329,7 +1330,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
                     })}
                   </tbody>
                 </table>
-              </div>
+              </FitTable>
             )}
           </div>
         </div>

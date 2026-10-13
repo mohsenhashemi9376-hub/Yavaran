@@ -5,6 +5,7 @@ import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -331,7 +332,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
       {/* جدول */}
       <div className={`${card} overflow-hidden`}>
-        <div className="overflow-x-auto">
+        <FitTable className="">
           <table className="w-full min-w-[850px] text-right text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
@@ -419,7 +420,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
               )}
             </tbody>
           </table>
-        </div>
+        </FitTable>
         {activeSubjects.length === 0 && (
           <div className="p-6 text-center text-sm text-slate-400 border-t border-slate-50">حداقل یک درس را فعال کنید.</div>
         )}

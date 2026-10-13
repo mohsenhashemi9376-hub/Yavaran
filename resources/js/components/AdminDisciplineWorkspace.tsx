@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface FlatDisciplineItem {
   noteId: string;
@@ -289,7 +290,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
             <p className="text-[11px] text-slate-400">می‌توانید با دکمه «ثبت مورد انضباطی جدید» اقدام فرمایید.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <FitTable className="">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
@@ -392,7 +393,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         )}
 
         {/* 3. Footer ساختار یکسان */}
