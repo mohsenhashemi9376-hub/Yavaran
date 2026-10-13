@@ -35,7 +35,7 @@ export const AdminSubjectsWorkspace: React.FC<AdminSubjectsWorkspaceProps> = ({
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto" role="tablist">
+      <div className="flex gap-2 flex-wrap" role="tablist">
         {([
           ['official', 'دروس رسمی و کلاسی', null],
           ['workshops', 'کارگاه‌های انتخابی (هشتم و نهم)', '۱۲ کارگاه'],

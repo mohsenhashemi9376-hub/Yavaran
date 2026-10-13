@@ -447,7 +447,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
           </div>
 
           {/* Month Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-2 flex-wrap pb-1 -mx-1 px-1">
             {MONTHLY_EVALUATION_PERIODS.filter((p) => !p.key.endsWith('Final')).map((period) => {
               const isActive = activePeriodKey === period.key;
               const title = period.key === 'term1Continuous' ? 'ترم اول' : period.key === 'term2Continuous' ? 'ترم دوم' : period.monthName;

@@ -185,7 +185,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
             </div>
 
             {/* Month Buttons Slider */}
-            <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-md scrollbar-none">
+            <div className="flex items-center gap-1 flex-wrap py-1 max-w-md scrollbar-none">
               {PERSIAN_MONTHS.map((mName, idx) => {
                 const monthNum = idx + 1;
                 const isSelected = selectedMonth === monthNum;

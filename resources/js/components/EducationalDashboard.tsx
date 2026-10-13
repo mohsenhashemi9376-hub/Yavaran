@@ -1179,7 +1179,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
               {/* ۲. فیلتر کلاس و جستجوی دانش‌آموز */}
               <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-2 flex-wrap pb-1">
                   <button
                     type="button"
                     onClick={() => setReportCardClassId('all')}

@@ -1000,7 +1000,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap pb-1 md:pb-0">
               <span className="text-xs font-bold text-slate-500 shrink-0 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 فیلتر کلاس:

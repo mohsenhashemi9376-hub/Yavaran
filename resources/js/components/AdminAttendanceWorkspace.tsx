@@ -57,7 +57,7 @@ const AttendanceTabSwitch: React.FC<{
   sessionsCount: number;
   showStats?: boolean;
 }> = ({ active, onChange, sessionsCount, showStats }) => (
-  <div className="flex items-center gap-2 overflow-x-auto" role="tablist">
+  <div className="flex items-center gap-2 flex-wrap" role="tablist">
     <button
       type="button"
       role="tab"

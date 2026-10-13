@@ -630,7 +630,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
         </div>
 
         {/* Navigation Tabs - دسته‌بندی مفهومی و واضح */}
-        <div className="flex items-center gap-2 overflow-x-auto border-t border-slate-100 pt-4 pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-4 pb-1 scrollbar-none">
           {availableTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
@@ -775,7 +775,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       {currentTab === 'academic_structure' && (
         <div className="space-y-6">
           {/* Sub Navigation Bar for Academic Structure */}
-          <div className="bg-white rounded-2xl p-2 border border-slate-200 shadow-xs flex items-center gap-2 overflow-x-auto scrollbar-none">
+          <div className="bg-white rounded-2xl p-2 border border-slate-200 shadow-xs flex items-center gap-2 flex-wrap scrollbar-none">
             <button
               onClick={() => setAcademicSubTab('academic_year')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${

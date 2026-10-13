@@ -292,7 +292,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
       <div className="bg-white rounded-2xl shadow-sm shadow-slate-200/60 overflow-hidden">
         
         {/* Tab Headers */}
-        <div className="flex border-b border-slate-100 bg-white px-4 pt-3 gap-2 overflow-x-auto">
+        <div className="flex border-b border-slate-100 bg-white px-4 pt-3 gap-2 flex-wrap">
           <button
             onClick={() => setActiveTab('overview')}
             className={`pb-3 px-4 text-sm font-bold transition border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${

@@ -318,4 +318,4 @@ button { transition-property: transform, background-color, border-color, color, 
 .yv-stack td:last-child { border-bottom: 0; }
 .yv-stack td[data-label]::before { content: attr(data-label); flex: 0 0 7rem; font-weight: 700; color: #64748b; font-size: 0.75rem; }
 .yv-stack td > * { min-width: 0; }
-.yv-stack .overflow-x-auto, .yv-stack .yv-fit { overflow: visible; border: 0; }
+.yv-stack .yv-fit { overflow: visible; border: 0; }

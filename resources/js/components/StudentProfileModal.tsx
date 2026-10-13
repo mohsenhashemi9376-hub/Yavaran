@@ -791,7 +791,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
         <div className="flex items-center justify-between px-5 sm:px-7 pt-5 gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
+          <div className="flex items-center gap-1.5 flex-wrap py-1 max-w-full">
             <button
               id="tab-btn-overview"
               onClick={() => {

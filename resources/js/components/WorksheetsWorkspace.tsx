@@ -310,7 +310,7 @@ export const WorksheetsWorkspace: React.FC = () => {
 
       {/* انتخاب کلاس */}
       {myClasses.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex items-center gap-2 flex-wrap pb-1 -mx-1 px-1">
           {myClasses.map((c) => {
             const s = summarizeClassWeek(classStudents.get(c.id) || [], records, weekStart);
             const active = c.id === classId;
@@ -353,7 +353,7 @@ export const WorksheetsWorkspace: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {FILTERS.map((f) => (
               <button
                 key={f.key}
