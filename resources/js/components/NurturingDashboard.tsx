@@ -1,3 +1,4 @@
+import { ObservationInsights } from './ObservationInsights';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -1290,6 +1291,15 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* SECTION 1: «مشاهده‌گری» (Observation Desk) */}
       {/* ========================================================================= */}
       {currentView === 'observation' && (
+        <ObservationInsights
+          allStudents={students}
+          scopedStudents={filteredStudents}
+          classes={availableClasses}
+          observations={observations}
+          staleInfo={new Map(staleObsStudents.map((e) => [e.student.id, e.daysSince]))}
+          isVice={currentUser.role === 'vice_nurturing'}
+          onRecord={handleOpenStudentObs}
+          studentsGrid={
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1410,6 +1420,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             })}
           </div>
         </div>
+          }
+        />
       )}
 
       {/* ========================================================================= */}
