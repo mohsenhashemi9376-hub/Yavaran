@@ -2940,6 +2940,46 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </div>
           </div>
 
+          {/* Chart 3: مشاهده‌گری به تفکیک کلاس (معاون: همه کلاس‌ها، مربی: فقط کلاس خودش) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                <span>مشاهده‌گری به تفکیک کلاس</span>
+              </h3>
+              <span className="text-[11px] text-slate-500">
+                تعداد دانش‌آموزانی که حداقل یک مشاهده برایشان ثبت شده و مجموع مشاهدات هر کلاس
+              </span>
+            </div>
+            {availableClasses.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">کلاسی برای نمایش وجود ندارد.</p>
+            ) : (
+              <div className="space-y-3 pt-1">
+                {availableClasses.map((cls) => {
+                  const clsStudentIds = new Set(students.filter((s) => s.classId === cls.id).map((s) => s.id));
+                  const clsObs = observations.filter((o) => clsStudentIds.has(o.studentId));
+                  const observedCount = new Set(clsObs.map((o) => o.studentId)).size;
+                  const percent = clsStudentIds.size > 0 ? Math.round((observedCount / clsStudentIds.size) * 100) : 0;
+                  return (
+                    <div key={cls.id} className="space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs">
+                        <span className="text-slate-800 font-bold">{cls.name}</span>
+                        <span className="font-mono text-slate-700">
+                          <b className="text-emerald-700">{toPersianDigits(observedCount)}</b> از {toPersianDigits(clsStudentIds.size)} نفر
+                          <span className="text-slate-400 mx-1.5">|</span>
+                          <b className="text-teal-700">{toPersianDigits(clsObs.length)}</b> مشاهده
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${cls.name}: ${observedCount} از ${clsStudentIds.size} نفر`}>
+                        <div className="h-full bg-emerald-600 rounded-full transition-all duration-300" style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Class-by-Class Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-900">
