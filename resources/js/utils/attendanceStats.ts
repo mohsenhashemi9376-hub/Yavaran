@@ -1,5 +1,5 @@
 import type { AttendanceSession, MorningAttendanceRecord, MorningDelayRecord, SchoolAbsenceRecord, Student, StudentAttendanceRecord } from '../types';
-import { toEnglishDigits } from './persianDate';
+import { shamsiStringToDate, toEnglishDigits } from './persianDate';
 import { delayDeductionState, summarizeStudentDelays } from './delays';
 
 /** سقف غیبت غیرموجه در یک ماه، پیش از هشدار به مدیر و معاون انضباطی */
@@ -20,6 +20,12 @@ export interface AbsenceEvent { date: string; excused: boolean }
 const norm = (d: string) => toEnglishDigits(d || '');
 /** «۱۴۰۵/۰۷/۰۹» با صفر پیشین؛ قابل مقایسه‌ی رشته‌ای */
 const dayKey = (date: string): string => norm(date).split('/').map((p, i) => (i === 0 ? p : p.padStart(2, '0'))).join('/');
+
+const tally = (events: { date: string }[]): number[] => {
+  const out = [0, 0, 0, 0, 0, 0, 0];
+  events.forEach((e) => { out[persianWeekdayIndex(e.date)] += 1; });
+  return out;
+};
 
 /** «۱۴۰۵/۰۷» از تاریخ کامل */
 export const monthKeyOf = (date: string): string => norm(date).split('/').slice(0, 2).map((p, i) => (i === 1 ? p.padStart(2, '0') : p)).join('/');
@@ -74,7 +80,13 @@ export interface StudentAttendanceStat {
   totalDelayMinutes: number;
   pendingDeductions: number;
   approvedDeductions: number;
+  /** غیبت (موجه و غیرموجه) و دفعات تأخیر در بازه‌ی انتخابی به‌تفکیک روز هفته؛ اندیس ۰ = شنبه … ۶ = جمعه */
+  weekdayAbsences: number[];
+  weekdayDelays: number[];
 }
+
+/** اندیس روز هفته‌ی شمسی (۰ = شنبه) */
+export const persianWeekdayIndex = (date: string): number => (shamsiStringToDate(norm(date)).getDay() + 1) % 7;
 
 export function buildAttendanceStats(
   students: Student[],
@@ -104,6 +116,8 @@ export function buildAttendanceStats(
       totalDelayMinutes,
       pendingDeductions: state.pending,
       approvedDeductions: state.approved,
+      weekdayAbsences: tally(periodAbsences),
+      weekdayDelays: tally(periodDelays),
     };
   });
 }

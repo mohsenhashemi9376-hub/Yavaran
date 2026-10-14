@@ -159,16 +159,20 @@ export const BulkReferButton: React.FC<{ items: BulkReferItem[]; kind: GenericRe
     if (chosen.length === 0) return;
     setBusy(true);
     try {
-      const res = await apiRequest<{ created: string[]; duplicates: string[] }>('POST', '/api/referrals/bulk', {
-        kind,
-        month: monthKey,
-        note: note.trim() || undefined,
-        items: chosen.map((i) => ({ studentId: i.student.id, summary: i.summary })),
-      });
-      const done = [...(res.created || []), ...(res.duplicates || [])];
-      cache = new Set([...(cache || []), ...done.map((id) => refId(id, kind, monthKey))]);
-      listeners.forEach((l) => l());
-      showToast(`${(res.created || []).length} ارجاع به معاون تربیتی ثبت شد.`, 'success');
+      const created: string[] = [];
+      for (let i = 0; i < chosen.length; i += 100) {
+        const res = await apiRequest<{ created: string[]; duplicates: string[] }>('POST', '/api/referrals/bulk', {
+          kind,
+          month: monthKey,
+          note: note.trim() || undefined,
+          items: chosen.slice(i, i + 100).map((x) => ({ studentId: x.student.id, summary: x.summary })),
+        });
+        const done = [...(res.created || []), ...(res.duplicates || [])];
+        created.push(...(res.created || []));
+        cache = new Set([...(cache || []), ...done.map((id) => refId(id, kind, monthKey))]);
+        listeners.forEach((l) => l());
+      }
+      showToast(`${created.length} ارجاع به معاون تربیتی ثبت شد.`, 'success');
       setOpen(false);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'ثبت ارجاع ناموفق بود.', 'error');
