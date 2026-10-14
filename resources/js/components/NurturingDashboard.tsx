@@ -399,6 +399,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   }, [isCoach, nurturingClasses, classes]);
 
   const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
+  const coachClassIds = useMemo(() => (isCoach ? availableClasses.map((c) => c.id) : undefined), [isCoach, availableClasses]);
 
   // دانش‌آموزان، مشاهدات و ارزیابی‌های مجاز (برای مدیر/معاون: کل مدرسه)
   const students = useMemo(
@@ -1146,7 +1147,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             onOpenStudent={handleOpenStudentObs}
           />
 
-          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} />
+          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
 
           {/* بخش کارهای سریع (Quick Actions) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
