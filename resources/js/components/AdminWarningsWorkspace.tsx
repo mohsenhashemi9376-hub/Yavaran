@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { ReferStudentButton } from './ReferStudentButton';
 
 interface WarningItem {
   student: Student;
@@ -178,7 +179,7 @@ export const AdminWarningsWorkspace: React.FC<AdminWarningsWorkspaceProps> = ({
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                 <a
                   href={`tel:${item.student.parentPhone}`}
                   className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
@@ -187,6 +188,12 @@ export const AdminWarningsWorkspace: React.FC<AdminWarningsWorkspaceProps> = ({
                   <span>تماس با ولی</span>
                 </a>
 
+                <ReferStudentButton
+                  student={item.student}
+                  kind="warning"
+                  summary={`${toPersianDigits(item.absentCount)} غیبت ثبت‌شده؛ نیازمند بررسی و پیگیری.`}
+                  compact
+                />
                 <button
                   type="button"
                   onClick={() => onSelectStudent(item.student)}

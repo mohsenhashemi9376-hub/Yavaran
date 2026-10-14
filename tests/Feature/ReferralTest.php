@@ -39,4 +39,17 @@ class ReferralTest extends TestCase
             $this->actingAs($this->makeUser($role))->postJson('/api/referrals', $this->payload())->assertForbidden();
         }
     }
+
+    public function test_warning_and_attention_kinds_are_accepted_with_note(): void
+    {
+        $nurturing = $this->makeUser('vice_nurturing');
+        $vice = $this->makeUser('vice_disciplinary');
+
+        foreach (['warning', 'attention'] as $kind) {
+            $this->actingAs($vice)->postJson('/api/referrals', $this->payload(['kind' => $kind]))->assertCreated();
+        }
+        $msg = DB::table('notifications')->where('receiver_id', $nurturing->id)->where('ref_id', 'ref-stu-1-warning-1405-07')->value('message');
+        $this->assertStringContainsString('توضیح: پیگیری شود', $msg);
+        $this->actingAs($vice)->postJson('/api/referrals', $this->payload(['kind' => 'bogus']))->assertUnprocessable();
+    }
 }

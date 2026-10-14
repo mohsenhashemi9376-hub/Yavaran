@@ -37,7 +37,7 @@ class ReferralController extends Controller
 
         $data = $request->validate([
             'studentId' => ['required', 'string', 'max:100'],
-            'kind' => ['required', 'in:absence,delay'],
+            'kind' => ['required', 'in:absence,delay,warning,attention'],
             'month' => ['required', 'regex:/^\d{4}\/\d{2}$/'],
             'summary' => ['required', 'string', 'max:300'],
             'note' => ['nullable', 'string', 'max:1000'],
@@ -59,7 +59,12 @@ class ReferralController extends Controller
             return response()->json(['message' => 'معاون تربیتی فعالی برای دریافت ارجاع وجود ندارد.'], 422);
         }
 
-        $title = $data['kind'] === 'absence' ? 'ارجاع دانش‌آموز بابت غیبت غیرموجه' : 'ارجاع دانش‌آموز بابت تأخیر مکرر';
+        $title = match ($data['kind']) {
+            'absence' => 'ارجاع دانش‌آموز بابت غیبت غیرموجه',
+            'delay' => 'ارجاع دانش‌آموز بابت تأخیر مکرر',
+            'warning' => 'ارجاع دانش‌آموز دارای هشدار انضباطی',
+            default => 'ارجاع دانش‌آموز نیازمند توجه',
+        };
         $message = sprintf(
             "معاون انضباطی (%s) دانش‌آموز «%s %s»%s را برای پیگیری تربیتی ارجاع داد.\n%s%s",
             $user->name,

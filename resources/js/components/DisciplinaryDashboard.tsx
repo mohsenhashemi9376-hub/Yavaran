@@ -43,6 +43,7 @@ import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
+import { ReferStudentButton } from './ReferStudentButton';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
 
@@ -641,7 +642,13 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                           </div>
 
                           {/* دکمه‌های اقدام فوری (پیامک به اولیا، تماس تلفنی، برگه احضار) */}
-                          <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                          <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                            <ReferStudentButton
+                              student={item.student}
+                              kind="attention"
+                              summary={`${item.title}: ${item.detail}`}
+                              compact
+                            />
                             {item.student.parentPhone && (
                               <>
                                 <a

@@ -5,6 +5,7 @@ import { Student } from '../types';
 import { computeEarlyWarnings, WARNING_BADGE_CLASS } from '../utils/earlyWarning';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
+import { ReferStudentButton } from './ReferStudentButton';
 
 /** فهرست زنده دانش‌آموزان نیازمند مداخله (سیستم هشدار زودهنگام) */
 export function useEarlyWarnings() {
@@ -74,6 +75,12 @@ export const EarlyWarningDossier: React.FC<ModalProps> = ({ isOpen, onClose, onS
                     </span>
                   ))}
                 </div>
+                <ReferStudentButton
+                  student={w.student}
+                  kind="warning"
+                  summary={`هشدار زودهنگام: ${w.items.map((i) => i.label).join('، ')}`}
+                  compact
+                />
                 {onSelectStudent && (
                   <button
                     type="button"
