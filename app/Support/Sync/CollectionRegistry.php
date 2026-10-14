@@ -34,6 +34,7 @@ final class CollectionRegistry
         'worksheets' => 'worksheet_records',
         'worksheetWeeks' => 'worksheet_weeks',
         'schoolHolidays' => 'school_holidays',
+        'parentMeetings' => 'parent_meetings',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -95,6 +96,28 @@ final class CollectionRegistry
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'parent_meetings') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('parent_meetings', function ($t): void {
+                    $t->string('id', 150)->primary();
+                    $t->string('student_id', 100)->index();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('academic_year', 20)->index();
+                    $t->unsignedTinyInteger('meeting_no')->index();
+                    $t->boolean('father_present')->default(false);
+                    $t->boolean('mother_present')->default(false);
+                    $t->string('meeting_date', 20)->nullable();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                    $t->unique(['student_id', 'academic_year', 'meeting_no'], 'parent_meetings_student_year_no_unique');
                 });
             } catch (\Throwable) {
             }
@@ -444,6 +467,15 @@ final class CollectionRegistry
             ],
             'schoolHolidays' => [
                 'holiday_date' => self::str($d, 'date', 20) ?? '',
+            ],
+            'parentMeetings' => [
+                'student_id' => self::str($d, 'studentId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'academic_year' => self::str($d, 'academicYear', 20) ?? '',
+                'meeting_no' => max(1, min(3, (int) ($d->meetingNo ?? 1))),
+                'father_present' => ! empty($d->father),
+                'mother_present' => ! empty($d->mother),
+                'meeting_date' => self::str($d, 'date', 20),
             ],
             'worksheetWeeks' => [
                 'week_start' => self::str($d, 'weekStart', 20) ?? '',

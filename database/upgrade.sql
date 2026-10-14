@@ -304,3 +304,26 @@ CREATE TABLE IF NOT EXISTS `school_holidays` (
   UNIQUE KEY `school_holidays_holiday_date_unique` (`holiday_date`),
   KEY `school_holidays_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- حضور اولیا در جلسات عمومی اولیاء (سه جلسه در سال)
+CREATE TABLE IF NOT EXISTS `parent_meetings` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `academic_year` varchar(20) NOT NULL,
+  `meeting_no` tinyint unsigned NOT NULL,
+  `father_present` tinyint(1) NOT NULL DEFAULT 0,
+  `mother_present` tinyint(1) NOT NULL DEFAULT 0,
+  `meeting_date` varchar(20) DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `parent_meetings_student_year_no_unique` (`student_id`, `academic_year`, `meeting_no`),
+  KEY `parent_meetings_student_id_index` (`student_id`),
+  KEY `parent_meetings_class_id_index` (`class_id`),
+  KEY `parent_meetings_academic_year_index` (`academic_year`),
+  KEY `parent_meetings_meeting_no_index` (`meeting_no`),
+  KEY `parent_meetings_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

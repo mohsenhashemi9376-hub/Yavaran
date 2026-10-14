@@ -39,6 +39,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'counseling-report', label: 'ثبت گزارش مشاوره‌ای' },
       { key: 'view-nurturing-file', label: 'مشاهده پرونده تربیتی' },
       { key: 'manage-loans', label: 'امانات و لوازم' },
+      { key: 'parent-meetings', label: 'حضور اولیا در جلسات عمومی' },
     ],
   },
   {
@@ -76,7 +77,7 @@ export function defaultPermissionsFor(role: UserRole | string): string[] {
     case 'vice_principal':
       return WITHOUT_SETTINGS;
     case 'vice_disciplinary':
-      return ['manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians', 'analytics-reports', 'manage-loans'];
+      return ['manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians', 'analytics-reports', 'manage-loans', 'parent-meetings'];
     case 'vice_nurturing':
       return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets'];
     case 'coach':
@@ -105,6 +106,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   attendance: ['manage-attendance', 'view-attendance-history'],
   discipline: ['discipline'],
   loans: ['manage-loans'],
+  parent_meetings: ['parent-meetings'],
   audit: ['view-nurturing-file'],
   students: ['view-students'],
   classes: ['manage-classes', 'view-students'],

@@ -65,6 +65,7 @@ import { CoachProfileModal } from './CoachProfileModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { executiveMobileNav, HOME } from './mobileNavConfigs';
 import { LoansWorkspace } from './LoansWorkspace';
+import { ParentMeetingsWorkspace } from './ParentMeetingsWorkspace';
 import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
 import { studentFullName } from '../utils/studentName';
 
@@ -812,6 +813,14 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
               onOpenNewAttendance={onOpenNewAttendance || (() => {})}
               onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')}
+            />
+          )}
+
+          {/* جلسات عمومی اولیاء (currentView === 'parent_meetings') */}
+          {currentView === 'parent_meetings' && (
+            <ParentMeetingsWorkspace
+              onBack={() => setCurrentView(null)}
+              onOpenSidebar={() => setIsMobileSidebarOpen(true)}
             />
           )}
 

@@ -289,6 +289,25 @@ export interface LoanItem {
   createdBy?: string;
 }
 
+/** حضور اولیای یک دانش‌آموز در یکی از سه جلسه‌ی عمومی اولیاء در سال تحصیلی */
+export type ParentMeetingNo = 1 | 2 | 3;
+
+export interface ParentMeetingRecord {
+  id: string; // pm-{سال تحصیلی}-{شماره جلسه}-{studentId}
+  studentId: string;
+  classId: string;
+  academicYear: string; // سال شروع سال تحصیلی، مثل "1405"
+  meetingNo: ParentMeetingNo;
+  father: boolean; // پدر حضور داشته است
+  mother: boolean; // مادر حضور داشته است
+  /** تاریخ ثبت (شمسی)؛ خودکار و توسط سرور تعیین می‌شود و پس از اولین ثبت تغییر نمی‌کند */
+  date: string;
+  note?: string | null;
+  recordedBy?: string;
+  recordedById?: string;
+  updatedAt?: string;
+}
+
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */
 export interface GradePeriod {
   id: string; // = code

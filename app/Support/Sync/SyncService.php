@@ -101,6 +101,9 @@ final class SyncService
                 if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
+                if ($collection === 'parentMeetings') {
+                    $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user);
+                }
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
 
@@ -277,6 +280,41 @@ final class SyncService
         $data->setBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
         \App\Support\SchoolCalendar::reset();
+    }
+
+    /**
+     * حضور اولیا در جلسه‌ی عمومی: شناسه قطعی است (یک رکورد برای هر دانش‌آموز در هر جلسه‌ی سال تحصیلی جاری)،
+     * کلاس از دیتابیس و سال تحصیلی و تاریخ ثبت از ساعت سرور تعیین می‌شود؛ تاریخ پس از اولین ثبت تغییر نمی‌کند.
+     */
+    private function normalizeParentMeeting(object $data, string $id, ?object $old, User $user): void
+    {
+        $no = isset($data->meetingNo) && is_numeric($data->meetingNo) ? (int) $data->meetingNo : 0;
+        if ($no < 1 || $no > 3) {
+            abort(422, 'شماره‌ی جلسه‌ی اولیاء نامعتبر است (فقط جلسه‌ی اول تا سوم).');
+        }
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        $year = (string) \App\Support\AcademicYear::current()[0];
+        if ($id !== 'pm-'.$year.'-'.$no.'-'.$studentId) {
+            abort(422, 'شناسه‌ی رکورد حضور اولیا نامعتبر است.');
+        }
+
+        [$jy, $jm, $jd] = \App\Support\Jalali::fromCarbon(now('Asia/Tehran'));
+        $oldDate = $old && isset($old->date) && is_string($old->date) && preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $old->date) ? $old->date : null;
+
+        $data->academicYear = $year;
+        $data->meetingNo = $no;
+        $data->classId = (string) $classId;
+        $data->father = ! empty($data->father);
+        $data->mother = ! empty($data->mother);
+        $data->date = $oldDate ?? sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
+        $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 300) : null;
+        $data->recordedById = (string) $user->id;
+        $data->recordedBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
     }
 
     /**

@@ -39,6 +39,7 @@ final class Permissions
                 'counseling-report' => 'ثبت گزارش مشاوره‌ای',
                 'view-nurturing-file' => 'مشاهده پرونده تربیتی',
                 'manage-loans' => 'امانات و لوازم',
+                'parent-meetings' => 'حضور اولیا در جلسات عمومی',
             ],
         ],
         'base' => [
@@ -77,7 +78,7 @@ final class Permissions
             'vice_principal' => $withoutSettings,
             'vice_disciplinary' => [
                 'manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians',
-                'analytics-reports', 'manage-loans',
+                'analytics-reports', 'manage-loans', 'parent-meetings',
             ],
             'vice_nurturing' => [
                 'view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file',

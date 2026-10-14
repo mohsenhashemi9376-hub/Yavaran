@@ -25,7 +25,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems', 'parentMeetings',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -112,6 +112,11 @@ final class AccessPolicy
             return $this->isManager() && $this->user->hasPermission('manage-loans');
         }
 
+        // حضور اولیا در جلسات عمومی: فقط مدیر و معاونین دارای مجوز
+        if ($collection === 'parentMeetings') {
+            return $this->isManager() && $this->user->hasPermission('parent-meetings');
+        }
+
         // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
         if (in_array($collection, self::WORKSHEETS, true)) {
             return $this->user->hasPermission('view-worksheets') || $this->user->hasPermission('manage-worksheets');
@@ -142,6 +147,7 @@ final class AccessPolicy
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
+        'parentMeetings' => 'parent-meetings',
         'schoolHolidays' => 'discipline',
         'worksheets' => 'manage-worksheets',
         'worksheetWeeks' => 'manage-worksheets',

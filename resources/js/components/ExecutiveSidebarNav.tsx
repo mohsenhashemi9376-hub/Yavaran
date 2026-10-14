@@ -13,6 +13,7 @@ import {
   FileSpreadsheet, 
   ClipboardList,
   Package,
+  UsersRound,
   Settings,
   X, 
   ChevronLeft,
@@ -27,6 +28,7 @@ export type ExecutiveViewType =
   | 'attendance' 
   | 'discipline' 
   | 'loans' 
+  | 'parent_meetings'
   | 'teachers' 
   | 'coaches' 
   | 'warnings' 
@@ -159,6 +161,12 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
           icon: Package,
           count: overdueLoanCount > 0 ? overdueLoanCount : undefined,
           isWarning: true,
+        },
+        {
+          id: 'parent_meetings',
+          label: 'جلسات عمومی اولیاء',
+          tooltip: 'جلسات عمومی اولیاء',
+          icon: UsersRound,
         },
       ],
     },
