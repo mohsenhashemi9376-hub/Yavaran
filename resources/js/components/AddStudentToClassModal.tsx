@@ -51,6 +51,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
   const [nationalId, setNationalId] = useState('');
   const [studentCode, setStudentCode] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [motherPhone, setMotherPhone] = useState('');
   const [errorText, setErrorText] = useState<string | null>(null);
 
   // Batch text
@@ -108,7 +109,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
       setErrorText('لطفاً نام و نام خانوادگی دانش‌آموز را وارد کنید.');
       return;
     }
-    const fieldError = nationalIdError(nationalId) || phoneError(parentPhone);
+    const fieldError = nationalIdError(nationalId) || phoneError(parentPhone) || phoneError(motherPhone);
     if (fieldError) {
       setErrorText(fieldError);
       return;
@@ -124,6 +125,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
         nationalId: nationalId.trim() || '',
         studentCode: generatedCode,
         parentPhone: parentPhone.trim() || '09120000000',
+        ...(motherPhone.trim() ? { motherPhone: motherPhone.trim() } : {}),
         classId: classData.id,
       });
 
@@ -454,6 +456,20 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                     type="tel"
                     value={parentPhone}
                     onChange={(e) => setParentPhone(e.target.value)}
+                    placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-teal-700 outline-none font-mono text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    شماره همراه مادر (اختیاری)
+                  </label>
+                  <input
+                    type="tel"
+                    value={motherPhone}
+                    onChange={(e) => setMotherPhone(e.target.value)}
                     placeholder="۰۹۱۲۳۴۵۶۷۸۹"
                     className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-teal-700 outline-none font-mono text-left"
                     dir="ltr"

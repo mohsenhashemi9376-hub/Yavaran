@@ -152,6 +152,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const [editStudentCode, setEditStudentCode] = useState('');
   const [editNationalId, setEditNationalId] = useState('');
   const [editParentPhone, setEditParentPhone] = useState('');
+  const [editMotherPhone, setEditMotherPhone] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   // Synchronize state when modal opens or student changes
@@ -165,6 +166,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditStudentCode(currentStudent.studentCode || '');
       setEditNationalId(currentStudent.nationalId || '');
       setEditParentPhone(currentStudent.parentPhone || '');
+      setEditMotherPhone(currentStudent.motherPhone || '');
       setEditNotes(currentStudent.notes || '');
     }
   }, [isOpen, currentStudent?.id, initialTab]);
@@ -513,7 +515,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     e.preventDefault();
     if (isSubmitting) return;
 
-    const fieldError = nationalIdError(editNationalId) || phoneError(editParentPhone);
+    const fieldError = nationalIdError(editNationalId) || phoneError(editParentPhone) || phoneError(editMotherPhone);
     if (fieldError) {
       showToast('اطلاعات نامعتبر', fieldError, 'error');
       return;
@@ -528,6 +530,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         studentCode: editStudentCode.trim(),
         nationalId: editNationalId.trim(),
         parentPhone: editParentPhone.trim(),
+        motherPhone: editMotherPhone.trim(),
         notes: editNotes.trim(),
       });
       showToast('ویرایش پرونده', `اطلاعات پرونده ${editFirstName.trim()} ${editLastName.trim()} با موفقیت به‌روزرسانی شد.`, 'success');
@@ -905,6 +908,17 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
               <span className="font-mono">{toPersianDigits(currentStudent.parentPhone)}</span>
             </a>
           )}
+          {currentStudent.motherPhone && (
+            <a
+              href={`tel:${currentStudent.motherPhone}`}
+              className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100 transition flex items-center gap-1 shrink-0"
+              title="تماس تلفنی با مادر دانش‌آموز"
+            >
+              <Phone className="w-3 h-3 text-rose-600" />
+              <span>مادر:</span>
+              <span className="font-mono">{toPersianDigits(currentStudent.motherPhone)}</span>
+            </a>
+          )}
         </div>
 
         {/* =========================================================================
@@ -1042,6 +1056,21 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         )}
                       </div>
                     </div>
+
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="text-slate-400 text-[11px]">شماره تماس مادر</div>
+                      <div className="font-bold text-slate-800 text-sm mt-1 font-mono flex items-center justify-between">
+                        <span>{toPersianDigits(currentStudent.motherPhone || 'ثبت نشده')}</span>
+                        {currentStudent.motherPhone && (
+                          <a
+                            href={`tel:${currentStudent.motherPhone}`}
+                            className="text-indigo-600 hover:text-indigo-800 text-[11px]"
+                          >
+                            تماس مستقیم
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Notes / Special remarks */}
@@ -1135,6 +1164,20 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         type="text"
                         value={editParentPhone}
                         onChange={(e) => setEditParentPhone(e.target.value)}
+                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        شماره همراه مادر
+                      </label>
+                      <input
+                        type="text"
+                        value={editMotherPhone}
+                        onChange={(e) => setEditMotherPhone(e.target.value)}
+                        placeholder="اختیاری"
                         className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
                         dir="ltr"
                       />

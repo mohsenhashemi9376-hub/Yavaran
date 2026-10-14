@@ -151,7 +151,7 @@ final class DataExporter
                 }
                 $d = json_decode($row->data, true);
                 if (is_array($d)) {
-                    $rows[] = json_encode(array_intersect_key($d, array_flip(self::TEACHER_STUDENT_FIELDS)) + ['studentCode' => '', 'nationalId' => '', 'parentPhone' => ''], SyncService::JSON_FLAGS);
+                    $rows[] = json_encode(array_intersect_key($d, array_flip(self::TEACHER_STUDENT_FIELDS)) + ['studentCode' => '', 'nationalId' => '', 'parentPhone' => '', 'motherPhone' => ''], SyncService::JSON_FLAGS);
                 }
             }
 
@@ -250,7 +250,7 @@ final class DataExporter
                         continue;
                     }
                     // فیلدهای متنیِ مورد انتظار رابط کاربری خالی می‌مانند (تا کد قدیمیِ جستجو و نمایش خطا ندهد)
-                    $rows[] = json_encode(array_intersect_key($d, array_flip(self::TEACHER_STUDENT_FIELDS)) + ['studentCode' => '', 'nationalId' => '', 'parentPhone' => ''], SyncService::JSON_FLAGS);
+                    $rows[] = json_encode(array_intersect_key($d, array_flip(self::TEACHER_STUDENT_FIELDS)) + ['studentCode' => '', 'nationalId' => '', 'parentPhone' => '', 'motherPhone' => ''], SyncService::JSON_FLAGS);
                 }
 
                 return $rows;
