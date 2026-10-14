@@ -43,6 +43,7 @@ import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
+import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferStudentButton, BulkReferButton } from './ReferStudentButton';
 import { ReferralsHistoryButton } from './ReferralsHistory';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
@@ -387,6 +388,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               />
 
               <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
+
+              <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} />
 
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -1,5 +1,6 @@
 import { ObservationInsights } from './ObservationInsights';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
+import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
@@ -1144,6 +1145,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             onOpenAll={() => setCurrentView('observation')}
             onOpenStudent={handleOpenStudentObs}
           />
+
+          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} />
 
           {/* بخش کارهای سریع (Quick Actions) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
