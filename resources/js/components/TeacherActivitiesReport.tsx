@@ -3,6 +3,7 @@ import { ArrowRight, Clock, ChevronDown, Menu } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { getDayOfWeekFromShamsi, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { academicMonths, currentMonthKey, formatHours, monthKeyOf } from '../utils/teacherActivities';
+import { FitTable } from './ui/FitTable';
 
 interface Props {
   onBack: () => void;
@@ -83,7 +84,7 @@ export const TeacherActivitiesReport: React.FC<Props> = ({ onBack, onOpenSidebar
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="w-full overflow-x-auto">
+        <FitTable className="w-full">
           <table className="w-full text-right text-xs min-w-[650px]">
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
               <tr>
@@ -158,7 +159,7 @@ export const TeacherActivitiesReport: React.FC<Props> = ({ onBack, onOpenSidebar
               ))}
             </tbody>
           </table>
-        </div>
+        </FitTable>
         {rows.length === 0 && <div className="py-10 text-center text-xs text-slate-400">در این ماه فعالیتی ثبت نشده است.</div>}
       </div>
     </div>

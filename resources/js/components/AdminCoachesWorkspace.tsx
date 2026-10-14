@@ -14,6 +14,7 @@ import {
   Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { FitTable } from './ui/FitTable';
 
 interface AdminCoachesWorkspaceProps {
   allCoaches: User[];
@@ -301,7 +302,7 @@ export const AdminCoachesWorkspace: React.FC<AdminCoachesWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <FitTable className="">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
@@ -411,7 +412,7 @@ export const AdminCoachesWorkspace: React.FC<AdminCoachesWorkspaceProps> = ({
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         )}
 
         {/* 3. Footer */}

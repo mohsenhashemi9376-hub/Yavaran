@@ -113,6 +113,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   // فهرست «درس • کلاس» های قابل ثبت برای کاربر جاری
   // ------------------------------------------------------------------
   const courseOptions = useMemo<CourseOption[]>(() => {
+    const ownOnly = currentUser.role === 'vice_nurturing' || currentUser.role === 'coach';
     const basePool: SchoolClass[] = accessibleClasses.length > 0 ? accessibleClasses : classes;
     const pool: SchoolClass[] = [...basePool, ...myWorkshopClasses.filter((w) => !basePool.some((c) => c.id === w.id))];
     const poolById = new Map(pool.map((c) => [c.id, c]));
@@ -139,6 +140,16 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           if (cls) push(cls, a.subjectId, a.subjectName);
         })
       );
+    } else if (ownOnly) {
+      // معاون تربیتی و مربی فقط کلاس‌هایی را می‌بینند که خودشان تدریس می‌کنند (نه همه‌ی کلاس‌های مدرسه)
+      const own = new Set(currentUser.teachingClassIds || []);
+      const names = String(currentUser.teachingSubject || currentUser.subject || '').split(/[،,]/).map((n) => n.trim()).filter(Boolean);
+      pool
+        .filter((cls) => !cls.isWorkshop && own.has(cls.id))
+        .forEach((cls) => {
+          if (names.length === 0) push(cls, undefined, 'درس عمومی');
+          names.forEach((n) => push(cls, academicSubjects.find((sub) => sub.name === n)?.id, n));
+        });
     } else {
       // مدیر/معاونین: همه دروس مرتبط با کلاس‌های قابل دسترس
       pool
@@ -171,7 +182,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی');
       }
     }
-    if (list.length === 0) {
+    if (list.length === 0 && !ownOnly) {
       pool.filter((c) => !c.isWorkshop).forEach((cls) => push(cls, undefined, targetSubject || currentUser.subject || 'درس عمومی'));
     }
     return list;

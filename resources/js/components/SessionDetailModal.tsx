@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface SessionDetailModalProps {
   isOpen: boolean;
@@ -392,7 +393,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             </div>
 
             {/* Students Table */}
-            <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
+            <FitTable className="border border-slate-200 rounded-xl shadow-xs">
               <table className="w-full text-right text-xs">
                 <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                   <tr>
@@ -523,7 +524,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                   )}
                 </tbody>
               </table>
-            </div>
+            </FitTable>
           </div>
 
         </div>

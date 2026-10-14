@@ -36,6 +36,7 @@ import {
   Area 
 } from 'recharts';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface ClassMonthlyGradesSectionProps {
   classData: SchoolClass;
@@ -446,7 +447,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
           </div>
 
           {/* Month Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-2 flex-wrap pb-1 -mx-1 px-1">
             {MONTHLY_EVALUATION_PERIODS.filter((p) => !p.key.endsWith('Final')).map((period) => {
               const isActive = activePeriodKey === period.key;
               const title = period.key === 'term1Continuous' ? 'ترم اول' : period.key === 'term2Continuous' ? 'ترم دوم' : period.monthName;
@@ -543,7 +544,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <FitTable className="">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/70 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
@@ -640,7 +641,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                 )}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         </div>
       )}
 
@@ -668,7 +669,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <FitTable className="">
             <table className="w-full text-right text-xs whitespace-nowrap">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
@@ -727,7 +728,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                 ))}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         </div>
       )}
 

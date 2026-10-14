@@ -301,6 +301,8 @@ interface SchoolContextType {
   showToast: (messageOrTitle: string, messageOrType?: string, type?: 'success' | 'error' | 'info') => void;
   /** وضعیت ذخیره‌ی تغییرات روی سرور */
   syncState: 'idle' | 'saving' | 'error';
+  /** کد وضعیت آخرین ذخیره‌ی ناموفق (۰ = قطع ارتباط، ۴۰۳ = نبود دسترسی) */
+  syncErrorStatus: number | null;
   hideToast: () => void;
   confirmDialog: {
     isOpen: boolean;
@@ -527,9 +529,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }
   const syncEngine = syncRef.current;
   const [syncState, setSyncState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [syncErrorStatus, setSyncErrorStatus] = useState<number | null>(null);
   useEffect(() => {
     setSyncState(syncEngine.state);
-    return syncEngine.subscribe(() => setSyncState(syncEngine.state));
+    return syncEngine.subscribe(() => { setSyncState(syncEngine.state); setSyncErrorStatus(syncEngine.lastErrorStatus); });
   }, [syncEngine]);
 
   const applyServerData = useCallback((payload: BootstrapPayload) => {
@@ -2880,6 +2883,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         confirmDialog,
         showConfirm,
         syncState,
+        syncErrorStatus,
         clearBaselessHomeworkStatuses,
         countBaselessHomeworkStatuses: () => Array.from(baselessHomeworkRecords(sessions).values()).reduce((n, ids) => n + ids.length, 0),
         closeConfirm,

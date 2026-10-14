@@ -80,6 +80,7 @@ import * as XLSX from 'xlsx';
 import { MobileBottomNav } from './MobileBottomNav';
 import { educationalMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface EducationalDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
@@ -911,7 +912,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <FitTable className="">
                 <table className="w-full text-right text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-600 font-bold bg-white">
@@ -1054,7 +1055,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     )}
                   </tbody>
                 </table>
-              </div>
+              </FitTable>
             </div>
 
           </div>
@@ -1178,7 +1179,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
               {/* ۲. فیلتر کلاس و جستجوی دانش‌آموز */}
               <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-2 flex-wrap pb-1">
                   <button
                     type="button"
                     onClick={() => setReportCardClassId('all')}
@@ -1413,7 +1414,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
             {/* ۳. جدول موارد پیگیری */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
+              <FitTable className="">
                 <table className="w-full text-right text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/70">
@@ -1488,7 +1489,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       ))}
                   </tbody>
                 </table>
-              </div>
+              </FitTable>
             </div>
 
           </div>

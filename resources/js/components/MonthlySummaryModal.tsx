@@ -16,6 +16,7 @@ import {
   Award
 } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface MonthlySummaryModalProps {
   isOpen: boolean;
@@ -184,7 +185,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
             </div>
 
             {/* Month Buttons Slider */}
-            <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-md scrollbar-none">
+            <div className="flex items-center gap-1 flex-wrap py-1 max-w-md scrollbar-none">
               {PERSIAN_MONTHS.map((mName, idx) => {
                 const monthNum = idx + 1;
                 const isSelected = selectedMonth === monthNum;
@@ -312,7 +313,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                 در ماه {selectedMonthName} هیچ جلسه درسی برای این کلاس ثبت نشده است.
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
+              <FitTable className="border border-slate-200 rounded-xl shadow-xs">
                 <table className="w-full text-right text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                     <tr>
@@ -409,7 +410,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </FitTable>
             )}
           </div>
 

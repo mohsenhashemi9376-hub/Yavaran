@@ -18,6 +18,7 @@ import {
   Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { FitTable } from './ui/FitTable';
 
 interface AdminTeachersWorkspaceProps {
   allTeachers: User[];
@@ -316,8 +317,8 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          <div>
-            <table className="yv-fit-table w-full text-right text-xs">
+          <FitTable>
+            <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">نام و نام خانوادگی</th>
@@ -439,7 +440,7 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
         )}
 
         {/* 3. Footer */}

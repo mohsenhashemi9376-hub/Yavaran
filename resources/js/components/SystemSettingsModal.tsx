@@ -144,7 +144,7 @@ export const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen
         </div>
 
         {/* Navigation Tabs */}
-        <div className="px-5 pt-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto shrink-0">
+        <div className="px-5 pt-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2 flex-wrap shrink-0">
           <button
             onClick={() => setActiveTab('backup')}
             className={`px-4 py-2.5 rounded-t-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 ${

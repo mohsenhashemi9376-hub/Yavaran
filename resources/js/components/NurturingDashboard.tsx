@@ -1,3 +1,7 @@
+import { ObservationInsights } from './ObservationInsights';
+import { ObservationHomeWidgets } from './ObservationHomeWidgets';
+import { DisciplineExcellenceCard } from './DisciplineExcellence';
+import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -89,6 +93,7 @@ import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
 import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -394,6 +399,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   }, [isCoach, nurturingClasses, classes]);
 
   const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
+  const coachClassIds = useMemo(() => (isCoach ? availableClasses.map((c) => c.id) : undefined), [isCoach, availableClasses]);
 
   // دانش‌آموزان، مشاهدات و ارزیابی‌های مجاز (برای مدیر/معاون: کل مدرسه)
   const students = useMemo(
@@ -999,7 +1005,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap pb-1 md:pb-0">
               <span className="text-xs font-bold text-slate-500 shrink-0 flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" />
                 فیلتر کلاس:
@@ -1126,6 +1132,22 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </div>
             </button>
           </div>
+
+          {isNurturingVice && (
+            <div className="flex justify-end">
+              <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
+            </div>
+          )}
+          <ObservationHomeWidgets
+            students={students}
+            classes={availableClasses}
+            observations={observations}
+            isVice={currentUser.role === 'vice_nurturing'}
+            onOpenAll={() => setCurrentView('observation')}
+            onOpenStudent={handleOpenStudentObs}
+          />
+
+          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
 
           {/* بخش کارهای سریع (Quick Actions) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
@@ -1289,6 +1311,15 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* SECTION 1: «مشاهده‌گری» (Observation Desk) */}
       {/* ========================================================================= */}
       {currentView === 'observation' && (
+        <ObservationInsights
+          allStudents={students}
+          scopedStudents={filteredStudents}
+          classes={availableClasses}
+          observations={observations}
+          staleInfo={new Map(staleObsStudents.map((e) => [e.student.id, e.daysSince]))}
+          isVice={currentUser.role === 'vice_nurturing'}
+          onRecord={handleOpenStudentObs}
+          studentsGrid={
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1409,6 +1440,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             })}
           </div>
         </div>
+          }
+        />
       )}
 
       {/* ========================================================================= */}
@@ -1682,6 +1715,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </button>
             </div>
           </div>
+
+          {isNurturingVice && <StudentReferralsCard studentId={selectedDossierStudent.id} />}
 
           {/* 8 Specific Boxes Requested by the User */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2939,12 +2974,52 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </div>
           </div>
 
+          {/* Chart 3: مشاهده‌گری به تفکیک کلاس (معاون: همه کلاس‌ها، مربی: فقط کلاس خودش) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                <span>مشاهده‌گری به تفکیک کلاس</span>
+              </h3>
+              <span className="text-[11px] text-slate-500">
+                تعداد دانش‌آموزانی که حداقل یک مشاهده برایشان ثبت شده و مجموع مشاهدات هر کلاس
+              </span>
+            </div>
+            {availableClasses.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center">کلاسی برای نمایش وجود ندارد.</p>
+            ) : (
+              <div className="space-y-3 pt-1">
+                {availableClasses.map((cls) => {
+                  const clsStudentIds = new Set(students.filter((s) => s.classId === cls.id).map((s) => s.id));
+                  const clsObs = observations.filter((o) => clsStudentIds.has(o.studentId));
+                  const observedCount = new Set(clsObs.map((o) => o.studentId)).size;
+                  const percent = clsStudentIds.size > 0 ? Math.round((observedCount / clsStudentIds.size) * 100) : 0;
+                  return (
+                    <div key={cls.id} className="space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs">
+                        <span className="text-slate-800 font-bold">{cls.name}</span>
+                        <span className="font-mono text-slate-700">
+                          <b className="text-emerald-700">{toPersianDigits(observedCount)}</b> از {toPersianDigits(clsStudentIds.size)} نفر
+                          <span className="text-slate-400 mx-1.5">|</span>
+                          <b className="text-teal-700">{toPersianDigits(clsObs.length)}</b> مشاهده
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden" role="img" aria-label={`${cls.name}: ${observedCount} از ${clsStudentIds.size} نفر`}>
+                        <div className="h-full bg-emerald-600 rounded-full transition-all duration-300" style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Class-by-Class Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="p-4 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-900">
               وضعیت مشارکت تربیتی به تفکیک کلاس‌ها
             </div>
-            <div className="overflow-x-auto">
+            <FitTable className="">
               <table className="w-full text-xs text-right">
                 <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-100">
                   <tr>
@@ -2976,7 +3051,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                   })}
                 </tbody>
               </table>
-            </div>
+            </FitTable>
           </div>
         </div>
       )}

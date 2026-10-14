@@ -61,6 +61,7 @@ import { hasPermission } from '../utils/permissions';
 import { studentWorksheetHistory, weekTitle, WORKSHEET_STATUS_LABEL } from '../utils/worksheets';
 import { studentFullName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
+import { FitTable } from './ui/FitTable';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets';
 
@@ -151,6 +152,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const [editStudentCode, setEditStudentCode] = useState('');
   const [editNationalId, setEditNationalId] = useState('');
   const [editParentPhone, setEditParentPhone] = useState('');
+  const [editMotherPhone, setEditMotherPhone] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   // Synchronize state when modal opens or student changes
@@ -164,6 +166,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditStudentCode(currentStudent.studentCode || '');
       setEditNationalId(currentStudent.nationalId || '');
       setEditParentPhone(currentStudent.parentPhone || '');
+      setEditMotherPhone(currentStudent.motherPhone || '');
       setEditNotes(currentStudent.notes || '');
     }
   }, [isOpen, currentStudent?.id, initialTab]);
@@ -512,7 +515,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     e.preventDefault();
     if (isSubmitting) return;
 
-    const fieldError = nationalIdError(editNationalId) || phoneError(editParentPhone);
+    const fieldError = nationalIdError(editNationalId) || phoneError(editParentPhone) || phoneError(editMotherPhone);
     if (fieldError) {
       showToast('اطلاعات نامعتبر', fieldError, 'error');
       return;
@@ -527,6 +530,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         studentCode: editStudentCode.trim(),
         nationalId: editNationalId.trim(),
         parentPhone: editParentPhone.trim(),
+        motherPhone: editMotherPhone.trim(),
         notes: editNotes.trim(),
       });
       showToast('ویرایش پرونده', `اطلاعات پرونده ${editFirstName.trim()} ${editLastName.trim()} با موفقیت به‌روزرسانی شد.`, 'success');
@@ -790,7 +794,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
         <div className="flex items-center justify-between px-5 sm:px-7 pt-5 gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
+          <div className="flex items-center gap-1.5 flex-wrap py-1 max-w-full">
             <button
               id="tab-btn-overview"
               onClick={() => {
@@ -902,6 +906,17 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             >
               <Phone className="w-3 h-3 text-emerald-600" />
               <span className="font-mono">{toPersianDigits(currentStudent.parentPhone)}</span>
+            </a>
+          )}
+          {currentStudent.motherPhone && (
+            <a
+              href={`tel:${currentStudent.motherPhone}`}
+              className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100 transition flex items-center gap-1 shrink-0"
+              title="تماس تلفنی با مادر دانش‌آموز"
+            >
+              <Phone className="w-3 h-3 text-rose-600" />
+              <span>مادر:</span>
+              <span className="font-mono">{toPersianDigits(currentStudent.motherPhone)}</span>
             </a>
           )}
         </div>
@@ -1041,6 +1056,21 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         )}
                       </div>
                     </div>
+
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="text-slate-400 text-[11px]">شماره تماس مادر</div>
+                      <div className="font-bold text-slate-800 text-sm mt-1 font-mono flex items-center justify-between">
+                        <span>{toPersianDigits(currentStudent.motherPhone || 'ثبت نشده')}</span>
+                        {currentStudent.motherPhone && (
+                          <a
+                            href={`tel:${currentStudent.motherPhone}`}
+                            className="text-indigo-600 hover:text-indigo-800 text-[11px]"
+                          >
+                            تماس مستقیم
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Notes / Special remarks */}
@@ -1134,6 +1164,20 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         type="text"
                         value={editParentPhone}
                         onChange={(e) => setEditParentPhone(e.target.value)}
+                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        شماره همراه مادر
+                      </label>
+                      <input
+                        type="text"
+                        value={editMotherPhone}
+                        onChange={(e) => setEditMotherPhone(e.target.value)}
+                        placeholder="اختیاری"
                         className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
                         dir="ltr"
                       />
@@ -1297,7 +1341,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                       : 'سابقه‌ای برای این دانش‌آموز ثبت نشده است.'}
                 </div>
               ) : (
-                <div className="w-full border border-slate-200 rounded-2xl overflow-x-auto shadow-2xs">
+                <FitTable className="w-full border border-slate-200 rounded-2xl shadow-2xs">
                   <table className="w-full min-w-[750px] text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
@@ -1356,7 +1400,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </FitTable>
               )}
             </div>
           )}
@@ -1545,7 +1589,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                     <p>هنوز نمره رسمی برای این دانش‌آموز ثبت نشده است.</p>
                   </div>
                 ) : (
-                  <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs">
+                  <FitTable className="border border-slate-200 rounded-xl shadow-2xs">
                     <table className="w-full text-right text-xs">
                       <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] sm:text-xs">
                         <tr>
@@ -1617,7 +1661,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </FitTable>
                 )}
               </div>
 

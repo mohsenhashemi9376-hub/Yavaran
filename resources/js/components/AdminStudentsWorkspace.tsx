@@ -19,6 +19,7 @@ import {
 import { useSchool } from '../context/SchoolContext';
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
+import { FitTable } from './ui/FitTable';
 
 interface AdminStudentsWorkspaceProps {
   students: Student[];
@@ -249,7 +250,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
           </div>
         ) : (
           <>
-          <div className="hidden md:block overflow-x-auto">
+          <FitTable className="hidden md:block">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
@@ -360,7 +361,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
                 })}
               </tbody>
             </table>
-          </div>
+          </FitTable>
 
           {/* نمای کارتی موبایل */}
           <ul className="md:hidden p-3 space-y-3">

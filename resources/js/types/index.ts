@@ -80,6 +80,8 @@ export interface Student {
   fatherName?: string;
   parentPhone: string;
   fatherPhone?: string; // alias for parentPhone
+  /** شماره تماس مادر (اختیاری) */
+  motherPhone?: string;
   avatar?: string;
   notes?: string;
   disciplineScore?: number; // نمره انضباط (پایه ۲۰)

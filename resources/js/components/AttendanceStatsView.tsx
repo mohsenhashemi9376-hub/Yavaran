@@ -13,15 +13,18 @@ import { AttendanceAlertsCard, referralRefId } from './AttendanceAlertsCard';
 import { TrendTile } from './Sparkline';
 import { attendanceTrends, attendanceDetails } from '../utils/trends';
 import { TrendDetailModal } from './TrendDetailModal';
+import { ShamsiDatePicker } from './ShamsiDatePicker';
+import { BulkReferButton } from './ReferStudentButton';
+import { dateToShamsiString, shamsiStringToDate } from '../utils/persianDate';
 import type { Student } from '../types';
 
 /** آمار تجمیعی هر دانش‌آموز + هشدارهای ماهانه؛ مشترک بین صفحه‌ی آمار و داشبوردها */
-export function useAttendanceStats(period: 'month' | 'all' = 'month') {
+export function useAttendanceStats(period: 'month' | 'all' | 'range' = 'month', range?: { from?: string; to?: string }) {
   const { students, morningDelays, morningAttendance, schoolAbsences, sessions } = useSchool();
   const monthKey = useMemo(() => monthKeyOf(getTodayShamsi().formattedDate), []);
   const stats = useMemo(
-    () => buildAttendanceStats(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, { monthKey, period }),
-    [students, morningDelays, morningAttendance, schoolAbsences, sessions, monthKey, period]
+    () => buildAttendanceStats(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, { monthKey, period, from: range?.from, to: range?.to }),
+    [students, morningDelays, morningAttendance, schoolAbsences, sessions, monthKey, period, range?.from, range?.to]
   );
   return { stats, monthKey };
 }
@@ -90,12 +93,78 @@ interface Props {
   onSelectStudent?: (s: Student) => void;
 }
 
+type RangeKey = 'unexcused' | 'excused' | 'totalAbs' | 'delays' | 'minutes';
+const RANGE_FIELDS: ReadonlyArray<readonly [RangeKey, string, string]> = [
+  ['unexcused', 'غیبت غیرموجه', 'روز'],
+  ['excused', 'غیبت موجه', 'روز'],
+  ['totalAbs', 'مجموع غیبت', 'روز'],
+  ['delays', 'دفعات تأخیر', 'بار'],
+  ['minutes', 'میزان تأخیر', 'دقیقه'],
+];
+const EMPTY_RANGES: Record<RangeKey, { min: string; max: string }> = {
+  unexcused: { min: '', max: '' }, excused: { min: '', max: '' }, totalAbs: { min: '', max: '' }, delays: { min: '', max: '' }, minutes: { min: '', max: '' },
+};
+
+const WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+
+interface FilterSnapshot {
+  period: 'month' | 'all' | 'range';
+  dateFrom: string; dateTo: string;
+  q: string; classId: string;
+  rng: Record<RangeKey, { min: string; max: string }>;
+  onlyPending: boolean;
+  wd: string; wdKind: 'absence' | 'delay'; wdMin: string;
+  sort: 'minutes' | 'delays' | 'unexcused' | 'name';
+}
+interface SavedFilter { id: string; name: string; snap: FilterSnapshot }
+const SAVED_KEY = 'yv-att-filters';
+const loadSaved = (): SavedFilter[] => {
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch { return []; }
+};
+
+/** بازه‌ی هم‌طول قبل از بازه‌ی جاری برای مقایسه؛ برای «کل دوره» مقایسه‌ای نیست */
+const previousRange = (period: 'month' | 'all' | 'range', monthKey: string, from: string, to: string): { from: string; to: string } | null => {
+  if (period === 'month') {
+    const [y, m] = monthKey.split('/').map(Number);
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    const k = `${py}/${String(pm).padStart(2, '0')}`;
+    return { from: `${k}/01`, to: `${k}/31` };
+  }
+  if (period === 'range' && from && to) {
+    const a = shamsiStringToDate(from).getTime();
+    const b = shamsiStringToDate(to).getTime();
+    if (!(b >= a)) return null;
+    const days = Math.round((b - a) / 86400000) + 1;
+    const prevTo = new Date(a - 86400000);
+    const prevFrom = new Date(a - days * 86400000);
+    return { from: dateToShamsiString(prevFrom), to: dateToShamsiString(prevTo) };
+  }
+  return null;
+};
+
+/** فلش تغییر نسبت به بازه‌ی قبل؛ افزایش غیبت/تأخیر بد (قرمز) و کاهش خوب (سبز) است */
+const Delta: React.FC<{ cur: number; prev: number | undefined }> = ({ cur, prev }) => {
+  if (prev === undefined || cur === prev) return null;
+  const up = cur > prev;
+  return (
+    <span title={`نسبت به دوره قبل (${toPersianDigits(prev)})`} className={`mr-1 text-[10px] font-bold ${up ? 'text-rose-600' : 'text-emerald-600'}`}>
+      {up ? '▲' : '▼'}{toPersianDigits(Math.abs(cur - prev))}
+    </span>
+  );
+};
+
 const fieldCls = 'h-10 text-xs bg-slate-50 rounded-xl px-3 outline-none focus:bg-white focus:ring-4 focus:ring-teal-100';
 
 export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
   const { classes, isAdmin, isDisciplinaryVice, resolveDelayDeduction } = useSchool();
-  const [period, setPeriod] = useState<'month' | 'all'>('month');
-  const { stats, monthKey } = useAttendanceStats(period);
+  const [period, setPeriod] = useState<'month' | 'all' | 'range'>('month');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const { stats, monthKey } = useAttendanceStats(period, { from: dateFrom, to: dateTo });
+  const prevRange = useMemo(() => previousRange(period, monthKey, dateFrom, dateTo), [period, monthKey, dateFrom, dateTo]);
+  const { stats: prevStats } = useAttendanceStats(prevRange ? 'range' : 'all', prevRange || undefined);
+  const prevById = useMemo(() => (prevRange ? new Map(prevStats.map((p) => [p.student.id, p])) : null), [prevRange, prevStats]);
   const { stats: monthStats } = useAttendanceStats('month');
   const canRefer = isDisciplinaryVice;
   const canApprove = isAdmin || isDisciplinaryVice;
@@ -103,44 +172,75 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
 
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
-  const [minMinutes, setMinMinutes] = useState('');
-  const [maxMinutes, setMaxMinutes] = useState('');
-  const [minDelays, setMinDelays] = useState('');
-  const [minUnexcused, setMinUnexcused] = useState('');
-  const [minExcused, setMinExcused] = useState('');
+  const [rng, setRng] = useState<Record<RangeKey, { min: string; max: string }>>(EMPTY_RANGES);
+  const setRange = (k: RangeKey, side: 'min' | 'max', v: string) => setRng((r) => ({ ...r, [k]: { ...r[k], [side]: v } }));
+  const setMin = (k: RangeKey, v: string) => setRange(k, 'min', v);
   const [onlyPending, setOnlyPending] = useState(false);
+  const [wd, setWd] = useState('');
+  const [wdKind, setWdKind] = useState<'absence' | 'delay'>('absence');
+  const [wdMin, setWdMin] = useState('2');
+  const [saved, setSaved] = useState<SavedFilter[]>(loadSaved);
+  const [saveName, setSaveName] = useState('');
   const [sort, setSort] = useState<'minutes' | 'delays' | 'unexcused' | 'name'>('minutes');
   const [target, setTarget] = useState<{ stat: StudentAttendanceStat; kind: 'absence' | 'delay' } | null>(null);
 
   const classNameOf = (id: string) => classes.find((c) => c.id === id)?.name || '—';
 
   const rows = useMemo(() => {
-    const mn = num(minMinutes), mx = num(maxMinutes), md = num(minDelays), mu = num(minUnexcused), me = num(minExcused);
     const text = q.trim();
+    const within = (k: RangeKey, v: number) => {
+      const lo = num(rng[k].min), hi = num(rng[k].max);
+      return (lo === null || v >= lo) && (hi === null || v <= hi);
+    };
     return stats
       .filter((s) => (!classId || s.student.classId === classId)
         && (!text || studentFullName(s.student).includes(text) || (s.student.studentCode || '').includes(text) || (s.student.nationalId || '').includes(text))
-        && (mn === null || s.delayMinutes >= mn)
-        && (mx === null || s.delayMinutes <= mx)
-        && (md === null || s.delayCount >= md)
-        && (mu === null || s.unexcusedAbsences >= mu)
-        && (me === null || s.excusedAbsences >= me)
-        && (!onlyPending || s.pendingDeductions > 0))
+        && within('unexcused', s.unexcusedAbsences)
+        && within('excused', s.excusedAbsences)
+        && within('totalAbs', s.unexcusedAbsences + s.excusedAbsences)
+        && within('delays', s.delayCount)
+        && within('minutes', s.delayMinutes)
+        && (!onlyPending || s.pendingDeductions > 0)
+        && (wd === '' || (wdKind === 'absence' ? s.weekdayAbsences : s.weekdayDelays)[Number(wd)] >= Math.max(1, num(wdMin) ?? 1)))
       .sort((a, b) => sort === 'name' ? compareStudents(a.student, b.student)
         : sort === 'delays' ? b.delayCount - a.delayCount
         : sort === 'unexcused' ? b.unexcusedAbsences - a.unexcusedAbsences
         : b.delayMinutes - a.delayMinutes);
-  }, [stats, q, classId, minMinutes, maxMinutes, minDelays, minUnexcused, minExcused, onlyPending, sort]);
+  }, [stats, q, classId, rng, onlyPending, sort, wd, wdKind, wdMin]);
 
-  const reset = () => { setQ(''); setClassId(''); setMinMinutes(''); setMaxMinutes(''); setMinDelays(''); setMinUnexcused(''); setMinExcused(''); setOnlyPending(false); };
+  const reset = () => { setQ(''); setClassId(''); setRng(EMPTY_RANGES); setOnlyPending(false); setWd(''); };
+  const activeRanges = RANGE_FIELDS.filter(([k]) => rng[k].min.trim() || rng[k].max.trim()).length;
   const preset = (fn: () => void) => { reset(); fn(); };
+
+  const snapshot = (): FilterSnapshot => ({ period, dateFrom, dateTo, q, classId, rng, onlyPending, wd, wdKind, wdMin, sort });
+  const persist = (list: SavedFilter[]) => {
+    setSaved(list);
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+  };
+  const saveFilter = () => {
+    const name = saveName.trim();
+    if (!name) return;
+    persist([...saved.filter((f) => f.name !== name), { id: String(Date.now()), name, snap: snapshot() }]);
+    setSaveName('');
+  };
+  const applyFilter = (f: SavedFilter) => {
+    const x = f.snap;
+    setPeriod(x.period); setDateFrom(x.dateFrom); setDateTo(x.dateTo); setQ(x.q); setClassId(x.classId);
+    setRng({ ...EMPTY_RANGES, ...x.rng }); setOnlyPending(x.onlyPending); setWd(x.wd); setWdKind(x.wdKind); setWdMin(x.wdMin); setSort(x.sort);
+  };
+
+  const histogram = useMemo(() => {
+    const buckets: ReadonlyArray<readonly [string, number, number]> = [['۰', 0, 0], ['۱–۲', 1, 2], ['۳–۵', 3, 5], ['۶+', 6, 9999]];
+    const make = (get: (s: StudentAttendanceStat) => number) => buckets.map(([label, lo, hi]) => ({ label, lo, hi, n: rows.filter((s) => get(s) >= lo && get(s) <= hi).length }));
+    return { abs: make((s) => s.unexcusedAbsences + s.excusedAbsences), del: make((s) => s.delayCount) };
+  }, [rows]);
 
   const exportExcel = () => {
     const data = rows.map((s, i) => ({
       'ردیف': i + 1,
       'دانش‌آموز': studentFullName(s.student),
       'کلاس': classNameOf(s.student.classId),
-      'بازه': period === 'month' ? `ماه ${monthKey}` : 'کل دوره',
+      'بازه': period === 'month' ? `ماه ${monthKey}` : period === 'range' ? `${dateFrom || '…'} تا ${dateTo || '…'}` : 'کل دوره',
       'غیبت غیرموجه (روز)': s.unexcusedAbsences,
       'غیبت موجه (روز)': s.excusedAbsences,
       'دفعات تأخیر': s.delayCount,
@@ -183,7 +283,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-            {([['month', 'ماه جاری'], ['all', 'کل دوره']] as const).map(([k, l]) => (
+            {([['month', 'ماه جاری'], ['all', 'کل دوره'], ['range', 'بازه دلخواه']] as const).map(([k, l]) => (
               <button key={k} onClick={() => setPeriod(k)} className={`px-3 h-8 rounded-lg text-xs font-bold cursor-pointer ${period === k ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>{l}</button>
             ))}
           </div>
@@ -195,28 +295,80 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {([
-            ['حداقل دقایق تأخیر', minMinutes, setMinMinutes],
-            ['حداکثر دقایق تأخیر', maxMinutes, setMaxMinutes],
-            ['حداقل دفعات تأخیر', minDelays, setMinDelays],
-            ['حداقل غیبت غیرموجه', minUnexcused, setMinUnexcused],
-            ['حداقل غیبت موجه', minExcused, setMinExcused],
-          ] as const).map(([label, value, set]) => (
-            <label key={label} className="text-[11px] font-bold text-slate-500 space-y-1">
-              <span>{label}</span>
-              <input inputMode="numeric" value={value} onChange={(e) => set(e.target.value)} placeholder="—" className={`${fieldCls} w-full`} />
+        {period === 'range' && (
+          <div className="flex flex-wrap items-end gap-3 p-3 rounded-xl bg-teal-50/60 border border-teal-100">
+            <label className="text-[11px] font-bold text-slate-600 space-y-1">
+              <span>از تاریخ</span>
+              <ShamsiDatePicker value={dateFrom} onChange={setDateFrom} placeholder="از تاریخ" className={`${fieldCls} w-36`} />
             </label>
+            <label className="text-[11px] font-bold text-slate-600 space-y-1">
+              <span>تا تاریخ</span>
+              <ShamsiDatePicker value={dateTo} onChange={setDateTo} placeholder="تا تاریخ" className={`${fieldCls} w-36`} />
+            </label>
+            <span className="text-[11px] text-slate-500 pb-2.5">تاریخ خالی = بدون محدودیت از آن سمت</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {RANGE_FIELDS.map(([k, label, unit]) => (
+            <div key={k} className={`rounded-xl border p-2.5 space-y-1.5 ${rng[k].min.trim() || rng[k].max.trim() ? 'border-teal-300 bg-teal-50/40' : 'border-slate-200 bg-slate-50/50'}`}>
+              <div className="text-[11px] font-bold text-slate-600">{label}{unit && <span className="text-slate-400 font-normal"> ({unit})</span>}</div>
+              <div className="flex items-center gap-1.5">
+                <input inputMode="numeric" aria-label={`${label} از`} value={rng[k].min} onChange={(e) => setRange(k, 'min', e.target.value)} placeholder="از" className={`${fieldCls} w-full text-center`} />
+                <span className="text-slate-400 text-xs">تا</span>
+                <input inputMode="numeric" aria-label={`${label} تا`} value={rng[k].max} onChange={(e) => setRange(k, 'max', e.target.value)} placeholder="تا" className={`${fieldCls} w-full text-center`} />
+              </div>
+            </div>
           ))}
+        </div>
+
+        <div className={`flex flex-wrap items-end gap-2 rounded-xl border p-2.5 ${wd !== '' ? 'border-teal-300 bg-teal-50/40' : 'border-slate-200 bg-slate-50/50'}`}>
+          <label className="text-[11px] font-bold text-slate-600 space-y-1">
+            <span>روز هفته</span>
+            <select value={wd} onChange={(e) => setWd(e.target.value)} className={fieldCls} aria-label="روز هفته">
+              <option value="">همه روزها</option>
+              {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+            </select>
+          </label>
+          {wd !== '' && (
+            <>
+              <label className="text-[11px] font-bold text-slate-600 space-y-1">
+                <span>نوع</span>
+                <select value={wdKind} onChange={(e) => setWdKind(e.target.value as 'absence' | 'delay')} className={fieldCls}>
+                  <option value="absence">غیبت</option>
+                  <option value="delay">تأخیر</option>
+                </select>
+              </label>
+              <label className="text-[11px] font-bold text-slate-600 space-y-1">
+                <span>حداقل دفعات در این روز</span>
+                <input inputMode="numeric" value={wdMin} onChange={(e) => setWdMin(e.target.value)} className={`${fieldCls} w-20 text-center`} />
+              </label>
+            </>
+          )}
+          <span className="text-[11px] text-slate-500 pb-2.5">مثلاً دانش‌آموزانی که بیشتر «شنبه‌ها» غایب‌اند</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="font-bold text-slate-500">فیلترهای ذخیره‌شده:</span>
+          {saved.map((f) => (
+            <span key={f.id} className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 font-bold overflow-hidden">
+              <button type="button" onClick={() => applyFilter(f)} className="px-3 py-1 hover:bg-indigo-100 cursor-pointer">{f.name}</button>
+              <button type="button" onClick={() => persist(saved.filter((x) => x.id !== f.id))} aria-label={`حذف ${f.name}`} className="px-2 py-1 hover:bg-rose-100 text-indigo-400 hover:text-rose-600 cursor-pointer"><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+          <input value={saveName} onChange={(e) => setSaveName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveFilter()} placeholder="نام فیلتر فعلی…" className="h-8 w-36 text-[11px] bg-slate-50 rounded-lg px-2.5 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <button type="button" onClick={saveFilter} disabled={!saveName.trim()} className="h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold cursor-pointer">ذخیره</button>
+          <span className="text-slate-400">(فقط روی همین مرورگر)</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="font-bold text-slate-500">فیلتر سریع:</span>
           {([
-            ['۶۰+ دقیقه تأخیر', () => setMinMinutes('60')],
-            [`${toPersianDigits(DELAY_MINUTES_PER_POINT)}+ دقیقه تأخیر`, () => setMinMinutes(String(DELAY_MINUTES_PER_POINT))],
-            ['۳+ بار تأخیر', () => setMinDelays('3')],
-            ['۳+ غیبت غیرموجه', () => setMinUnexcused('3')],
+            ['۶۰+ دقیقه تأخیر', () => setMin('minutes', '60')],
+            [`${toPersianDigits(DELAY_MINUTES_PER_POINT)}+ دقیقه تأخیر`, () => setMin('minutes', String(DELAY_MINUTES_PER_POINT))],
+            ['۳+ بار تأخیر', () => setMin('delays', '3')],
+            ['۳+ غیبت غیرموجه', () => setMin('unexcused', '3')],
+            ['بدون غیبت و تأخیر', () => { setRange('totalAbs', 'max', '0'); setRange('delays', 'max', '0'); }],
             ['منتظر تأیید کسر نمره', () => setOnlyPending(true)],
           ] as const).map(([label, fn]) => (
             <button key={label} onClick={() => preset(fn)} className="px-3 py-1 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold border border-teal-200 cursor-pointer">{label}</button>
@@ -224,7 +376,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
           <label className="flex items-center gap-1.5 mr-auto cursor-pointer text-slate-600 font-bold">
             <input type="checkbox" className="accent-teal-700" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} /> فقط منتظر تأیید کسر نمره
           </label>
-          <button onClick={reset} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 font-bold cursor-pointer"><RotateCcw className="w-3.5 h-3.5" /> پاک‌کردن فیلترها</button>
+          <button onClick={reset} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 font-bold cursor-pointer"><RotateCcw className="w-3.5 h-3.5" /> پاک‌کردن فیلترها{activeRanges > 0 && ` (${toPersianDigits(activeRanges)} فعال)`}</button>
         </div>
       </div>
 
@@ -242,6 +394,43 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
           </div>
         ))}
       </div>
+
+      {/* توزیع و ارجاع گروهی */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {([['توزیع مجموع غیبت دانش‌آموزان', histogram.abs, 'totalAbs', 'bg-rose-500'], ['توزیع دفعات تأخیر دانش‌آموزان', histogram.del, 'delays', 'bg-amber-500']] as const).map(([title, data, key, bar]) => {
+          const max = Math.max(1, ...data.map((d) => d.n));
+          return (
+            <div key={title} className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-2">
+              <div className="text-xs font-black text-slate-800">{title} <span className="font-normal text-slate-400">(برای فیلتر روی ستون بزنید)</span></div>
+              <div className="flex items-end gap-2 h-24">
+                {data.map((d) => (
+                  <button key={d.label} type="button" title={`${toPersianDigits(d.n)} دانش‌آموز`}
+                    onClick={() => setRng((r) => ({ ...r, [key]: { min: String(d.lo), max: d.hi >= 9999 ? '' : String(d.hi) } }))}
+                    className="flex-1 h-full flex flex-col items-center justify-end gap-1 cursor-pointer group">
+                    <span className="text-[10px] font-bold text-slate-600">{toPersianDigits(d.n)}</span>
+                    <span className={`w-full rounded-t-md ${bar} opacity-80 group-hover:opacity-100 transition`} style={{ height: `${Math.max(3, (d.n / max) * 64)}px` }} />
+                    <span className="text-[10px] text-slate-500">{d.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {isDisciplinaryVice && rows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-violet-50/60 border border-violet-100 rounded-2xl px-4 py-3">
+          <span className="text-xs text-slate-700 font-bold">ارجاع دانش‌آموزان همین نتیجه ({toPersianDigits(rows.length)} نفر) به معاون تربیتی</span>
+          <BulkReferButton
+            kind="attention"
+            label="ارجاع گروهی نتیجه فیلتر"
+            items={rows.map((s) => ({
+              student: s.student,
+              summary: `${toPersianDigits(s.unexcusedAbsences)} روز غیبت غیرموجه، ${toPersianDigits(s.excusedAbsences)} روز غیبت موجه، ${toPersianDigits(s.delayCount)} بار تأخیر (${toPersianDigits(s.delayMinutes)} دقیقه) — ${period === 'month' ? `ماه ${toPersianDigits(monthKey)}` : period === 'range' ? 'بازه دلخواه' : 'کل دوره'}.`,
+            }))}
+          />
+        </div>
+      )}
 
       {/* فهرست (بدون اسکرول افقی) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -264,7 +453,11 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
               ] as const).map(([label, v, cls, unit]) => (
                 <div key={label} className="flex lg:block items-center justify-between lg:text-center">
                   <span className="lg:hidden text-[11px] text-slate-500">{label}</span>
-                  <span className={`font-black text-sm ${cls}`}>{toPersianDigits(v)}{unit}</span>
+                  <span className={`font-black text-sm ${cls}`}>{toPersianDigits(v)}{unit}
+                    {label !== 'غیبت موجه' && prevById && (
+                      <Delta cur={v} prev={prevById.get(s.student.id) ? (label === 'غیبت غیرموجه' ? prevById.get(s.student.id)!.unexcusedAbsences : label === 'دفعات تأخیر' ? prevById.get(s.student.id)!.delayCount : prevById.get(s.student.id)!.delayMinutes) : undefined} />
+                    )}
+                  </span>
                 </div>
               ))}
               <div className="col-span-2 lg:col-span-1 flex items-center lg:justify-center gap-1.5 flex-wrap">

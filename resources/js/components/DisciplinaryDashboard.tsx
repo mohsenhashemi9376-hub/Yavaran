@@ -43,6 +43,9 @@ import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
+import { DisciplineExcellenceCard } from './DisciplineExcellence';
+import { ReferStudentButton, BulkReferButton } from './ReferStudentButton';
+import { ReferralsHistoryButton } from './ReferralsHistory';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
 
@@ -386,6 +389,8 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
 
               <AttendanceTrendsPanel onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
 
+              <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} />
+
               {/* ۲. خلاصه وضعیت امروز (کارت‌های آماری هوشمند قابل کلیک با داده واقعی) */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {/* کارت ۱: کل دانش‌آموزان فعال */}
@@ -565,6 +570,13 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                       </span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <BulkReferButton
+                      kind="attention"
+                      items={urgentNeedsList.map((i) => ({ student: i.student, summary: `${i.title}: ${i.detail}` }))
+                        .filter((x, idx, arr) => arr.findIndex((y) => y.student.id === x.student.id) === idx)}
+                    />
+                    <ReferralsHistoryButton />
                   {urgentNeedsCount > 0 && (
                     <button
                       type="button"
@@ -575,6 +587,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  </div>
                 </div>
 
                 {urgentNeedsList.length === 0 ? (
@@ -641,7 +654,13 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                           </div>
 
                           {/* دکمه‌های اقدام فوری (پیامک به اولیا، تماس تلفنی، برگه احضار) */}
-                          <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                          <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                            <ReferStudentButton
+                              student={item.student}
+                              kind="attention"
+                              summary={`${item.title}: ${item.detail}`}
+                              compact
+                            />
                             {item.student.parentPhone && (
                               <>
                                 <a
