@@ -11,7 +11,7 @@ import { studentFullName } from '../utils/studentName';
 
 /* ───────────────────────── ثابت‌ها ───────────────────────── */
 
-const CATS: { key: ObservationCategory; label: string; short: string; hex: string; soft: string }[] = [
+export const CATS: { key: ObservationCategory; label: string; short: string; hex: string; soft: string }[] = [
   { key: 'behavioral', label: 'رفتاری و انضباطی', short: 'رفتاری', hex: '#2563eb', soft: '#eff6ff' },
   { key: 'social', label: 'اجتماعی و ارتباط با همسالان', short: 'اجتماعی', hex: '#0d9488', soft: '#f0fdfa' },
   { key: 'emotional', label: 'عاطفی و مدیریت هیجانات', short: 'عاطفی', hex: '#e11d48', soft: '#fff1f2' },
@@ -21,7 +21,7 @@ const CATS: { key: ObservationCategory; label: string; short: string; hex: strin
   { key: 'other', label: 'سایر ملاحظات', short: 'سایر', hex: '#64748b', soft: '#f8fafc' },
 ];
 const CAT = Object.fromEntries(CATS.map((c) => [c.key, c])) as Record<string, (typeof CATS)[number]>;
-const catOf = (k: string) => CAT[k] || CAT.other;
+export const catOf = (k: string) => CAT[k] || CAT.other;
 const CONCERN_CATS: ObservationCategory[] = ['emotional', 'family'];
 
 type Period = '7' | '30' | 'all';
@@ -37,7 +37,7 @@ interface Obs extends StudentObservation {
   _sort: string;
 }
 
-const daysAgo = (date: string, now: number): number => {
+export const daysAgo = (date: string, now: number): number => {
   const d = shamsiStringToDate(normalizeShamsi(date)).getTime();
   return Math.max(0, Math.floor((now - d) / DAY));
 };
@@ -124,7 +124,7 @@ const Radar: React.FC<{ values: number[] }> = ({ values }) => {
   );
 };
 
-const WeeklyBars: React.FC<{ counts: number[]; height?: number }> = ({ counts, height = 96 }) => {
+export const WeeklyBars: React.FC<{ counts: number[]; height?: number }> = ({ counts, height = 96 }) => {
   const max = Math.max(1, ...counts);
   return (
     <div className="flex items-end gap-1.5 w-full" style={{ height }}>

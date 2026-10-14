@@ -1,4 +1,5 @@
 import { ObservationInsights } from './ObservationInsights';
+import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -1128,6 +1129,14 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </div>
             </button>
           </div>
+
+          <ObservationHomeWidgets
+            students={students}
+            classes={availableClasses}
+            observations={observations}
+            isVice={currentUser.role === 'vice_nurturing'}
+            onOpenAll={() => setCurrentView('observation')}
+          />
 
           {/* بخش کارهای سریع (Quick Actions) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
