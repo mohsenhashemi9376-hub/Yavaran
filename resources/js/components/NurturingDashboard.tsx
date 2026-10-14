@@ -1,5 +1,6 @@
 import { ObservationInsights } from './ObservationInsights';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
+import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -1130,6 +1131,11 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             </button>
           </div>
 
+          {isNurturingVice && (
+            <div className="flex justify-end">
+              <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
+            </div>
+          )}
           <ObservationHomeWidgets
             students={students}
             classes={availableClasses}
@@ -1705,6 +1711,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </button>
             </div>
           </div>
+
+          {isNurturingVice && <StudentReferralsCard studentId={selectedDossierStudent.id} />}
 
           {/* 8 Specific Boxes Requested by the User */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -93,6 +93,8 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::prefix('referrals')->middleware('throttle:60,1')->group(function (): void {
             Route::get('/', [ReferralController::class, 'index'])->name('api.referrals.index');
             Route::post('/', [ReferralController::class, 'store'])->name('api.referrals.store');
+            Route::post('bulk', [ReferralController::class, 'bulk'])->name('api.referrals.bulk');
+            Route::get('history', [ReferralController::class, 'history'])->name('api.referrals.history');
         });
         Route::get('students/{student}/nurturing-record', [NurturingRecordController::class, 'show'])
             ->middleware('throttle:120,1')

@@ -43,7 +43,8 @@ import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
-import { ReferStudentButton } from './ReferStudentButton';
+import { ReferStudentButton, BulkReferButton } from './ReferStudentButton';
+import { ReferralsHistoryButton } from './ReferralsHistory';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
 
@@ -566,6 +567,13 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                       </span>
                     )}
                   </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <BulkReferButton
+                      kind="attention"
+                      items={urgentNeedsList.map((i) => ({ student: i.student, summary: `${i.title}: ${i.detail}` }))
+                        .filter((x, idx, arr) => arr.findIndex((y) => y.student.id === x.student.id) === idx)}
+                    />
+                    <ReferralsHistoryButton />
                   {urgentNeedsCount > 0 && (
                     <button
                       type="button"
@@ -576,6 +584,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  </div>
                 </div>
 
                 {urgentNeedsList.length === 0 ? (
