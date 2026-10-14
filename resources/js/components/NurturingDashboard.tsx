@@ -1136,6 +1136,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             observations={observations}
             isVice={currentUser.role === 'vice_nurturing'}
             onOpenAll={() => setCurrentView('observation')}
+            onOpenStudent={handleOpenStudentObs}
           />
 
           {/* بخش کارهای سریع (Quick Actions) */}
