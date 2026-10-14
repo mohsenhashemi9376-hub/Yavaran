@@ -18,6 +18,9 @@ export interface DelayEvent { date: string; minutes: number }
 export interface AbsenceEvent { date: string; excused: boolean }
 
 const norm = (d: string) => toEnglishDigits(d || '');
+/** «۱۴۰۵/۰۷/۰۹» با صفر پیشین؛ قابل مقایسه‌ی رشته‌ای */
+const dayKey = (date: string): string => norm(date).split('/').map((p, i) => (i === 0 ? p : p.padStart(2, '0'))).join('/');
+
 /** «۱۴۰۵/۰۷» از تاریخ کامل */
 export const monthKeyOf = (date: string): string => norm(date).split('/').slice(0, 2).map((p, i) => (i === 1 ? p.padStart(2, '0') : p)).join('/');
 
@@ -76,12 +79,16 @@ export interface StudentAttendanceStat {
 export function buildAttendanceStats(
   students: Student[],
   src: AttendanceSources,
-  opts: { monthKey: string; period: 'month' | 'all' }
+  opts: { monthKey: string; period: 'month' | 'all' | 'range'; from?: string; to?: string }
 ): StudentAttendanceStat[] {
   return students.map((student) => {
     const delays = delayEventsOf(student, src);
     const absences = absenceEventsOf(student, src);
-    const inPeriod = (date: string) => opts.period === 'all' || monthKeyOf(date) === opts.monthKey;
+    const from = opts.from ? dayKey(opts.from) : '';
+    const to = opts.to ? dayKey(opts.to) : '';
+    const inPeriod = (date: string) =>
+      opts.period === 'all'
+        || (opts.period === 'range' ? (!from || dayKey(date) >= from) && (!to || dayKey(date) <= to) : monthKeyOf(date) === opts.monthKey);
     const periodDelays = delays.filter((e) => inPeriod(e.date));
     const periodAbsences = absences.filter((e) => inPeriod(e.date));
     const totalDelayMinutes = summarizeStudentDelays(student, src).minutes;

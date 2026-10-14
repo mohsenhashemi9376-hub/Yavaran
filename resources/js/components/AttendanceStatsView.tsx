@@ -13,15 +13,16 @@ import { AttendanceAlertsCard, referralRefId } from './AttendanceAlertsCard';
 import { TrendTile } from './Sparkline';
 import { attendanceTrends, attendanceDetails } from '../utils/trends';
 import { TrendDetailModal } from './TrendDetailModal';
+import { ShamsiDatePicker } from './ShamsiDatePicker';
 import type { Student } from '../types';
 
 /** آمار تجمیعی هر دانش‌آموز + هشدارهای ماهانه؛ مشترک بین صفحه‌ی آمار و داشبوردها */
-export function useAttendanceStats(period: 'month' | 'all' = 'month') {
+export function useAttendanceStats(period: 'month' | 'all' | 'range' = 'month', range?: { from?: string; to?: string }) {
   const { students, morningDelays, morningAttendance, schoolAbsences, sessions } = useSchool();
   const monthKey = useMemo(() => monthKeyOf(getTodayShamsi().formattedDate), []);
   const stats = useMemo(
-    () => buildAttendanceStats(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, { monthKey, period }),
-    [students, morningDelays, morningAttendance, schoolAbsences, sessions, monthKey, period]
+    () => buildAttendanceStats(students, { morningDelays, morningAttendance, schoolAbsences, sessions }, { monthKey, period, from: range?.from, to: range?.to }),
+    [students, morningDelays, morningAttendance, schoolAbsences, sessions, monthKey, period, range?.from, range?.to]
   );
   return { stats, monthKey };
 }
@@ -90,12 +91,26 @@ interface Props {
   onSelectStudent?: (s: Student) => void;
 }
 
+type RangeKey = 'unexcused' | 'excused' | 'totalAbs' | 'delays' | 'minutes';
+const RANGE_FIELDS: ReadonlyArray<readonly [RangeKey, string, string]> = [
+  ['unexcused', 'غیبت غیرموجه', 'روز'],
+  ['excused', 'غیبت موجه', 'روز'],
+  ['totalAbs', 'مجموع غیبت', 'روز'],
+  ['delays', 'دفعات تأخیر', 'بار'],
+  ['minutes', 'میزان تأخیر', 'دقیقه'],
+];
+const EMPTY_RANGES: Record<RangeKey, { min: string; max: string }> = {
+  unexcused: { min: '', max: '' }, excused: { min: '', max: '' }, totalAbs: { min: '', max: '' }, delays: { min: '', max: '' }, minutes: { min: '', max: '' },
+};
+
 const fieldCls = 'h-10 text-xs bg-slate-50 rounded-xl px-3 outline-none focus:bg-white focus:ring-4 focus:ring-teal-100';
 
 export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
   const { classes, isAdmin, isDisciplinaryVice, resolveDelayDeduction } = useSchool();
-  const [period, setPeriod] = useState<'month' | 'all'>('month');
-  const { stats, monthKey } = useAttendanceStats(period);
+  const [period, setPeriod] = useState<'month' | 'all' | 'range'>('month');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const { stats, monthKey } = useAttendanceStats(period, { from: dateFrom, to: dateTo });
   const { stats: monthStats } = useAttendanceStats('month');
   const canRefer = isDisciplinaryVice;
   const canApprove = isAdmin || isDisciplinaryVice;
@@ -103,11 +118,9 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
 
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
-  const [minMinutes, setMinMinutes] = useState('');
-  const [maxMinutes, setMaxMinutes] = useState('');
-  const [minDelays, setMinDelays] = useState('');
-  const [minUnexcused, setMinUnexcused] = useState('');
-  const [minExcused, setMinExcused] = useState('');
+  const [rng, setRng] = useState<Record<RangeKey, { min: string; max: string }>>(EMPTY_RANGES);
+  const setRange = (k: RangeKey, side: 'min' | 'max', v: string) => setRng((r) => ({ ...r, [k]: { ...r[k], [side]: v } }));
+  const setMin = (k: RangeKey, v: string) => setRange(k, 'min', v);
   const [onlyPending, setOnlyPending] = useState(false);
   const [sort, setSort] = useState<'minutes' | 'delays' | 'unexcused' | 'name'>('minutes');
   const [target, setTarget] = useState<{ stat: StudentAttendanceStat; kind: 'absence' | 'delay' } | null>(null);
@@ -115,24 +128,28 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
   const classNameOf = (id: string) => classes.find((c) => c.id === id)?.name || '—';
 
   const rows = useMemo(() => {
-    const mn = num(minMinutes), mx = num(maxMinutes), md = num(minDelays), mu = num(minUnexcused), me = num(minExcused);
     const text = q.trim();
+    const within = (k: RangeKey, v: number) => {
+      const lo = num(rng[k].min), hi = num(rng[k].max);
+      return (lo === null || v >= lo) && (hi === null || v <= hi);
+    };
     return stats
       .filter((s) => (!classId || s.student.classId === classId)
         && (!text || studentFullName(s.student).includes(text) || (s.student.studentCode || '').includes(text) || (s.student.nationalId || '').includes(text))
-        && (mn === null || s.delayMinutes >= mn)
-        && (mx === null || s.delayMinutes <= mx)
-        && (md === null || s.delayCount >= md)
-        && (mu === null || s.unexcusedAbsences >= mu)
-        && (me === null || s.excusedAbsences >= me)
+        && within('unexcused', s.unexcusedAbsences)
+        && within('excused', s.excusedAbsences)
+        && within('totalAbs', s.unexcusedAbsences + s.excusedAbsences)
+        && within('delays', s.delayCount)
+        && within('minutes', s.delayMinutes)
         && (!onlyPending || s.pendingDeductions > 0))
       .sort((a, b) => sort === 'name' ? compareStudents(a.student, b.student)
         : sort === 'delays' ? b.delayCount - a.delayCount
         : sort === 'unexcused' ? b.unexcusedAbsences - a.unexcusedAbsences
         : b.delayMinutes - a.delayMinutes);
-  }, [stats, q, classId, minMinutes, maxMinutes, minDelays, minUnexcused, minExcused, onlyPending, sort]);
+  }, [stats, q, classId, rng, onlyPending, sort]);
 
-  const reset = () => { setQ(''); setClassId(''); setMinMinutes(''); setMaxMinutes(''); setMinDelays(''); setMinUnexcused(''); setMinExcused(''); setOnlyPending(false); };
+  const reset = () => { setQ(''); setClassId(''); setRng(EMPTY_RANGES); setOnlyPending(false); };
+  const activeRanges = RANGE_FIELDS.filter(([k]) => rng[k].min.trim() || rng[k].max.trim()).length;
   const preset = (fn: () => void) => { reset(); fn(); };
 
   const exportExcel = () => {
@@ -140,7 +157,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
       'ردیف': i + 1,
       'دانش‌آموز': studentFullName(s.student),
       'کلاس': classNameOf(s.student.classId),
-      'بازه': period === 'month' ? `ماه ${monthKey}` : 'کل دوره',
+      'بازه': period === 'month' ? `ماه ${monthKey}` : period === 'range' ? `${dateFrom || '…'} تا ${dateTo || '…'}` : 'کل دوره',
       'غیبت غیرموجه (روز)': s.unexcusedAbsences,
       'غیبت موجه (روز)': s.excusedAbsences,
       'دفعات تأخیر': s.delayCount,
@@ -183,7 +200,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-            {([['month', 'ماه جاری'], ['all', 'کل دوره']] as const).map(([k, l]) => (
+            {([['month', 'ماه جاری'], ['all', 'کل دوره'], ['range', 'بازه دلخواه']] as const).map(([k, l]) => (
               <button key={k} onClick={() => setPeriod(k)} className={`px-3 h-8 rounded-lg text-xs font-bold cursor-pointer ${period === k ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>{l}</button>
             ))}
           </div>
@@ -195,28 +212,41 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {([
-            ['حداقل دقایق تأخیر', minMinutes, setMinMinutes],
-            ['حداکثر دقایق تأخیر', maxMinutes, setMaxMinutes],
-            ['حداقل دفعات تأخیر', minDelays, setMinDelays],
-            ['حداقل غیبت غیرموجه', minUnexcused, setMinUnexcused],
-            ['حداقل غیبت موجه', minExcused, setMinExcused],
-          ] as const).map(([label, value, set]) => (
-            <label key={label} className="text-[11px] font-bold text-slate-500 space-y-1">
-              <span>{label}</span>
-              <input inputMode="numeric" value={value} onChange={(e) => set(e.target.value)} placeholder="—" className={`${fieldCls} w-full`} />
+        {period === 'range' && (
+          <div className="flex flex-wrap items-end gap-3 p-3 rounded-xl bg-teal-50/60 border border-teal-100">
+            <label className="text-[11px] font-bold text-slate-600 space-y-1">
+              <span>از تاریخ</span>
+              <ShamsiDatePicker value={dateFrom} onChange={setDateFrom} placeholder="از تاریخ" className={`${fieldCls} w-36`} />
             </label>
+            <label className="text-[11px] font-bold text-slate-600 space-y-1">
+              <span>تا تاریخ</span>
+              <ShamsiDatePicker value={dateTo} onChange={setDateTo} placeholder="تا تاریخ" className={`${fieldCls} w-36`} />
+            </label>
+            <span className="text-[11px] text-slate-500 pb-2.5">تاریخ خالی = بدون محدودیت از آن سمت</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {RANGE_FIELDS.map(([k, label, unit]) => (
+            <div key={k} className={`rounded-xl border p-2.5 space-y-1.5 ${rng[k].min.trim() || rng[k].max.trim() ? 'border-teal-300 bg-teal-50/40' : 'border-slate-200 bg-slate-50/50'}`}>
+              <div className="text-[11px] font-bold text-slate-600">{label}{unit && <span className="text-slate-400 font-normal"> ({unit})</span>}</div>
+              <div className="flex items-center gap-1.5">
+                <input inputMode="numeric" aria-label={`${label} از`} value={rng[k].min} onChange={(e) => setRange(k, 'min', e.target.value)} placeholder="از" className={`${fieldCls} w-full text-center`} />
+                <span className="text-slate-400 text-xs">تا</span>
+                <input inputMode="numeric" aria-label={`${label} تا`} value={rng[k].max} onChange={(e) => setRange(k, 'max', e.target.value)} placeholder="تا" className={`${fieldCls} w-full text-center`} />
+              </div>
+            </div>
           ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="font-bold text-slate-500">فیلتر سریع:</span>
           {([
-            ['۶۰+ دقیقه تأخیر', () => setMinMinutes('60')],
-            [`${toPersianDigits(DELAY_MINUTES_PER_POINT)}+ دقیقه تأخیر`, () => setMinMinutes(String(DELAY_MINUTES_PER_POINT))],
-            ['۳+ بار تأخیر', () => setMinDelays('3')],
-            ['۳+ غیبت غیرموجه', () => setMinUnexcused('3')],
+            ['۶۰+ دقیقه تأخیر', () => setMin('minutes', '60')],
+            [`${toPersianDigits(DELAY_MINUTES_PER_POINT)}+ دقیقه تأخیر`, () => setMin('minutes', String(DELAY_MINUTES_PER_POINT))],
+            ['۳+ بار تأخیر', () => setMin('delays', '3')],
+            ['۳+ غیبت غیرموجه', () => setMin('unexcused', '3')],
+            ['بدون غیبت و تأخیر', () => { setRange('totalAbs', 'max', '0'); setRange('delays', 'max', '0'); }],
             ['منتظر تأیید کسر نمره', () => setOnlyPending(true)],
           ] as const).map(([label, fn]) => (
             <button key={label} onClick={() => preset(fn)} className="px-3 py-1 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold border border-teal-200 cursor-pointer">{label}</button>
@@ -224,7 +254,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
           <label className="flex items-center gap-1.5 mr-auto cursor-pointer text-slate-600 font-bold">
             <input type="checkbox" className="accent-teal-700" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} /> فقط منتظر تأیید کسر نمره
           </label>
-          <button onClick={reset} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 font-bold cursor-pointer"><RotateCcw className="w-3.5 h-3.5" /> پاک‌کردن فیلترها</button>
+          <button onClick={reset} className="flex items-center gap-1 text-slate-500 hover:text-slate-800 font-bold cursor-pointer"><RotateCcw className="w-3.5 h-3.5" /> پاک‌کردن فیلترها{activeRanges > 0 && ` (${toPersianDigits(activeRanges)} فعال)`}</button>
         </div>
       </div>
 
