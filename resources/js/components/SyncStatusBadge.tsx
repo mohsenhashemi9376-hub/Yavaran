@@ -4,7 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 
 /** نشانگر کوچک وضعیت ذخیره: در حال ذخیره / ذخیره شد / ذخیره نشد / آفلاین (در حالت عادی دیده نمی‌شود) */
 export const SyncStatusBadge: React.FC = () => {
-  const { syncState } = useSchool();
+  const { syncState, syncErrorStatus } = useSchool();
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   const [justSaved, setJustSaved] = useState(false);
   const prev = useRef(syncState);
@@ -37,7 +37,12 @@ export const SyncStatusBadge: React.FC = () => {
   if (syncState === 'error') {
     tone = 'bg-rose-600 text-white';
     icon = <CloudOff className="w-3.5 h-3.5" />;
-    text = 'ذخیره نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید';
+    // «اتصال» را فقط وقتی بگو که واقعاً ارتباط قطع است؛ رد دسترسی یا خطای سرور پیام جدا دارد
+    text = syncErrorStatus === 403
+      ? 'ذخیره نشد؛ شما دسترسی ثبت این مورد را ندارید'
+      : syncErrorStatus === 0 || syncErrorStatus === null
+      ? 'ذخیره نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید'
+      : 'ذخیره نشد؛ خطای سرور. دوباره تلاش کنید';
   } else if (!online) {
     tone = 'bg-amber-500 text-white';
     icon = <WifiOff className="w-3.5 h-3.5" />;

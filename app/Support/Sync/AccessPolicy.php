@@ -153,12 +153,44 @@ final class AccessPolicy
         'grades' => 'school-settings',
     ];
 
-    private function requireWritePermission(string $collection): void
+    private function requireWritePermission(string $collection, ?object $old = null, ?object $new = null): void
     {
         $key = self::WRITE_PERMISSION[$collection] ?? null;
-        if ($key !== null && ! $this->user->hasPermission($key)) {
-            $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
+        if ($key === null || $this->user->hasPermission($key)) {
+            return;
         }
+
+        // هرکس درسی را تدریس می‌کند (مثلاً معاون یا مربی دارای درس)، حضور و غیاب همان درس را ثبت می‌کند،
+        // حتی اگر فهرست دسترسی اختصاصی‌اش «ثبت جلسه حضور و غیاب» نداشته باشد؛ برای کلاس‌ها و درس‌های دیگر همچنان مجاز نیست
+        if ($collection === 'sessions') {
+            $records = array_values(array_filter([$old, $new], static fn ($r) => $r !== null));
+            if ($records !== [] && ! array_filter($records, fn ($r) => ! $this->teachesSessionCourse($r))) {
+                return;
+            }
+        }
+
+        $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
+    }
+
+    /** این جلسه‌ی حضور و غیاب مربوط به درسی (یا کارگاهی) است که کاربر جاری در همان کلاس تدریس می‌کند؟ */
+    private function teachesSessionCourse(object $session): bool
+    {
+        $classId = $this->prop($session, 'classId');
+        if (! is_string($classId) || $classId === '') {
+            return false;
+        }
+
+        if (CollectionRegistry::tableExists('workshops')
+            && DB::table('workshops')->where('id', $classId)->where('teacher_id', $this->user->id)->exists()) {
+            return true;
+        }
+
+        $courses = $this->teachingCourses();
+        $subjectId = $this->prop($session, 'subjectId');
+        $subject = $this->prop($session, 'subject');
+
+        return (is_string($subjectId) && $subjectId !== '' && isset($courses['id'][$classId.'|'.$subjectId]))
+            || (is_string($subject) && $subject !== '' && isset($courses['name'][$classId.'|'.$subject]));
     }
 
     /**
@@ -195,7 +227,7 @@ final class AccessPolicy
 
     public function authorizeUpsert(string $collection, ?object $old, object $new): void
     {
-        $this->requireWritePermission($collection);
+        $this->requireWritePermission($collection, $old, $new);
 
         if (in_array($collection, self::NURTURING, true)) {
             if ($old !== null) {
@@ -304,7 +336,7 @@ final class AccessPolicy
 
     public function authorizeDelete(string $collection, object $old): void
     {
-        $this->requireWritePermission($collection);
+        $this->requireWritePermission($collection, $old);
 
         if (in_array($collection, self::NURTURING, true)) {
             $this->authorizeNurturing('delete', $collection, $old);

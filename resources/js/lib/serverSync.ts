@@ -161,6 +161,8 @@ export class SyncEngine {
   private pendingCount = 0;
   /** آخرین ارسال ناموفق بوده و هنوز ارسال موفقی پس از آن نبوده است */
   private failed = false;
+  /** کد وضعیت آخرین ارسال ناموفق (۰ = قطع ارتباط، ۴۰۳ = نبود دسترسی …) */
+  lastErrorStatus: number | null = null;
   private listeners = new Set<() => void>();
   /** شمارنده تغییرات ارسال‌شده (برای تشخیص تداخل با بروزرسانی پس‌زمینه) */
   version = 0;
@@ -211,6 +213,7 @@ export class SyncEngine {
   clear(): void {
     this.snapshots.clear();
     this.failed = false;
+    this.lastErrorStatus = null;
     this.notify();
   }
 
@@ -279,9 +282,10 @@ export class SyncEngine {
     this.chain = this.chain
       .then(() => apiRequest('POST', '/api/sync', { collection, ...batch }))
       .then(
-        () => { this.failed = false; },
+        () => { this.failed = false; this.lastErrorStatus = null; },
         (error: unknown) => {
           this.failed = true;
+          this.lastErrorStatus = error instanceof ApiError ? error.status : 500;
           const apiError = error instanceof ApiError ? error : new ApiError(500, defaultMessage(500));
           this.onError(apiError, collection);
         }
