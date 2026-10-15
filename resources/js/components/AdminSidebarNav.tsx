@@ -179,9 +179,9 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
         },
         {
           id: 'parent_meetings',
-          label: 'جلسات عمومی اولیاء',
-          subtitle: 'ثبت حضور پدر و مادر در سه جلسه‌ی سال',
-          tooltip: 'جلسات عمومی اولیاء',
+          label: 'حضور أولیا',
+          subtitle: 'حضور پدر و مادر در جلسات عمومی',
+          tooltip: 'حضور أولیا در جلسات عمومی',
           icon: UsersRound,
           allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'],
         },

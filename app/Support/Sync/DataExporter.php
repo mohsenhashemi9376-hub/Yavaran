@@ -123,6 +123,11 @@ final class DataExporter
             $query->whereIn('class_id', $policy->nurturingClassIds());
         }
 
+        // حضور أولیا: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
+        if ($collection === 'parentMeetings' && $policy->isCoach()) {
+            $query->whereIn('class_id', $policy->nurturingClassIds());
+        }
+
         if (in_array($collection, ['teacherEvaluations', 'teacherActivities'], true) && ! $policy->isManager()) {
             $query->where('teacher_id', $user->id);
         }

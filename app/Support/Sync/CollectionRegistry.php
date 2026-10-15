@@ -473,8 +473,8 @@ final class CollectionRegistry
                 'class_id' => self::str($d, 'classId', 100),
                 'academic_year' => self::str($d, 'academicYear', 20) ?? '',
                 'meeting_no' => max(1, min(3, (int) ($d->meetingNo ?? 1))),
-                'father_present' => ! empty($d->father),
-                'mother_present' => ! empty($d->mother),
+                'father_present' => ! empty($d->father) && ($d->hasAttendance ?? true) !== false,
+                'mother_present' => ! empty($d->mother) && ($d->hasAttendance ?? true) !== false,
                 'meeting_date' => self::str($d, 'date', 20),
             ],
             'worksheetWeeks' => [

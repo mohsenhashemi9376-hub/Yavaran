@@ -102,7 +102,7 @@ final class SyncService
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
                 if ($collection === 'parentMeetings') {
-                    $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user);
+                    $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user, $policy);
                 }
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
@@ -283,14 +283,16 @@ final class SyncService
     }
 
     /**
-     * حضور اولیا در جلسه‌ی عمومی: شناسه قطعی است (یک رکورد برای هر دانش‌آموز در هر جلسه‌ی سال تحصیلی جاری)،
+     * حضور أولیا در جلسه‌ی عمومی: شناسه قطعی است (یک رکورد برای هر دانش‌آموز در هر جلسه‌ی سال تحصیلی جاری)،
      * کلاس از دیتابیس و سال تحصیلی و تاریخ ثبت از ساعت سرور تعیین می‌شود؛ تاریخ پس از اولین ثبت تغییر نمی‌کند.
+     * فقط ثبت‌کنندگان حضور (مدیر و معاون انضباطی) حضور پدر و مادر را تغییر می‌دهند؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
+     * و مقدار حضور ارسالی آن‌ها نادیده گرفته می‌شود. نویسنده و زمان یادداشت را هم سرور می‌گذارد.
      */
-    private function normalizeParentMeeting(object $data, string $id, ?object $old, User $user): void
+    private function normalizeParentMeeting(object $data, string $id, ?object $old, User $user, AccessPolicy $policy): void
     {
         $no = isset($data->meetingNo) && is_numeric($data->meetingNo) ? (int) $data->meetingNo : 0;
         if ($no < 1 || $no > 3) {
-            abort(422, 'شماره‌ی جلسه‌ی اولیاء نامعتبر است (فقط جلسه‌ی اول تا سوم).');
+            abort(422, 'شماره‌ی جلسه‌ی أولیا نامعتبر است (فقط جلسه‌ی اول تا سوم).');
         }
         $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
         $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
@@ -299,22 +301,60 @@ final class SyncService
         }
         $year = (string) \App\Support\AcademicYear::current()[0];
         if ($id !== 'pm-'.$year.'-'.$no.'-'.$studentId) {
-            abort(422, 'شناسه‌ی رکورد حضور اولیا نامعتبر است.');
+            abort(422, 'شناسه‌ی رکورد حضور أولیا نامعتبر است.');
         }
 
+        $now = now()->toIso8601String();
         [$jy, $jm, $jd] = \App\Support\Jalali::fromCarbon(now('Asia/Tehran'));
-        $oldDate = $old && isset($old->date) && is_string($old->date) && preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $old->date) ? $old->date : null;
+        $today = sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
+        $oldHas = $old !== null && ($old->hasAttendance ?? true) !== false;
+        $oldDate = $oldHas && isset($old->date) && is_string($old->date) && preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $old->date) ? $old->date : null;
+
+        if ($policy->canRecordParentMeetings()) {
+            $has = ($data->hasAttendance ?? true) !== false;
+            $data->father = $has && ! empty($data->father);
+            $data->mother = $has && ! empty($data->mother);
+            $data->hasAttendance = $has;
+            $data->date = $has ? ($oldDate ?? $today) : null;
+        } else {
+            // فقط یادداشت: وضعیت حضور (و تاریخش) از رکورد قبلی می‌ماند؛ رکورد تازه «بدون ثبت حضور» است
+            $data->father = $oldHas && ! empty($old->father);
+            $data->mother = $oldHas && ! empty($old->mother);
+            $data->hasAttendance = $oldHas;
+            $data->date = $oldDate;
+        }
+
+        $oldNote = $old !== null && isset($old->note) && is_string($old->note) && $old->note !== '' ? $old->note : null;
+        if ($policy->canNoteParentMeetings()) {
+            $note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        } else {
+            $note = $oldNote;
+        }
+        $data->note = $note;
+        if ($note === null) {
+            $data->noteBy = $data->noteById = $data->noteAt = null;
+        } elseif ($note === $oldNote && $old !== null) {
+            $data->noteBy = $old->noteBy ?? null;
+            $data->noteById = $old->noteById ?? null;
+            $data->noteAt = $old->noteAt ?? null;
+        } else {
+            $data->noteBy = (string) $user->name;
+            $data->noteById = (string) $user->id;
+            $data->noteAt = $now;
+        }
 
         $data->academicYear = $year;
         $data->meetingNo = $no;
         $data->classId = (string) $classId;
-        $data->father = ! empty($data->father);
-        $data->mother = ! empty($data->mother);
-        $data->date = $oldDate ?? sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
-        $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 300) : null;
-        $data->recordedById = (string) $user->id;
-        $data->recordedBy = (string) $user->name;
-        $data->updatedAt = now()->toIso8601String();
+        // ثبت‌کننده‌ی حضور فقط وقتی عوض می‌شود که خودِ حضور را ثبت کرده باشد
+        if ($policy->canRecordParentMeetings()) {
+            $data->recordedById = (string) $user->id;
+            $data->recordedBy = (string) $user->name;
+        } else {
+            $data->recordedById = $old->recordedById ?? null;
+            $data->recordedBy = $old->recordedBy ?? null;
+        }
+        $data->updatedAt = $now;
     }
 
     /**

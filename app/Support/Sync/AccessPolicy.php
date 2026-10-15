@@ -25,7 +25,7 @@ final class AccessPolicy
     /** مجموعه‌هایی که فقط مدیر و معاونین مجاز به تغییر آن‌ها هستند */
     private const MANAGER_ONLY = [
         'users', 'classes', 'bellPeriods', 'academicSubjects', 'teacherEvaluations',
-        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems', 'parentMeetings',
+        'schoolAnnouncements', 'grades', 'settings', 'comprehensiveExams', 'courseAssignments', 'gradePeriods', 'workshops', 'loanItems',
     ];
 
     /** مجموعه‌های کلاس‌محور که دبیر و مربی در کلاس‌های خود مجاز به ثبت آن‌ها هستند */
@@ -112,9 +112,10 @@ final class AccessPolicy
             return $this->isManager() && $this->user->hasPermission('manage-loans');
         }
 
-        // حضور اولیا در جلسات عمومی: فقط مدیر و معاونین دارای مجوز
+        // حضور أولیا: مدیر و معاونین و مربی با مجوز ثبت یا مشاهده (مربی فقط کلاس‌های خودش، در DataExporter)
         if ($collection === 'parentMeetings') {
-            return $this->isManager() && $this->user->hasPermission('parent-meetings');
+            return ($this->isManager() || $this->isCoach())
+                && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings'));
         }
 
         // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
@@ -147,7 +148,6 @@ final class AccessPolicy
         'gradePeriods' => 'manage-grades',
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
-        'parentMeetings' => 'parent-meetings',
         'schoolHolidays' => 'discipline',
         'worksheets' => 'manage-worksheets',
         'worksheetWeeks' => 'manage-worksheets',
@@ -176,6 +176,32 @@ final class AccessPolicy
         }
 
         $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
+    }
+
+    /** ثبت حضور پدر و مادر: فقط مدیر و معاونینِ دارای مجوز (پیش‌فرض: مدیر و معاون انضباطی) */
+    public function canRecordParentMeetings(): bool
+    {
+        return $this->isManager() && $this->user->hasPermission('parent-meetings');
+    }
+
+    /** یادداشت روی گزارش حضور أولیا: ثبت‌کنندگان، معاون تربیتی و مربی (دارای مجوز مشاهده) */
+    public function canNoteParentMeetings(): bool
+    {
+        return ($this->isManager() || $this->isCoach()) && $this->user->hasPermission('view-parent-meetings');
+    }
+
+    private function authorizeParentMeeting(object $new): void
+    {
+        if ($this->canRecordParentMeetings()) {
+            return;
+        }
+        if (! $this->canNoteParentMeetings()) {
+            $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
+        }
+        // مربی فقط برای دانش‌آموزان کلاس‌های خودش یادداشت می‌نویسد (حضور و غیابِ ثبت‌شده را SyncService دست‌نخورده نگه می‌دارد)
+        if ($this->isCoach()) {
+            $this->requireStudent($this->prop($new, 'studentId'));
+        }
     }
 
     /** این جلسه‌ی حضور و غیاب مربوط به درسی (یا کارگاهی) است که کاربر جاری در همان کلاس تدریس می‌کند؟ */
@@ -258,6 +284,12 @@ final class AccessPolicy
 
         if ($collection === 'schoolHolidays') {
             $this->requireHolidayManager();
+
+            return;
+        }
+
+        if ($collection === 'parentMeetings') {
+            $this->authorizeParentMeeting($new);
 
             return;
         }
@@ -358,6 +390,15 @@ final class AccessPolicy
 
         if ($collection === 'schoolHolidays') {
             $this->requireHolidayManager();
+
+            return;
+        }
+
+        if ($collection === 'parentMeetings') {
+            // حذف رکورد (برگشت به «ثبت‌نشده») فقط با مجوز ثبت حضور؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
+            if (! $this->canRecordParentMeetings()) {
+                $this->deny('ثبت یا حذف حضور پدر و مادر فقط با مدیر و معاون انضباطی است.');
+            }
 
             return;
         }

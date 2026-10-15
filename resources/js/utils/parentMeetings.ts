@@ -21,8 +21,8 @@ export const parentMeetingId = (year: string, meetingNo: ParentMeetingNo, studen
 
 export type ParentAttendanceState = 'unrecorded' | 'both' | 'father' | 'mother' | 'none';
 
-export function attendanceState(r: Pick<ParentMeetingRecord, 'father' | 'mother'> | undefined): ParentAttendanceState {
-  if (!r) return 'unrecorded';
+export function attendanceState(r: Pick<ParentMeetingRecord, 'father' | 'mother' | 'hasAttendance'> | undefined): ParentAttendanceState {
+  if (!r || r.hasAttendance === false) return 'unrecorded';
   if (r.father && r.mother) return 'both';
   if (r.father) return 'father';
   if (r.mother) return 'mother';
@@ -62,4 +62,37 @@ export function summarizeMeeting(studentIds: string[], records: ParentMeetingRec
   s.attended = s.both + s.father + s.mother;
   s.rate = s.total > 0 ? Math.round((s.attended / s.total) * 100) : 0;
   return s;
+}
+
+export interface StudentParentSummary {
+  /** تعداد جلسه‌های ثبت‌شده (از سه جلسه) */
+  recorded: number;
+  fatherCount: number;
+  motherCount: number;
+  /** جلسه‌هایی که دست‌کم یکی از والدین آمده است */
+  attendedCount: number;
+  bothCount: number;
+  /** هیچ ولی‌ای در جلسه‌های ثبت‌شده نیامده است */
+  neverAttended: boolean;
+  meetings: { no: ParentMeetingNo; record?: ParentMeetingRecord; state: ParentAttendanceState }[];
+}
+
+/** آمار تجمیعی حضور پدر و مادر یک دانش‌آموز در سال تحصیلی جاری (برای پرونده فردی) */
+export function studentParentSummary(studentId: string, records: ParentMeetingRecord[], yearKey = String(currentAcademicStartYear())): StudentParentSummary {
+  const mine = records.filter((r) => r.studentId === studentId && r.academicYear === yearKey);
+  const meetings = PARENT_MEETING_NUMBERS.map((no) => {
+    const record = mine.find((r) => r.meetingNo === no);
+    return { no, record, state: attendanceState(record) };
+  });
+  const rec = meetings.filter((m) => m.state !== 'unrecorded');
+  const attendedCount = rec.filter((m) => m.state !== 'none').length;
+  return {
+    recorded: rec.length,
+    fatherCount: rec.filter((m) => m.record?.father).length,
+    motherCount: rec.filter((m) => m.record?.mother).length,
+    attendedCount,
+    bothCount: rec.filter((m) => m.state === 'both').length,
+    neverAttended: rec.length > 0 && attendedCount === 0,
+    meetings,
+  };
 }

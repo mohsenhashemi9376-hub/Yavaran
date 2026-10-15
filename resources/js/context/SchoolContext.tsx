@@ -128,6 +128,8 @@ interface SchoolContextType {
   setParentMeetingAttendance: (student: Pick<Student, 'id' | 'classId'>, meetingNo: ParentMeetingNo, attendance: { father: boolean; mother: boolean }) => void;
   setParentMeetingAttendanceBulk: (students: Pick<Student, 'id' | 'classId'>[], meetingNo: ParentMeetingNo, attendance: { father: boolean; mother: boolean }) => void;
   clearParentMeetingAttendance: (studentId: string, meetingNo: ParentMeetingNo) => void;
+  /** یادداشت مربی / معاون تربیتی روی گزارش حضور أولیا (بدون تغییر در حضور ثبت‌شده) */
+  setParentMeetingNote: (student: Pick<Student, 'id' | 'classId'>, meetingNo: ParentMeetingNo, note: string) => void;
   addLoanItem: (data: Pick<LoanItem, 'itemName' | 'loanDate' | 'recipientName'> & { note?: string }) => string;
   updateLoanItem: (id: string, patch: Partial<Omit<LoanItem, 'id'>>) => void;
   deleteLoanItem: (id: string) => void;
@@ -1611,8 +1613,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       meetingNo,
       father: attendance.father,
       mother: attendance.mother,
-      date: old?.date || getRealTodayShamsiString(),
+      hasAttendance: true,
+      date: old?.hasAttendance !== false && old?.date ? old.date : getRealTodayShamsiString(),
       note: old?.note ?? null,
+      noteBy: old?.noteBy ?? null,
+      noteById: old?.noteById ?? null,
+      noteAt: old?.noteAt ?? null,
       recordedById: currentUser.id,
       recordedBy: currentUser.name,
       updatedAt: new Date().toISOString(),
@@ -1630,7 +1636,35 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const clearParentMeetingAttendance: SchoolContextType['clearParentMeetingAttendance'] = (studentId, meetingNo) => {
     const id = parentMeetingId(String(currentAcademicStartYear()), meetingNo, studentId);
-    setParentMeetings((prev) => prev.filter((r) => r.id !== id));
+    // اگر یادداشت دارد، فقط حضور پاک می‌شود و یادداشت می‌ماند
+    setParentMeetings((prev) =>
+      prev.flatMap((r) => (r.id !== id ? [r] : r.note ? [{ ...r, father: false, mother: false, hasAttendance: false, date: null }] : []))
+    );
+  };
+
+  const setParentMeetingNote: SchoolContextType['setParentMeetingNote'] = (student, meetingNo, note) => {
+    const year = String(currentAcademicStartYear());
+    const id = parentMeetingId(year, meetingNo, student.id);
+    const text = note.trim();
+    setParentMeetings((prev) => {
+      const old = prev.find((r) => r.id === id);
+      if (!old && !text) return prev;
+      const base: ParentMeetingRecord = old ?? {
+        id, studentId: student.id, classId: student.classId, academicYear: year, meetingNo,
+        father: false, mother: false, hasAttendance: false, date: null,
+      };
+      // یادداشت پاک‌شده روی رکوردِ بدون حضور → کل رکورد حذف می‌شود
+      if (!text && base.hasAttendance === false) return prev.filter((r) => r.id !== id);
+      const next: ParentMeetingRecord = {
+        ...base,
+        note: text || null,
+        noteBy: text ? currentUser.name : null,
+        noteById: text ? currentUser.id : null,
+        noteAt: text ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
+      };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
+    });
   };
 
   // امانات و لوازم
@@ -2859,6 +2893,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setParentMeetingAttendance,
         setParentMeetingAttendanceBulk,
         clearParentMeetingAttendance,
+        setParentMeetingNote,
         worksheets,
         worksheetWeeks,
         schoolHolidays,

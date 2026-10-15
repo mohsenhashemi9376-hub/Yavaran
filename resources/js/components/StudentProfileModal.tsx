@@ -1,3 +1,4 @@
+import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
@@ -1252,6 +1253,9 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           ======================================================================= */}
           {activeTab === 'attendance' && !isEditing && (
             <div className="space-y-4">
+              {/* آمار تجمیعی حضور پدر و مادر در جلسات عمومی أولیا (فقط با مجوز) */}
+              <ParentMeetingsProfileCard studentId={currentStudent.id} />
+
               {/* خلاصه فعالیت و تکالیف کلاسی */}
               {(() => {
                 const sum = summarizeActivity(sessions, currentStudent.id, { classId: currentStudent.classId });

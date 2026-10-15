@@ -300,9 +300,15 @@ export interface ParentMeetingRecord {
   meetingNo: ParentMeetingNo;
   father: boolean; // پدر حضور داشته است
   mother: boolean; // مادر حضور داشته است
-  /** تاریخ ثبت (شمسی)؛ خودکار و توسط سرور تعیین می‌شود و پس از اولین ثبت تغییر نمی‌کند */
-  date: string;
+  /** false: فقط یادداشت دارد و حضور هنوز ثبت نشده است (مربی/معاون تربیتی یادداشت می‌گذارند) */
+  hasAttendance?: boolean;
+  /** تاریخ ثبت حضور (شمسی)؛ خودکار و توسط سرور تعیین می‌شود و پس از اولین ثبت تغییر نمی‌کند */
+  date: string | null;
+  /** یادداشت مربی / معاون تربیتی روی گزارش حضور أولیای این دانش‌آموز در این جلسه */
   note?: string | null;
+  noteBy?: string | null;
+  noteById?: string | null;
+  noteAt?: string | null;
   recordedBy?: string;
   recordedById?: string;
   updatedAt?: string;

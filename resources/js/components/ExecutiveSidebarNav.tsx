@@ -164,8 +164,8 @@ export const ExecutiveSidebarNav: React.FC<ExecutiveSidebarNavProps> = ({
         },
         {
           id: 'parent_meetings',
-          label: 'جلسات عمومی اولیاء',
-          tooltip: 'جلسات عمومی اولیاء',
+          label: 'حضور أولیا',
+          tooltip: 'حضور أولیا در جلسات عمومی',
           icon: UsersRound,
         },
       ],

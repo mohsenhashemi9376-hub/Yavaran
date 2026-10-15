@@ -79,21 +79,87 @@ class ParentMeetingsTest extends TestCase
         $this->assertDatabaseCount('parent_meetings', 0);
     }
 
-    public function test_access_is_limited_to_managers_with_permission(): void
+    public function test_only_admin_and_disciplinary_vice_record_attendance(): void
     {
-        foreach (['teacher', 'coach'] as $role) {
-            $this->sync($this->makeUser($role), [$this->row()])->assertStatus(403);
+        foreach (['teacher', 'coach', 'vice_nurturing', 'vice_educational', 'vice_principal'] as $role) {
+            $this->sync($this->makeUser($role, [], ['assignedClassIds' => ['cls-1']]), [$this->row(1, true, true)])->assertStatus(403);
         }
-        $this->sync($this->makeUser('vice_nurturing'), [$this->row()])->assertStatus(403);
         $this->assertDatabaseCount('parent_meetings', 0);
 
-        foreach (['admin', 'vice_disciplinary', 'vice_educational'] as $role) {
-            $this->sync($this->makeUser($role), [$this->row()])->assertOk();
+        foreach (['admin', 'vice_disciplinary'] as $role) {
+            $this->sync($this->makeUser($role), [$this->row(1, true, true)])->assertOk();
         }
+    }
 
-        foreach (['teacher', 'coach', 'vice_nurturing'] as $role) {
+    public function test_nurturing_roles_only_add_notes_and_cannot_change_attendance(): void
+    {
+        $this->sync($this->makeUser('vice_disciplinary'), [$this->row(1, true, false)])->assertOk();
+        $before = json_decode((string) DB::table('parent_meetings')->value('data'), true);
+
+        $vice = $this->makeUser('vice_nurturing', ['name' => 'معاون تربیتی']);
+        // تلاش برای تغییر حضور همراه با یادداشت: حضور دست‌نخورده می‌ماند
+        $this->sync($vice, [$this->row(1, false, true, ['note' => 'با پدر صحبت شد', 'date' => '1300/01/01'])])->assertOk();
+        $after = json_decode((string) DB::table('parent_meetings')->value('data'), true);
+        $this->assertTrue($after['father']);
+        $this->assertFalse($after['mother']);
+        $this->assertSame($before['date'], $after['date']);
+        $this->assertSame('با پدر صحبت شد', $after['note']);
+        $this->assertSame('معاون تربیتی', $after['noteBy']);
+        $this->assertDatabaseHas('parent_meetings', ['father_present' => 1, 'mother_present' => 0]);
+
+        // حذف رکورد حضور برای معاون تربیتی ممنوع است
+        $this->sync($vice, [], ['pm-'.$this->year().'-1-stu-1'])->assertStatus(403);
+        $this->assertDatabaseCount('parent_meetings', 1);
+    }
+
+    public function test_note_on_unrecorded_student_does_not_count_as_attendance(): void
+    {
+        $coach = $this->makeUser('coach', [], ['assignedClassIds' => ['cls-1']]);
+        $this->sync($coach, [$this->row(2, true, true, ['note' => 'یادداشت'])])->assertOk();
+
+        $stored = json_decode((string) DB::table('parent_meetings')->value('data'), true);
+        $this->assertFalse($stored['hasAttendance']);
+        $this->assertFalse($stored['father']);
+        $this->assertNull($stored['date']);
+        $this->assertDatabaseHas('parent_meetings', ['father_present' => 0, 'mother_present' => 0]);
+
+        // ثبت حضور بعدی توسط معاون انضباطی، یادداشت را نگه می‌دارد و تاریخ را امروز می‌گذارد
+        $this->sync($this->makeUser('vice_disciplinary'), [$this->row(2, false, true, ['note' => 'یادداشت', 'noteBy' => 'x'])])->assertOk();
+        $stored = json_decode((string) DB::table('parent_meetings')->value('data'), true);
+        $this->assertTrue($stored['hasAttendance']);
+        $this->assertTrue($stored['mother']);
+        $this->assertNotNull($stored['date']);
+        $this->assertSame('یادداشت', $stored['note']);
+    }
+
+    public function test_coach_is_limited_to_own_classes(): void
+    {
+        $this->makeClass('cls-2');
+        $this->makeStudent('stu-2', 'cls-2');
+        $coach = $this->makeUser('coach', [], ['assignedClassIds' => ['cls-1']]);
+
+        $id = 'pm-'.$this->year().'-1-stu-2';
+        $this->sync($coach, [['id' => $id, 'data' => ['id' => $id, 'studentId' => 'stu-2', 'meetingNo' => 1, 'note' => 'x']]])->assertStatus(403);
+
+        $admin = $this->makeUser('admin');
+        $this->sync($admin, [$this->row(1)])->assertOk();
+        $id2 = 'pm-'.$this->year().'-1-stu-2';
+        $this->sync($admin, [['id' => $id2, 'data' => ['id' => $id2, 'studentId' => 'stu-2', 'meetingNo' => 1, 'father' => true, 'mother' => true]]])->assertOk();
+
+        $rows = $this->actingAs($coach)->getJson('/api/bootstrap')->json('data.parentMeetings');
+        $this->assertCount(1, $rows);
+        $this->assertSame('stu-1', $rows[0]['studentId']);
+    }
+
+    public function test_visibility_by_role(): void
+    {
+        $this->sync($this->makeUser('admin'), [$this->row()])->assertOk();
+
+        foreach (['teacher', 'vice_educational'] as $role) {
             $this->assertSame([], $this->actingAs($this->makeUser($role))->getJson('/api/bootstrap')->json('data.parentMeetings'));
         }
-        $this->assertCount(1, $this->actingAs($this->makeUser('vice_disciplinary'))->getJson('/api/bootstrap')->json('data.parentMeetings'));
+        foreach (['admin', 'vice_disciplinary', 'vice_nurturing'] as $role) {
+            $this->assertCount(1, $this->actingAs($this->makeUser($role))->getJson('/api/bootstrap')->json('data.parentMeetings'));
+        }
     }
 }
