@@ -9,7 +9,12 @@ permissions:
   contents: read
 
 jobs:
+  # تست‌ها باید قبل از ساخت و انتشار سبز شوند؛ اگر یکی شکست بخورد، چیزی روی هاست منتشر نمی‌شود
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   build:
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
