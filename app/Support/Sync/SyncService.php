@@ -156,6 +156,10 @@ final class SyncService
                         $this->notifyCircular($policy, $data, $item->id);
                     }
                 }
+
+                if ($collection === 'parentMeetings') {
+                    $this->alertParentAbsenceStreak($data);
+                }
             }
         });
         } catch (\Throwable $e) {
@@ -280,6 +284,63 @@ final class SyncService
         $data->setBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
         \App\Support\SchoolCalendar::reset();
+    }
+
+    /**
+     * هشدار خودکار به معاون تربیتی: ولیِ دانش‌آموز در دو جلسه‌ی عمومیِ پشت‌سرهم (جلسه‌های متوالی همان سال) هیچ‌کدام حاضر نبوده‌اند.
+     * هر زوج جلسه برای هر دانش‌آموز فقط یک بار اعلان می‌دهد (ویرایش‌های بعدی تکرار نمی‌شود).
+     */
+    private function alertParentAbsenceStreak(object $data): void
+    {
+        try {
+            if (($data->hasAttendance ?? true) === false || ! empty($data->father) || ! empty($data->mother) || ! Notifier::ensureTable()) {
+                return;
+            }
+            $no = (int) $data->meetingNo;
+            $studentId = (string) $data->studentId;
+            $year = (string) $data->academicYear;
+
+            foreach ([$no - 1, $no + 1] as $other) {
+                if ($other < 1 || $other > 3) {
+                    continue;
+                }
+                $row = DB::table('parent_meetings')->where('student_id', $studentId)->where('academic_year', $year)->where('meeting_no', $other)->value('data');
+                $d = is_string($row) ? json_decode($row, false) : null;
+                if (! is_object($d) || ($d->hasAttendance ?? true) === false || ! empty($d->father) || ! empty($d->mother)) {
+                    continue;
+                }
+
+                $first = min($no, $other);
+                $ref = 'pm2:'.sha1($year.'|'.$studentId.'|'.$first);
+                $receivers = DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->pluck('id')->map(fn ($v) => (string) $v)->all();
+                $receivers = array_values(array_filter($receivers, static fn (string $id): bool => ! DB::table('notifications')->where('receiver_id', $id)->where('ref_id', $ref)->exists()));
+                if ($receivers === []) {
+                    continue;
+                }
+
+                $student = DB::table('students')->where('id', $studentId)->first(['class_id', 'data']);
+                $sd = $student && is_string($student->data) ? json_decode($student->data, false) : null;
+                $name = trim(((string) ($sd->lastName ?? '')).' '.((string) ($sd->firstName ?? ''))) ?: $studentId;
+                $className = $student ? (string) (DB::table('school_classes')->where('id', $student->class_id)->value('name') ?? '') : '';
+                $labels = [1 => 'اول', 2 => 'دوم', 3 => 'سوم'];
+
+                Notifier::send($receivers, [
+                    'title' => 'هشدار حضور أولیا: غیبت پشت‌سرهم',
+                    'message' => sprintf(
+                        'پدر و مادر «%s»%s در جلسه‌های عمومی %s و %s أولیا حاضر نبوده‌اند. پیگیری و گفتگو با خانواده توصیه می‌شود.',
+                        $name,
+                        $className !== '' ? " ({$className})" : '',
+                        $labels[$first],
+                        $labels[$first + 1]
+                    ),
+                    'type' => 'announcement',
+                    'priority' => 'urgent',
+                    'ref_id' => $ref,
+                ]);
+            }
+        } catch (\Throwable) {
+            // هشدار نباید ثبت حضور را مختل کند
+        }
     }
 
     /**

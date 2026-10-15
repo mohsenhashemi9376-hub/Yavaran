@@ -162,4 +162,34 @@ class ParentMeetingsTest extends TestCase
             $this->assertCount(1, $this->actingAs($this->makeUser($role))->getJson('/api/bootstrap')->json('data.parentMeetings'));
         }
     }
+
+    public function test_two_consecutive_full_absences_alert_nurturing_vice_once(): void
+    {
+        $nv = $this->makeUser('vice_nurturing');
+        $other = $this->makeUser('vice_nurturing');
+        $vice = $this->makeUser('vice_disciplinary');
+
+        $this->sync($vice, [$this->row(1, false, false)])->assertOk();
+        $this->assertDatabaseCount('notifications', 0);
+
+        $this->sync($vice, [$this->row(3, false, false)])->assertOk(); // غیرمتوالی
+        $this->assertDatabaseCount('notifications', 0);
+
+        $this->sync($vice, [$this->row(2, false, false)])->assertOk(); // ۱-۲ و ۲-۳
+        $this->assertDatabaseHas('notifications', ['receiver_id' => $nv->id, 'priority' => 'urgent']);
+        $this->assertDatabaseHas('notifications', ['receiver_id' => $other->id]);
+        $this->assertSame(4, DB::table('notifications')->count());
+
+        $this->sync($vice, [$this->row(2, false, false)])->assertOk(); // تکرار ثبت، اعلان تکراری ندارد
+        $this->assertSame(4, DB::table('notifications')->count());
+    }
+
+    public function test_no_alert_when_a_parent_attended(): void
+    {
+        $this->makeUser('vice_nurturing');
+        $vice = $this->makeUser('vice_disciplinary');
+        $this->sync($vice, [$this->row(1, false, false)])->assertOk();
+        $this->sync($vice, [$this->row(2, true, false)])->assertOk();
+        $this->assertDatabaseCount('notifications', 0);
+    }
 }
