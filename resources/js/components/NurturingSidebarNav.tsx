@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ClipboardList, ClipboardCheck,
   BookOpen,
+  UsersRound,
   Search
 } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
@@ -37,7 +38,8 @@ export type NurturingViewType =
   | 'academic_and_discipline'
   | 'taught_lessons'
   | 'homework_followup'
-  | 'worksheets';
+  | 'worksheets'
+  | 'parent_meetings';
 
 export interface NurturingSidebarCounts {
   observations?: number;
@@ -234,6 +236,12 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           label: 'آموزش و انضباط کلاس‌ها',
           tooltip: 'نمای یکپارچه کارنامه، غیبت‌ها و نمرات',
           icon: BookOpen,
+        },
+        {
+          id: 'parent_meetings',
+          label: 'حضور أولیا',
+          tooltip: 'آمار حضور پدر و مادر در جلسات عمومی و یادداشت',
+          icon: UsersRound,
         },
         {
           id: 'worksheets',

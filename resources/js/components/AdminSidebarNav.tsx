@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Settings,
   Package,
+  UsersRound,
   Clock,
   X, 
   ChevronLeft,
@@ -29,6 +30,7 @@ export type FullScreenView =
   | 'delays' 
   | 'discipline' 
   | 'loans' 
+  | 'parent_meetings'
   | 'teachers' 
   | 'coaches' 
   | 'subjects' 
@@ -173,6 +175,14 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
           icon: Package,
           count: (counts?.loans ?? 0) > 0 ? counts?.loans : undefined,
           isWarning: true,
+          allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'],
+        },
+        {
+          id: 'parent_meetings',
+          label: 'حضور أولیا',
+          subtitle: 'حضور پدر و مادر در جلسات عمومی',
+          tooltip: 'حضور أولیا در جلسات عمومی',
+          icon: UsersRound,
           allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'],
         },
       ],

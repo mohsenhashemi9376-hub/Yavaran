@@ -39,6 +39,8 @@ final class Permissions
                 'counseling-report' => 'ثبت گزارش مشاوره‌ای',
                 'view-nurturing-file' => 'مشاهده پرونده تربیتی',
                 'manage-loans' => 'امانات و لوازم',
+                'parent-meetings' => 'ثبت حضور پدر و مادر در جلسات عمومی',
+                'view-parent-meetings' => 'مشاهده آمار حضور أولیا و ثبت یادداشت',
             ],
         ],
         'base' => [
@@ -69,23 +71,25 @@ final class Permissions
     public static function defaultsFor(string $role): array
     {
         $all = self::all();
-        $withoutSettings = array_values(array_diff($all, ['school-settings', 'manage-announcements', 'evaluate-teachers']));
+        // ثبت حضور أولیا فقط با مدیر و معاون انضباطی است؛ مشاهده‌ی آمار برای مدیر، معاون انضباطی، معاون تربیتی و مربی
+        $parentMeetings = ['parent-meetings', 'view-parent-meetings'];
+        $withoutSettings = array_values(array_diff($all, ['school-settings', 'manage-announcements', 'evaluate-teachers'], $parentMeetings));
 
         return match ($role) {
             'admin' => $all,
-            'vice_educational' => $all,
+            'vice_educational' => array_values(array_diff($all, $parentMeetings)),
             'vice_principal' => $withoutSettings,
             'vice_disciplinary' => [
                 'manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians',
-                'analytics-reports', 'manage-loans',
+                'analytics-reports', 'manage-loans', 'parent-meetings', 'view-parent-meetings',
             ],
             'vice_nurturing' => [
                 'view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file',
-                'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets',
+                'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets', 'view-parent-meetings',
             ],
             'coach' => [
                 'view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students',
-                'analytics-reports', 'manage-worksheets', 'view-worksheets',
+                'analytics-reports', 'manage-worksheets', 'view-worksheets', 'view-parent-meetings',
             ],
             'teacher' => [
                 'manage-grades', 'manage-attendance', 'view-attendance-history', 'view-students',

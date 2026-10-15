@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
   BookOpen, ClipboardList, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
-  BarChart3, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package,
+  BarChart3, UsersRound, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
 
@@ -27,6 +27,8 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
       ? [{ id: 'coaches', label: 'مربیان', icon: HeartHandshake }] : []),
     ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
       ? [{ id: 'loans', label: 'امانات و لوازم', icon: Package, badge: counts.loans }] : []),
+    ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
+      ? [{ id: 'parent_meetings', label: 'حضور أولیا', icon: UsersRound }] : []),
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
     { id: 'reports', label: 'گزارش‌ها', icon: FileSpreadsheet },
     { id: 'settings', label: 'تنظیمات', icon: Settings },
@@ -43,6 +45,7 @@ export const executiveMobileNav = (counts: { warnings: number; loans?: number })
   ] as MobileNavItem[],
   more: [
     { id: 'loans', label: 'امانات و لوازم', icon: Package, badge: counts.loans },
+    { id: 'parent_meetings', label: 'حضور أولیا', icon: UsersRound },
     { id: 'classes', label: 'کلاس‌ها', icon: GraduationCap },
     { id: 'teachers', label: 'معلمان', icon: UserCheck },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },
@@ -84,6 +87,7 @@ export const nurturingMobileNav = (isVice = false) => ({
     { id: 'attention', label: 'نیازمند توجه', icon: AlertTriangle },
   ] as MobileNavItem[],
   more: [
+    { id: 'parent_meetings', label: 'حضور أولیا', icon: UsersRound },
     { id: 'academic_and_discipline', label: 'آموزش و انضباط', icon: BookOpen },
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'taught_lessons', label: 'درس‌ها و تکالیف', icon: ClipboardList },

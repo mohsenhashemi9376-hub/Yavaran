@@ -39,6 +39,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'counseling-report', label: 'ثبت گزارش مشاوره‌ای' },
       { key: 'view-nurturing-file', label: 'مشاهده پرونده تربیتی' },
       { key: 'manage-loans', label: 'امانات و لوازم' },
+      { key: 'parent-meetings', label: 'ثبت حضور پدر و مادر در جلسات عمومی' },
+      { key: 'view-parent-meetings', label: 'مشاهده آمار حضور أولیا و ثبت یادداشت' },
     ],
   },
   {
@@ -55,8 +57,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.key));
 
+/** ثبت حضور أولیا فقط با مدیر و معاون انضباطی؛ مشاهده‌ی آمار برای مدیر، معاون انضباطی، معاون تربیتی و مربی */
+const PARENT_MEETING_KEYS = ['parent-meetings', 'view-parent-meetings'];
+const WITHOUT_PARENT_MEETINGS = ALL_PERMISSION_KEYS.filter((k) => !PARENT_MEETING_KEYS.includes(k));
 const WITHOUT_SETTINGS = ALL_PERMISSION_KEYS.filter(
-  (k) => !['school-settings', 'manage-announcements', 'evaluate-teachers'].includes(k)
+  (k) => !['school-settings', 'manage-announcements', 'evaluate-teachers', ...PARENT_MEETING_KEYS].includes(k)
 );
 
 export const TEACHER_DEFAULTS = [
@@ -71,16 +76,17 @@ export const TEACHER_DEFAULTS = [
 export function defaultPermissionsFor(role: UserRole | string): string[] {
   switch (role) {
     case 'admin':
-    case 'vice_educational':
       return ALL_PERMISSION_KEYS;
+    case 'vice_educational':
+      return WITHOUT_PARENT_MEETINGS;
     case 'vice_principal':
       return WITHOUT_SETTINGS;
     case 'vice_disciplinary':
-      return ['manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians', 'analytics-reports', 'manage-loans'];
+      return ['manage-attendance', 'view-attendance-history', 'discipline', 'view-students', 'view-guardians', 'analytics-reports', 'manage-loans', 'parent-meetings', 'view-parent-meetings'];
     case 'vice_nurturing':
-      return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets'];
+      return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets', 'view-parent-meetings'];
     case 'coach':
-      return ['view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports', 'manage-worksheets', 'view-worksheets'];
+      return ['view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports', 'manage-worksheets', 'view-worksheets', 'view-parent-meetings'];
     case 'teacher':
       return TEACHER_DEFAULTS;
     default:
@@ -105,6 +111,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   attendance: ['manage-attendance', 'view-attendance-history'],
   discipline: ['discipline'],
   loans: ['manage-loans'],
+  parent_meetings: ['parent-meetings', 'view-parent-meetings'],
   audit: ['view-nurturing-file'],
   students: ['view-students'],
   classes: ['manage-classes', 'view-students'],

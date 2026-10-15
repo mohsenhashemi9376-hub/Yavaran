@@ -76,6 +76,7 @@ import {
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
 import { LoansWorkspace } from './LoansWorkspace';
+import { ParentMeetingsWorkspace } from './ParentMeetingsWorkspace';
 import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
 import { studentFullName } from '../utils/studentName';
 
@@ -1733,6 +1734,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onDeleteDisciplinaryNote={(studentId, noteId) => deleteDisciplinaryNote(studentId, noteId)}
           onUpdateScore={(studentId, score) => updateStudentDiscipline(studentId, score)}
         />
+      )}
+
+      {currentFullScreenView === 'parent_meetings' && (
+        <ParentMeetingsWorkspace onBack={() => setCurrentFullScreenView(null)} onOpenSidebar={handleOpenSidebar} />
       )}
 
       {currentFullScreenView === 'loans' && (

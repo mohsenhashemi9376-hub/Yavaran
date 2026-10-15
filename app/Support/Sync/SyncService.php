@@ -101,6 +101,9 @@ final class SyncService
                 if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
+                if ($collection === 'parentMeetings') {
+                    $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user, $policy);
+                }
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
 
@@ -152,6 +155,10 @@ final class SyncService
                     if ($collection === 'schoolAnnouncements') {
                         $this->notifyCircular($policy, $data, $item->id);
                     }
+                }
+
+                if ($collection === 'parentMeetings') {
+                    $this->alertParentAbsenceStreak($data);
                 }
             }
         });
@@ -277,6 +284,138 @@ final class SyncService
         $data->setBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
         \App\Support\SchoolCalendar::reset();
+    }
+
+    /**
+     * هشدار خودکار به معاون تربیتی: ولیِ دانش‌آموز در دو جلسه‌ی عمومیِ پشت‌سرهم (جلسه‌های متوالی همان سال) هیچ‌کدام حاضر نبوده‌اند.
+     * هر زوج جلسه برای هر دانش‌آموز فقط یک بار اعلان می‌دهد (ویرایش‌های بعدی تکرار نمی‌شود).
+     */
+    private function alertParentAbsenceStreak(object $data): void
+    {
+        try {
+            if (($data->hasAttendance ?? true) === false || ! empty($data->father) || ! empty($data->mother) || ! Notifier::ensureTable()) {
+                return;
+            }
+            $no = (int) $data->meetingNo;
+            $studentId = (string) $data->studentId;
+            $year = (string) $data->academicYear;
+
+            foreach ([$no - 1, $no + 1] as $other) {
+                if ($other < 1 || $other > 3) {
+                    continue;
+                }
+                $row = DB::table('parent_meetings')->where('student_id', $studentId)->where('academic_year', $year)->where('meeting_no', $other)->value('data');
+                $d = is_string($row) ? json_decode($row, false) : null;
+                if (! is_object($d) || ($d->hasAttendance ?? true) === false || ! empty($d->father) || ! empty($d->mother)) {
+                    continue;
+                }
+
+                $first = min($no, $other);
+                $ref = 'pm2:'.sha1($year.'|'.$studentId.'|'.$first);
+                $receivers = DB::table('users')->where('role', 'vice_nurturing')->where('is_active', true)->pluck('id')->map(fn ($v) => (string) $v)->all();
+                $receivers = array_values(array_filter($receivers, static fn (string $id): bool => ! DB::table('notifications')->where('receiver_id', $id)->where('ref_id', $ref)->exists()));
+                if ($receivers === []) {
+                    continue;
+                }
+
+                $student = DB::table('students')->where('id', $studentId)->first(['class_id', 'data']);
+                $sd = $student && is_string($student->data) ? json_decode($student->data, false) : null;
+                $name = trim(((string) ($sd->lastName ?? '')).' '.((string) ($sd->firstName ?? ''))) ?: $studentId;
+                $className = $student ? (string) (DB::table('school_classes')->where('id', $student->class_id)->value('name') ?? '') : '';
+                $labels = [1 => 'اول', 2 => 'دوم', 3 => 'سوم'];
+
+                Notifier::send($receivers, [
+                    'title' => 'هشدار حضور أولیا: غیبت پشت‌سرهم',
+                    'message' => sprintf(
+                        'پدر و مادر «%s»%s در جلسه‌های عمومی %s و %s أولیا حاضر نبوده‌اند. پیگیری و گفتگو با خانواده توصیه می‌شود.',
+                        $name,
+                        $className !== '' ? " ({$className})" : '',
+                        $labels[$first],
+                        $labels[$first + 1]
+                    ),
+                    'type' => 'announcement',
+                    'priority' => 'urgent',
+                    'ref_id' => $ref,
+                ]);
+            }
+        } catch (\Throwable) {
+            // هشدار نباید ثبت حضور را مختل کند
+        }
+    }
+
+    /**
+     * حضور أولیا در جلسه‌ی عمومی: شناسه قطعی است (یک رکورد برای هر دانش‌آموز در هر جلسه‌ی سال تحصیلی جاری)،
+     * کلاس از دیتابیس و سال تحصیلی و تاریخ ثبت از ساعت سرور تعیین می‌شود؛ تاریخ پس از اولین ثبت تغییر نمی‌کند.
+     * فقط ثبت‌کنندگان حضور (مدیر و معاون انضباطی) حضور پدر و مادر را تغییر می‌دهند؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
+     * و مقدار حضور ارسالی آن‌ها نادیده گرفته می‌شود. نویسنده و زمان یادداشت را هم سرور می‌گذارد.
+     */
+    private function normalizeParentMeeting(object $data, string $id, ?object $old, User $user, AccessPolicy $policy): void
+    {
+        $no = isset($data->meetingNo) && is_numeric($data->meetingNo) ? (int) $data->meetingNo : 0;
+        if ($no < 1 || $no > 3) {
+            abort(422, 'شماره‌ی جلسه‌ی أولیا نامعتبر است (فقط جلسه‌ی اول تا سوم).');
+        }
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        $year = (string) \App\Support\AcademicYear::current()[0];
+        if ($id !== 'pm-'.$year.'-'.$no.'-'.$studentId) {
+            abort(422, 'شناسه‌ی رکورد حضور أولیا نامعتبر است.');
+        }
+
+        $now = now()->toIso8601String();
+        [$jy, $jm, $jd] = \App\Support\Jalali::fromCarbon(now('Asia/Tehran'));
+        $today = sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
+        $oldHas = $old !== null && ($old->hasAttendance ?? true) !== false;
+        $oldDate = $oldHas && isset($old->date) && is_string($old->date) && preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $old->date) ? $old->date : null;
+
+        if ($policy->canRecordParentMeetings()) {
+            $has = ($data->hasAttendance ?? true) !== false;
+            $data->father = $has && ! empty($data->father);
+            $data->mother = $has && ! empty($data->mother);
+            $data->hasAttendance = $has;
+            $data->date = $has ? ($oldDate ?? $today) : null;
+        } else {
+            // فقط یادداشت: وضعیت حضور (و تاریخش) از رکورد قبلی می‌ماند؛ رکورد تازه «بدون ثبت حضور» است
+            $data->father = $oldHas && ! empty($old->father);
+            $data->mother = $oldHas && ! empty($old->mother);
+            $data->hasAttendance = $oldHas;
+            $data->date = $oldDate;
+        }
+
+        $oldNote = $old !== null && isset($old->note) && is_string($old->note) && $old->note !== '' ? $old->note : null;
+        if ($policy->canNoteParentMeetings()) {
+            $note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        } else {
+            $note = $oldNote;
+        }
+        $data->note = $note;
+        if ($note === null) {
+            $data->noteBy = $data->noteById = $data->noteAt = null;
+        } elseif ($note === $oldNote && $old !== null) {
+            $data->noteBy = $old->noteBy ?? null;
+            $data->noteById = $old->noteById ?? null;
+            $data->noteAt = $old->noteAt ?? null;
+        } else {
+            $data->noteBy = (string) $user->name;
+            $data->noteById = (string) $user->id;
+            $data->noteAt = $now;
+        }
+
+        $data->academicYear = $year;
+        $data->meetingNo = $no;
+        $data->classId = (string) $classId;
+        // ثبت‌کننده‌ی حضور فقط وقتی عوض می‌شود که خودِ حضور را ثبت کرده باشد
+        if ($policy->canRecordParentMeetings()) {
+            $data->recordedById = (string) $user->id;
+            $data->recordedBy = (string) $user->name;
+        } else {
+            $data->recordedById = $old->recordedById ?? null;
+            $data->recordedBy = $old->recordedBy ?? null;
+        }
+        $data->updatedAt = $now;
     }
 
     /**

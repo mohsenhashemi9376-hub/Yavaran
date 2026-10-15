@@ -16,6 +16,8 @@ import {
   GradePeriod,
   Workshop,
   LoanItem,
+  ParentMeetingRecord,
+  ParentMeetingNo,
   WorksheetRecord,
   WorksheetWeek,
   WorksheetStatus,
@@ -54,6 +56,7 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
+import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetings';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
@@ -98,6 +101,7 @@ interface SchoolContextType {
   gradePeriods: GradePeriod[];
   workshops: Workshop[];
   loanItems: LoanItem[];
+  parentMeetings: ParentMeetingRecord[];
   worksheets: WorksheetRecord[];
   worksheetWeeks: WorksheetWeek[];
   /** تعطیلی‌های اعلام‌شده؛ جمعه‌ها همیشه تعطیل‌اند و در این فهرست نیستند */
@@ -120,6 +124,12 @@ interface SchoolContextType {
   setWorksheetStatus: (student: Pick<Student, 'id' | 'classId'>, weekStart: string, status: WorksheetStatus | null, note?: string | null) => void;
   markWorksheetsComplete: (students: Pick<Student, 'id' | 'classId'>[], weekStart: string) => void;
   setWorksheetDeadline: (weekStart: string, deadline: string | null) => void;
+  /** ثبت حضور پدر/مادر در جلسه‌ی عمومی اولیاء (تاریخ را سرور خودکار می‌گذارد) */
+  setParentMeetingAttendance: (student: Pick<Student, 'id' | 'classId'>, meetingNo: ParentMeetingNo, attendance: { father: boolean; mother: boolean }) => void;
+  setParentMeetingAttendanceBulk: (students: Pick<Student, 'id' | 'classId'>[], meetingNo: ParentMeetingNo, attendance: { father: boolean; mother: boolean }) => void;
+  clearParentMeetingAttendance: (studentId: string, meetingNo: ParentMeetingNo) => void;
+  /** یادداشت مربی / معاون تربیتی روی گزارش حضور أولیا (بدون تغییر در حضور ثبت‌شده) */
+  setParentMeetingNote: (student: Pick<Student, 'id' | 'classId'>, meetingNo: ParentMeetingNo, note: string) => void;
   addLoanItem: (data: Pick<LoanItem, 'itemName' | 'loanDate' | 'recipientName'> & { note?: string }) => string;
   updateLoanItem: (id: string, patch: Partial<Omit<LoanItem, 'id'>>) => void;
   deleteLoanItem: (id: string) => void;
@@ -404,6 +414,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [viewDate, setViewDateState] = useState<string | null>(null);
   const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
+  const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -558,6 +569,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
+    const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -586,6 +598,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       gradePeriods: nextGradePeriods as unknown as SyncRow[],
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
+      parentMeetings: nextParentMeetings as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -614,6 +627,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
+    setParentMeetings(nextParentMeetings);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -656,6 +670,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredGradePeriods([]);
     setStoredWorkshops([]);
     setLoanItems([]);
+    setParentMeetings([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -779,6 +794,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
+  useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
   useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
@@ -1576,6 +1592,78 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops((prev) => {
       const exists = prev.some((w) => w.id === id);
       return exists ? prev.map((w) => (w.id === id ? { ...w, ...patch } : w)) : [...prev, { ...base, ...patch }];
+    });
+  };
+
+  // حضور اولیا در جلسات عمومی: تاریخ ثبت خودکار است (امروزِ واقعی)؛ پس از اولین ثبت تغییر نمی‌کند
+  const upsertParentMeeting = (
+    list: ParentMeetingRecord[],
+    student: Pick<Student, 'id' | 'classId'>,
+    meetingNo: ParentMeetingNo,
+    attendance: { father: boolean; mother: boolean },
+  ): ParentMeetingRecord[] => {
+    const year = String(currentAcademicStartYear());
+    const id = parentMeetingId(year, meetingNo, student.id);
+    const old = list.find((r) => r.id === id);
+    const record: ParentMeetingRecord = {
+      id,
+      studentId: student.id,
+      classId: student.classId,
+      academicYear: year,
+      meetingNo,
+      father: attendance.father,
+      mother: attendance.mother,
+      hasAttendance: true,
+      date: old?.hasAttendance !== false && old?.date ? old.date : getRealTodayShamsiString(),
+      note: old?.note ?? null,
+      noteBy: old?.noteBy ?? null,
+      noteById: old?.noteById ?? null,
+      noteAt: old?.noteAt ?? null,
+      recordedById: currentUser.id,
+      recordedBy: currentUser.name,
+      updatedAt: new Date().toISOString(),
+    };
+    return old ? list.map((r) => (r.id === id ? record : r)) : [...list, record];
+  };
+
+  const setParentMeetingAttendance: SchoolContextType['setParentMeetingAttendance'] = (student, meetingNo, attendance) => {
+    setParentMeetings((prev) => upsertParentMeeting(prev, student, meetingNo, attendance));
+  };
+
+  const setParentMeetingAttendanceBulk: SchoolContextType['setParentMeetingAttendanceBulk'] = (list, meetingNo, attendance) => {
+    setParentMeetings((prev) => list.reduce((acc, st) => upsertParentMeeting(acc, st, meetingNo, attendance), prev));
+  };
+
+  const clearParentMeetingAttendance: SchoolContextType['clearParentMeetingAttendance'] = (studentId, meetingNo) => {
+    const id = parentMeetingId(String(currentAcademicStartYear()), meetingNo, studentId);
+    // اگر یادداشت دارد، فقط حضور پاک می‌شود و یادداشت می‌ماند
+    setParentMeetings((prev) =>
+      prev.flatMap((r) => (r.id !== id ? [r] : r.note ? [{ ...r, father: false, mother: false, hasAttendance: false, date: null }] : []))
+    );
+  };
+
+  const setParentMeetingNote: SchoolContextType['setParentMeetingNote'] = (student, meetingNo, note) => {
+    const year = String(currentAcademicStartYear());
+    const id = parentMeetingId(year, meetingNo, student.id);
+    const text = note.trim();
+    setParentMeetings((prev) => {
+      const old = prev.find((r) => r.id === id);
+      if (!old && !text) return prev;
+      const base: ParentMeetingRecord = old ?? {
+        id, studentId: student.id, classId: student.classId, academicYear: year, meetingNo,
+        father: false, mother: false, hasAttendance: false, date: null,
+      };
+      // یادداشت پاک‌شده روی رکوردِ بدون حضور → کل رکورد حذف می‌شود
+      if (!text && base.hasAttendance === false) return prev.filter((r) => r.id !== id);
+      const next: ParentMeetingRecord = {
+        ...base,
+        note: text || null,
+        noteBy: text ? currentUser.name : null,
+        noteById: text ? currentUser.id : null,
+        noteAt: text ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
+      };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
   };
 
@@ -2801,6 +2889,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         gradePeriods,
         workshops,
         loanItems,
+        parentMeetings,
+        setParentMeetingAttendance,
+        setParentMeetingAttendanceBulk,
+        clearParentMeetingAttendance,
+        setParentMeetingNote,
         worksheets,
         worksheetWeeks,
         schoolHolidays,
