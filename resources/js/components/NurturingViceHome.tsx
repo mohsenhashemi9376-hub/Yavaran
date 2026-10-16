@@ -172,7 +172,7 @@ export const NurturingViceHome: React.FC<NurturingViceHomeProps> = ({
       .catch(() => undefined);
   }, [open]);
 
-  const { excellent } = useDisciplineExcellence('term');
+  const { excellent } = useDisciplineExcellence('d30');
 
   const m = useMemo(() => {
     const now = tehranNow().getTime();
