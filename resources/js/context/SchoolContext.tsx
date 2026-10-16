@@ -310,7 +310,11 @@ interface SchoolContextType {
   toast: { id: string; message: string; type: 'success' | 'error' | 'info' } | null;
   showToast: (messageOrTitle: string, messageOrType?: string, type?: 'success' | 'error' | 'info') => void;
   /** وضعیت ذخیره‌ی تغییرات روی سرور */
-  syncState: 'idle' | 'saving' | 'error';
+  syncState: 'idle' | 'saving' | 'offline' | 'error';
+  /** تعداد بسته‌های ذخیره‌نشده (مثلاً هنگام قطع اینترنت) */
+  syncQueuedCount: number;
+  /** تلاش فوری برای ارسال تغییرات در صف */
+  retrySync: () => void;
   /** کد وضعیت آخرین ذخیره‌ی ناموفق (۰ = قطع ارتباط، ۴۰۳ = نبود دسترسی) */
   syncErrorStatus: number | null;
   hideToast: () => void;
@@ -539,11 +543,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     syncRef.current = new SyncEngine((error) => syncErrorHandlerRef.current(error));
   }
   const syncEngine = syncRef.current;
-  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'offline' | 'error'>('idle');
   const [syncErrorStatus, setSyncErrorStatus] = useState<number | null>(null);
+  const [syncQueuedCount, setSyncQueuedCount] = useState(0);
   useEffect(() => {
     setSyncState(syncEngine.state);
-    return syncEngine.subscribe(() => { setSyncState(syncEngine.state); setSyncErrorStatus(syncEngine.lastErrorStatus); });
+    return syncEngine.subscribe(() => {
+      setSyncState(syncEngine.state);
+      setSyncErrorStatus(syncEngine.lastErrorStatus);
+      setSyncQueuedCount(syncEngine.queuedCount);
+    });
   }, [syncEngine]);
 
   const applyServerData = useCallback((payload: BootstrapPayload) => {
@@ -637,6 +646,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSchoolSettings(nextSettings);
     if (typeof payload.serverTime === 'number') setServerClock(payload.serverTime);
     setCurrentUserId(payload.userId || '');
+    // تغییراتی که روی همین دستگاه (مثلاً در حالت آفلاین) ذخیره نشده‌اند، اول ارسال می‌شوند
+    if (payload.userId) syncEngine.setUser(payload.userId);
     lastRefreshRef.current = Date.now();
     setAuthStatus('ready');
   }, [syncEngine]);
@@ -701,6 +712,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [applyServerData, resetClientState, syncEngine]);
 
   const reloadFromServer = useCallback(() => loadFromServer(false), [loadFromServer]);
+
+  // پس از ارسال صفِ مانده از نشست قبلی، اطلاعات تازه از سرور گرفته می‌شود تا تغییرات ارسال‌شده دیده شوند
+  useEffect(() => {
+    syncEngine.onRestoredFlushed = () => { void loadFromServer(false); };
+    return () => { syncEngine.onRestoredFlushed = null; };
+  }, [syncEngine, loadFromServer]);
 
   // بارگذاری اولیه اطلاعات
   useEffect(() => {
@@ -2977,6 +2994,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         showConfirm,
         syncState,
         syncErrorStatus,
+        syncQueuedCount,
+        retrySync: () => syncEngine.retryNow(),
         clearBaselessHomeworkStatuses,
         countBaselessHomeworkStatuses: () => Array.from(baselessHomeworkRecords(sessions).values()).reduce((n, ids) => n + ids.length, 0),
         closeConfirm,

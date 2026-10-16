@@ -126,12 +126,20 @@ const MainApp: React.FC = () => {
   const [editCoachModalOpen, setEditCoachModalOpen] = useState(false);
   const [coachToEdit, setCoachToEdit] = useState<User | null>(null);
 
-  // Global keyboard shortcut: Ctrl+K or Cmd+K for Global Search
+  // میانبر جستجوی سراسری: Ctrl+K / ⌘K (با صفحه‌کلید فارسی هم کار می‌کند: کلید «ن»)، یا «/» وقتی در حال تایپ نیستید
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      const key = (e.key || '').toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === 'KeyK' || key === 'k' || key === 'ن')) {
         e.preventDefault();
         setGlobalSearchModalOpen((prev) => !prev);
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      const typing = !!target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+      if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && e.key === '/') {
+        e.preventDefault();
+        setGlobalSearchModalOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);

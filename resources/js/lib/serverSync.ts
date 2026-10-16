@@ -157,10 +157,36 @@ interface UpsertItem {
 
 const MAX_CHUNK_BYTES = 900_000;
 
+/** یک بسته‌ی تغییرات در صف ارسال */
+interface OutboxItem {
+  collection: CollectionKey;
+  upserts: UpsertItem[];
+  deletes: string[];
+}
+
+/**
+ * مجموعه‌هایی که صف ارسالشان در حافظه‌ی گوشی/مرورگر (localStorage) هم نگه داشته می‌شود تا با بسته‌شدن صفحه
+ * یا قطع اینترنت از بین نروند. پرونده‌های تربیتی و حساب کاربران (رمز) هرگز روی دستگاه ذخیره نمی‌شوند.
+ */
+const PERSISTED_COLLECTIONS: CollectionKey[] = ['sessions', 'morningAttendance', 'morningDelays', 'schoolAbsences', 'parentMeetings'];
+
+/** خطاهایی که یعنی «ارتباط موقتاً برقرار نیست» و باید بعداً دوباره ارسال شود */
+const isTransient = (status: number): boolean => status === 0 || status === 408 || status === 502 || status === 503 || status === 504;
+/** نشست منقضی شده: تغییرات نگه داشته می‌شود تا پس از ورود دوباره ارسال شود */
+const isAuthExpired = (status: number): boolean => status === 401 || status === 419;
+
+const OUTBOX_KEY = (userId: string) => `yavaran:outbox:${userId}`;
+
 export class SyncEngine {
   private snapshots = new Map<CollectionKey, Map<string, string>>();
-  private chain: Promise<void> = Promise.resolve();
-  private pendingCount = 0;
+  /** صف ارسال (به ترتیب ثبت)؛ تا ارسال موفق هر بسته، بسته‌های بعدی منتظر می‌مانند */
+  private outbox: OutboxItem[] = [];
+  private draining: Promise<void> | null = null;
+  private retryTimer: number | null = null;
+  private retryDelay = 5_000;
+  private userId = '';
+  /** ارتباط با سرور قطع است و تغییرات در صف مانده‌اند */
+  private offline = false;
   /** آخرین ارسال ناموفق بوده و هنوز ارسال موفقی پس از آن نبوده است */
   private failed = false;
   /** کد وضعیت آخرین ارسال ناموفق (۰ = قطع ارتباط، ۴۰۳ = نبود دسترسی …) */
@@ -172,9 +198,15 @@ export class SyncEngine {
   /** حالت فقط‌مشاهده: تغییرات محلی به سرور ارسال نمی‌شود (مثلاً هنگام مشاهده‌ی اطلاعات روزهای گذشته) */
   private readOnly = false;
   private onBlocked: (() => void) | null = null;
+  /** پس از ارسال کامل صفی که از نشست قبلی (روی دستگاه) مانده بود */
+  onRestoredFlushed: (() => void) | null = null;
+  private restoredPending = false;
 
   constructor(onError: (error: ApiError, collection: CollectionKey) => void) {
     this.onError = onError;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.retryNow());
+    }
   }
 
   setReadOnly(on: boolean, onBlocked?: () => void): void {
@@ -183,12 +215,18 @@ export class SyncEngine {
   }
 
   get isIdle(): boolean {
-    return this.pendingCount === 0;
+    return this.outbox.length === 0 && !this.draining;
+  }
+
+  /** تعداد بسته‌های ذخیره‌نشده در صف */
+  get queuedCount(): number {
+    return this.outbox.length;
   }
 
   /** وضعیت ذخیره‌سازی برای نمایش به کاربر */
-  get state(): 'idle' | 'saving' | 'error' {
-    return this.pendingCount > 0 ? 'saving' : this.failed ? 'error' : 'idle';
+  get state(): 'idle' | 'saving' | 'offline' | 'error' {
+    if (this.outbox.length > 0) return this.offline ? 'offline' : 'saving';
+    return this.failed ? 'error' : 'idle';
   }
 
   subscribe(listener: () => void): () => void {
@@ -198,6 +236,54 @@ export class SyncEngine {
 
   private notify(): void {
     this.listeners.forEach((l) => l());
+  }
+
+  /**
+   * کاربر جاری (پس از دریافت اطلاعات از سرور). اگر از قبل تغییراتی روی همین دستگاه در صف مانده باشد
+   * (مثلاً صفحه در حالت آفلاین بسته شده)، همان‌ها اول ارسال می‌شوند.
+   */
+  setUser(userId: string): void {
+    if (this.userId === userId) return;
+    this.userId = userId;
+    const stored = this.readStored();
+    if (stored.length === 0) return;
+    this.outbox = [...stored, ...this.outbox.filter((item) => !PERSISTED_COLLECTIONS.includes(item.collection))];
+    this.restoredPending = true;
+    this.version += 1;
+    this.notify();
+    void this.drain();
+  }
+
+  /** تلاش فوری برای ارسال صف (مثلاً با برگشتن اینترنت یا دکمه‌ی «تلاش دوباره») */
+  retryNow(): void {
+    if (this.retryTimer !== null) {
+      window.clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+    this.retryDelay = 5_000;
+    void this.drain();
+  }
+
+  private readStored(): OutboxItem[] {
+    if (!this.userId) return [];
+    try {
+      const raw = window.localStorage.getItem(OUTBOX_KEY(this.userId));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((i) => i && PERSISTED_COLLECTIONS.includes(i.collection)) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private persist(): void {
+    if (!this.userId) return;
+    try {
+      const keep = this.outbox.filter((item) => PERSISTED_COLLECTIONS.includes(item.collection));
+      if (keep.length === 0) window.localStorage.removeItem(OUTBOX_KEY(this.userId));
+      else window.localStorage.setItem(OUTBOX_KEY(this.userId), JSON.stringify(keep));
+    } catch {
+      // حافظه‌ی دستگاه پر یا غیرفعال است؛ صف فقط در حافظه‌ی همین صفحه می‌ماند
+    }
   }
 
   /** ثبت نسخه دریافتی از سرور به‌عنوان مبنای مقایسه */
@@ -212,8 +298,17 @@ export class SyncEngine {
     });
   }
 
+  /** خروج از حساب: صف حافظه خالی می‌شود؛ صفِ ذخیره‌شده روی دستگاه برای ورود بعدی همین کاربر می‌ماند */
   clear(): void {
     this.snapshots.clear();
+    this.outbox = [];
+    this.userId = '';
+    this.offline = false;
+    this.restoredPending = false;
+    if (this.retryTimer !== null) {
+      window.clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     this.failed = false;
     this.lastErrorStatus = null;
     this.notify();
@@ -279,27 +374,75 @@ export class SyncEngine {
   }
 
   private enqueue(collection: CollectionKey, batch: { upserts: UpsertItem[]; deletes: string[] }): void {
-    this.pendingCount += 1;
+    this.outbox.push({ collection, ...batch });
+    this.persist();
     this.notify();
-    this.chain = this.chain
-      .then(() => apiRequest('POST', '/api/sync', { collection, ...batch }))
-      .then(
-        () => { this.failed = false; this.lastErrorStatus = null; },
-        (error: unknown) => {
-          this.failed = true;
-          this.lastErrorStatus = error instanceof ApiError ? error.status : 500;
+    void this.drain();
+  }
+
+  /** ارسال صف به ترتیب؛ با قطع ارتباط متوقف می‌شود و بعداً دوباره تلاش می‌کند */
+  private drain(): Promise<void> {
+    if (this.draining) return this.draining;
+    if (this.outbox.length === 0) return Promise.resolve();
+    this.draining = (async () => {
+      while (this.outbox.length > 0) {
+        const item = this.outbox[0];
+        try {
+          await apiRequest('POST', '/api/sync', { collection: item.collection, upserts: item.upserts, deletes: item.deletes });
+          this.outbox.shift();
+          this.persist();
+          this.offline = false;
+          this.failed = false;
+          this.lastErrorStatus = null;
+          this.retryDelay = 5_000;
+          this.notify();
+        } catch (error: unknown) {
           const apiError = error instanceof ApiError ? error : new ApiError(500, defaultMessage(500));
-          this.onError(apiError, collection);
+          this.lastErrorStatus = apiError.status;
+          if (isTransient(apiError.status)) {
+            // بی‌صدا در صف می‌ماند؛ نشانگر وضعیت «آفلاین، N مورد در صف» را نشان می‌دهد
+            this.offline = true;
+            this.scheduleRetry();
+            this.notify();
+            return;
+          }
+          if (isAuthExpired(apiError.status)) {
+            this.failed = true;
+            this.notify();
+            this.onError(apiError, item.collection);
+            return;
+          }
+          // رد قطعی سرور (دسترسی، اعتبارسنجی): همان بسته کنار گذاشته می‌شود و بقیه‌ی صف ادامه می‌یابد
+          this.outbox.shift();
+          this.persist();
+          this.failed = true;
+          this.offline = false;
+          this.notify();
+          this.onError(apiError, item.collection);
         }
-      )
-      .finally(() => {
-        this.pendingCount -= 1;
-        this.notify();
-      });
+      }
+    })().finally(() => {
+      this.draining = null;
+      this.notify();
+      if (this.outbox.length === 0 && this.restoredPending) {
+        this.restoredPending = false;
+        this.onRestoredFlushed?.();
+      }
+    });
+    return this.draining;
+  }
+
+  private scheduleRetry(): void {
+    if (this.retryTimer !== null || typeof window === 'undefined') return;
+    this.retryTimer = window.setTimeout(() => {
+      this.retryTimer = null;
+      void this.drain();
+    }, this.retryDelay);
+    this.retryDelay = Math.min(this.retryDelay * 2, 60_000);
   }
 
   /** انتظار برای ارسال کامل تغییرات در صف */
   flush(): Promise<void> {
-    return this.chain;
+    return this.draining ?? Promise.resolve();
   }
 }
