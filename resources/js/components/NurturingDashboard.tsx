@@ -903,7 +903,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             classes={availableClasses}
             observations={observations}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
-            onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
             onOpenObservations={() => setCurrentView('observation')}
             onOpenClassesView={() => setCurrentView('academic_and_discipline')}
             onOpenStudent={handleOpenStudentObs}

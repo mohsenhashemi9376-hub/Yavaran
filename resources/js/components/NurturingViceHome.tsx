@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, Calendar, ChevronLeft, Eye, GraduationCap, Menu, Plus, Send, UserCheck, BarChart3 } from 'lucide-react';
+import { Award, Calendar, ChevronLeft, Eye, GraduationCap, Inbox, Menu, Send, UserCheck, BarChart3 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentObservation } from '../types';
 import { toPersianDigits, tehranNow } from '../utils/persianDate';
@@ -89,6 +89,7 @@ const TONES = {
   teal: { box: 'border-teal-200/80 bg-gradient-to-br from-teal-50/90 to-white/70', icon: 'bg-white/80 text-teal-600', hint: 'text-teal-700', line: '#0f766e' },
   amber: { box: 'border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white/70', icon: 'bg-white/80 text-amber-600', hint: 'text-amber-700', line: '#d97706' },
   violet: { box: 'border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/70', icon: 'bg-white/80 text-violet-600', hint: 'text-violet-700', line: '#7c3aed' },
+  rose: { box: 'border-rose-200/80 bg-gradient-to-br from-rose-50/90 to-white/70', icon: 'bg-white/80 text-rose-600', hint: 'text-rose-700', line: '#e11d48' },
   indigo: { box: 'border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 to-white/70', icon: 'bg-white/80 text-indigo-600', hint: 'text-indigo-700', line: '#4f46e5' },
 } as const;
 
@@ -142,7 +143,6 @@ export interface NurturingViceHomeProps {
   classes: SchoolClass[];
   observations: StudentObservation[];
   onOpenSidebar: () => void;
-  onNewObservation: () => void;
   onOpenObservations: () => void;
   onOpenClassesView: () => void;
   onOpenStudent: (student: Student) => void;
@@ -161,7 +161,7 @@ const MODAL_TITLES: Record<TileKey, string> = {
 /** پیشخوان معاون تربیتی: هدر ساده + کاشی‌های شیشه‌ای رنگی (هم‌سبک پنل معاون آموزشی) */
 export const NurturingViceHome: React.FC<NurturingViceHomeProps> = ({
   greeting, roleLabel, dayOfWeek, displayDate, students, classes, observations,
-  onOpenSidebar, onNewObservation, onOpenObservations, onOpenClassesView, onOpenStudent, onSelectDisciplineStudent,
+  onOpenSidebar, onOpenObservations, onOpenClassesView, onOpenStudent, onSelectDisciplineStudent,
 }) => {
   const { allCoaches } = useSchool();
   const [open, setOpen] = useState<TileKey | null>(null);
@@ -229,21 +229,18 @@ export const NurturingViceHome: React.FC<NurturingViceHomeProps> = ({
       </div>
 
       {/* کاشی‌ها */}
-      <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
         <Tile tone="emerald" label="آخرین مشاهدات" value={fa(m.week)} hint={m.latestTitle ? `آخرین: ${m.latestTitle}` : 'مشاهده آخرین‌ها'} icon={<Eye className="w-4 h-4" />} onClick={() => setOpen('latest')} />
         <Tile tone="sky" label="مأموریت‌ها" value={fa(messages.length)} hint="پیام‌ها به مربیان" badge={pending > 0 ? `${fa(pending)} بدون تأیید` : undefined} icon={<Send className="w-4 h-4" />} onClick={() => setOpen('missions')} />
         <Tile tone="amber" label="ممتازین انضباطی" value={fa(excellent.length)} hint="مشاهده ممتازین" icon={<Award className="w-4 h-4" />} onClick={() => setOpen('excellence')} />
         <Tile tone="violet" label="آموزش و انضباط" value={fa(classes.length)} hint="مشاهده کلاس‌ها" icon={<GraduationCap className="w-4 h-4" />} onClick={() => setOpen('classes')} />
         <Tile tone="teal" label="آمار مشاهده‌گری" value={fa(sum(m.all14))} hint="۱۴ روز اخیر" spark={m.all14} icon={<BarChart3 className="w-4 h-4" />} onClick={() => setOpen('stats')} />
+        <ReferralsHistoryButton
+          renderTrigger={({ open: openReferrals, total, unseen }) => (
+            <Tile tone="rose" label="ارجاع‌های انضباطی" value={fa(total)} hint="دریافتی از معاون انضباطی" badge={unseen > 0 ? `${fa(unseen)} در انتظار بررسی` : undefined} icon={<Inbox className="w-4 h-4" />} onClick={openReferrals} />
+          )}
+        />
         <Tile tone="indigo" label="فعالیت مربیان" value={`${fa(m.activeCoaches)} از ${fa(allCoaches.length)}`} hint="مربی فعال در ۳۰ روز" spark={m.coach14} icon={<UserCheck className="w-4 h-4" />} onClick={() => setOpen('coaches')} />
-      </div>
-
-      {/* اقدام سریع */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onNewObservation} className="h-12 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
-          <Plus className="w-4 h-4" /><span>ثبت مشاهده جدید</span>
-        </button>
-        <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
       </div>
 
       {/* جزئیات هر کاشی */}

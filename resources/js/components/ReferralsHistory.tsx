@@ -43,7 +43,7 @@ const split = (message: string) => {
   return { summary: lines.slice(1).join(' ').trim(), note: (noteRaw || '').trim() };
 };
 
-function useReferralHistory(studentId?: string, enabled = true) {
+function useReferralHistory(studentId?: string, enabled = true, refreshKey?: unknown) {
   const [items, setItems] = useState<ReferralRecord[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -55,7 +55,7 @@ function useReferralHistory(studentId?: string, enabled = true) {
       .then((r) => alive && setItems(r.referrals || []))
       .catch(() => alive && (setError(true), setItems([])));
     return () => { alive = false; };
-  }, [studentId, enabled]);
+  }, [studentId, enabled, refreshKey]);
   return { items, error };
 }
 
@@ -83,9 +83,13 @@ const Card: React.FC<{ r: ReferralRecord; showStudent: boolean }> = ({ r, showSt
 };
 
 /** دکمه + پنجره‌ی فهرست ارجاع‌ها برای معاون انضباطی (ارسالی‌ها) و معاون تربیتی (دریافتی‌ها) */
-export const ReferralsHistoryButton: React.FC<{ label?: string }> = ({ label = 'فهرست ارجاع‌ها' }) => {
+export const ReferralsHistoryButton: React.FC<{
+  label?: string;
+  /** اگر داده شود به‌جای دکمه‌ی پیش‌فرض، این کاشی نمایش داده می‌شود (با شمار کل و بررسی‌نشده‌ها) */
+  renderTrigger?: (info: { open: () => void; total: number; unseen: number }) => React.ReactNode;
+}> = ({ label = 'فهرست ارجاع‌ها', renderTrigger }) => {
   const [open, setOpen] = useState(false);
-  const { items, error } = useReferralHistory(undefined, open);
+  const { items, error } = useReferralHistory(undefined, open || !!renderTrigger, open);
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<'all' | ReferralRecord['kind']>('all');
   const [seen, setSeen] = useState<'all' | 'seen' | 'unseen'>('all');
@@ -104,9 +108,11 @@ export const ReferralsHistoryButton: React.FC<{ label?: string }> = ({ label = '
   const sel = 'text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none';
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 cursor-pointer whitespace-nowrap">
-        <Inbox className="w-4 h-4" /> {label}
-      </button>
+      {renderTrigger ? renderTrigger({ open: () => setOpen(true), total: (items || []).length, unseen: (items || []).filter((r) => !r.seen).length }) : (
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 cursor-pointer whitespace-nowrap">
+          <Inbox className="w-4 h-4" /> {label}
+        </button>
+      )}
       {open && createPortal(
         <div className="fixed inset-0 z-[90] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" dir="rtl" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
