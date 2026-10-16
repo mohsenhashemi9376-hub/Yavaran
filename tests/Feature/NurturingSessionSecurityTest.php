@@ -31,7 +31,7 @@ class NurturingSessionSecurityTest extends TestCase
         $this->postJson('/api/auth/two-factor', ['code' => $this->currentTotp($secret)])->assertOk();
     }
 
-    public function test_session_is_never_expired_automatically_but_sensitive_access_needs_password_after_six_hours(): void
+    public function test_session_is_never_expired_automatically_but_sensitive_access_needs_password_after_idle_period(): void
     {
         config(['app.require_password_reconfirm_nurturing' => true, 'app.reauth_minutes' => 30]);
         $this->makeClass('cls-1');
@@ -41,10 +41,13 @@ class NurturingSessionSecurityTest extends TestCase
         $this->enableTwoFactor($coach);
         $this->fullLogin($coach);
 
-        $this->travel(5)->hours();
+        // هر مشاهده‌ی پرونده مهلت ۳۰ دقیقه‌ای را تمدید می‌کند
+        $this->travel(29)->minutes();
+        $this->getJson('/api/students/stu-1/nurturing-record')->assertOk();
+        $this->travel(29)->minutes();
         $this->getJson('/api/students/stu-1/nurturing-record')->assertOk();
 
-        // ۶ ساعت بی‌فعالیتی: هنوز وارد است ولی برای پرونده‌ها رمز دوباره می‌خواهد
+        // بیش از ۳۰ دقیقه بی‌فعالیتی (حتی ۶ ساعت): هنوز وارد است ولی برای پرونده‌ها رمز دوباره می‌خواهد
         $this->travel(361)->minutes();
         $this->getJson('/api/bootstrap')->assertOk()->assertJsonPath('authenticated', true);
         $this->getJson('/api/students/stu-1/nurturing-record')->assertForbidden();

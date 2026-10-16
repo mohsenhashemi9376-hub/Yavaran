@@ -1,0 +1,73 @@
+name: تست‌ها
+
+# روی هر Pull Request و هر push به شاخه‌های غیر از main اجرا می‌شود.
+# workflow استقرار (build-cpanel-package.yml) هم پیش از ساخت و انتشار همین را صدا می‌زند.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, master]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  php:
+    name: تست‌های PHP (PHPUnit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, openssl, pdo, pdo_sqlite, sqlite3, tokenizer, xml, ctype, json, bcmath, fileinfo
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.json', 'composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies (با بسته‌های توسعه)
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: PHP syntax check
+        run: find app bootstrap config database routes tests -name "*.php" -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
+
+  frontend:
+    name: بررسی TypeScript و ساخت رابط کاربری
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript (tsc --noEmit)
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

@@ -391,6 +391,10 @@ final class SyncService
         } else {
             $note = $oldNote;
         }
+        // کسی که فقط اجازه‌ی یادداشت دارد، رکورد خالیِ بدون یادداشت نمی‌سازد (یعنی تلاش برای ثبت حضور)
+        if (! $policy->canRecordParentMeetings() && $old === null && $note === null) {
+            abort(403, 'ثبت حضور پدر و مادر فقط با مدیر و معاون انضباطی است؛ شما فقط می‌توانید یادداشت بنویسید.');
+        }
         $data->note = $note;
         if ($note === null) {
             $data->noteBy = $data->noteById = $data->noteAt = null;

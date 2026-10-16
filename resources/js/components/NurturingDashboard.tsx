@@ -32,7 +32,6 @@ import { ParentMeetingsWorkspace } from './ParentMeetingsWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
-import { EmptyState } from './EmptyState';
 import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
