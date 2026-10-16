@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
@@ -59,9 +60,13 @@ export const Modal: React.FC<ModalProps> = ({
     full: 'max-w-7xl',
   };
 
-  return (
+  return createPortal(
+    <>
+    {/* پس‌زمینه تاریک و مات؛ زیر دیالوگ */}
+    <div className="fixed inset-0 bg-black/60 z-[90]" aria-hidden="true" />
+    {/* لایه‌ی دیالوگ، بالاتر از backdrop، هدر و نوار پایین */}
     <div
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 z-[100] animate-in fade-in duration-150"
       dir="rtl"
       role="dialog"
       aria-modal="true"
@@ -109,7 +114,7 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-white p-5 sm:p-6 space-y-4">
           {children}
         </div>
 
@@ -121,5 +126,7 @@ export const Modal: React.FC<ModalProps> = ({
         )}
       </div>
     </div>
+    </>,
+    document.body
   );
 };
