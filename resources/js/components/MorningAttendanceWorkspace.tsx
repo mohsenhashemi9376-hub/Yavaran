@@ -1,3 +1,4 @@
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, Menu, Sunrise, Check, Clock, UserX, BellRing, History, Pencil, Search, X, ChevronDown, Save } from 'lucide-react';
@@ -393,24 +394,14 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     return (
       <div className="space-y-5" dir="rtl">
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h1 className="text-xl font-black text-slate-900 flex items-center gap-2.5 flex-wrap">
-              <Sunrise className="w-6 h-6 text-amber-500" />
-              <span>حضور و غیاب صبحگاه</span>
-              <span className="text-xs font-bold bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
-                {today.dayOfWeek} {toPersianDigits(today.formattedDate)}
-              </span>
-            </h1>
-            <div className="flex items-center gap-2">
-              <button onClick={onOpenSidebar} className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer border border-slate-200">
-                منو
-              </button>
-              <button onClick={onBack} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-                <span>بازگشت به داشبورد</span>
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          <WorkspaceTitleBar
+            title="حضور و غیاب صبحگاه"
+            icon={Sunrise}
+            section="امور روزانه"
+            badge={`${today.dayOfWeek} ${toPersianDigits(today.formattedDate)}`}
+            onBack={onBack}
+            onOpenSidebar={onOpenSidebar}
+          />
           <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center space-y-1.5">
             <div className="text-base font-black text-amber-900">{todayClosedReason === 'friday' ? 'امروز جمعه است' : 'امروز تعطیل است'}</div>
             <div className="text-xs text-amber-800 leading-6">{closedReasonMessage(todayClosedReason, holidayTitle)}</div>
@@ -425,50 +416,26 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     <div className="space-y-5" dir="rtl">
       {/* هدر */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-              <span>پیشخوان اصلی</span>
-              <span>/</span>
-              <span className="text-emerald-700">حضور و غیاب صبحگاه</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5 flex-wrap">
-              <Sunrise className="w-6 h-6 text-amber-500" />
-              <span>حضور و غیاب صبحگاه</span>
-              <span className="text-xs font-bold bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
-                {today.dayOfWeek} {toPersianDigits(today.formattedDate)}
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              همه دانش‌آموزان در شروع صبحگاه «غایب» هستند؛ با یک لمس روی کارت، حضور ثبت می‌شود. ساعت مرجع ورود ۰۷:۰۰ است.
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={onOpenSidebar}
-              className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
-              aria-label="باز کردن نوار کناری"
-            >
-              <Menu className="w-4 h-4" />
-              <span>منو</span>
-            </button>
-            {canDeclareHoliday && (
+        <WorkspaceTitleBar
+          title="حضور و غیاب صبحگاه"
+          icon={Sunrise}
+          section="امور روزانه"
+          badge={`${today.dayOfWeek} ${toPersianDigits(today.formattedDate)}`}
+          subtitle="همه‌ی دانش‌آموزان در شروع صبحگاه «غایب» هستند؛ با یک لمس روی کارت، حضور ثبت می‌شود. ساعت مرجع ورود ۰۷:۰۰ است."
+          onBack={onBack}
+          onOpenSidebar={onOpenSidebar}
+          actions={
+            canDeclareHoliday ? (
               <button
+                type="button"
                 onClick={() => setHolidayPanelOpen((v) => !v)}
-                className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="h-9 px-3.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 اعلام تعطیلی
               </button>
-            )}
-            <button
-              onClick={onBack}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>بازگشت به داشبورد</span>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+            ) : undefined
+          }
+        />
 
         {canDeclareHoliday && holidayPanelOpen && <SchoolHolidaysPanel />}
 

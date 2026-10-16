@@ -1,3 +1,4 @@
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
@@ -300,58 +301,17 @@ export const LoansWorkspace: React.FC<LoansWorkspaceProps> = ({ onBack, onOpenSi
     <div className="space-y-5" dir="rtl">
       {/* ۱. سربرگ */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            {onOpenSidebar && (
-              <button
-                type="button"
-                onClick={onOpenSidebar}
-                aria-label="منو"
-                className="lg:hidden w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center cursor-pointer shrink-0"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            )}
-            <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-                <span>داشبورد</span>
-                <span>/</span>
-                <span>امور روزانه</span>
-                <span>/</span>
-                <span className="text-teal-800 font-black">امانات و لوازم</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-sm">
-                  <Package className="w-5 h-5" />
-                </span>
-                <span>امانات و لوازم</span>
-              </h1>
-              <p className="text-xs text-slate-500 mt-1.5">
-                ثبت وسایلی که از مدرسه تحویل داده می‌شود و پیگیری بازگشت آن‌ها. اگر وسیله‌ای بعد از {toPersianDigits(LOAN_ALERT_DAYS)} روز برنگردد، سامانه هشدار می‌دهد.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={exportExcel}
-              disabled={loanItems.length === 0}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
-              <span>خروجی اکسل</span>
-            </button>
-            <button
-              type="button"
-              onClick={onBack}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>بازگشت به داشبورد</span>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <WorkspaceTitleBar
+          title="امانات و لوازم"
+          icon={Package}
+          section="امور روزانه"
+          subtitle={<>ثبت وسایلی که از مدرسه تحویل داده می‌شود و پیگیری بازگشت آن‌ها. اگر وسیله‌ای بعد از {toPersianDigits(LOAN_ALERT_DAYS)} روز برنگردد، سامانه هشدار می‌دهد.</>}
+          onBack={onBack}
+          onOpenSidebar={onOpenSidebar}
+          actions={
+            <HeaderAction icon={FileSpreadsheet} iconClassName="text-emerald-700" label="خروجی اکسل" onClick={exportExcel} disabled={loanItems.length === 0} />
+          }
+        />
 
         {/* آمار */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">

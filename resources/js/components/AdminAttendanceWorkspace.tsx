@@ -1,3 +1,4 @@
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useState } from 'react';
 import { 
   SchoolClass, 
@@ -228,91 +229,70 @@ export const AdminAttendanceWorkspace: React.FC<AdminAttendanceWorkspaceProps> =
       
       {/* 1. Header & Breadcrumb */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            {/* Breadcrumb (Step 19) */}
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-              <span>داشبورد</span>
-              <span>/</span>
-              <span>امور روزانه</span>
-              <span>/</span>
-              <span className="text-teal-800 font-black">حضور و غیاب</span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-              <CheckCircle2 className="w-6 h-6 text-teal-800" />
-              <span>مدیریت یکپارچه حضور و غیاب مدرسه</span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              مدیریت جلسات کلاسی، ثبت تأخیر ورود و ثبت غیبت روزانه مدرسه در یک پنجره واحد.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Quick Action Button depends on active tab or all */}
-            {activeTab === 'sessions' && (
-              <button
-                type="button"
-                onClick={() => onOpenNewAttendance()}
-                className="px-3.5 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ثبت جلسه کلاسی جدید</span>
-              </button>
-            )}
-
-            {currentUser?.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => {
-                  const n = countBaselessHomeworkStatuses();
-                  if (n === 0) {
-                    showToast('وضعیت تکلیف بی‌مبنایی پیدا نشد.', 'info');
-                    return;
-                  }
-                  showConfirm({
-                    title: 'پاک‌سازی وضعیت‌های تکلیف بی‌مبنا',
-                    message: `${toPersianDigits(n)} وضعیت «انجام شده» در جلساتی ثبت شده که تکلیفی برای ارزیابی نداشته‌اند (مقدار پیش‌فرض قدیمی فرم). این وضعیت‌ها به «بدون وضعیت» تبدیل شوند؟ ارزیابی‌های «ناقص» و «انجام نشده» دست نمی‌خورند و این کار قابل بازگشت نیست.`,
-                    confirmLabel: 'بله، پاک شود',
-                    cancelLabel: 'انصراف',
-                    isDangerous: true,
-                    onConfirm: () => {
-                      const done = clearBaselessHomeworkStatuses();
-                      showToast(`${toPersianDigits(done)} وضعیت تکلیف پاک‌سازی شد.`, 'success');
-                    },
-                  });
-                }}
-                className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold transition cursor-pointer border border-amber-200"
-                title="حذف وضعیت‌های «انجام شده»ی پیش‌فرض قدیمی که تکلیفی برای ارزیابی نداشته‌اند"
-              >
-                پاک‌سازی وضعیت تکلیف قدیمی
-              </button>
-            )}
-
-            {/* Excel export */}
-            <button
-              type="button"
-              onClick={() => {
-                exportSessionsToExcel();
-              }}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
-              title="خروجی اکسل"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
-              <span>خروجی اکسل</span>
-            </button>
-
-            {/* Back Button */}
-            <button
-              type="button"
-              onClick={onBack}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>بازگشت به داشبورد</span>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <WorkspaceTitleBar
+          title="حضور و غیاب"
+          icon={CheckCircle2}
+          section="امور روزانه"
+          subtitle="جلسات کلاسی، تأخیر ورود و غیبت روزانه‌ی مدرسه در یک صفحه."
+          onBack={onBack}
+          onOpenSidebar={onOpenSidebar}
+          actions={
+            <>
+              {/* Quick Action Button depends on active tab or all */}
+                        {activeTab === 'sessions' && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenNewAttendance()}
+                            className="h-9 px-3.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>ثبت جلسه کلاسی جدید</span>
+                          </button>
+                        )}
+          
+                        {currentUser?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const n = countBaselessHomeworkStatuses();
+                              if (n === 0) {
+                                showToast('وضعیت تکلیف بی‌مبنایی پیدا نشد.', 'info');
+                                return;
+                              }
+                              showConfirm({
+                                title: 'پاک‌سازی وضعیت‌های تکلیف بی‌مبنا',
+                                message: `${toPersianDigits(n)} وضعیت «انجام شده» در جلساتی ثبت شده که تکلیفی برای ارزیابی نداشته‌اند (مقدار پیش‌فرض قدیمی فرم). این وضعیت‌ها به «بدون وضعیت» تبدیل شوند؟ ارزیابی‌های «ناقص» و «انجام نشده» دست نمی‌خورند و این کار قابل بازگشت نیست.`,
+                                confirmLabel: 'بله، پاک شود',
+                                cancelLabel: 'انصراف',
+                                isDangerous: true,
+                                onConfirm: () => {
+                                  const done = clearBaselessHomeworkStatuses();
+                                  showToast(`${toPersianDigits(done)} وضعیت تکلیف پاک‌سازی شد.`, 'success');
+                                },
+                              });
+                            }}
+                            className="h-9 px-3.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold transition cursor-pointer border border-amber-200"
+                            title="حذف وضعیت‌های «انجام شده»ی پیش‌فرض قدیمی که تکلیفی برای ارزیابی نداشته‌اند"
+                          >
+                            پاک‌سازی وضعیت تکلیف قدیمی
+                          </button>
+                        )}
+          
+                        {/* Excel export */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            exportSessionsToExcel();
+                          }}
+                          className="h-9 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                          title="خروجی اکسل"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                          <span>خروجی اکسل</span>
+                        </button>
+            </>
+          }
+        />
 
         {/* 3 Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
