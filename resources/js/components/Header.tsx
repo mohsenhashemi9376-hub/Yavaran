@@ -27,6 +27,7 @@ import {
   Menu, 
   X, 
   GraduationCap,
+  ShieldCheck,
   Search
 } from 'lucide-react';
 
@@ -41,36 +42,51 @@ interface HeaderProps {
   onSelectTab?: (tab: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher') => void;
 }
 
-/** کلید دوپنلی «پنل معاونت / پنل آموزشی» برای کاربری که هم معاون و هم دبیر است */
+/** کلید دوپنلی «پنل معاونت / پنل آموزشی» برای کاربری که هم معاون و هم دبیر است (کپسول فشرده با قرص سبز کشویی) */
 const DualPanelTabs: React.FC<{
   currentActiveTab: string;
   onSelectTab: (tab: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher') => void;
   full?: boolean;
-}> = ({ currentActiveTab, onSelectTab, full = false }) => (
-  <div
-    role="tablist"
-    aria-label="انتخاب پنل کاری"
-    className={`yv-panel-seg items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs ${full ? 'flex w-full' : 'inline-flex'}`}
-  >
-    {([
-      ['main', 'پنل معاونت', currentActiveTab !== 'teacher', 'bg-emerald-700'],
-      ['teacher', 'پنل آموزشی', currentActiveTab === 'teacher', 'bg-emerald-700'],
-    ] as const).map(([tab, label, active, activeBg]) => (
-      <button
-        key={tab}
-        type="button"
-        role="tab"
-        aria-selected={active}
-        onClick={() => onSelectTab(tab)}
-        className={`${full ? 'flex-1 min-w-0' : 'min-w-[6.5rem]'} px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
-          active ? `${activeBg} text-white font-bold shadow-sm` : 'font-medium text-slate-600 hover:text-slate-800'
-        }`}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-);
+}> = ({ currentActiveTab, onSelectTab, full = false }) => {
+  const tabs = [
+    { tab: 'main', label: 'پنل معاونت', Icon: ShieldCheck },
+    { tab: 'teacher', label: 'پنل آموزشی', Icon: GraduationCap },
+  ] as const;
+  const activeIdx = currentActiveTab === 'teacher' ? 1 : 0;
+  return (
+    <div
+      role="tablist"
+      aria-label="انتخاب پنل کاری"
+      dir="rtl"
+      className={`relative grid grid-cols-2 items-center h-10 p-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-[11px] ${full ? 'w-full' : 'w-[14rem]'}`}
+    >
+      {/* قرص سبز کشویی: در RTL تب اول سمت راست است، پس برای تب دوم به چپ می‌لغزد */}
+      <span
+        aria-hidden="true"
+        className="absolute top-1 bottom-1 right-1 w-[calc(50%-0.25rem)] rounded-full bg-emerald-700 shadow-sm shadow-emerald-900/20 transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(${activeIdx === 0 ? 0 : -100}%)` }}
+      />
+      {tabs.map(({ tab, label, Icon }, i) => {
+        const active = i === activeIdx;
+        return (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelectTab(tab)}
+            className={`relative z-10 h-full min-w-0 rounded-full flex items-center justify-center gap-1.5 px-2 whitespace-nowrap cursor-pointer select-none transition-colors duration-300 ease-out ${
+              active ? 'text-white font-extrabold' : 'text-slate-600 hover:text-slate-900 font-bold'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
+            <span>{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenNewClassModal,
