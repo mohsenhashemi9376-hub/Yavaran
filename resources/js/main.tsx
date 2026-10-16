@@ -7,6 +7,7 @@ import { enablePersianDigits } from './utils/persianizeDom';
 import { enableResponsiveTables } from './utils/responsiveTables';
 import { enableSheetGestures } from './utils/sheetGestures';
 import { enableScrollTopOnNavigate } from './utils/scrollTopOnNavigate';
+import { enableBodyScrollLock } from './utils/bodyScrollLock';
 
 // بازیابی خودکار موقعیت اسکرول مرورگر با رندر دیرهنگام داده‌ها تداخل می‌کند و صفحه می‌پرد
 try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch { /* ignore */ }
@@ -15,6 +16,7 @@ enablePersianDigits();
 enableResponsiveTables();
 enableSheetGestures();
 enableScrollTopOnNavigate();
+enableBodyScrollLock();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -319,3 +319,6 @@ button { transition-property: transform, background-color, border-color, color, 
 .yv-stack td[data-label]::before { content: attr(data-label); flex: 0 0 7rem; font-weight: 700; color: #64748b; font-size: 0.75rem; }
 .yv-stack td > * { min-width: 0; }
 .yv-stack .yv-fit { overflow: visible; border: 0; }
+
+/* اسکرول داخلی مودال/باتم‌شیت به صفحه‌ی پشت نشت نکند */
+.fixed.inset-0 .overflow-y-auto, .fixed.inset-0 .overflow-auto, [aria-modal="true"] .overflow-y-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
