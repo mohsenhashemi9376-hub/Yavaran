@@ -7,7 +7,7 @@ import type { Student } from '../types';
 import { TrendDetailModal } from './TrendDetailModal';
 
 /** کادر کوچک «غایبین امروز» (صبحگاه) با دسترسی سریع به فهرست نام‌ها */
-export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student) => void }> = ({ onSelectStudent }) => {
+export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student) => void; variant?: 'chip' | 'bar' }> = ({ onSelectStudent, variant = 'chip' }) => {
   const { students, classes, morningAttendance, schoolAbsences, todayClosedReason } = useSchool();
   const [open, setOpen] = useState(false);
   const today = useMemo(() => getTodayShamsi(), []);
@@ -42,8 +42,20 @@ export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student)
     });
   }, [absentees, classes, morningAttendance, schoolAbsences, today.formattedDate]);
 
-  return (
-    <>
+  const trigger = variant === 'bar' ? (
+    absentees.length > 0 && !todayClosedReason ? (
+      <div className="flex items-center justify-between gap-2 bg-rose-50 border border-rose-200 rounded-xl p-2.5">
+        <span className="text-xs font-bold text-rose-800 leading-5">⚠️ {toPersianDigits(absentees.length)} دانش‌آموز غایب در صبحگاه امروز</span>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="shrink-0 min-h-9 px-1 text-xs font-extrabold text-rose-700 active:text-rose-900 cursor-pointer whitespace-nowrap"
+        >
+          مشاهده و پیگیری ←
+        </button>
+      </div>
+    ) : null
+  ) : (
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -57,6 +69,11 @@ export const TodayAbsenteesChip: React.FC<{ onSelectStudent?: (student: Student)
         <UserX className="w-3.5 h-3.5" />
         <span>{todayClosedReason ? 'امروز تعطیل است' : `غایبین امروز: ${toPersianDigits(absentees.length)}`}</span>
       </button>
+  );
+
+  return (
+    <>
+      {trigger}
       {open && (
         <TrendDetailModal
           title="غایبین امروز (صبحگاه)"

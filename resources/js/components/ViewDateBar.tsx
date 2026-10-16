@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { CalendarClock, Eye, PencilLine, RotateCcw } from 'lucide-react';
+import { CalendarDays, Eye, PencilLine, RotateCcw } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 import {
   dateToShamsiString,
+  formatShamsiDisplay,
   formatShamsiWithWeekday,
   getRealTodayShamsiString,
   shamsiStringToDate,
@@ -49,8 +50,8 @@ export const ViewDateBar: React.FC = () => {
       value={text}
       onChange={onType}
       fallbackDate={viewDate ?? undefined}
-      placeholder="انتخاب روز…"
-      className="w-28 text-xs bg-white border border-slate-300 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-teal-600 font-mono text-center cursor-pointer"
+      placeholder="انتخاب تاریخ..."
+      className="w-28 text-xs bg-transparent border-0 py-1.5 pl-3 outline-none text-slate-600 text-right cursor-pointer"
     />
   );
 
@@ -107,11 +108,18 @@ export const ViewDateBar: React.FC = () => {
     );
   }
 
+  const todayLabel = formatShamsiDisplay(getRealTodayShamsiString()).split(' ').slice(0, 2).join(' ');
+  const chip = 'shrink-0 h-9 px-3.5 rounded-full border text-xs whitespace-nowrap cursor-pointer transition-colors disabled:opacity-60';
+
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 mb-3" dir="rtl">
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-        <CalendarClock className="w-3.5 h-3.5" />
-        مشاهده‌ی اطلاعات روز دیگر:
+    <div
+      className="flex items-center gap-2 mb-3 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      dir="rtl"
+      role="group"
+      aria-label="انتخاب سریع تاریخ"
+    >
+      <span className={`${chip} inline-flex items-center bg-emerald-50 text-emerald-800 border-emerald-300 font-bold`} aria-current="date">
+        امروز ({todayLabel})
       </span>
       {QUICK.map(([label, n]) => (
         <button
@@ -119,12 +127,15 @@ export const ViewDateBar: React.FC = () => {
           type="button"
           disabled={busy}
           onClick={() => go(daysAgo(n))}
-          className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-bold text-slate-600 cursor-pointer disabled:opacity-60"
+          className={`${chip} bg-white border-slate-200 text-slate-600 font-medium active:bg-slate-100 hover:bg-slate-50`}
         >
           {label}
         </button>
       ))}
-      {picker}
+      <span className="shrink-0 inline-flex items-center gap-1.5 h-9 pr-3 rounded-full border border-slate-200 bg-white text-slate-600">
+        <CalendarDays className="w-4 h-4" />
+        {picker}
+      </span>
     </div>
   );
 };
