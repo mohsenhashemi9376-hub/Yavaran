@@ -11,7 +11,8 @@ import {
   Student,
   SchoolClass,
 } from '../types';
-import { getTodayShamsi, getDayOfWeekFromShamsi, toPersianDigits, toEnglishDigits } from '../utils/persianDate';
+import { getTodayShamsi, getDayOfWeekFromShamsi, toPersianDigits, toEnglishDigits, shamsiStringToDate, dateToShamsiString } from '../utils/persianDate';
+import { ShamsiDatePicker } from './ShamsiDatePicker';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
@@ -307,6 +308,24 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     loadSlot(opt, 1, date);
   };
 
+  /** تغییر تاریخ جلسه (مثلاً ثبت کلاس دیروز در امروز)؛ جلسه‌ی همان روز/زنگ اگر ثبت شده باشد برای ویرایش بارگذاری می‌شود */
+  const handleDateChange = (value: string) => {
+    const next = toEnglishDigits(value || '').trim();
+    if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(next) || next === date) return;
+    if (isFutureShamsi(next)) {
+      showToast('ثبت حضور و غیاب برای تاریخ آینده ممکن نیست.', 'error');
+      return;
+    }
+    setDate(next);
+    loadSlot(course, periodNumber, next);
+  };
+
+  const daysAgoShamsi = (n: number): string => {
+    const d = shamsiStringToDate(todayInfo.formattedDate);
+    d.setDate(d.getDate() - n);
+    return dateToShamsiString(d);
+  };
+
   const handlePeriodChange = (n: number) => {
     setPeriodNumber(n);
     loadSlot(course, n, date);
@@ -530,6 +549,35 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+
+          {/* تاریخ جلسه: امکان ثبت کلاس روزهای گذشته */}
+          <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="تاریخ جلسه">
+            <span className="text-[11px] font-bold text-slate-500 shrink-0">تاریخ جلسه:</span>
+            {([['امروز', 0], ['دیروز', 1], ['۲ روز پیش', 2]] as const).map(([label, n]) => {
+              const value = daysAgoShamsi(n);
+              const active = toEnglishDigits(date) === toEnglishDigits(value);
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleDateChange(value)}
+                  aria-pressed={active}
+                  className={`shrink-0 h-9 px-3.5 rounded-full border text-xs whitespace-nowrap cursor-pointer transition-colors ${
+                    active ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold' : 'bg-white border-slate-200 text-slate-600 font-medium active:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            <ShamsiDatePicker
+              value={date}
+              onChange={handleDateChange}
+              fallbackDate={date}
+              placeholder="انتخاب تاریخ..."
+              className="shrink-0 w-32 h-9 text-xs bg-white border border-slate-200 rounded-full px-3 outline-none focus:border-emerald-500 text-center cursor-pointer"
+            />
           </div>
 
           {dayClosedReason && (
