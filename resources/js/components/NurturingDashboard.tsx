@@ -2,6 +2,7 @@ import { ObservationInsights } from './ObservationInsights';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
+import { ClassFilterDropdown } from './ClassFilterDropdown';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -949,95 +950,59 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           </div>
         )}
 
-        {/* Breadcrumb Header when in Sub-Desks */}
+        {/* مسیر صفحه (فشرده) */}
         {currentView !== null && currentView !== 'dashboard' && currentView !== 'dossier' && (
-          <div className="bg-white rounded-2xl px-4 py-2.5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setCurrentView(null)}
-                className="text-slate-500 hover:text-emerald-800 transition flex items-center gap-1 cursor-pointer"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600" />
-                <span>داشبورد اصلی</span>
-              </button>
-              <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-900 font-black">
-                {currentView === 'observation' && 'مشاهده‌گری رفتاری'}
-                {currentView === 'coachEvaluations' && 'ارزیابی رشد و تعالی'}
-                {currentView === 'coaches' && 'مربیان تربیتی یاوران ولایت'}
-                {currentView === 'attention' && 'موارد نیازمند توجه و پیگیری'}
-                {currentView === 'reports' && 'گزارش‌های تحلیلی رشد'}
-                {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
-                {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
-                {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
-                {currentView === 'homework_followup' && 'پیگیری تکالیف'}
-                {currentView === 'worksheets' && 'کاربرگ هفتگی'}
-                {currentView === 'parent_meetings' && 'حضور أولیا در جلسات عمومی'}
-                {currentView === 'audit' && 'گزارش دسترسی‌ها'}
-              </span>
-            </div>
-
+          <nav aria-label="مسیر صفحه" className="flex items-center gap-1.5 text-xs text-slate-600 -mb-3">
             <button
               type="button"
               onClick={() => setCurrentView(null)}
-              className="text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer"
+              aria-label="بازگشت به داشبورد"
+              className="!min-h-0 w-8 h-8 -mr-1.5 rounded-full flex items-center justify-center text-slate-600 active:bg-slate-100 cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>بازگشت به داشبورد</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
+            <button type="button" onClick={() => setCurrentView(null)} className="!min-h-0 text-slate-500 cursor-pointer whitespace-nowrap">داشبورد اصلی</button>
+            <span className="text-slate-300">/</span>
+            <span className="font-bold text-slate-800 truncate">
+              {currentView === 'observation' && 'مشاهده‌گری رفتاری'}
+              {currentView === 'coachEvaluations' && 'ارزیابی رشد و تعالی'}
+              {currentView === 'coaches' && 'مربیان تربیتی یاوران ولایت'}
+              {currentView === 'attention' && 'موارد نیازمند توجه و پیگیری'}
+              {currentView === 'reports' && 'گزارش‌های تحلیلی رشد'}
+              {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
+              {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
+              {currentView === 'taught_lessons' && 'درس‌های تدریس‌شده و تکالیف'}
+              {currentView === 'homework_followup' && 'پیگیری تکالیف'}
+              {currentView === 'worksheets' && 'کاربرگ هفتگی'}
+              {currentView === 'parent_meetings' && 'حضور أولیا در جلسات عمومی'}
+              {currentView === 'audit' && 'گزارش دسترسی‌ها'}
+            </span>
+          </nav>
         )}
 
-        {/* Search & Class Filter Bar (for Observation and CoachEvaluations) */}
+        {/* جستجو + فیلتر کلاس در یک سطر (مشاهده‌گری و ارزیابی رشد) */}
         {(currentView === 'observation' || currentView === 'coachEvaluations') && (
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                type="text"
+                type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجوی دانش‌آموز یا کد ملی…"
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-10 pl-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="جستجوی دانش‌آموز..."
+                aria-label="جستجوی دانش‌آموز یا کد ملی"
+                className="w-full h-11 text-xs bg-white border border-slate-200 rounded-xl pr-9 pl-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
-
-            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap pb-1 md:pb-0">
-              <span className="text-xs font-bold text-slate-500 shrink-0 flex items-center gap-1">
-                <Filter className="w-3.5 h-3.5" />
-                فیلتر کلاس:
-              </span>
-              {!(isCoach && availableClasses.length === 1) && (
-                <button
-                  onClick={() => setSelectedClassId('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
-                    selectedClassId === 'all'
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  همه کلاس‌ها ({toPersianDigits(filteredStudents.length)})
-                </button>
-              )}
-              {availableClasses.map((cls) => {
-                const count = students.filter((s) => s.classId === cls.id).length;
-                const isSelected = selectedClassId === cls.id;
-                return (
-                  <button
-                    key={cls.id}
-                    onClick={() => setSelectedClassId(cls.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {cls.name} ({toPersianDigits(count)})
-                  </button>
-                );
-              })}
-            </div>
+            {!(isCoach && availableClasses.length === 1) && (
+              <ClassFilterDropdown
+                options={availableClasses.map((cls) => ({ id: cls.id, name: cls.name, count: students.filter((s) => s.classId === cls.id).length }))}
+                value={selectedClassId}
+                onChange={setSelectedClassId}
+                totalCount={filteredStudents.length}
+                className="shrink-0"
+              />
+            )}
           </div>
         )}
 
