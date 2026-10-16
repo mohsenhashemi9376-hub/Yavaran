@@ -98,6 +98,7 @@ import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { Modal } from './ui/Modal';
 import { AtRiskWeeklyList } from './AtRiskWeeklyList';
+import { NurturingViceHome } from './NurturingViceHome';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
@@ -892,7 +893,24 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
         <TwoFactorRequiredBanner />
         {(currentView === null || currentView === 'dashboard') && <MyWorkshopsSection />}
-        {(currentView === null || currentView === 'dashboard') && (
+        {(currentView === null || currentView === 'dashboard') && isNurturingVice && (
+          <NurturingViceHome
+            greeting={userGreeting.greeting}
+            roleLabel={userGreeting.roleLabel}
+            dayOfWeek={todayInfo.dayOfWeek}
+            displayDate={todayInfo.displayDate}
+            students={students}
+            classes={availableClasses}
+            observations={observations}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
+            onOpenObservations={() => setCurrentView('observation')}
+            onOpenClassesView={() => setCurrentView('academic_and_discipline')}
+            onOpenStudent={handleOpenStudentObs}
+            onSelectDisciplineStudent={(stu) => onSelectStudent?.(stu, 'discipline')}
+          />
+        )}
+        {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
           <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-3xl p-4 shadow-lg border border-emerald-800/40 space-y-3">
             {/* خط اول: نام و نقش */}
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
@@ -1027,7 +1045,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {/* OVERVIEW: وضعیت تربیتی (۴ کارت ساده، کارهای سریع، موارد نیازمند توجه) */}
       {/* ========================================================================= */}
-      {(currentView === null || currentView === 'dashboard') && (
+      {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
         <div className="space-y-6 animate-in fade-in">
           <MentorMessagesSection />
 
