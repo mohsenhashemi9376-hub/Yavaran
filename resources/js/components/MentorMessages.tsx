@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest, ApiError } from '../lib/serverSync';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
@@ -50,6 +50,7 @@ const VicePanel: React.FC = () => {
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(() => {
     apiRequest<{ messages: SentMessage[] }>('GET', '/api/mentor-messages/sent')
@@ -58,11 +59,18 @@ const VicePanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const open = () => openModalRef.current();
+    window.addEventListener('yv:new-mentor-message', open);
+    return () => window.removeEventListener('yv:new-mentor-message', open);
+  }, []);
+
+  useEffect(() => {
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, [load]);
 
+  const openModalRef = useRef<() => void>(() => undefined);
   const openModal = () => {
     setTargetType('all');
     setTargetMentorId('');
@@ -71,6 +79,7 @@ const VicePanel: React.FC = () => {
     setError(null);
     setIsOpen(true);
   };
+  openModalRef.current = openModal;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,14 +114,14 @@ const VicePanel: React.FC = () => {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 p-5 space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-extrabold text-slate-900">پیام‌ها و مأموریت‌ها به مربیان</h2>
+        <h2 className="text-sm font-extrabold text-slate-900">آخرین مأموریت‌ها و پیام‌ها</h2>
         <button
           type="button"
           onClick={openModal}
-          className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition cursor-pointer"
+          className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl flex items-center gap-1 transition cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>پیام جدید به مربیان</span>
+          <span>پیام جدید</span>
         </button>
       </div>
 
@@ -120,7 +129,7 @@ const VicePanel: React.FC = () => {
         <p className="text-sm text-slate-400 text-center py-4">هنوز پیامی ارسال نشده است.</p>
       ) : (
         <div className="space-y-3">
-          {messages.slice(0, 8).map((m) => {
+          {(showAll ? messages : messages.slice(0, 3)).map((m) => {
             const meta = PRIORITY_META[m.priority] || PRIORITY_META.normal;
             const ackCount = m.recipients.filter((r) => r.acknowledgedAt).length;
             return (
@@ -150,6 +159,11 @@ const VicePanel: React.FC = () => {
               </div>
             );
           })}
+          {messages.length > 3 && (
+            <button type="button" onClick={() => setShowAll((v) => !v)} className="w-full h-9 text-xs font-bold text-emerald-700 cursor-pointer">
+              {showAll ? 'نمایش کمتر ↑' : `مشاهده همه (${toPersianDigits(messages.length)}) ←`}
+            </button>
+          )}
         </div>
       )}
 
