@@ -1,11 +1,14 @@
-import React, { useMemo } from 'react';
-import { Calendar, ChevronLeft, GraduationCap, Menu, Plus } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Award, Calendar, ChevronLeft, Eye, GraduationCap, Menu, Plus, Send, UserCheck, BarChart3 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentObservation } from '../types';
 import { toPersianDigits, tehranNow } from '../utils/persianDate';
 import { MentorMessagesSection } from './MentorMessages';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
-import { DisciplineExcellenceCard } from './DisciplineExcellence';
+import { DisciplineExcellenceCard, useDisciplineExcellence } from './DisciplineExcellence';
+import { Modal } from './ui/Modal';
+import { Sparkline } from './Sparkline';
+import { apiRequest } from '../lib/serverSync';
 import { ReferralsHistoryButton } from './ReferralsHistory';
 import { daysAgo } from './ObservationInsights';
 
@@ -78,6 +81,58 @@ const ClassesEduDisciplineCard: React.FC<{ classes: SchoolClass[]; onOpen: () =>
   );
 };
 
+type TileKey = 'latest' | 'missions' | 'stats' | 'excellence' | 'classes' | 'coaches';
+
+const TONES = {
+  emerald: { box: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white/70', icon: 'bg-white/80 text-emerald-600', hint: 'text-emerald-700', line: '#059669' },
+  sky: { box: 'border-sky-200/80 bg-gradient-to-br from-sky-50/90 to-white/70', icon: 'bg-white/80 text-sky-600', hint: 'text-sky-700', line: '#0284c7' },
+  teal: { box: 'border-teal-200/80 bg-gradient-to-br from-teal-50/90 to-white/70', icon: 'bg-white/80 text-teal-600', hint: 'text-teal-700', line: '#0f766e' },
+  amber: { box: 'border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white/70', icon: 'bg-white/80 text-amber-600', hint: 'text-amber-700', line: '#d97706' },
+  violet: { box: 'border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white/70', icon: 'bg-white/80 text-violet-600', hint: 'text-violet-700', line: '#7c3aed' },
+  indigo: { box: 'border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 to-white/70', icon: 'bg-white/80 text-indigo-600', hint: 'text-indigo-700', line: '#4f46e5' },
+} as const;
+
+interface TileProps {
+  tone: keyof typeof TONES;
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  badge?: string;
+  spark?: number[];
+}
+
+/** کاشی شیشه‌ای رنگی: عنوان، عدد درشت و لینک کوچک (هم‌سبک پنل معاون آموزشی) */
+const Tile: React.FC<TileProps> = ({ tone, label, value, hint, icon, onClick, badge, spark }) => {
+  const t = TONES[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-h-[7.5rem] p-4 rounded-2xl border shadow-sm backdrop-blur-sm text-right flex flex-col hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer ${t.box}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-slate-600">{label}</span>
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${t.icon}`}>{icon}</span>
+      </div>
+      <div className="text-2xl font-black text-slate-900 tabular-nums mt-2">{value}</div>
+      {spark ? (
+        <div className="mt-1"><Sparkline values={spark} color={t.line} height={30} /></div>
+      ) : null}
+      {badge ? (
+        <span className="mt-auto pt-1 self-start inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800 whitespace-nowrap">
+          {badge}<ChevronLeft className="w-3 h-3" />
+        </span>
+      ) : (
+        <span className={`mt-auto pt-1 text-xs font-medium flex items-center gap-1 ${t.hint}`}>
+          <span className="truncate">{hint}</span><ChevronLeft className="w-3 h-3 shrink-0" />
+        </span>
+      )}
+    </button>
+  );
+};
+
 export interface NurturingViceHomeProps {
   greeting: string;
   roleLabel: string;
@@ -94,79 +149,112 @@ export interface NurturingViceHomeProps {
   onSelectDisciplineStudent: (student: Student) => void;
 }
 
-/** پیشخوان معاون تربیتی: هدر ساده + کادرهای شیشه‌ای رنگی (هم‌سبک پنل معاون آموزشی) */
+const MODAL_TITLES: Record<TileKey, string> = {
+  latest: 'آخرین مشاهدات',
+  missions: 'مأموریت‌ها و پیام‌ها به مربیان',
+  stats: 'آمار مشاهده‌گری همه کلاس‌ها',
+  excellence: 'ممتازین انضباطی',
+  classes: 'آموزش و انضباط کلاس‌ها',
+  coaches: 'آخرین آمار فعالیت مربیان',
+};
+
+/** پیشخوان معاون تربیتی: هدر ساده + کاشی‌های شیشه‌ای رنگی (هم‌سبک پنل معاون آموزشی) */
 export const NurturingViceHome: React.FC<NurturingViceHomeProps> = ({
   greeting, roleLabel, dayOfWeek, displayDate, students, classes, observations,
   onOpenSidebar, onNewObservation, onOpenObservations, onOpenClassesView, onOpenStudent, onSelectDisciplineStudent,
-}) => (
-  <div className="space-y-4 animate-in fade-in" id="nurturing-vice-home">
-    {/* هدر: نام و پست */}
-    <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
-      <div className="flex flex-row items-start sm:items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-base sm:text-xl font-black text-slate-900 whitespace-nowrap">{greeting} 👋</h1>
-            <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
-              {roleLabel}
-            </span>
+}) => {
+  const { allCoaches } = useSchool();
+  const [open, setOpen] = useState<TileKey | null>(null);
+  const [messages, setMessages] = useState<{ recipients: { acknowledgedAt: string | null }[] }[]>([]);
+  useEffect(() => {
+    apiRequest<{ messages: typeof messages }>('GET', '/api/mentor-messages/sent')
+      .then((r) => setMessages(r.messages || []))
+      .catch(() => undefined);
+  }, [open]);
+
+  const { excellent } = useDisciplineExcellence('term');
+
+  const m = useMemo(() => {
+    const now = tehranNow().getTime();
+    const ids = new Set(students.map((s) => s.id));
+    const rows = observations.filter((o) => ids.has(o.studentId)).map((o) => ({ o, d: daysAgo(o.date, now) }));
+    const daily = (list: typeof rows, n: number) => {
+      const out = new Array(n).fill(0);
+      list.forEach(({ d }) => { if (d < n) out[d] += 1; });
+      return out;
+    };
+    const coachRows = rows.filter(({ o }) => o.authorRole === 'coach');
+    const latest = [...rows].sort((a, b) => (a.o.date < b.o.date ? 1 : -1))[0]?.o;
+    return {
+      week: rows.filter(({ d }) => d < 7).length,
+      latestTitle: latest?.title,
+      all14: daily(rows, 14),
+      coach14: daily(coachRows, 14),
+      activeCoaches: new Set(coachRows.filter(({ d }) => d < 30).map(({ o }) => String(o.authorId))).size,
+    };
+  }, [observations, students]);
+  const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+  const pending = messages.filter((x) => x.recipients.some((r) => !r.acknowledgedAt)).length;
+  const close = () => setOpen(null);
+  const widgetProps = { glass: true, students, classes, observations, isVice: true, onOpenStudent: (s: Student) => { close(); onOpenStudent(s); }, onOpenAll: () => { close(); onOpenObservations(); } };
+
+  return (
+    <div className="space-y-4 animate-in fade-in" id="nurturing-vice-home">
+      {/* هدر: نام و پست */}
+      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
+        <div className="flex flex-row items-start sm:items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-base sm:text-xl font-black text-slate-900 whitespace-nowrap">{greeting} 👋</h1>
+              <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
+                {roleLabel}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>امروز: {dayOfWeek}، {displayDate}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>امروز: {dayOfWeek}، {displayDate}</span>
-          </div>
+          <button
+            type="button"
+            id="btn-mobile-nurturing-sidebar-toggle"
+            onClick={onOpenSidebar}
+            className="lg:hidden shrink-0 h-11 w-11 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl transition flex items-center justify-center cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
+            title="باز کردن نوار کناری"
+            aria-label="باز کردن نوار کناری"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          type="button"
-          id="btn-mobile-nurturing-sidebar-toggle"
-          onClick={onOpenSidebar}
-          className="lg:hidden shrink-0 h-11 w-11 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl transition flex items-center justify-center cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
-          title="باز کردن نوار کناری"
-          aria-label="باز کردن نوار کناری"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
       </div>
-      <div className="flex flex-wrap items-center gap-2 mt-3">
-        <button
-          type="button"
-          onClick={onNewObservation}
-          className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>ثبت مشاهده جدید</span>
+
+      {/* کاشی‌ها */}
+      <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <Tile tone="emerald" label="آخرین مشاهدات" value={fa(m.week)} hint={m.latestTitle ? `آخرین: ${m.latestTitle}` : 'مشاهده آخرین‌ها'} icon={<Eye className="w-4 h-4" />} onClick={() => setOpen('latest')} />
+        <Tile tone="sky" label="مأموریت‌ها" value={fa(messages.length)} hint="پیام‌ها به مربیان" badge={pending > 0 ? `${fa(pending)} بدون تأیید` : undefined} icon={<Send className="w-4 h-4" />} onClick={() => setOpen('missions')} />
+        <Tile tone="amber" label="ممتازین انضباطی" value={fa(excellent.length)} hint="مشاهده ممتازین" icon={<Award className="w-4 h-4" />} onClick={() => setOpen('excellence')} />
+        <Tile tone="violet" label="آموزش و انضباط" value={fa(classes.length)} hint="مشاهده کلاس‌ها" icon={<GraduationCap className="w-4 h-4" />} onClick={() => setOpen('classes')} />
+        <Tile tone="teal" label="آمار مشاهده‌گری" value={fa(sum(m.all14))} hint="۱۴ روز اخیر" spark={m.all14} icon={<BarChart3 className="w-4 h-4" />} onClick={() => setOpen('stats')} />
+        <Tile tone="indigo" label="فعالیت مربیان" value={`${fa(m.activeCoaches)} از ${fa(allCoaches.length)}`} hint="مربی فعال در ۳۰ روز" spark={m.coach14} icon={<UserCheck className="w-4 h-4" />} onClick={() => setOpen('coaches')} />
+      </div>
+
+      {/* اقدام سریع */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={onNewObservation} className="h-12 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
+          <Plus className="w-4 h-4" /><span>ثبت مشاهده جدید</span>
         </button>
         <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
       </div>
+
+      {/* جزئیات هر کاشی */}
+      <Modal isOpen={open !== null} onClose={close} title={open ? MODAL_TITLES[open] : ''} size="xl">
+        {open === 'latest' && <ObservationHomeWidgets {...widgetProps} show={['latest']} />}
+        {open === 'missions' && <MentorMessagesSection glass />}
+        {open === 'stats' && <ObservationHomeWidgets {...widgetProps} show={['stats']} />}
+        {open === 'excellence' && <DisciplineExcellenceCard onSelectStudent={(s) => { close(); onSelectDisciplineStudent(s); }} />}
+        {open === 'classes' && <ClassesEduDisciplineCard classes={classes} onOpen={() => { close(); onOpenClassesView(); }} />}
+        {open === 'coaches' && <ObservationHomeWidgets {...widgetProps} show={['coaches']} />}
+      </Modal>
     </div>
-
-    {/* ۱. آخرین مشاهدات */}
-    <ObservationHomeWidgets
-      glass show={['latest']}
-      students={students} classes={classes} observations={observations} isVice
-      onOpenAll={onOpenObservations} onOpenStudent={onOpenStudent}
-    />
-
-    {/* ۲. مأموریت‌ها و پیام‌ها */}
-    <MentorMessagesSection glass />
-
-    {/* ۳. آمار مشاهده‌گری همه کلاس‌ها */}
-    <ObservationHomeWidgets
-      glass show={['stats']}
-      students={students} classes={classes} observations={observations} isVice
-      onOpenAll={onOpenObservations} onOpenStudent={onOpenStudent}
-    />
-
-    {/* ۴. ممتازین انضباطی */}
-    <DisciplineExcellenceCard onSelectStudent={onSelectDisciplineStudent} />
-
-    {/* ۵. آموزش و انضباط کلاس‌ها */}
-    <ClassesEduDisciplineCard classes={classes} onOpen={onOpenClassesView} />
-
-    {/* ۶. آخرین آمار فعالیت مربیان */}
-    <ObservationHomeWidgets
-      glass show={['coaches']}
-      students={students} classes={classes} observations={observations} isVice
-      onOpenAll={onOpenObservations} onOpenStudent={onOpenStudent}
-    />
-  </div>
-);
+  );
+};
