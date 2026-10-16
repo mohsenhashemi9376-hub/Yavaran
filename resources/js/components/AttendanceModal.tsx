@@ -316,8 +316,21 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       showToast('ثبت حضور و غیاب برای تاریخ آینده ممکن نیست.', 'error');
       return;
     }
-    setDate(next);
-    loadSlot(course, periodNumber, next);
+    const apply = () => {
+      setDate(next);
+      loadSlot(course, periodNumber, next);
+    };
+    if (hasUnsavedChanges) {
+      showConfirm({
+        title: 'تغییر تاریخ جلسه',
+        message: 'با تغییر تاریخ، اطلاعات واردشده‌ی این فرم (مبحث، تکلیف و وضعیت دانش‌آموزان) ذخیره نشده و پاک می‌شود. ادامه می‌دهید؟',
+        confirmLabel: 'بله، تاریخ تغییر کند',
+        cancelLabel: 'انصراف',
+        onConfirm: apply,
+      });
+      return;
+    }
+    apply();
   };
 
   const daysAgoShamsi = (n: number): string => {
