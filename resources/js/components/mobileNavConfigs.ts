@@ -87,6 +87,7 @@ export const nurturingMobileNav = (isVice = false) => ({
     { id: 'attention', label: 'نیازمند توجه', icon: AlertTriangle },
   ] as MobileNavItem[],
   more: [
+    { id: 'at_risk', label: 'دانش‌آموزان در خطر', icon: AlertTriangle },
     { id: 'parent_meetings', label: 'حضور أولیا', icon: UsersRound },
     { id: 'academic_and_discipline', label: 'آموزش و انضباط', icon: BookOpen },
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },

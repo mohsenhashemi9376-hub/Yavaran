@@ -1,3 +1,4 @@
+import type { ProfileTab } from './StudentProfileModal';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
@@ -70,7 +71,7 @@ import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
 import { studentFullName } from '../utils/studentName';
 
 interface DisciplinaryDashboardProps {
-  onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent: (student: Student, initialTab?: ProfileTab) => void;
   onOpenClassDetail?: (cls: SchoolClass) => void;
   onOpenNewAttendance?: (classId?: string) => void;
   onOpenAcademicGrades?: (classId?: string) => void;

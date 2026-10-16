@@ -10,6 +10,7 @@ import {
   BarChart3, 
   Settings,
   ShieldCheck,
+  ShieldAlert,
   X, 
   ChevronLeft,
   ChevronRight,
@@ -32,6 +33,7 @@ export type NurturingViewType =
   | 'coachEvaluations' 
   | 'coaches' 
   | 'attention' 
+  | 'at_risk'
   | 'audit' 
   | 'reports' 
   | 'settings'
@@ -49,6 +51,8 @@ export interface NurturingSidebarCounts {
   evaluations?: number;
   coaches?: number;
   attentionNeeded?: number;
+  /** دانش‌آموزان در خطر (هشدار ترکیبی هفتگی) */
+  atRisk?: number;
 }
 
 interface NurturingSidebarNavProps {
@@ -131,6 +135,7 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
   const totalEvaluations = counts?.evaluations ?? 0;
   const totalCoaches = counts?.coaches ?? 0;
   const totalAttentionNeeded = counts?.attentionNeeded ?? 0;
+  const totalAtRisk = counts?.atRisk ?? 0;
 
   // محاسبه تجمیعی یکپارچه تعداد مشاهدات هر دانش‌آموز (Single-pass O(N) Aggregate برای جلوگیری از N+1)
   const studentObservationCounts = useMemo(() => {
@@ -267,6 +272,14 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
       id: 'tracking',
       title: 'پیگیری',
       items: [
+        {
+          id: 'at_risk',
+          label: 'دانش‌آموزان در خطر',
+          tooltip: 'فهرست هفتگی دانش‌آموزانی که چند نشانه‌ی هشدار هم‌زمان دارند',
+          icon: ShieldAlert,
+          count: totalAtRisk > 0 ? totalAtRisk : undefined,
+          isWarning: true,
+        },
         {
           id: 'attention',
           label: 'موارد نیازمند توجه',

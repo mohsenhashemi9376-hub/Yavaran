@@ -129,6 +129,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   observation: ['counseling-report', 'view-nurturing-file'],
   student_observations: ['counseling-report', 'view-nurturing-file'],
   dossier: ['view-nurturing-file'],
+  at_risk: ['view-nurturing-file'],
   coachEvaluations: ['counseling-report'],
 };
 

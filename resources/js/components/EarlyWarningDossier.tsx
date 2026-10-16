@@ -1,3 +1,4 @@
+import type { ProfileTab } from './StudentProfileModal';
 import React, { useMemo } from 'react';
 import { AlertTriangle, ChevronLeft, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
@@ -29,7 +30,7 @@ export function useEarlyWarnings() {
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectStudent?: (student: Student, tab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, tab?: ProfileTab) => void;
 }
 
 export const EarlyWarningDossier: React.FC<ModalProps> = ({ isOpen, onClose, onSelectStudent }) => {

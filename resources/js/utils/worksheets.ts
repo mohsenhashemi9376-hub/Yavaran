@@ -25,8 +25,8 @@ export const weekKey = (weekStart: string): string => weekStart.replace(/\//g, '
 export const worksheetKey = (studentId: string, weekStart: string): string => `ws-${studentId}-${weekKey(weekStart)}`;
 
 /** مهلت پایان‌یافته؟ (پس از پایان روز مهلت) */
-export const isDeadlinePassed = (deadline?: string | null): boolean =>
-  !!deadline && getTodayShamsi().formattedDate > deadline;
+export const isDeadlinePassed = (deadline?: string | null, asOf?: string): boolean =>
+  !!deadline && (asOf || getTodayShamsi().formattedDate) > deadline;
 
 /** روز تعیین‌شده برای تحویل رسیده است؟ (بدون مهلت: محدودیتی نیست) */
 export const isDeadlineReached = (deadline?: string | null): boolean =>
@@ -95,10 +95,12 @@ export const computeWorksheetAlerts = (
   worksheets: WorksheetRecord[],
   weeks: WorksheetWeek[],
   maxWeeks = 8,
+  /** تاریخ مبنا برای «مهلت گذشته»؛ پیش‌فرض امروز */
+  asOf?: string,
 ): WorksheetAlerts => {
   const records = new Map(worksheets.map((r) => [r.id, r]));
   const due = weeks
-    .filter((w) => !!w.deadline && isDeadlinePassed(w.deadline))
+    .filter((w) => !!w.deadline && isDeadlinePassed(w.deadline, asOf))
     .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
     .slice(0, maxWeeks);
 

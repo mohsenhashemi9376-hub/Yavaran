@@ -1,3 +1,4 @@
+import type { ProfileTab } from './StudentProfileModal';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { useScrollTop } from '../utils/useScrollTop';
 import { canAccessSection } from '../utils/permissions';
@@ -87,7 +88,7 @@ interface AdminDashboardProps {
   onOpenNewAttendance: (classId?: string) => void;
   onOpenMonthlySummary: (classId?: string) => void;
   onOpenAcademicGrades?: (classId?: string) => void;
-  onSelectStudent?: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, initialTab?: ProfileTab) => void;
   onOpenGlobalSearch?: () => void;
 }
 
@@ -199,7 +200,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle opening student profile
   const handleSelectStudent = (
     student: Student, 
-    tab: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' = 'overview'
+    tab: ProfileTab = 'overview'
   ) => {
     if (onSelectStudent) {
       onSelectStudent(student, tab);

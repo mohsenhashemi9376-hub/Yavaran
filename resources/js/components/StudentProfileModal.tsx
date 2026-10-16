@@ -1,4 +1,5 @@
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
+import { StudentTimeline } from './StudentTimeline';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { 
@@ -64,7 +65,7 @@ import { studentFullName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { FitTable } from './ui/FitTable';
 
-export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets';
+export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets' | 'timeline';
 
 interface StudentProfileModalProps {
   isOpen: boolean;
@@ -159,7 +160,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(teacherView && (initialTab === 'info' || initialTab === 'discipline') ? 'overview' : initialTab || 'overview');
+      setActiveTab(teacherView && (initialTab === 'info' || initialTab === 'discipline' || initialTab === 'timeline') ? 'overview' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -814,6 +815,24 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
             {!teacherView && (
             <button
+              id="tab-btn-timeline"
+              onClick={() => {
+                setActiveTab('timeline');
+                setIsEditing(false);
+              }}
+              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'timeline' && !isEditing
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>خط زمانی</span>
+            </button>
+            )}
+
+            {!teacherView && (
+            <button
               id="tab-btn-personal-info"
               onClick={() => {
                 setActiveTab('info');
@@ -942,9 +961,15 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                       آخرین فعالیت‌ها و وقایع پرونده
                     </h3>
                   </div>
-                  <span className="text-[11px] text-slate-400">
-                    ترتیب زمانی بر اساس آخرین تاریخ ثبت
-                  </span>
+                  {teacherView ? (
+                    <span className="text-[11px] text-slate-400">
+                      ترتیب زمانی بر اساس آخرین تاریخ ثبت
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setActiveTab('timeline')} className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 cursor-pointer">
+                      خط زمانی کامل ←
+                    </button>
+                  )}
                 </div>
 
                 {timelineEvents.length === 0 ? (
@@ -984,6 +1009,8 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
             </div>
           )}
+
+          {activeTab === 'timeline' && !isEditing && !teacherView && <StudentTimeline student={currentStudent} />}
 
           {/* =======================================================================
               TAB 2: اطلاعات فردی و شناسنامه‌ای (PERSONAL INFO)

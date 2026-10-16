@@ -51,11 +51,30 @@ export interface EarlyWarningInput {
 }
 
 /** بازه فعال جاری و بازه قبلی آن (به ترتیب سال تحصیلی) */
-function currentAndPreviousPeriod(gradePeriods: GradePeriod[]) {
+export function currentAndPreviousPeriod(gradePeriods: GradePeriod[]) {
   const order = MONTHLY_EVALUATION_PERIODS.map((p) => p.key);
   const activeKeys = gradePeriods.filter((p) => p.isActive).map((p) => p.code);
   const current = [...order].reverse().find((k) => activeKeys.includes(k));
   return { current, order };
+}
+
+/**
+ * افت میانگین بازه فعال جاری نسبت به نزدیک‌ترین بازه قبلیِ دارای نمره (مثبت = افت)؛
+ * null اگر بازه فعال یا نمره‌ی قابل مقایسه‌ای وجود نداشته باشد.
+ */
+export function gradeDropOf(grades: StudentAcademicGrade[], current: string | undefined, order: string[]): number | null {
+  if (!current) return null;
+  const avgOf = (key: string) => {
+    const vals = grades.map((g) => g[key as keyof StudentAcademicGrade]).filter((v): v is number => typeof v === 'number');
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : undefined;
+  };
+  const currentAvg = avgOf(current);
+  if (currentAvg === undefined) return null;
+  for (let i = order.indexOf(current) - 1; i >= 0; i--) {
+    const prevAvg = avgOf(order[i]);
+    if (prevAvg !== undefined) return prevAvg - currentAvg;
+  }
+  return null;
 }
 
 export function computeEarlyWarnings(input: EarlyWarningInput): EarlyWarningStudent[] {
@@ -121,26 +140,9 @@ export function computeEarlyWarnings(input: EarlyWarningInput): EarlyWarningStud
     }
 
     // ج) افت ناگهانی: میانگین بازه فعال جاری نسبت به نزدیک‌ترین بازه قبلی دارای نمره
-    if (current) {
-      const grades = gradesByStudent.get(student.id) || [];
-      const avgOf = (key: string) => {
-        const vals = grades.map((g) => g[key as keyof StudentAcademicGrade]).filter((v): v is number => typeof v === 'number');
-        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : undefined;
-      };
-      const currentAvg = avgOf(current);
-      if (currentAvg !== undefined) {
-        const idx = order.indexOf(current);
-        for (let i = idx - 1; i >= 0; i--) {
-          const prevAvg = avgOf(order[i]);
-          if (prevAvg !== undefined) {
-            const drop = prevAvg - currentAvg;
-            if (drop > GRADE_DROP_LIMIT) {
-              items.push({ type: 'grade_drop', label: `📉 افت معدل ${toPersianDigits((Math.round(drop * 100) / 100).toString().replace('.', '٫'))} نمره` });
-            }
-            break;
-          }
-        }
-      }
+    const drop = gradeDropOf(gradesByStudent.get(student.id) || [], current, order);
+    if (drop !== null && drop > GRADE_DROP_LIMIT) {
+      items.push({ type: 'grade_drop', label: `📉 افت معدل ${toPersianDigits((Math.round(drop * 100) / 100).toString().replace('.', '٫'))} نمره` });
     }
 
     if (items.length > 0) {
