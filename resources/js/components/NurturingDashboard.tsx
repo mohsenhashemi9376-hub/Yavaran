@@ -3,6 +3,7 @@ import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { ClassFilterDropdown } from './ClassFilterDropdown';
+import { MentorMessagesSection } from './MentorMessages';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -88,6 +89,7 @@ import {
   LayoutDashboard,
   RotateCcw,
   NotebookPen,
+  Mail,
 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -946,6 +948,16 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 <Plus className="w-4 h-4" />
                 <span>ثبت مشاهده جدید</span>
               </button>
+              {isNurturingVice && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('yv:new-mentor-message'))}
+                  className="flex-1 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/25 active:bg-white/20 hover:bg-white/15 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>پیام یا مأموریت جدید</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1011,6 +1023,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {(currentView === null || currentView === 'dashboard') && (
         <div className="space-y-6 animate-in fade-in">
+          <MentorMessagesSection />
+
           {/* نیازمند توجه فوری (فشرده) */}
           {attentionNeededStudents.length > 0 && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 space-y-2" aria-label="نیازمند توجه فوری">
