@@ -41,7 +41,7 @@ const fieldClass =
 /* ------------------------------------------------------------------ */
 /* پنل معاون تربیتی: ارسال پیام و مشاهده وضعیت تأیید مربیان              */
 /* ------------------------------------------------------------------ */
-const VicePanel: React.FC = () => {
+const VicePanel: React.FC<{ glass?: boolean }> = ({ glass }) => {
   const { allCoaches, showToast } = useSchool();
   const [messages, setMessages] = useState<SentMessage[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -113,9 +113,17 @@ const VicePanel: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 p-5 space-y-4" dir="rtl">
+    <div
+      className={glass
+        ? 'rounded-2xl border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white/70 to-indigo-50/70 shadow-sm backdrop-blur-sm p-4 sm:p-5 space-y-4'
+        : 'bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 p-5 space-y-4'}
+      dir="rtl"
+    >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-extrabold text-slate-900">آخرین مأموریت‌ها و پیام‌ها</h2>
+        <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          {glass && <Send className="w-4 h-4 text-sky-600" />}
+          {glass ? 'مأموریت‌ها و پیام‌ها به مربیان' : 'آخرین مأموریت‌ها و پیام‌ها'}
+        </h2>
         <button
           type="button"
           onClick={openModal}
@@ -134,7 +142,7 @@ const VicePanel: React.FC = () => {
             const meta = PRIORITY_META[m.priority] || PRIORITY_META.normal;
             const ackCount = m.recipients.filter((r) => r.acknowledgedAt).length;
             return (
-              <div key={m.id} className="relative bg-slate-50/70 rounded-xl p-4 pr-5 space-y-2.5 overflow-hidden">
+              <div key={m.id} className={`relative ${glass ? 'bg-white/80 border border-sky-100' : 'bg-slate-50/70'} rounded-xl p-4 pr-5 space-y-2.5 overflow-hidden`}>
                 <span className={`absolute right-0 top-0 bottom-0 w-1.5 ${meta.bar}`} />
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-bold text-slate-800 leading-relaxed whitespace-pre-line">{m.content}</p>
@@ -356,9 +364,9 @@ const CoachCard: React.FC = () => {
   );
 };
 
-export const MentorMessagesSection: React.FC = () => {
+export const MentorMessagesSection: React.FC<{ glass?: boolean }> = ({ glass }) => {
   const { isNurturingVice, isCoach } = useSchool();
-  if (isNurturingVice) return <VicePanel />;
+  if (isNurturingVice) return <VicePanel glass={glass} />;
   if (isCoach) return <CoachCard />;
   return null;
 };

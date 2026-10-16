@@ -19,7 +19,6 @@ import {
   Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { FitTable } from './ui/FitTable';
 
 interface AdminTeachersWorkspaceProps {
   allTeachers: User[];
@@ -130,6 +129,100 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
     XLSX.utils.book_append_sheet(wb, ws, 'معلمان');
     XLSX.writeFile(wb, `Teachers_List_${todayInfo.formattedDate}.xlsx`);
   };
+
+
+  /* اجزای مشترک جدول دسکتاپ و کارت‌های موبایل */
+  const classesOf = (t: User) => classes.filter((c) => c.teacherIds.includes(t.id) || t.assignedClassIds.includes(c.id));
+
+  const TeacherIdentity: React.FC<{ teacher: User }> = ({ teacher }) => (
+    <div className="flex items-center gap-3 min-w-0">
+      <div className={`w-9 h-9 rounded-xl font-black text-xs flex items-center justify-center border shrink-0 ${
+        teacher.role === 'coach' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-slate-100 text-slate-700 border-slate-200'
+      }`}>
+        {teacher.name[0]}
+      </div>
+      <div className="min-w-0">
+        <div className="font-bold text-slate-900">{teacher.name}</div>
+        {teacher.role === 'coach' ? (
+          <div className="text-[11px] text-emerald-700 font-medium mt-0.5 whitespace-nowrap">مربی یاوران ولایت (معلم)</div>
+        ) : teacher.phone ? (
+          <div className="text-[11px] text-slate-400 font-medium mt-0.5 whitespace-nowrap">{toPersianDigits(teacher.phone)}</div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const SubjectChips: React.FC<{ teacher: User }> = ({ teacher }) => {
+    const subjects = (teacher.subjectSpecialty || teacher.subject || 'عمومی').split(/[،,]/).map((x) => x.trim()).filter(Boolean);
+    return (
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {subjects.map((sub) => (
+          <span key={sub} className="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200/80 text-[11px] font-medium whitespace-nowrap">{sub}</span>
+        ))}
+      </div>
+    );
+  };
+
+  const ActiveBadge: React.FC = () => (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+      فعال
+    </span>
+  );
+
+  const renderClasses = (teacher: User) => {
+    const assigned = classesOf(teacher);
+    const ws = workshopsOf(teacher);
+    if (assigned.length === 0 && ws.length === 0) {
+      return <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap">بدون کلاس</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1 items-center">
+        {assigned.map((cls) => (
+          <span key={cls.id} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] whitespace-nowrap">{cls.name}</span>
+        ))}
+        {ws.map((w) => (
+          <span key={w.id} title={workshopTitle(w)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium whitespace-nowrap">
+            <span>کارگاه {w.name} · {w.gradeLevel === 9 ? 'نهم' : 'هشتم'}</span>
+            {canManageWorkshops && (
+              <button
+                type="button"
+                onClick={() => unassignWorkshop(w, teacher)}
+                aria-label="برداشتن استاد از این کارگاه"
+                title="برداشتن استاد از این کارگاه"
+                className="opacity-60 hover:opacity-100 cursor-pointer leading-none"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const renderActions = (teacher: User, full = false) => (
+    <div className={`${full ? 'grid grid-cols-2' : 'inline-flex items-center'} gap-1.5`}>
+      <button
+        type="button"
+        onClick={() => onSelectTeacherForProfile(teacher)}
+        className="h-10 md:h-9 px-3 rounded-xl bg-teal-50 hover:bg-teal-800 hover:text-white text-teal-900 font-bold text-xs transition inline-flex items-center justify-center gap-1.5 cursor-pointer border border-teal-200 whitespace-nowrap"
+        title="مشاهده اطلاعات کامل معلم"
+      >
+        <Eye className="w-3.5 h-3.5 shrink-0" />
+        <span>مشاهده</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => (onEditTeacher ? onEditTeacher(teacher) : onSelectTeacherForProfile(teacher))}
+        className="h-10 md:h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition inline-flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 whitespace-nowrap"
+        title="ویرایش اطلاعات معلم"
+      >
+        <Edit3 className="w-3.5 h-3.5 shrink-0" />
+        <span>ویرایش</span>
+      </button>
+    </div>
+  );
 
   const hasActiveFilters = Boolean(teacherSearch || teacherSubjectFilter || teacherClassFilter || assignmentFilter !== 'all');
 
@@ -277,130 +370,57 @@ export const AdminTeachersWorkspace: React.FC<AdminTeachersWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          <FitTable>
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="p-3.5">نام و نام خانوادگی</th>
-                  <th className="p-3.5">تخصص / درس</th>
-                  <th className="p-3.5">کلاس‌های مرتبط</th>
-                  <th className="p-3.5 text-center">وضعیت</th>
-                  <th className="p-3.5 text-center w-40">عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredTeachers.map((teacher) => {
-                  const assignedClasses = classes.filter(
-                    (c) => c.teacherIds.includes(teacher.id) || teacher.assignedClassIds.includes(c.id)
-                  );
-                  const teacherWorkshops = workshopsOf(teacher);
-                  const teachingSubject = teacher.subjectSpecialty || teacher.subject || 'عمومی';
+          <>
+            {/* عنوان فهرست */}
+            <div className="px-4 sm:px-6 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" aria-hidden="true" />
+                <h2 className="text-sm sm:text-base font-black text-slate-800">فهرست اساتید و مربیان دبیرستان</h2>
+              </div>
+              <span className="text-xs text-slate-500 font-medium whitespace-nowrap">{toPersianDigits(filteredTeachers.length)} نفر</span>
+            </div>
 
-                  return (
-                    <tr key={teacher.id} className="hover:bg-slate-50/80 transition">
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-teal-50 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0">
-                            {teacher.name[0]}
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-900">
-                              {teacher.name}
-                            </div>
-                            {teacher.role === 'coach' ? (
-                              <span className="inline-block text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold mt-0.5">
-                                مربی یاوران ولایت (معلم)
-                              </span>
-                            ) : teacher.phone ? (
-                              <div className="text-[11px] text-slate-400">
-                                {toPersianDigits(teacher.phone)}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-3.5">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-teal-900 border border-teal-200/80">
-                          {teachingSubject}
-                        </span>
-                      </td>
-
-                      <td className="p-3.5">
-                        {assignedClasses.length > 0 || teacherWorkshops.length > 0 ? (
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {assignedClasses.map((cls) => (
-                              <span
-                                key={cls.id}
-                                className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium"
-                              >
-                                {cls.name}
-                              </span>
-                            ))}
-                            {teacherWorkshops.map((w) => (
-                              <span
-                                key={w.id}
-                                title={workshopTitle(w)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium"
-                              >
-                                <span>کارگاه {w.name} · {w.gradeLevel === 9 ? 'نهم' : 'هشتم'}</span>
-                                {canManageWorkshops && (
-                                  <button
-                                    type="button"
-                                    onClick={() => unassignWorkshop(w, teacher)}
-                                    aria-label="برداشتن استاد از این کارگاه"
-                                    title="برداشتن استاد از این کارگاه"
-                                    className="opacity-60 hover:opacity-100 cursor-pointer leading-none"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium">
-                            بدون کلاس
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="p-3.5 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          <span>فعال</span>
-                        </span>
-                      </td>
-
-                      <td className="p-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onSelectTeacherForProfile(teacher)}
-                            className="px-2.5 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-800 hover:text-white text-teal-900 font-bold text-xs transition flex items-center gap-1 cursor-pointer border border-teal-200"
-                            title="مشاهده اطلاعات کامل معلم"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>مشاهده</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => onEditTeacher ? onEditTeacher(teacher) : onSelectTeacherForProfile(teacher)}
-                            className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1 cursor-pointer border border-slate-200"
-                            title="ویرایش اطلاعات معلم"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>ویرایش</span>
-                          </button>
-                        </div>
-                      </td>
+            {/* دسکتاپ: جدول (سلول‌ها نمی‌شکنند؛ در صورت کمبود جا فقط داخل کارت اسکرول می‌شود) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[820px] text-right border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 bg-slate-50/30">
+                    <th className="py-3 px-4 whitespace-nowrap">نام و نام خانوادگی</th>
+                    <th className="py-3 px-4 whitespace-nowrap">تخصص و دروس تدریسی</th>
+                    <th className="py-3 px-4 whitespace-nowrap">کلاس‌های مرتبط</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">وضعیت</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredTeachers.map((teacher) => (
+                    <tr key={teacher.id} className="hover:bg-slate-50/60 transition">
+                      <td className="py-3.5 px-4"><TeacherIdentity teacher={teacher} /></td>
+                      <td className="py-3.5 px-4"><SubjectChips teacher={teacher} /></td>
+                      <td className="py-3.5 px-4">{renderClasses(teacher)}</td>
+                      <td className="py-3.5 px-4 text-center"><ActiveBadge /></td>
+                      <td className="py-3.5 px-4 text-center">{renderActions(teacher)}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </FitTable>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* موبایل: کارت‌های فشرده */}
+            <ul className="md:hidden divide-y divide-slate-100">
+              {filteredTeachers.map((teacher) => (
+                <li key={teacher.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <TeacherIdentity teacher={teacher} />
+                    <ActiveBadge />
+                  </div>
+                  <SubjectChips teacher={teacher} />
+                  {renderClasses(teacher)}
+                  {renderActions(teacher, true)}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         {/* 3. Footer */}

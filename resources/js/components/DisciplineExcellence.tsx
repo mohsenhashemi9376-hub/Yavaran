@@ -5,42 +5,68 @@ import { useSchool } from '../context/SchoolContext';
 import { Modal } from './ui';
 import { Student, StudentAttendanceRecord } from '../types';
 import { absenceEventsOf, delayEventsOf } from '../utils/attendanceStats';
-import { PERSIAN_MONTHS, dateToShamsiString, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
+import { dateToShamsiString, getAcademicYearStart, getActiveAcademicYear, getTodayShamsi, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName, compareStudents } from '../utils/studentName';
+import { academicMonths } from '../utils/teacherActivities';
 
-/** حداقل مدت حضور (روز) برای ممتاز شدن؛ دانش‌آموز تازه‌وارد ممتاز حساب نمی‌شود */
-export const MIN_PRESENCE_DAYS = 30;
 /** تأخیر تا این مقدار (دقیقه) «مورد جزئی» حساب می‌شود */
 const MINOR_DELAY_MINUTES = 20;
 
-export type ExcellencePeriod = 'month' | 'term' | 'year';
-const PERIOD_LABEL: Record<ExcellencePeriod, string> = { month: 'این ماه', term: 'این نیمسال', year: 'کل سال تحصیلی' };
+/** بازه‌ی ارزیابی: ۷/۱۴/۳۰ روز اخیر یا یکی از ماه‌های سال تحصیلی (m7 = مهر، m8 = آبان، …) */
+export type ExcellencePeriod = 'd7' | 'd14' | 'd30' | `m${number}`;
 
-const PERIOD_SHORT: Record<ExcellencePeriod, string> = { month: 'ماه', term: 'نیمسال', year: 'سال' };
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** آغاز حضور همه‌ی دانش‌آموزان: اول مهر سال تحصیلی جاری */
+const yearStart = (): string => `${getAcademicYearStart(getActiveAcademicYear())}/07/01`;
+
+/** ماه‌های سپری‌شده‌ی سال تحصیلی (از مهر تا ماه جاری) */
+const elapsedMonths = () => {
+  const all = academicMonths();
+  const cur = getTodayShamsi().month;
+  const idx = all.findIndex((m) => m.month === cur);
+  return idx < 0 ? all.slice(0, 1) : all.slice(0, idx + 1);
+};
+
+const PERIOD_FIXED: { key: ExcellencePeriod; label: string }[] = [
+  { key: 'd7', label: '۷ روز اخیر' },
+  { key: 'd14', label: '۲ هفته اخیر' },
+  { key: 'd30', label: '۳۰ روز اخیر' },
+];
+
+const periodOptions = (): { key: ExcellencePeriod; label: string }[] => [
+  ...PERIOD_FIXED,
+  ...elapsedMonths().map((m) => ({ key: `m${m.month}` as ExcellencePeriod, label: `${m.label} ${toPersianDigits(m.year)}` })),
+];
+
+const periodLabel = (p: ExcellencePeriod): string => periodOptions().find((o) => o.key === p)?.label || '';
+
+/** بازه‌ی تاریخ (شمسی، قابل مقایسه‌ی رشته‌ای)؛ هیچ‌گاه قبل از اول مهر نیست */
+const periodRange = (p: ExcellencePeriod): { from: string; to: string } => {
+  const today = getTodayShamsi().formattedDate;
+  let from = yearStart();
+  let to = key(today);
+  if (p === 'd7' || p === 'd14' || p === 'd30') {
+    const d = shamsiStringToDate(today);
+    d.setDate(d.getDate() - ({ d7: 6, d14: 13, d30: 29 }[p]));
+    from = key(dateToShamsiString(d));
+  } else {
+    const m = elapsedMonths().find((x) => `m${x.month}` === p);
+    if (m) { from = `${m.year}/${pad(m.month)}/01`; to = `${m.year}/${pad(m.month)}/31`; }
+  }
+  return { from: from < yearStart() ? yearStart() : from, to };
+};
+
 /** «شهید ثناگو» → «ثناگو» */
 const shortClass = (name: string) => name.replace(/^شهید\s+/, '');
 
 const key = (d: string): string => toEnglishDigits(d || '').split('/').map((p, i) => (i === 0 ? p : p.padStart(2, '0'))).join('/');
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/** شروع بازه (تاریخ شمسی)؛ خالی = از ابتدا */
-const periodStart = (p: ExcellencePeriod): string => {
-  const t = getTodayShamsi();
-  if (p === 'month') return `${t.year}/${pad(t.month)}/01`;
-  if (p === 'term') {
-    if (t.month >= 7 && t.month <= 10) return `${t.year}/07/01`;
-    if (t.month >= 11) return `${t.year}/11/01`;
-    return `${t.year - 1}/11/01`; // بهمن تا شهریور: نیمسال دوم
-  }
-  return '';
-};
 
 type Incident = { date: string; kind: 'delay' | 'absence' | 'classAbsence' | 'note'; minutes?: number; excused?: boolean };
 
 interface Verdict {
   student: Student;
   incidents: Incident[];
-  eligible: boolean;
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
@@ -81,7 +107,7 @@ function printCertificates(items: { name: string; className: string }[], periodL
   setTimeout(() => w.print(), 400);
 }
 
-/** ارزیابی همه‌ی دانش‌آموزان: رویدادهای انضباطی + تاریخ آغاز حضور */
+/** ارزیابی همه‌ی دانش‌آموزان: رویدادهای انضباطی (غیبت، تأخیر، غیبت کلاسی، مورد انضباطی) */
 function useVerdicts(scopeClassIds?: string[]) {
   const { students, classes, sessions, morningAttendance, morningDelays, schoolAbsences } = useSchool();
   return useMemo(() => {
@@ -92,112 +118,104 @@ function useVerdicts(scopeClassIds?: string[]) {
       sessions: sessions || [],
     };
     const classAbsent = new Map<string, string[]>();
-    const classFirst = new Map<string, string>();
     (sessions || []).forEach((sess) => {
       const d = key(sess.date);
-      if (!classFirst.has(sess.classId) || d < classFirst.get(sess.classId)!) classFirst.set(sess.classId, d);
       if (!sess.records) return;
       const recs = (Array.isArray(sess.records) ? sess.records : Object.entries(sess.records).map(([id, r]) => ({ ...(r as object), studentId: id }))) as StudentAttendanceRecord[];
       recs.forEach((r) => {
         if (r.status === 'absent') classAbsent.set(r.studentId, [...(classAbsent.get(r.studentId) || []), d]);
       });
     });
-    const firstMorning = new Map<string, string>();
-    (morningAttendance || []).forEach((r) => {
-      const d = key(r.date);
-      if (!firstMorning.has(r.studentId) || d < firstMorning.get(r.studentId)!) firstMorning.set(r.studentId, d);
-    });
 
     const scoped = scopeClassIds ? students.filter((s) => scopeClassIds.includes(s.classId)) : students;
-    const todayMs = shamsiStringToDate(getTodayShamsi().formattedDate).getTime();
 
-    const verdicts: Verdict[] = scoped.map((student) => {
-      const incidents: Incident[] = [
+    const verdicts: Verdict[] = scoped.map((student) => ({
+      student,
+      incidents: [
         ...delayEventsOf(student, src).map((e) => ({ date: key(e.date), kind: 'delay' as const, minutes: e.minutes })),
         ...absenceEventsOf(student, src).map((e) => ({ date: key(e.date), kind: 'absence' as const, excused: e.excused })),
         ...(classAbsent.get(student.id) || []).map((d) => ({ date: d, kind: 'classAbsence' as const })),
         ...(student.disciplinaryNotes || []).map((n) => ({ date: key(n.date), kind: 'note' as const })),
-      ];
-      // آغاز حضور: زمان ثبت دانش‌آموز، وگرنه اولین حضور و غیاب صبحگاه او، وگرنه اولین جلسه‌ی کلاسش
-      const created = (student as Student & { createdAt?: string }).createdAt;
-      let start: string | null = null;
-      if (created && !Number.isNaN(Date.parse(created))) start = dateToShamsiString(new Date(created));
-      else start = firstMorning.get(student.id) || classFirst.get(student.classId) || null;
-      const eligible = start !== null && (todayMs - shamsiStringToDate(start).getTime()) / 86400000 >= MIN_PRESENCE_DAYS;
-      return { student, incidents, eligible };
-    });
-    // سابقه‌ی نمره/وضعیت انضباطی خارج از رویدادها
-    const flagged = new Set(scoped.filter((s) => (s.disciplinaryStatus && s.disciplinaryStatus !== 'normal') || (s.disciplineScore ?? s.disciplinaryScore ?? 20) < 20).map((s) => s.id));
-
-    // آغاز حضور هر دانش‌آموز برای روند ماهانه
-    const starts = new Map<string, string | null>();
-    scoped.forEach((s) => {
-      const created = (s as Student & { createdAt?: string }).createdAt;
-      starts.set(s.id, created && !Number.isNaN(Date.parse(created)) ? dateToShamsiString(new Date(created)) : firstMorning.get(s.id) || classFirst.get(s.classId) || null);
-    });
-    return { verdicts, flagged, starts, classes, scoped };
+      ],
+    }));
+    return { verdicts, classes, scoped };
   }, [students, classes, sessions, morningAttendance, morningDelays, schoolAbsences, scopeClassIds]);
 }
 
 export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?: string[]) {
-  const { verdicts, flagged, starts, classes, scoped } = useVerdicts(scopeClassIds);
+  const { verdicts, classes, scoped } = useVerdicts(scopeClassIds);
   return useMemo(() => {
-    const from = periodStart(period);
-    const inWin = (d: string) => !from || d >= from;
+    const { from, to } = periodRange(period);
+    const inWin = (d: string) => d >= from && d <= to;
+    const describe = (inc: Incident[]) => {
+      const n = (k: Incident['kind']) => inc.filter((i) => i.kind === k).length;
+      return [
+        n('delay') && `${toPersianDigits(n('delay'))} تأخیر`,
+        n('absence') && `${toPersianDigits(n('absence'))} غیبت روزانه`,
+        n('classAbsence') && `${toPersianDigits(n('classAbsence'))} غیبت کلاسی`,
+        n('note') && `${toPersianDigits(n('note'))} مورد انضباطی`,
+      ].filter(Boolean).join('، ') || 'دارای مورد ثبت‌شده';
+    };
     const excellent: Student[] = [];
     const near: { student: Student; reason: string }[] = [];
-    verdicts.forEach(({ student, incidents, eligible }) => {
-      if (!eligible) return;
+    const others: { student: Student; reason: string }[] = [];
+    verdicts.forEach(({ student, incidents }) => {
       const inc = incidents.filter((i) => inWin(i.date));
-      // نمره/وضعیت انضباطی تجمعی است؛ فقط در بازه‌ی «کل سال» ملاک است
-      const notFlagged = from !== '' || !flagged.has(student.id);
-      if (inc.length === 0 && notFlagged) { excellent.push(student); return; }
-      if (inc.length === 1 && notFlagged) {
+      if (inc.length === 0) { excellent.push(student); return; }
+      if (inc.length === 1) {
         const i = inc[0];
-        if (i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES) near.push({ student, reason: `یک تأخیر ${toPersianDigits(i.minutes || 0)} دقیقه‌ای` });
-        else if (i.kind === 'absence' && i.excused) near.push({ student, reason: 'یک غیبت موجه' });
+        if (i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES) { near.push({ student, reason: `یک تأخیر ${toPersianDigits(i.minutes || 0)} دقیقه‌ای` }); return; }
+        if (i.kind === 'absence' && i.excused) { near.push({ student, reason: 'یک غیبت موجه' }); return; }
       }
+      others.push({ student, reason: describe(inc) });
     });
     excellent.sort(compareStudents);
     near.sort((a, b) => compareStudents(a.student, b.student));
+    others.sort((a, b) => compareStudents(a.student, b.student));
 
     const byClass = classes
       .filter((c) => !scopeClassIds || scopeClassIds.includes(c.id))
       .map((c) => ({ cls: c, count: excellent.filter((s) => s.classId === c.id).length, size: scoped.filter((s) => s.classId === c.id).length }))
       .filter((x) => x.size > 0);
 
-    // روند ۶ ماه اخیر: دانش‌آموزان بدون هیچ مورد در همان ماه
-    const t = getTodayShamsi();
-    const trend = Array.from({ length: 6 }, (_, k) => {
-      const idx = t.month - 1 - (5 - k);
-      const y = t.year + Math.floor(idx / 12);
-      const m = ((idx % 12) + 12) % 12 + 1;
-      const a = `${y}/${pad(m)}/01`;
-      const b = `${y}/${pad(m)}/31`;
-      let n = 0;
-      // مرجع محاسبه‌ی «۳۰ روز حضور»: امروز برای ماه جاری، وگرنه پایان همان ماه (همان شرط فهرست ممتازین)
-      const refMs = (y === t.year && m === t.month) ? shamsiStringToDate(t.formattedDate).getTime() : shamsiStringToDate(`${y}/${pad(m)}/${m <= 6 ? 31 : 29}`).getTime();
-      verdicts.forEach(({ student, incidents }) => {
-        const st = starts.get(student.id);
-        if (!st || st > b) return;
-        if ((refMs - shamsiStringToDate(st).getTime()) / 86400000 < MIN_PRESENCE_DAYS) return;
-        if (!incidents.some((i) => i.date >= a && i.date <= b)) n += 1;
-      });
-      return { label: PERSIAN_MONTHS[m - 1], n };
+    // روند ماهانه (تا ۶ ماه اخیر از ابتدای سال تحصیلی): دانش‌آموزان بدون هیچ مورد در همان ماه
+    const months = elapsedMonths().slice(-6);
+    const trend = months.map((m) => {
+      const a = `${m.year}/${pad(m.month)}/01`;
+      const b = `${m.year}/${pad(m.month)}/31`;
+      const n = verdicts.filter(({ incidents }) => !incidents.some((i) => i.date >= a && i.date <= b)).length;
+      return { label: m.label, n };
     });
-    return { excellent, near, byClass, total: scoped.length, trend };
-  }, [verdicts, flagged, starts, classes, scoped, period, scopeClassIds]);
+    return { excellent, near, others, byClass, total: scoped.length, trend };
+  }, [verdicts, classes, scoped, period, scopeClassIds]);
 }
+
+const PeriodSelect: React.FC<{ value: ExcellencePeriod; onChange: (p: ExcellencePeriod) => void; compact?: boolean }> = ({ value, onChange, compact }) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value as ExcellencePeriod)}
+    aria-label="بازه‌ی زمانی"
+    style={{ fontFamily: 'inherit', ...(compact ? { fontSize: '12px' } : {}) }}
+    className={`${compact ? '!min-h-0 h-8 w-[7.25rem] shrink-0 text-xs' : 'h-10 text-xs'} font-bold bg-white border border-amber-200 text-slate-700 rounded-lg px-2 outline-none cursor-pointer`}
+  >
+    <optgroup label="بازه‌ی اخیر">
+      {PERIOD_FIXED.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+    </optgroup>
+    <optgroup label="ماه‌های سال تحصیلی">
+      {elapsedMonths().map((m) => <option key={m.month} value={`m${m.month}`}>{m.label} {toPersianDigits(m.year)}</option>)}
+    </optgroup>
+  </select>
+);
 
 /** «ممتازین انضباطی»: مدیر، معاون تربیتی، معاون انضباطی و مربی (فقط کلاس‌های خودش) */
 export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student) => void; classIds?: string[] }> = ({ onSelectStudent, classIds }) => {
   const { isAdmin, isDisciplinaryVice, isNurturingVice, isCoach, classes: allClasses } = useSchool();
-  const [period, setPeriod] = useState<ExcellencePeriod>('term');
-  const { excellent, near, byClass, total, trend } = useDisciplineExcellence(period, classIds);
+  const [period, setPeriod] = useState<ExcellencePeriod>('d30');
+  const { excellent, near, others, byClass, total, trend } = useDisciplineExcellence(period, classIds);
   const [open, setOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [trendOpen, setTrendOpen] = useState(false);
-  const [tab, setTab] = useState<'excellent' | 'near'>('excellent');
+  const [tab, setTab] = useState<'excellent' | 'near' | 'others'>('excellent');
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
   if (!(isAdmin || isDisciplinaryVice || isNurturingVice || (isCoach && classIds))) return null;
@@ -207,6 +225,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const match = (s: Student) => (!classId || s.classId === classId) && (!q.trim() || studentFullName(s).includes(q.trim()));
   const shownExcellent = excellent.filter(match);
   const shownNear = near.filter((x) => match(x.student));
+  const shownOthers = others.filter((x) => match(x.student));
   const trendMax = Math.max(1, ...trend.map((t) => t.n));
 
   const openAll = () => { setClassId(''); setTab('excellent'); setOpen(true); };
@@ -214,14 +233,14 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const exportExcel = () => {
     const rows = tab === 'excellent'
       ? shownExcellent.map((s, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(s), 'کلاس': className(s.classId), 'کد دانش‌آموزی': s.studentCode || '' }))
-      : shownNear.map((x, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(x.student), 'کلاس': className(x.student.classId), 'مورد': x.reason }));
+      : (tab === 'near' ? shownNear : shownOthers).map((x, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(x.student), 'کلاس': className(x.student.classId), 'مورد': x.reason }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!views'] = [{ rightToLeft: true }];
-    XLSX.utils.book_append_sheet(wb, ws, tab === 'excellent' ? 'ممتازین انضباطی' : 'تقریباً ممتاز');
+    XLSX.utils.book_append_sheet(wb, ws, tab === 'excellent' ? 'ممتازین انضباطی' : tab === 'near' ? 'تقریباً ممتاز' : 'غیرممتاز');
     XLSX.writeFile(wb, `ممتازین_انضباطی_${getTodayShamsi().formattedDate.replace(/\//g, '-')}.xlsx`);
   };
-  const print = (list: Student[]) => printCertificates(list.map((s) => ({ name: studentFullName(s), className: className(s.classId) })), PERIOD_LABEL[period]);
+  const print = (list: Student[]) => printCertificates(list.map((s) => ({ name: studentFullName(s), className: className(s.classId) })), periodLabel(period));
 
   return (
     <>
@@ -244,11 +263,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
             </button>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="inline-flex p-0.5 bg-white/80 border border-amber-100 rounded-lg text-[11px] font-bold" role="group" aria-label="بازه">
-              {(Object.keys(PERIOD_LABEL) as ExcellencePeriod[]).map((pk) => (
-                <button key={pk} type="button" role="tab" aria-selected={period === pk} onClick={() => setPeriod(pk)} className={`px-2 h-6 rounded-md cursor-pointer ${period === pk ? 'bg-amber-500 text-white' : 'text-slate-500'}`}>{PERIOD_SHORT[pk]}</button>
-              ))}
-            </div>
+            <PeriodSelect value={period} onChange={setPeriod} compact />
             <button type="button" onClick={openAll} className="!min-h-0 text-[11px] font-bold text-amber-700 hover:text-amber-900 whitespace-nowrap cursor-pointer">
               مشاهده همه ←
             </button>
@@ -257,7 +272,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
 
         {helpOpen && (
           <p className="mt-2 text-[11px] leading-5 text-amber-900 bg-amber-100/60 rounded-lg px-2.5 py-1.5">
-            بدون هیچ غیبت، تأخیر یا مورد انضباطی · حداقل {toPersianDigits(MIN_PRESENCE_DAYS)} روز حضور
+            بدون هیچ غیبت، تأخیر یا مورد انضباطی در {periodLabel(period)} (حضور از اول مهر حساب می‌شود)
           </p>
         )}
 
@@ -306,9 +321,9 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
         </div>
       </section>
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${PERIOD_LABEL[period]} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
+      <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${periodLabel(period)} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
         <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold" role="tablist">
-          {([['excellent', `ممتاز (${toPersianDigits(shownExcellent.length)})`], ['near', `تقریباً ممتاز (${toPersianDigits(shownNear.length)})`]] as const).map(([k, l]) => (
+          {([['excellent', `ممتاز (${toPersianDigits(shownExcellent.length)})`], ['near', `تقریباً ممتاز (${toPersianDigits(shownNear.length)})`], ['others', `غیرممتاز + دلیل (${toPersianDigits(shownOthers.length)})`]] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3.5 py-1.5 rounded-lg cursor-pointer ${tab === k ? 'bg-white shadow-xs text-amber-800' : 'text-slate-500'}`}>{l}</button>
           ))}
         </div>
@@ -317,6 +332,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجوی نام…" className="w-full h-10 text-xs bg-slate-50 rounded-xl pr-9 pl-3 outline-none focus:bg-white focus:ring-4 focus:ring-amber-100" />
           </div>
+          <PeriodSelect value={period} onChange={setPeriod} />
           <select value={classId} onChange={(e) => setClassId(e.target.value)} className="h-10 text-xs bg-slate-50 rounded-xl px-3 outline-none" aria-label="کلاس">
             <option value="">همه کلاس‌ها</option>
             {byClass.map(({ cls }) => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
@@ -331,11 +347,11 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
           </button>
         </div>
 
-        {(tab === 'excellent' ? shownExcellent.length : shownNear.length) === 0 ? (
+        {(tab === 'excellent' ? shownExcellent.length : tab === 'near' ? shownNear.length : shownOthers.length) === 0 ? (
           <p className="text-center text-sm text-slate-400 py-10">موردی یافت نشد.</p>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {(tab === 'excellent' ? shownExcellent.map((s) => ({ student: s, reason: '' })) : shownNear).map(({ student: s, reason }, i) => (
+            {(tab === 'excellent' ? shownExcellent.map((s) => ({ student: s, reason: '' })) : tab === 'near' ? shownNear : shownOthers).map(({ student: s, reason }, i) => (
               <li key={s.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${tab === 'excellent' ? 'border-amber-100 bg-amber-50/40' : 'border-slate-200 bg-slate-50/60'}`}>
                 <button type="button" onClick={() => { if (onSelectStudent) { setOpen(false); onSelectStudent(s); } }} className="flex-1 min-w-0 text-right flex items-center gap-3 cursor-pointer">
                   <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-white text-[11px] font-black flex items-center justify-center shrink-0">{toPersianDigits(i + 1)}</span>
@@ -354,7 +370,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
           </ul>
         )}
         <p className="text-[10px] text-slate-400 leading-5">
-          معیار ممتاز: در {PERIOD_LABEL[period]} هیچ غیبت (موجه/غیرموجه، روزانه/کلاسی)، تأخیر یا سابقه‌ی انضباطی نداشته باشد، نمره انضباط ۲۰ باشد و دست‌کم {toPersianDigits(MIN_PRESENCE_DAYS)} روز از حضورش گذشته باشد.
+          معیار ممتاز: در {periodLabel(period)} هیچ غیبت (موجه/غیرموجه، روزانه/کلاسی)، تأخیر یا سابقه‌ی انضباطی نداشته باشد. آغاز حضور همه‌ی دانش‌آموزان اول مهر است.
           تقریباً ممتاز: فقط یک مورد جزئی (تأخیر تا {toPersianDigits(MINOR_DELAY_MINUTES)} دقیقه یا یک غیبت موجه).
         </p>
       </Modal>

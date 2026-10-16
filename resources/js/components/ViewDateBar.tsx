@@ -19,8 +19,6 @@ const daysAgo = (n: number): string => {
 
 const QUICK: [string, number][] = [
   ['دیروز', 1],
-  ['۳ روز پیش', 3],
-  ['۷ روز پیش', 7],
 ];
 
 /**
@@ -47,7 +45,7 @@ export const ViewDateBar: React.FC = () => {
 
   const picker = (
     <ShamsiDatePicker
-      value={text}
+      value={text !== '' ? text : (viewDate ?? '')}
       onChange={onType}
       fallbackDate={viewDate ?? undefined}
       placeholder="انتخاب تاریخ..."

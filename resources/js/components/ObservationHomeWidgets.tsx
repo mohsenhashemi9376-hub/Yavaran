@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Activity, AlertTriangle, ArrowLeft, BarChart3, Eye, Target, UserCheck } from 'lucide-react';
 import { SchoolClass, Student, StudentObservation } from '../types';
 import { toPersianDigits, tehranNow } from '../utils/persianDate';
+import { useSchool } from '../context/SchoolContext';
 import { normalizeShamsi } from '../utils/schoolCalendar';
 import { studentFullName } from '../utils/studentName';
 import { CATS, catOf, WeeklyBars, daysAgo } from './ObservationInsights';
@@ -16,6 +17,10 @@ export interface ObservationHomeWidgetsProps {
   onOpenAll: () => void;
   /** باز کردن کادر مشاهدات یک دانش‌آموز */
   onOpenStudent: (student: Student) => void;
+  /** فقط این بخش‌ها نمایش داده شوند (پیش‌فرض: همه) */
+  show?: Array<'stats' | 'latest' | 'coaches'>;
+  /** ظاهر کارت شیشه‌ای رنگی (پیشخوان معاون تربیتی) */
+  glass?: boolean;
 }
 
 type Row = StudentObservation & { _day: number; _sort: string };
@@ -30,8 +35,14 @@ const weekly = (list: Row[]): number[] => {
 };
 
 export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
-  students, classes, observations, isVice, onOpenAll, onOpenStudent,
+  students, classes, observations, isVice, onOpenAll, onOpenStudent, show, glass,
 }) => {
+  const { allCoaches } = useSchool();
+  const has = (k: 'stats' | 'latest' | 'coaches') => !show || show.includes(k);
+  const shell = (tone: string) =>
+    glass
+      ? `rounded-2xl border shadow-sm backdrop-blur-sm p-4 sm:p-5 space-y-3 ${tone}`
+      : 'bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3';
   const [classId, setClassId] = useState<string | null>(null);
   const [period, setPeriod] = useState<'7' | '30' | 'all'>('all');
   const [mode, setMode] = useState<'count' | 'per'>('count');
@@ -89,15 +100,16 @@ export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
   /* فعالیت مربیان در ۳۰ روز اخیر */
   const coachActivity = useMemo(() => {
     const m = new Map<string, { name: string; count: number; students: Set<string> }>();
+    if (glass) allCoaches.forEach((c) => m.set(String(c.id), { name: c.name, count: 0, students: new Set<string>() }));
     rows.filter((o) => o.authorRole === 'coach' && o._day < 30).forEach((o) => {
-      const key = o.authorId || o.recordedBy || '—';
+      const key = String(o.authorId || o.recordedBy || '—');
       const e = m.get(key) || { name: o.recordedBy || 'مربی', count: 0, students: new Set<string>() };
       e.count += 1;
       e.students.add(o.studentId);
       m.set(key, e);
     });
     return [...m.values()].sort((a, b) => b.count - a.count);
-  }, [rows]);
+  }, [rows, glass, allCoaches]);
   const maxCoach = Math.max(1, ...coachActivity.map((c) => c.count));
 
   const goalTone = (week: number, goal?: number) => {
@@ -114,7 +126,8 @@ export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* نمودار آمار: کلی + با کلیک روی کلاس، همان کلاس */}
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 lg:col-span-2">
+      {has('stats') && (
+      <section className={`${shell('border-teal-200/80 bg-gradient-to-br from-teal-50/90 via-white/70 to-emerald-50/70')} lg:col-span-2`} aria-label="آمار مشاهده‌گری">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-emerald-600" />
@@ -235,12 +248,14 @@ export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
           </div>
         </div>
       </section>
+      )}
 
       {/* ۵ ثبت آخر */}
-      <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3">
+      {has('latest') && (
+      <section className={`${shell('border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white/70 to-teal-50/70')} lg:col-span-2`} aria-label="آخرین مشاهدات">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-600" /> ۵ مشاهده آخر
+            <Activity className="w-4 h-4 text-emerald-600" /> {glass ? 'آخرین مشاهدات' : '۵ مشاهده آخر'}
           </h3>
           <button
             type="button"
@@ -267,8 +282,9 @@ export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
                   <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: c.hex }} />
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-bold text-slate-800 truncate">{o.title}</div>
+                    {glass && o.content && <p className="text-[11px] text-slate-600 leading-5 line-clamp-2">{o.content}</p>}
                     <div className="text-[11px] text-slate-500 truncate">
-                      {studentFullName(s)} · {s ? className(s.classId) : ''}
+                      {studentFullName(s)} · {s ? className(s.classId) : ''}{glass && o.recordedBy ? ` · ثبت: ${o.recordedBy}` : ''}
                     </div>
                   </div>
                   <span className="text-[10px] text-slate-400 whitespace-nowrap" dir="ltr">{fa(o.date)}</span>
@@ -279,12 +295,13 @@ export const ObservationHomeWidgets: React.FC<ObservationHomeWidgetsProps> = ({
           </ul>
         )}
       </section>
+      )}
 
       {/* ثبت‌های مربیان: فقط معاون */}
-      {isVice && (
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3">
+      {isVice && has('coaches') && (
+        <section className={`${shell('border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white/70 to-sky-50/70')} lg:col-span-2`} aria-label="آخرین آمار فعالیت مربیان">
           <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-sky-600" /> ثبت‌های اخیر مربیان
+            <UserCheck className="w-4 h-4 text-indigo-600" /> {glass ? 'آخرین آمار فعالیت مربیان' : 'ثبت‌های اخیر مربیان'}
           </h3>
           {coachEntries.length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-6">مربیان هنوز مشاهده‌ای ثبت نکرده‌اند.</p>
