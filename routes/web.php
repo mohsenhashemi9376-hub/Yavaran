@@ -72,7 +72,6 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
             Route::post('{message}/read', [InboxController::class, 'read'])->whereNumber('message')->name('api.inbox.read');
         });
         Route::prefix('mentor-messages')->middleware('throttle:120,1')->group(function (): void {
-            Route::post('/', [MentorMessageController::class, 'store'])->name('api.mentor-messages.store');
             Route::get('active', [MentorMessageController::class, 'active'])->name('api.mentor-messages.active');
             Route::get('sent', [MentorMessageController::class, 'sent'])->name('api.mentor-messages.sent');
             Route::post('{message}/acknowledge', [MentorMessageController::class, 'acknowledge'])

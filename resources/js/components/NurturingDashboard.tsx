@@ -36,7 +36,6 @@ import { NurturingSidebarNav, NurturingViewType } from './NurturingSidebarNav';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { CoachProfileModal } from './CoachProfileModal';
 import { AddCoachModal } from './AddCoachModal';
-import { MentorMessagesSection } from './MentorMessages';
 import { EditCoachModal } from './EditCoachModal';
 import { toPersianDigits, getTodayShamsi, getNowShamsi, parseShamsiDateTime } from '../utils/persianDate';
 import { getUserGreeting } from '../utils/userRoles';
@@ -88,7 +87,6 @@ import {
   LayoutDashboard,
   RotateCcw,
   NotebookPen,
-  Mail,
 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -947,16 +945,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 <Plus className="w-4 h-4" />
                 <span>ثبت مشاهده جدید</span>
               </button>
-              {isNurturingVice && (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event('yv:new-mentor-message'))}
-                  className="flex-1 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/25 active:bg-white/20 hover:bg-white/15 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>پیام یا مأموریت جدید</span>
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -1096,7 +1084,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               </ul>
             </div>
           )}
-          <MentorMessagesSection />
 
           {/* ۴ کارت اصلی وضعیت تربیتی */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
