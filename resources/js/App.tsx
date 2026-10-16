@@ -105,7 +105,7 @@ const MainApp: React.FC = () => {
 
   const [studentProfileModalOpen, setStudentProfileModalOpen] = useState(false);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
-  const [profileInitialTab, setProfileInitialTab] = useState<'overview' | 'info' | 'attendance' | 'discipline' | 'grades'>('overview');
+  const [profileInitialTab, setProfileInitialTab] = useState<'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline'>('overview');
 
   const [academicGradesModalOpen, setAcademicGradesModalOpen] = useState(false);
   const [targetClassForGrades, setTargetClassForGrades] = useState<string | undefined>(undefined);

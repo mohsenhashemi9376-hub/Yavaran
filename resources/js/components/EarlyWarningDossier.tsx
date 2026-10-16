@@ -29,7 +29,7 @@ export function useEarlyWarnings() {
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectStudent?: (student: Student, tab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, tab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
 }
 
 export const EarlyWarningDossier: React.FC<ModalProps> = ({ isOpen, onClose, onSelectStudent }) => {

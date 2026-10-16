@@ -97,10 +97,11 @@ import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { Modal } from './ui/Modal';
+import { AtRiskWeeklyList } from './AtRiskWeeklyList';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
-  onSelectStudent?: (student: Student, defaultTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, defaultTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
 }
 
 const RATING_INFO: Record<QualitativeRating, { label: string; bg: string; text: string; border: string; icon: string; color: string }> = {
@@ -2707,6 +2708,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {currentView === 'attention' && (
         <div className="space-y-6 animate-in fade-in">
+          <AtRiskWeeklyList students={filteredStudents} onSelectStudent={(stu) => onSelectStudent?.(stu, 'timeline')} />
+
           {/* Header */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
