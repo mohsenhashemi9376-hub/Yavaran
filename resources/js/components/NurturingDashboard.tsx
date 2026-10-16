@@ -96,10 +96,12 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { nurturingMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { Modal } from './ui/Modal';
+import { AtRiskWeeklyList } from './AtRiskWeeklyList';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
-  onSelectStudent?: (student: Student, defaultTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, defaultTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
 }
 
 const RATING_INFO: Record<QualitativeRating, { label: string; bg: string; text: string; border: string; icon: string; color: string }> = {
@@ -342,6 +344,10 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   // Observation Modal state
   const [selectedStudentForObs, setSelectedStudentForObs] = useState<Student | null>(null);
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
+  // انتخاب کلاس و دانش‌آموز برای «ثبت مشاهده جدید»
+  const [isObsPickerOpen, setIsObsPickerOpen] = useState(false);
+  const [pickClassId, setPickClassId] = useState('');
+  const [pickStudentId, setPickStudentId] = useState('');
   const [obsTitle, setObsTitle] = useState('');
   const [obsCategory, setObsCategory] = useState<ObservationCategory>('behavioral');
   const [obsContent, setObsContent] = useState('');
@@ -942,7 +948,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             <div className="flex gap-2.5">
               <button
                 type="button"
-                onClick={() => { setCurrentView('observation'); setSelectedDossierStudent(null); }}
+                onClick={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
                 className="flex-1 h-12 rounded-2xl bg-emerald-500 active:bg-emerald-600 hover:bg-emerald-400 text-white text-sm font-extrabold shadow-md inline-flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -1715,6 +1721,41 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
         </div>
       )}
+
+      {/* انتخاب کلاس و دانش‌آموز برای ثبت مشاهده جدید */}
+      <Modal
+        isOpen={isObsPickerOpen}
+        onClose={() => setIsObsPickerOpen(false)}
+        title="ثبت مشاهده جدید"
+        subtitle="کلاس و دانش‌آموز را انتخاب کنید"
+        icon={<Plus className="w-5 h-5" />}
+        footer={
+          <button
+            type="button"
+            disabled={!pickStudentId}
+            onClick={() => {
+              const st = students.find((x) => x.id === pickStudentId);
+              if (!st) return;
+              setIsObsPickerOpen(false);
+              handleOpenStudentObs(st);
+            }}
+            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-bold cursor-pointer"
+          >
+            ادامه و ثبت مشاهده
+          </button>
+        }
+      >
+        <div className="space-y-3">
+          <select value={pickClassId} onChange={(e) => { setPickClassId(e.target.value); setPickStudentId(''); }} aria-label="کلاس" className="w-full h-11 text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 outline-none">
+            <option value="">انتخاب کلاس…</option>
+            {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={pickStudentId} onChange={(e) => setPickStudentId(e.target.value)} disabled={!pickClassId} aria-label="دانش‌آموز" className="w-full h-11 text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 outline-none disabled:opacity-50">
+            <option value="">{pickClassId ? 'انتخاب دانش‌آموز…' : 'ابتدا کلاس را انتخاب کنید'}</option>
+            {students.filter((x) => x.classId === pickClassId).sort((a, b) => studentFullName(a).localeCompare(studentFullName(b), 'fa')).map((x) => <option key={x.id} value={x.id}>{studentFullName(x)}</option>)}
+          </select>
+        </div>
+      </Modal>
 
       {/* ========================================================================= */}
       {/* MODAL 1: OBSERVATION FORM & LOGS FOR A STUDENT */}
@@ -2667,6 +2708,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {currentView === 'attention' && (
         <div className="space-y-6 animate-in fade-in">
+          <AtRiskWeeklyList students={filteredStudents} onSelectStudent={(stu) => onSelectStudent?.(stu, 'timeline')} />
+
           {/* Header */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">

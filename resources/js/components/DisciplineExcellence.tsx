@@ -175,9 +175,12 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
       const a = `${y}/${pad(m)}/01`;
       const b = `${y}/${pad(m)}/31`;
       let n = 0;
+      // مرجع محاسبه‌ی «۳۰ روز حضور»: امروز برای ماه جاری، وگرنه پایان همان ماه (همان شرط فهرست ممتازین)
+      const refMs = (y === t.year && m === t.month) ? shamsiStringToDate(t.formattedDate).getTime() : shamsiStringToDate(`${y}/${pad(m)}/${m <= 6 ? 31 : 29}`).getTime();
       verdicts.forEach(({ student, incidents }) => {
         const st = starts.get(student.id);
         if (!st || st > b) return;
+        if ((refMs - shamsiStringToDate(st).getTime()) / 86400000 < MIN_PRESENCE_DAYS) return;
         if (!incidents.some((i) => i.date >= a && i.date <= b)) n += 1;
       });
       return { label: PERSIAN_MONTHS[m - 1], n };

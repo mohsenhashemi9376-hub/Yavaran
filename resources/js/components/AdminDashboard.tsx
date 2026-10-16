@@ -87,7 +87,7 @@ interface AdminDashboardProps {
   onOpenNewAttendance: (classId?: string) => void;
   onOpenMonthlySummary: (classId?: string) => void;
   onOpenAcademicGrades?: (classId?: string) => void;
-  onSelectStudent?: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
   onOpenGlobalSearch?: () => void;
 }
 

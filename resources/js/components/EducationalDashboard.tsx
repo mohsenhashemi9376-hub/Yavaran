@@ -83,7 +83,7 @@ import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 
 interface EducationalDashboardProps {
-  onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
   onOpenAcademicGradesModal?: (classId?: string, subjectId?: string) => void;
   onOpenClassDetail?: (cls: SchoolClass) => void;
   onOpenNewAttendance?: (classId?: string) => void;
