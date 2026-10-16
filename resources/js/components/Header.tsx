@@ -50,7 +50,7 @@ const DualPanelTabs: React.FC<{
   <div
     role="tablist"
     aria-label="انتخاب پنل کاری"
-    className={`items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs ${full ? 'flex w-full' : 'inline-flex'}`}
+    className={`yv-panel-seg items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs ${full ? 'flex w-full' : 'inline-flex'}`}
   >
     {([
       ['main', 'پنل معاونت', currentActiveTab !== 'teacher', 'bg-emerald-700'],

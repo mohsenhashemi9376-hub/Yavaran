@@ -560,11 +560,11 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             
             {/* ۱. هدر پیشخوان معاونت آموزشی */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
               <div className="flex flex-row items-start sm:items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-lg sm:text-xl font-black text-slate-900">
+                    <h1 className="text-base sm:text-xl font-black text-slate-900 whitespace-nowrap">
                       سلام، {currentUser?.name || 'معاون آموزشی گرامی'} 👋
                     </h1>
                     <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
@@ -574,8 +574,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>امروز: {todayInfo.dayOfWeek}، {todayInfo.displayDate}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500">مرکز مدیریت امور درسی و ارزیابی آموزشی</span>
+                    <span className="hidden sm:inline text-slate-300">•</span>
+                    <span className="hidden sm:inline text-slate-500">مرکز مدیریت امور درسی و ارزیابی آموزشی</span>
                   </div>
                 </div>
 
