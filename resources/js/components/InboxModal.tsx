@@ -85,6 +85,62 @@ const formatWhen = (iso: string | null): string => {
 
 const formatSize = (b: number): string => (b >= 1048576 ? `${toPersianDigits((b / 1048576).toFixed(1))} مگابایت` : `${toPersianDigits(Math.max(1, Math.round(b / 1024)))} کیلوبایت`);
 
+
+/** تیک تکی/دوتایی به سبک پیام‌رسان‌ها؛ تیک دوم هنگام خوانده‌شدن با انیمیشن کشیده می‌شود */
+const TICK_CSS = '@keyframes yv-tick{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}.yv-tick{stroke-dasharray:1;animation:yv-tick .45s .1s ease-out both}@media (prefers-reduced-motion:reduce){.yv-tick{animation:none}}';
+const Ticks: React.FC<{ read: boolean; className?: string }> = ({ read, className = '' }) => (
+  <svg viewBox="0 0 20 12" className={`w-4 h-3 shrink-0 ${className}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M1.5 6.5 5 10l7-8.5" />
+    {read && <path className="yv-tick" d="M8 8.5 9.5 10l8-8.5" pathLength={1} />}
+  </svg>
+);
+
+const readTime = (iso: string | null): string => (iso ? formatWhen(iso) : '');
+
+/**
+ * نشان «خوانده شد» برای فرستنده: برچسب فشرده در فهرست (compact) و کارت جزئیات با وضعیت هر گیرنده در مشاهده‌ی پیام.
+ */
+const ReadReceipt: React.FC<{ recipients: InboxMessage['recipients']; variant: 'chip' | 'detail' }> = ({ recipients, variant }) => {
+  if (recipients.length === 0) return null;
+  const readCount = recipients.filter((r) => r.readAt).length;
+  const all = readCount === recipients.length;
+  const none = readCount === 0;
+  const label = all ? 'خوانده شد' : none ? 'ارسال شد' : `${toPersianDigits(readCount)} از ${toPersianDigits(recipients.length)} خوانده‌اند`;
+
+  if (variant === 'chip') {
+    const lastRead = all ? recipients.map((r) => r.readAt as string).sort().pop() || null : null;
+    return (
+      <span
+        className={`inline-flex items-center gap-1 h-6 px-2 rounded-full border text-[10px] font-extrabold transition-colors ${
+          all ? 'bg-teal-50 text-teal-700 border-teal-200' : none ? 'bg-slate-50 text-slate-500 border-slate-200' : 'bg-amber-50 text-amber-800 border-amber-200'
+        }`}
+        title={lastRead ? `خوانده شد: ${readTime(lastRead)}` : label}
+      >
+        <Ticks read={!none} className={all ? 'text-teal-600' : none ? 'text-slate-400' : 'text-amber-600'} />
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <div className={`mt-3 rounded-2xl border px-3 py-2.5 backdrop-blur-xs ${all ? 'border-teal-200/80 bg-gradient-to-l from-teal-50/80 to-white' : 'border-slate-200/80 bg-slate-50/60'}`}>
+      <div className="flex items-center gap-1.5 text-[11px] font-extrabold">
+        <Ticks read={!none} className={all ? 'text-teal-600' : none ? 'text-slate-400' : 'text-amber-600'} />
+        <span className={all ? 'text-teal-800' : none ? 'text-slate-500' : 'text-amber-800'}>{label}</span>
+      </div>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {recipients.map((r) => (
+          <li key={r.id} className={`inline-flex items-center gap-1.5 min-h-7 ps-1 pe-2.5 rounded-full border text-[11px] ${r.readAt ? 'bg-white border-teal-200 text-slate-700' : 'bg-white/60 border-slate-200 text-slate-400'}`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${r.readAt ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{r.name.trim().charAt(0)}</span>
+            <span className="font-bold">{r.name}</span>
+            {r.readAt ? <span className="text-[10px] text-teal-700">{readTime(r.readAt)}</span> : <span className="text-[10px]">هنوز نخوانده</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 const PriorityChip: React.FC<{ p: Priority }> = ({ p }) => (
   <span className={`shrink-0 px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${PRIORITY[p].chip}`}>{PRIORITY[p].label}</span>
 );
@@ -485,6 +541,23 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
     if (box !== 'compose') load(box);
   }, [box, load]);
 
+  // به‌روزرسانی بی‌صدای وضعیت «خوانده شد» برای فرستنده (بدون اسپینر)
+  useEffect(() => {
+    if (box === 'compose') return;
+    const t = window.setInterval(() => {
+      if (document.hidden) return;
+      if (openId) {
+        const last = thread[thread.length - 1];
+        if (last && thread.some((m) => m.isMine && m.recipients.some((r) => !r.readAt))) {
+          call<{ messages: InboxMessage[] }>('GET', `/api/inbox/${last.id}/thread`).then((d) => setThread(d.messages)).catch(() => undefined);
+        }
+      } else if (box === 'sent') {
+        call<{ messages: InboxMessage[] }>('GET', '/api/inbox?box=sent').then((d) => setMessages(d.messages)).catch(() => undefined);
+      }
+    }, 20000);
+    return () => window.clearInterval(t);
+  }, [box, openId, thread]);
+
   useEffect(() => {
     call<{ users: InboxUser[] }>('GET', '/api/inbox/users').then((d) => setUsers(d.users)).catch(() => undefined);
   }, []);
@@ -575,6 +648,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
 
   return createPortal(
     <div className="fixed inset-0 z-[150] bg-slate-900/45 flex items-end sm:items-center justify-center sm:p-4" dir="rtl" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <style>{TICK_CSS}</style>
       <div role="dialog" aria-modal="true" aria-label="صندوق پیام" className="bg-slate-50 w-full sm:max-w-3xl h-[92dvh] sm:h-[85vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
         <div className="bg-white px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 border-b border-slate-100">
           <div className="flex items-center gap-3 min-w-0">
@@ -637,7 +711,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-3">
           {openId && root ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
@@ -665,9 +739,7 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                   <p className="text-sm text-slate-800 leading-7 mt-2 whitespace-pre-wrap break-words">{m.body}</p>
                   {m.studentId && <StudentChip studentId={m.studentId} onOpen={onClose} />}
                   {m.attachments.length > 0 && <AttachmentList items={m.attachments} />}
-                  {m.isMine && m.recipients.length > 0 && (
-                    <div className="text-[10px] text-slate-400 mt-2">{m.recipients.map((r) => `${r.name}: ${r.readAt ? 'خوانده شد' : 'خوانده‌نشده'}`).join(' • ')}</div>
-                  )}
+                  {m.isMine && <ReadReceipt recipients={m.recipients} variant="detail" />}
                 </div>
               ))}
               {replying ? (
@@ -729,7 +801,10 @@ export const InboxModal: React.FC<{ onClose: () => void; onUnreadChange: (n: num
                         </div>
                       </div>
                       <div className={`text-xs mt-1 truncate ${unreadRow ? 'font-extrabold text-slate-800' : 'text-slate-600'}`}>{m.subject}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{formatWhen(m.createdAt)}</div>
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <span className="text-[11px] text-slate-400">{formatWhen(m.createdAt)}</span>
+                        {m.isMine && <ReadReceipt recipients={m.recipients} variant="chip" />}
+                      </div>
                     </button>
                     <div className="absolute left-2 top-2 flex items-center gap-0.5">
                       <button type="button" onClick={() => setFlag(m, { starred: !m.starred })} aria-pressed={Boolean(m.starred)} aria-label="ستاره‌دار" className={`p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer ${m.starred ? 'text-amber-500' : 'text-slate-300'}`}>
