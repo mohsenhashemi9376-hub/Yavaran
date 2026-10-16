@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { Student, SchoolClass, User } from '../types';
-import { toPersianDigits } from '../utils/persianDate';
+import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { 
   Search, 
   X, 
@@ -13,7 +13,10 @@ import {
   ArrowLeft, 
   Trash2,
   CornerDownLeft,
-  ChevronLeft
+  ChevronLeft,
+  CheckCircle2,
+  ShieldAlert,
+  History,
 } from 'lucide-react';
 import { Badge } from './ui/Badge';
 import { studentFullName } from '../utils/studentName';
@@ -21,7 +24,8 @@ import { studentFullName } from '../utils/studentName';
 export interface GlobalSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectStudent: (student: Student) => void;
+  /** باز کردن پرونده‌ی دانش‌آموز (اختیاری: مستقیم روی یک تب) */
+  onSelectStudent: (student: Student, tab?: 'overview' | 'attendance' | 'discipline') => void;
   onOpenClassDetail: (cls: SchoolClass) => void;
   onSelectTeacher?: (teacher: User) => void;
   onSelectCoach?: (coach: User) => void;
@@ -34,7 +38,19 @@ interface RecentSearchItem {
 }
 
 const RECENT_SEARCHES_KEY = 'yavaran_recent_searches_v2';
+/** فقط شناسه‌ی دانش‌آموزانی که اخیراً باز شده‌اند (بدون اطلاعات شخصی) */
+const RECENT_STUDENTS_KEY = 'yavaran_recent_students_v1';
 const MAX_RECENTS = 6;
+
+const readRecentStudentIds = (): string[] => {
+  try {
+    const raw = localStorage.getItem(RECENT_STUDENTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   isOpen,
@@ -44,8 +60,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   onSelectTeacher,
   onSelectCoach,
 }) => {
-  const { students, classes, allTeachers, allCoaches, academicSubjects } = useSchool();
+  const { students, classes, allTeachers, allCoaches, academicSubjects, isTeacher } = useSchool();
   const [query, setQuery] = useState('');
+  const [recentStudentIds, setRecentStudentIds] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -102,6 +119,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   // Focus input automatically on open & reset active index
   useEffect(() => {
     if (isOpen) {
+      setRecentStudentIds(readRecentStudentIds());
       setQuery('');
       setActiveIndex(0);
       setTimeout(() => {
@@ -110,9 +128,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     }
   }, [isOpen]);
 
-  // Normalize search text (trim, Persian/Arabic letter normalization)
+  // Normalize search text (trim, Persian/Arabic letter and digit normalization)
   const normalize = (text: string) => {
-    return text
+    return toEnglishDigits(text)
       .toLowerCase()
       .replace(/ي/g, 'ی')
       .replace(/ك/g, 'ک')
@@ -141,19 +159,21 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     if (!cleanQuery) return [];
     return students.filter((s) => {
       const fullName = normalize(`${studentFullName(s)}`);
-      const reverseName = normalize(`${studentFullName(s)}`);
-      const code = s.studentCode || '';
-      const nationalId = s.nationalId || '';
+      const reverseName = normalize(`${s.firstName || ''} ${s.lastName || ''}`);
+      const fatherName = normalize(s.fatherName || '');
+      const code = normalize(s.studentCode || '');
+      const nationalId = normalize(s.nationalId || '');
       const cls = classMap.get(s.classId);
       const className = cls ? normalize(cls.name) : '';
       return (
         fullName.includes(cleanQuery) ||
         reverseName.includes(cleanQuery) ||
+        fatherName.includes(cleanQuery) ||
         code.includes(cleanQuery) ||
         nationalId.includes(cleanQuery) ||
         className.includes(cleanQuery)
       );
-    }).slice(0, 6);
+    }).slice(0, 8);
   }, [cleanQuery, students, classMap]);
 
   const matchedClasses = useMemo(() => {
@@ -211,13 +231,37 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   const totalResultsCount = allResults.length;
 
+  const recentStudents = useMemo(
+    () => recentStudentIds.map((id) => students.find((s) => s.id === id)).filter((s): s is Student => Boolean(s)),
+    [recentStudentIds, students]
+  );
+
+  const rememberStudent = (id: string) => {
+    const updated = [id, ...readRecentStudentIds().filter((x) => x !== id)].slice(0, MAX_RECENTS);
+    try {
+      localStorage.setItem(RECENT_STUDENTS_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+  };
+
+  /** باز کردن مستقیم پرونده‌ی دانش‌آموز (در صورت انتخاب، روی تب مشخص) */
+  const openStudent = (st: Student, tab?: 'overview' | 'attendance' | 'discipline') => {
+    if (query.trim()) saveRecentSearch(query);
+    rememberStudent(st.id);
+    onClose();
+    onSelectStudent(st, tab);
+  };
+
   // Handle select action
   const handleSelect = (result: FlatResultItem) => {
+    if (result.type === 'student') {
+      openStudent(result.item);
+      return;
+    }
     saveRecentSearch(query);
     onClose();
-    if (result.type === 'student') {
-      onSelectStudent(result.item);
-    } else if (result.type === 'class') {
+    if (result.type === 'class') {
       onOpenClassDetail(result.item);
     } else if (result.type === 'teacher' && onSelectTeacher) {
       onSelectTeacher(result.item);
@@ -288,7 +332,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               setActiveIndex(0);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="جستجوی دانش‌آموز، کلاس، معلم، مربی..."
+            placeholder="نام دانش‌آموز، نام پدر، کد، کلاس، معلم یا مربی…"
             className="w-full bg-transparent text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden"
           />
           {query && (
@@ -321,6 +365,33 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           {/* 1. When query is empty: show Recent Searches and Quick Entity Filters */}
           {!cleanQuery && (
             <div className="space-y-4 pt-1">
+              {recentStudents.length > 0 && (
+                <div>
+                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 px-2 pb-2">
+                    <History className="w-3.5 h-3.5 text-slate-400" />
+                    پرونده‌هایی که اخیراً باز کردید
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 px-1">
+                    {recentStudents.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => openStudent(st)}
+                        className="flex items-center gap-2.5 p-2 rounded-xl text-right bg-slate-50 hover:bg-teal-50 border border-slate-200/60 hover:border-teal-200 transition cursor-pointer"
+                      >
+                        <span className="w-7 h-7 rounded-lg bg-teal-100/70 text-teal-800 flex items-center justify-center shrink-0 font-bold text-xs">
+                          {(st.lastName || st.firstName || '؟').charAt(0)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-xs font-bold text-slate-800 truncate">{studentFullName(st)}</span>
+                          <span className="block text-[10px] text-slate-500 truncate">{classMap.get(st.classId)?.name || 'بدون کلاس'}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {recentSearches.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between px-2 pb-2">
@@ -458,7 +529,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-teal-100/70 text-teal-800 flex items-center justify-center shrink-0 font-bold text-xs">
-                              {st.firstName[0]}
+                              {(st.lastName || st.firstName || '؟').charAt(0)}
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs sm:text-sm font-bold truncate">
@@ -466,14 +537,38 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                               </div>
                               <div className="text-[11px] text-slate-500 truncate flex items-center gap-1.5">
                                 <span>{cls ? cls.name : 'بدون کلاس'}</span>
+                                {st.fatherName && <span>· فرزند {st.fatherName}</span>}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant={st.disciplineScore >= 18 ? 'success' : st.disciplineScore >= 15 ? 'warning' : 'danger'} size="sm">
-                              نمره انضباط: {toPersianDigits(st.disciplineScore)}
-                            </Badge>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* میان‌بر مستقیم به تب‌های پرونده */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openStudent(st, 'attendance'); }}
+                              title="حضور و غیاب"
+                              className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-slate-200 text-slate-600 hover:border-teal-300 hover:text-teal-800 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              حضور و غیاب
+                            </button>
+                            {!isTeacher && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); openStudent(st, 'discipline'); }}
+                                title="انضباطی"
+                                className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-white border border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-700 cursor-pointer"
+                              >
+                                <ShieldAlert className="w-3 h-3" />
+                                انضباطی
+                              </button>
+                            )}
+                            {!isTeacher && typeof st.disciplineScore === 'number' && (
+                              <Badge variant={st.disciplineScore >= 18 ? 'success' : st.disciplineScore >= 15 ? 'warning' : 'danger'} size="sm">
+                                انضباط: {toPersianDigits(st.disciplineScore)}
+                              </Badge>
+                            )}
                             <ChevronLeft className="w-4 h-4 text-slate-400" />
                           </div>
                         </div>

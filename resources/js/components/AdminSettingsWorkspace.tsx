@@ -1,3 +1,4 @@
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import { PermissionsMatrixEditor } from './PermissionsMatrixEditor';
 import { effectivePermissions, defaultPermissionsFor } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
@@ -592,42 +593,14 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     <div className="space-y-6" dir="rtl">
       {/* 1. Header ساختار استاندارد فریمورک پروژه */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-              <span>پیشخوان اصلی</span>
-              <span>/</span>
-              <span className="text-teal-800">تنظیمات و اطلاعات پایه</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-              <Settings className="w-6 h-6 text-teal-800" />
-              <span>تنظیمات و اطلاعات پایه سامانه</span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              مدیریت مشخصات مدرسه، سال تحصیلی جاری، پایه‌ها، دروس، کاربران و تهیه نسخه پشتیبان.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={onOpenSidebar}
-              className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-700"
-              title="باز کردن نوار کناری"
-              aria-label="باز کردن نوار کناری"
-            >
-              <Menu className="w-4 h-4 text-slate-700" />
-              <span>منو</span>
-            </button>
-
-            <button
-              onClick={onBack}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>بازگشت به داشبورد</span>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <WorkspaceTitleBar
+          title="تنظیمات و اطلاعات پایه"
+          icon={Settings}
+          section="تنظیمات"
+          subtitle="مشخصات مدرسه، سال تحصیلی، پایه‌ها، دروس، کاربران و نسخه‌ی پشتیبان."
+          onBack={onBack}
+          onOpenSidebar={onOpenSidebar}
+        />
 
         {/* Navigation Tabs - دسته‌بندی مفهومی و واضح */}
         <div className="flex items-center gap-2 flex-wrap border-t border-slate-100 pt-4 pb-1 scrollbar-none">

@@ -1,3 +1,4 @@
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useState } from 'react';
 import { SchoolClass, Student, AttendanceSession, User } from '../types';
 import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
@@ -136,52 +137,16 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
       
       {/* 1. Header اصلی مطابق دستورالعمل (مرحله ۳) */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-              <span>مدیریت مدرسه</span>
-              <span>/</span>
-              <span className="text-teal-800">کلاس‌ها</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-              <GraduationCap className="w-6 h-6 text-teal-800" />
-              <span>کلاس‌ها</span>
-              <span className="text-xs font-bold bg-teal-50 text-teal-800 px-2.5 py-1 rounded-full border border-teal-200">
-                {toPersianDigits(classes.length)} کلاس
-              </span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              کلاس‌ها و دانش‌آموزان هر کلاس را مدیریت کنید.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={onOpenNewClass}
-              className="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <Plus className="w-4 h-4" />
-              <span>افزودن کلاس</span>
-            </button>
-
-            <button
-              onClick={onOpenSidebar}
-              className="lg:hidden px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
-              title="باز کردن منو"
-            >
-              <Menu className="w-4 h-4 text-slate-700" />
-              <span>منو</span>
-            </button>
-
-            <button
-              onClick={onBack}
-              className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>پیشخوان</span>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        <WorkspaceTitleBar
+          title="کلاس‌ها"
+          icon={GraduationCap}
+          section="مدیریت مدرسه"
+          badge={`${toPersianDigits(classes.length)} کلاس`}
+          subtitle="کلاس‌ها و دانش‌آموزان هر کلاس را مدیریت کنید."
+          onBack={onBack}
+          onOpenSidebar={onOpenSidebar}
+          actions={<HeaderAction variant="primary" icon={Plus} label="افزودن کلاس" onClick={onOpenNewClass} />}
+        />
 
         {/* Search & Filter Controls (مراحل ۵ و ۶) */}
         <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-center gap-3">
