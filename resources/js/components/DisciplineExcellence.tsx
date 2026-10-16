@@ -41,6 +41,9 @@ interface Verdict {
   student: Student;
   incidents: Incident[];
   eligible: boolean;
+  /** آغاز حضور (تاریخ شمسی) یا null اگر هیچ مبنایی نیست */
+  start: string | null;
+  presenceDays: number | null;
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
@@ -124,7 +127,7 @@ function useVerdicts(scopeClassIds?: string[]) {
       if (created && !Number.isNaN(Date.parse(created))) start = dateToShamsiString(new Date(created));
       else start = firstMorning.get(student.id) || classFirst.get(student.classId) || null;
       const eligible = start !== null && (todayMs - shamsiStringToDate(start).getTime()) / 86400000 >= MIN_PRESENCE_DAYS;
-      return { student, incidents, eligible };
+      return { student, incidents, eligible, start, presenceDays: start === null ? null : Math.floor((todayMs - shamsiStringToDate(start).getTime()) / 86400000) };
     });
     // سابقه‌ی نمره/وضعیت انضباطی خارج از رویدادها
     const flagged = new Set(scoped.filter((s) => (s.disciplinaryStatus && s.disciplinaryStatus !== 'normal') || (s.disciplineScore ?? s.disciplinaryScore ?? 20) < 20).map((s) => s.id));
@@ -144,10 +147,28 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
   return useMemo(() => {
     const from = periodStart(period);
     const inWin = (d: string) => !from || d >= from;
+    const describe = (inc: Incident[]) => {
+      const n = (k: Incident['kind']) => inc.filter((i) => i.kind === k).length;
+      return [
+        n('delay') && `${toPersianDigits(n('delay'))} تأخیر`,
+        n('absence') && `${toPersianDigits(n('absence'))} غیبت روزانه`,
+        n('classAbsence') && `${toPersianDigits(n('classAbsence'))} غیبت کلاسی`,
+        n('note') && `${toPersianDigits(n('note'))} مورد انضباطی`,
+      ].filter(Boolean).join('، ') || 'دارای مورد ثبت‌شده';
+    };
     const excellent: Student[] = [];
     const near: { student: Student; reason: string }[] = [];
-    verdicts.forEach(({ student, incidents, eligible }) => {
-      if (!eligible) return;
+    const others: { student: Student; reason: string }[] = [];
+    verdicts.forEach(({ student, incidents, eligible, start, presenceDays }) => {
+      if (!eligible) {
+        others.push({
+          student,
+          reason: start === null
+            ? 'آغاز حضور مشخص نیست (نه تاریخ ثبت دارد، نه حضور و غیاب)'
+            : `کمتر از ${toPersianDigits(MIN_PRESENCE_DAYS)} روز از ثبت در سامانه (${toPersianDigits(Math.max(0, presenceDays || 0))} روز؛ از ${toPersianDigits(start)})`,
+        });
+        return;
+      }
       const inc = incidents.filter((i) => inWin(i.date));
       // نمره/وضعیت انضباطی تجمعی است؛ فقط در بازه‌ی «کل سال» ملاک است
       const notFlagged = from !== '' || !flagged.has(student.id);
@@ -156,8 +177,13 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
         const i = inc[0];
         if (i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES) near.push({ student, reason: `یک تأخیر ${toPersianDigits(i.minutes || 0)} دقیقه‌ای` });
         else if (i.kind === 'absence' && i.excused) near.push({ student, reason: 'یک غیبت موجه' });
+        else others.push({ student, reason: describe(inc) });
+        return;
       }
+      if (inc.length === 0) others.push({ student, reason: 'نمره یا وضعیت انضباطی پرونده کمتر از ۲۰ / غیرعادی است' });
+      else others.push({ student, reason: describe(inc) });
     });
+    others.sort((a, b) => compareStudents(a.student, b.student));
     excellent.sort(compareStudents);
     near.sort((a, b) => compareStudents(a.student, b.student));
 
@@ -185,7 +211,7 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
       });
       return { label: PERSIAN_MONTHS[m - 1], n };
     });
-    return { excellent, near, byClass, total: scoped.length, trend };
+    return { excellent, near, others, byClass, total: scoped.length, trend };
   }, [verdicts, flagged, starts, classes, scoped, period, scopeClassIds]);
 }
 
@@ -193,11 +219,11 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
 export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student) => void; classIds?: string[] }> = ({ onSelectStudent, classIds }) => {
   const { isAdmin, isDisciplinaryVice, isNurturingVice, isCoach, classes: allClasses } = useSchool();
   const [period, setPeriod] = useState<ExcellencePeriod>('term');
-  const { excellent, near, byClass, total, trend } = useDisciplineExcellence(period, classIds);
+  const { excellent, near, others, byClass, total, trend } = useDisciplineExcellence(period, classIds);
   const [open, setOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [trendOpen, setTrendOpen] = useState(false);
-  const [tab, setTab] = useState<'excellent' | 'near'>('excellent');
+  const [tab, setTab] = useState<'excellent' | 'near' | 'others'>('excellent');
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
   if (!(isAdmin || isDisciplinaryVice || isNurturingVice || (isCoach && classIds))) return null;
@@ -207,6 +233,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const match = (s: Student) => (!classId || s.classId === classId) && (!q.trim() || studentFullName(s).includes(q.trim()));
   const shownExcellent = excellent.filter(match);
   const shownNear = near.filter((x) => match(x.student));
+  const shownOthers = others.filter((x) => match(x.student));
   const trendMax = Math.max(1, ...trend.map((t) => t.n));
 
   const openAll = () => { setClassId(''); setTab('excellent'); setOpen(true); };
@@ -214,11 +241,11 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const exportExcel = () => {
     const rows = tab === 'excellent'
       ? shownExcellent.map((s, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(s), 'کلاس': className(s.classId), 'کد دانش‌آموزی': s.studentCode || '' }))
-      : shownNear.map((x, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(x.student), 'کلاس': className(x.student.classId), 'مورد': x.reason }));
+      : (tab === 'near' ? shownNear : shownOthers).map((x, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(x.student), 'کلاس': className(x.student.classId), 'مورد': x.reason }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!views'] = [{ rightToLeft: true }];
-    XLSX.utils.book_append_sheet(wb, ws, tab === 'excellent' ? 'ممتازین انضباطی' : 'تقریباً ممتاز');
+    XLSX.utils.book_append_sheet(wb, ws, tab === 'excellent' ? 'ممتازین انضباطی' : tab === 'near' ? 'تقریباً ممتاز' : 'غیرممتاز');
     XLSX.writeFile(wb, `ممتازین_انضباطی_${getTodayShamsi().formattedDate.replace(/\//g, '-')}.xlsx`);
   };
   const print = (list: Student[]) => printCertificates(list.map((s) => ({ name: studentFullName(s), className: className(s.classId) })), PERIOD_LABEL[period]);
@@ -308,7 +335,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${PERIOD_LABEL[period]} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
         <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold" role="tablist">
-          {([['excellent', `ممتاز (${toPersianDigits(shownExcellent.length)})`], ['near', `تقریباً ممتاز (${toPersianDigits(shownNear.length)})`]] as const).map(([k, l]) => (
+          {([['excellent', `ممتاز (${toPersianDigits(shownExcellent.length)})`], ['near', `تقریباً ممتاز (${toPersianDigits(shownNear.length)})`], ['others', `غیرممتاز + دلیل (${toPersianDigits(shownOthers.length)})`]] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3.5 py-1.5 rounded-lg cursor-pointer ${tab === k ? 'bg-white shadow-xs text-amber-800' : 'text-slate-500'}`}>{l}</button>
           ))}
         </div>
@@ -331,11 +358,11 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
           </button>
         </div>
 
-        {(tab === 'excellent' ? shownExcellent.length : shownNear.length) === 0 ? (
+        {(tab === 'excellent' ? shownExcellent.length : tab === 'near' ? shownNear.length : shownOthers.length) === 0 ? (
           <p className="text-center text-sm text-slate-400 py-10">موردی یافت نشد.</p>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {(tab === 'excellent' ? shownExcellent.map((s) => ({ student: s, reason: '' })) : shownNear).map(({ student: s, reason }, i) => (
+            {(tab === 'excellent' ? shownExcellent.map((s) => ({ student: s, reason: '' })) : tab === 'near' ? shownNear : shownOthers).map(({ student: s, reason }, i) => (
               <li key={s.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${tab === 'excellent' ? 'border-amber-100 bg-amber-50/40' : 'border-slate-200 bg-slate-50/60'}`}>
                 <button type="button" onClick={() => { if (onSelectStudent) { setOpen(false); onSelectStudent(s); } }} className="flex-1 min-w-0 text-right flex items-center gap-3 cursor-pointer">
                   <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-white text-[11px] font-black flex items-center justify-center shrink-0">{toPersianDigits(i + 1)}</span>
