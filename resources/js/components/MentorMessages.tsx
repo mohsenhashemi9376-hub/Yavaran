@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { apiRequest, ApiError } from '../lib/serverSync';
 import { dateToShamsiString, toPersianDigits } from '../utils/persianDate';
@@ -50,6 +51,7 @@ const VicePanel: React.FC = () => {
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(() => {
     apiRequest<{ messages: SentMessage[] }>('GET', '/api/mentor-messages/sent')
@@ -58,11 +60,18 @@ const VicePanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const open = () => openModalRef.current();
+    window.addEventListener('yv:new-mentor-message', open);
+    return () => window.removeEventListener('yv:new-mentor-message', open);
+  }, []);
+
+  useEffect(() => {
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, [load]);
 
+  const openModalRef = useRef<() => void>(() => undefined);
   const openModal = () => {
     setTargetType('all');
     setTargetMentorId('');
@@ -71,6 +80,7 @@ const VicePanel: React.FC = () => {
     setError(null);
     setIsOpen(true);
   };
+  openModalRef.current = openModal;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,14 +115,14 @@ const VicePanel: React.FC = () => {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 p-5 space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-extrabold text-slate-900">پیام‌ها و مأموریت‌ها به مربیان</h2>
+        <h2 className="text-sm font-extrabold text-slate-900">آخرین مأموریت‌ها و پیام‌ها</h2>
         <button
           type="button"
           onClick={openModal}
-          className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition cursor-pointer"
+          className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl flex items-center gap-1 transition cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>پیام جدید به مربیان</span>
+          <span>پیام جدید</span>
         </button>
       </div>
 
@@ -120,7 +130,7 @@ const VicePanel: React.FC = () => {
         <p className="text-sm text-slate-400 text-center py-4">هنوز پیامی ارسال نشده است.</p>
       ) : (
         <div className="space-y-3">
-          {messages.slice(0, 8).map((m) => {
+          {(showAll ? messages : messages.slice(0, 3)).map((m) => {
             const meta = PRIORITY_META[m.priority] || PRIORITY_META.normal;
             const ackCount = m.recipients.filter((r) => r.acknowledgedAt).length;
             return (
@@ -150,103 +160,121 @@ const VicePanel: React.FC = () => {
               </div>
             );
           })}
+          {messages.length > 3 && (
+            <button type="button" onClick={() => setShowAll((v) => !v)} className="w-full h-9 text-xs font-bold text-emerald-700 cursor-pointer">
+              {showAll ? 'نمایش کمتر ↑' : `مشاهده همه (${toPersianDigits(messages.length)}) ←`}
+            </button>
+          )}
         </div>
       )}
 
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto"
-          dir="rtl"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setIsOpen(false);
-          }}
-        >
-          <div className="bg-white rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-md font-['Vazirmatn',sans-serif]">
-            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-slate-900">پیام جدید به مربیان</h3>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
-                aria-label="بستن"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSend} className="px-6 pb-6 pt-2 space-y-4">
-              {error && (
-                <div role="alert" className="p-3 rounded-2xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">گیرنده</label>
-                <select
-                  value={targetType === 'all' ? 'all' : targetMentorId}
-                  onChange={(e) => {
-                    if (e.target.value === 'all') {
-                      setTargetType('all');
-                      setTargetMentorId('');
-                    } else {
-                      setTargetType('single');
-                      setTargetMentorId(e.target.value);
-                    }
-                  }}
-                  className={fieldClass}
+      {isOpen && createPortal(
+        <>
+          <div className="fixed inset-0 bg-black/60 z-[90]" aria-hidden="true" />
+          <div
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setIsOpen(false);
+            }}
+          >
+            <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92dvh] flex flex-col overflow-hidden font-['Vazirmatn',sans-serif]">
+              <div className="px-5 pt-5 pb-2 flex items-center justify-between shrink-0">
+                <h3 className="text-base font-extrabold text-slate-900">پیام یا مأموریت جدید به مربیان</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="w-10 h-10 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
+                  aria-label="بستن"
                 >
-                  <option value="all">همه مربیان</option>
-                  {allCoaches.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">اولویت</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setPriority(p)}
-                      className={`h-12 rounded-2xl text-sm font-extrabold transition cursor-pointer ${
-                        priority === p ? PRIORITY_META[p].active : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {PRIORITY_META[p].emoji} {PRIORITY_META[p].label}
-                    </button>
-                  ))}
+              <form id="mentor-message-form" onSubmit={handleSend} className="px-5 pb-4 pt-2 space-y-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+              {error && (
+                  <div role="alert" className="p-3 rounded-2xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">گیرنده</label>
+                  <select
+                    value={targetType === 'all' ? 'all' : targetMentorId}
+                    onChange={(e) => {
+                      if (e.target.value === 'all') {
+                        setTargetType('all');
+                        setTargetMentorId('');
+                      } else {
+                        setTargetType('single');
+                        setTargetMentorId(e.target.value);
+                      }
+                    }}
+                    className={fieldClass}
+                  >
+                    <option value="all">همه مربیان</option>
+                    {allCoaches.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">متن پیام</label>
-                <textarea
-                  rows={4}
-                  maxLength={2000}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="پیام یا مأموریت را بنویسید..."
-                  className={`${fieldClass} resize-none`}
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">اولویت</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => setPriority(p)}
+                        className={`h-12 rounded-2xl text-sm font-extrabold transition cursor-pointer ${
+                          priority === p ? PRIORITY_META[p].active : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {PRIORITY_META[p].emoji} {PRIORITY_META[p].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                disabled={isSending}
-                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                <span>ارسال</span>
-              </button>
-            </form>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">متن پیام</label>
+                  <textarea
+                    rows={4}
+                    maxLength={2000}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="پیام یا مأموریت را بنویسید..."
+                    className={`${fieldClass} resize-none`}
+                  />
+                </div>
+              </form>
+
+              {/* دکمه‌ی ارسال همیشه پایین پنجره دیده می‌شود (نیازی به اسکرول نیست) */}
+              <div className="shrink-0 border-t border-slate-100 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-3 shadow-[0_-4px_12px_rgba(15,23,42,0.06)]">
+                <button
+                  type="submit"
+                  form="mentor-message-form"
+                  disabled={isSending}
+                  className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-extrabold rounded-2xl shadow-md shadow-emerald-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  <span>ارسال</span>
+                </button>
+                <button type="button" onClick={() => setIsOpen(false)} className="h-12 px-5 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-100 cursor-pointer">
+                  انصراف
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </>,
+        document.body
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlaskConical, Hammer, Users, X, Search, Check, Plus, Pencil, Trash2 } from 'lucide-react';
+import { FlaskConical, Hammer, Users, X, Search, Check, Plus, Pencil, Trash2, Info } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { Workshop } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
@@ -12,6 +12,7 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
   const students0 = students;
   const classById0 = new Map(classes.map((c) => [c.id, c]));
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'free' | 'selected'>('all');
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(workshop.studentIds.filter((id) => gradeLevelOfClass(classById0.get(students0.find((s) => s.id === id)?.classId || '')) === workshop.gradeLevel))
   );
@@ -65,72 +66,124 @@ const EnrollmentModal: React.FC<{ workshop: Workshop; onClose: () => void }> = (
     onClose();
   };
 
-  const tone = workshop.category === 'scientific' ? 'sky' : 'teal';
+  const filtered = candidates.filter((s) => {
+    const locked = otherMembership.has(s.id) && !selected.has(s.id);
+    if (filter === 'free') return !locked;
+    if (filter === 'selected') return selected.has(s.id);
+    return true;
+  });
+  const chips: { key: 'all' | 'free' | 'selected'; label: string }[] = [
+    { key: 'all', label: 'همه دانش‌آموزان' },
+    { key: 'free', label: 'فقط قابل انتخاب (آزاد)' },
+    { key: 'selected', label: `انتخاب‌شده‌ها (${toPersianDigits(selected.size)})` },
+  ];
+  const gradeLabel = workshop.gradeLevel === 9 ? 'نهم' : 'هشتم';
 
   return (
     <div className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" dir="rtl">
-      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
-        <div className={`px-5 pt-5 pb-3 flex items-center gap-3 shrink-0 ${tone === 'sky' ? 'bg-sky-50/70 border-b border-sky-100' : 'bg-teal-50/70 border-b border-teal-100'}`}>
-          <h3 className="text-base font-extrabold text-slate-900 flex-1">تخصیص دانش‌آموزان — {workshop.name} (پایه {workshop.gradeLevel === 9 ? 'نهم' : 'هشتم'})</h3>
-          <button type="button" onClick={onClose} aria-label="بستن" className="w-9 h-9 rounded-full hover:bg-white/70 text-slate-500 flex items-center justify-center cursor-pointer">
-            <X className="w-5 h-5" />
-          </button>
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl h-[92dvh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
+        {/* هدر و فیلترهای چسبان */}
+        <div className="shrink-0 bg-white border-b border-slate-200">
+          <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+            <h3 className="text-base font-extrabold text-slate-900 flex-1 leading-7">تخصیص دانش‌آموزان — {workshop.name} (پایه {gradeLabel})</h3>
+            <button type="button" onClick={onClose} aria-label="بستن" className="w-11 h-11 -ml-2 rounded-full active:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="px-4 space-y-2.5">
+            <div className="flex items-start gap-2 text-[11px] leading-5 font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <p>
+                فقط دانش‌آموزان پایه {gradeLabel} فهرست می‌شوند. دانش‌آموزی که در کارگاه {workshop.category === 'scientific' ? 'علمی' : 'مهارتی'} دیگری عضو است، در این کارگاه قابل انتخاب نیست.
+              </p>
+            </div>
+
+            <div className="relative">
+              <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="search"
+                inputMode="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="جستجوی نام دانش‌آموز..."
+                className="w-full h-11 text-base sm:text-sm bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl pr-10 pl-10 outline-none [&::-webkit-search-cancel-button]:hidden"
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} aria-label="پاک کردن جستجو" className="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-slate-400 active:bg-slate-100 flex items-center justify-center cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {chips.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setFilter(c.key)}
+                  aria-pressed={filter === c.key}
+                  className={`shrink-0 h-9 px-4 rounded-full border text-xs font-bold whitespace-nowrap cursor-pointer transition-colors ${
+                    filter === c.key ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-200 text-slate-600 active:bg-slate-100'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-1 px-4 h-10 flex items-center justify-between bg-slate-50 border-t border-slate-100 text-xs">
+            <span className="font-bold text-slate-600">{toPersianDigits(selected.size)} دانش‌آموز انتخاب شده</span>
+            <button type="button" onClick={() => setSelected(new Set())} disabled={selected.size === 0} className="h-9 px-2 font-bold text-emerald-600 disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed">
+              لغو انتخاب‌ها
+            </button>
+          </div>
         </div>
 
-        <div className="px-5 pt-3 space-y-2.5 shrink-0">
-          <div className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-            فقط دانش‌آموزان کلاس‌های پایه {workshop.gradeLevel === 9 ? 'نهم' : 'هشتم'} فهرست می‌شوند. دانش‌آموزی که در یک کارگاه {workshop.category === 'scientific' ? 'علمی' : 'مهارتی'} دیگر عضو است، در این کارگاه قابل انتخاب نیست.
-          </div>
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="جستجوی نام دانش‌آموز..."
-              className="w-full text-sm bg-slate-50 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-xl pr-9 pl-3 py-2.5 outline-none"
-            />
-          </div>
-          <div className="text-[11px] text-slate-500">{toPersianDigits(selected.size)} نفر انتخاب شده است.</div>
-        </div>
-
-        <div className="px-5 py-3 overflow-y-auto overflow-x-hidden flex-1 min-h-0">
-          <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100">
-            {candidates.map((s) => {
+        {/* لیست */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+          <ul className="divide-y divide-slate-100">
+            {filtered.map((s) => {
               const other = otherMembership.get(s.id);
               // عضو کارگاه موازی (همان پایه و همان دسته): تا زمانی که از آن کارگاه خارج نشود، قابل انتخاب نیست
               const locked = !!other && !selected.has(s.id);
+              const checked = selected.has(s.id);
               return (
-                <label
-                  key={s.id}
-                  title={locked ? `ابتدا باید از کارگاه «${other}» خارج شود.` : undefined}
-                  className={`flex items-start gap-2.5 px-3 py-2.5 text-sm ${locked ? 'bg-slate-50/70 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50/80'}`}
-                >
-                  <input type="checkbox" checked={selected.has(s.id)} disabled={locked} onChange={() => toggle(s.id)} className="w-4 h-4 mt-1 shrink-0 accent-emerald-600 disabled:cursor-not-allowed" />
-                  <span className="flex-1 min-w-0">
-                    <span className="flex items-baseline gap-2 flex-wrap">
-                      <span className="font-semibold text-slate-800 break-words">{studentFullName(s)}</span>
-                      <span className="text-[11px] text-slate-400 whitespace-nowrap">{classById.get(s.classId)?.name}</span>
+                <li key={s.id}>
+                  <label
+                    title={locked ? `ابتدا باید از کارگاه «${other}» خارج شود.` : undefined}
+                    className={`flex items-center gap-3 px-4 min-h-[64px] py-2.5 ${
+                      locked ? 'opacity-50 cursor-not-allowed bg-slate-50' : checked ? 'bg-emerald-50/60 cursor-pointer active:bg-emerald-50' : 'cursor-pointer active:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-medium text-[15px] text-slate-900 break-words">{studentFullName(s)}</span>
+                      <span className="mt-1 inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] leading-4">کلاس {classById.get(s.classId)?.name}</span>
                     </span>
-                    {other && (
-                      <span className="mt-1 inline-block max-w-full px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold leading-5 break-words">
-                        {locked ? 'عضو کارگاه' : 'عضو کارگاه دیگر هم هست'} {other}
-                      </span>
-                    )}
-                  </span>
-                </label>
+                    <span className="flex items-center gap-3 shrink-0">
+                      {other && (
+                        <span className="max-w-[9rem] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold leading-5 truncate">
+                          {locked ? 'عضو کارگاه' : 'عضو کارگاه دیگر'} {other}
+                        </span>
+                      )}
+                      <input type="checkbox" checked={checked} disabled={locked} onChange={() => toggle(s.id)} className="w-6 h-6 shrink-0 accent-emerald-500 disabled:cursor-not-allowed" />
+                    </span>
+                  </label>
+                </li>
               );
             })}
-            {candidates.length === 0 && <div className="py-8 text-center text-xs text-slate-400">دانش‌آموزی یافت نشد.</div>}
-          </div>
+          </ul>
+          {filtered.length === 0 && <div className="py-12 text-center text-xs text-slate-400">دانش‌آموزی یافت نشد.</div>}
         </div>
 
-        <div className="px-5 py-4 border-t border-slate-100 flex gap-3 shrink-0">
-          <button type="button" onClick={save} className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-extrabold shadow-sm cursor-pointer inline-flex items-center justify-center gap-2">
+        {/* نوار چسبان پایین */}
+        <div className="shrink-0 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)]">
+          <button type="button" onClick={save} className="flex-1 h-12 rounded-2xl bg-emerald-500 active:bg-emerald-600 hover:bg-emerald-600 text-white text-sm font-extrabold shadow-sm cursor-pointer inline-flex items-center justify-center gap-2">
             <Check className="w-5 h-5" />
-            <span>ذخیره تخصیص</span>
+            <span>ذخیره تخصیص ({toPersianDigits(selected.size)} نفر)</span>
           </button>
-          <button type="button" onClick={onClose} className="h-12 px-5 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-100 cursor-pointer">
+          <button type="button" onClick={onClose} className="h-12 px-5 rounded-2xl text-sm font-bold text-slate-500 active:bg-slate-100 hover:bg-slate-100 cursor-pointer">
             انصراف
           </button>
         </div>

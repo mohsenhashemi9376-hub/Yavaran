@@ -50,11 +50,11 @@ const DualPanelTabs: React.FC<{
   <div
     role="tablist"
     aria-label="انتخاب پنل کاری"
-    className={`items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 gap-1 text-xs font-bold ${full ? 'flex w-full' : 'inline-flex'}`}
+    className={`yv-panel-seg items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs ${full ? 'flex w-full' : 'inline-flex'}`}
   >
     {([
-      ['main', 'پنل معاونت', currentActiveTab !== 'teacher', 'bg-teal-800'],
-      ['teacher', 'پنل آموزشی', currentActiveTab === 'teacher', 'bg-emerald-800'],
+      ['main', 'پنل معاونت', currentActiveTab !== 'teacher', 'bg-emerald-700'],
+      ['teacher', 'پنل آموزشی', currentActiveTab === 'teacher', 'bg-emerald-700'],
     ] as const).map(([tab, label, active, activeBg]) => (
       <button
         key={tab}
@@ -63,7 +63,7 @@ const DualPanelTabs: React.FC<{
         aria-selected={active}
         onClick={() => onSelectTab(tab)}
         className={`${full ? 'flex-1 min-w-0' : 'min-w-[6.5rem]'} px-3 py-1.5 rounded-lg transition cursor-pointer whitespace-nowrap ${
-          active ? `${activeBg} text-white shadow-xs` : 'text-slate-600 hover:bg-slate-200/70'
+          active ? `${activeBg} text-white font-bold shadow-sm` : 'font-medium text-slate-600 hover:text-slate-800'
         }`}
       >
         {label}

@@ -560,12 +560,12 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             
             {/* ۱. هدر پیشخوان معاونت آموزشی */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/80 shadow-xs">
               <div className="flex flex-row items-start sm:items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-lg sm:text-xl font-black text-slate-900">
-                      سلام، {currentUser?.name || 'معاون آموزشی گرامی'}
+                    <h1 className="text-base sm:text-xl font-black text-slate-900 whitespace-nowrap">
+                      سلام، {currentUser?.name || 'معاون آموزشی گرامی'} 👋
                     </h1>
                     <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
                       معاونت آموزشی
@@ -574,13 +574,15 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>امروز: {todayInfo.dayOfWeek}، {todayInfo.displayDate}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500">مرکز مدیریت امور درسی و ارزیابی آموزشی</span>
+                    <span className="hidden sm:inline text-slate-300">•</span>
+                    <span className="hidden sm:inline text-slate-500">مرکز مدیریت امور درسی و ارزیابی آموزشی</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
-                  <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
+                  <div className="hidden sm:block">
+                    <TodayAbsenteesChip onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
+                  </div>
                   <button
                     type="button"
                     id="btn-mobile-educational-sidebar-toggle"
@@ -594,13 +596,16 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   </button>
                 </div>
               </div>
+              <div className="sm:hidden mt-3">
+                <TodayAbsenteesChip variant="bar" onSelectStudent={(stu) => onSelectStudent(stu, 'attendance')} />
+              </div>
             </div>
 
             {/* ۲. خلاصه وضعیت آماری با داده‌های واقعی */}
             <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {([
                 ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
-                ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-sky-600'],
+                ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-blue-600'],
                 ['teachers', 'کادر اساتید', toPersianDigits(allTeachers.length), 'لیست دبیران', GraduationCap, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
                 ['homework_followup', 'پیگیری تکالیف', toPersianDigits(homeworkProblemCount), homeworkProblemCount === 0 ? 'مورد باز نیست' : 'دانش‌آموز نیازمند پیگیری', ClipboardList, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
                 [
@@ -617,12 +622,12 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   'text-amber-600',
                 ],
                 ['warnings', 'نیازمند پیگیری', toPersianDigits(academicWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
-              ] as const).map(([view, label, value, hint, Icon, tone, iconTone]) => (
+              ] as const).map(([view, label, value, hint, Icon, tone, iconTone], idx) => (
                 <button
                   key={view}
                   type="button"
                   onClick={() => (view === 'grades' && activeGradePeriods.length === 0 ? setIsGradePeriodsOpen(true) : setCurrentView(view))}
-                  className="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md hover:border-teal-200 transition-all text-right cursor-pointer"
+                  className={`${idx >= 4 ? 'hidden sm:block ' : ''}p-4 rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md hover:border-teal-200 transition-all text-right cursor-pointer min-h-[7.5rem]`}
                   data-tone={tone}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -632,10 +637,17 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     </div>
                   </div>
                   <div className="text-2xl font-black text-slate-900 tabular-nums mt-2"><MaybeAnimated text={value} /></div>
-                  <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1 whitespace-nowrap">
-                    <span>{hint}</span>
-                    <ChevronLeft className="w-3 h-3" />
-                  </div>
+                  {view === 'homework_followup' && homeworkProblemCount > 0 ? (
+                    <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800 whitespace-nowrap">
+                      <span>نیازمند پیگیری</span>
+                      <ChevronLeft className="w-3 h-3" />
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 font-medium mt-1 flex items-center gap-1 whitespace-nowrap">
+                      <span>{hint}</span>
+                      <ChevronLeft className="w-3 h-3" />
+                    </div>
+                  )}
                 </button>
               ))}
             </div>

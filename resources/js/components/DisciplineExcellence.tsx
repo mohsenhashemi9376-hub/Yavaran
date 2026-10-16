@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Award, ChevronLeft, FileSpreadsheet, Printer, Search } from 'lucide-react';
+import { Award, ChevronDown, ChevronLeft, FileSpreadsheet, HelpCircle, Printer, Search } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { Modal } from './ui';
 import { Student, StudentAttendanceRecord } from '../types';
@@ -15,6 +15,10 @@ const MINOR_DELAY_MINUTES = 20;
 
 export type ExcellencePeriod = 'month' | 'term' | 'year';
 const PERIOD_LABEL: Record<ExcellencePeriod, string> = { month: 'این ماه', term: 'این نیمسال', year: 'کل سال تحصیلی' };
+
+const PERIOD_SHORT: Record<ExcellencePeriod, string> = { month: 'ماه', term: 'نیمسال', year: 'سال' };
+/** «شهید ثناگو» → «ثناگو» */
+const shortClass = (name: string) => name.replace(/^شهید\s+/, '');
 
 const key = (d: string): string => toEnglishDigits(d || '').split('/').map((p, i) => (i === 0 ? p : p.padStart(2, '0'))).join('/');
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -188,6 +192,8 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const [period, setPeriod] = useState<ExcellencePeriod>('term');
   const { excellent, near, byClass, total, trend } = useDisciplineExcellence(period, classIds);
   const [open, setOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [trendOpen, setTrendOpen] = useState(false);
   const [tab, setTab] = useState<'excellent' | 'near'>('excellent');
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
@@ -199,6 +205,8 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const shownExcellent = excellent.filter(match);
   const shownNear = near.filter((x) => match(x.student));
   const trendMax = Math.max(1, ...trend.map((t) => t.n));
+
+  const openAll = () => { setClassId(''); setTab('excellent'); setOpen(true); };
 
   const exportExcel = () => {
     const rows = tab === 'excellent'
@@ -214,66 +222,85 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
 
   return (
     <>
-      <section className="rounded-2xl border border-amber-200 bg-gradient-to-l from-amber-50 via-yellow-50 to-white shadow-xs p-5 space-y-3" aria-label="ممتازین انضباطی">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-sm">
-              <Award className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-black text-slate-900 text-sm">ممتازین انضباطی</h3>
-              <p className="text-[11px] text-slate-500 leading-5">بدون هیچ غیبت، تأخیر یا مورد انضباطی · حداقل {toPersianDigits(MIN_PRESENCE_DAYS)} روز حضور</p>
-            </div>
+      <section className="rounded-2xl border border-amber-200 bg-gradient-to-l from-amber-50 via-yellow-50 to-white shadow-xs px-3.5 pt-3 pb-1 sm:px-5" aria-label="ممتازین انضباطی">
+        {/* هدر فشرده */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-8 h-8 shrink-0 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center" aria-hidden="true">
+              <Award className="w-4.5 h-4.5" />
+            </span>
+            <h3 className="font-bold text-sm text-slate-900 whitespace-nowrap">ممتازین انضباطی</h3>
+            <button
+              type="button"
+              onClick={() => setHelpOpen((v) => !v)}
+              aria-label="شرایط ممتاز شدن"
+              aria-expanded={helpOpen}
+              className="!min-h-0 w-6 h-6 shrink-0 rounded-full text-amber-600 hover:bg-amber-100 flex items-center justify-center cursor-pointer"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
           </div>
-          <div className="text-left">
-            <div className="text-2xl font-black text-amber-700">{toPersianDigits(excellent.length)}<span className="text-xs font-bold text-slate-500 mr-1">نفر</span></div>
-            <div className="text-[11px] text-slate-500">{toPersianDigits(percent)}٪ از {toPersianDigits(total)} دانش‌آموز</div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="inline-flex p-0.5 bg-white/80 border border-amber-100 rounded-lg text-[11px] font-bold" role="group" aria-label="بازه">
+              {(Object.keys(PERIOD_LABEL) as ExcellencePeriod[]).map((pk) => (
+                <button key={pk} type="button" role="tab" aria-selected={period === pk} onClick={() => setPeriod(pk)} className={`px-2 h-6 rounded-md cursor-pointer ${period === pk ? 'bg-amber-500 text-white' : 'text-slate-500'}`}>{PERIOD_SHORT[pk]}</button>
+              ))}
+            </div>
+            <button type="button" onClick={openAll} className="!min-h-0 text-[11px] font-bold text-amber-700 hover:text-amber-900 whitespace-nowrap cursor-pointer">
+              مشاهده همه ←
+            </button>
           </div>
         </div>
 
-        <div className="inline-flex p-0.5 bg-white/80 border border-amber-100 rounded-lg text-[11px] font-bold" role="group" aria-label="بازه">
-          {(Object.keys(PERIOD_LABEL) as ExcellencePeriod[]).map((p) => (
-            <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-3 py-1 rounded-md cursor-pointer ${period === p ? 'bg-amber-500 text-white' : 'text-slate-500'}`}>{PERIOD_LABEL[p]}</button>
-          ))}
-        </div>
-
-        {byClass.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {byClass.map(({ cls, count, size }) => (
-              <button key={cls.id} type="button" onClick={() => { setClassId(cls.id); setTab('excellent'); setOpen(true); }}
-                className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white border border-amber-200 text-amber-900 hover:bg-amber-50 cursor-pointer">
-                {cls.name}: {toPersianDigits(count)}<span className="text-slate-400 font-normal"> از {toPersianDigits(size)}</span>
-              </button>
-            ))}
-          </div>
+        {helpOpen && (
+          <p className="mt-2 text-[11px] leading-5 text-amber-900 bg-amber-100/60 rounded-lg px-2.5 py-1.5">
+            بدون هیچ غیبت، تأخیر یا مورد انضباطی · حداقل {toPersianDigits(MIN_PRESENCE_DAYS)} روز حضور
+          </p>
         )}
 
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-end gap-1.5 h-16" role="img" aria-label="روند ماهانه ممتازین">
-            {trend.map((t) => (
-              <div key={t.label} className="flex flex-col items-center justify-end gap-0.5 w-9 h-full" title={`${t.label}: ${toPersianDigits(t.n)} نفر`}>
-                <span className="text-[9px] font-bold text-slate-600">{toPersianDigits(t.n)}</span>
-                <span className="w-full rounded-t bg-gradient-to-t from-amber-500 to-yellow-300" style={{ height: `${Math.max(3, (t.n / trendMax) * 34)}px` }} />
-                <span className="text-[9px] text-slate-500">{t.label}</span>
-              </div>
-            ))}
+        {/* ردیف میانی: شاخص + کلاس‌ها */}
+        <div className="flex items-center justify-between gap-3 py-2.5">
+          <div className="shrink-0">
+            <div className="text-3xl leading-none font-black text-amber-700 tabular-nums">
+              {toPersianDigits(excellent.length)}<span className="text-xs font-bold text-slate-500 mr-1">نفر</span>
+            </div>
+            <div className="mt-1 text-[11px] text-slate-500 whitespace-nowrap">{toPersianDigits(percent)}٪ از {toPersianDigits(total)} دانش‌آموز</div>
           </div>
-          <span className="text-[11px] text-slate-500 pb-1">روند ۶ ماه اخیر</span>
+          {byClass.length > 0 && (
+            <div className="grid grid-cols-2 gap-1.5 min-w-0">
+              {byClass.map(({ cls, count, size }) => (
+                <button key={cls.id} type="button" onClick={() => { setClassId(cls.id); setTab('excellent'); setOpen(true); }}
+                  className="!min-h-0 h-6 px-2 rounded-md bg-slate-100 text-[11px] font-bold text-slate-700 whitespace-nowrap truncate cursor-pointer hover:bg-slate-200">
+                  {shortClass(cls.name)}: {toPersianDigits(count)}/{toPersianDigits(size)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {excellent.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {excellent.slice(0, 8).map((s) => (
-              <span key={s.id} className="text-[11px] px-2.5 py-1 rounded-full bg-amber-100/70 text-amber-900 font-semibold">{studentFullName(s)}</span>
-            ))}
-            {excellent.length > 8 && <span className="text-[11px] px-2 py-1 text-slate-500">و {toPersianDigits(excellent.length - 8)} نفر دیگر</span>}
-          </div>
-        )}
-
-        <button type="button" onClick={() => { setClassId(''); setTab('excellent'); setOpen(true); }}
-          className="inline-flex items-center gap-1 text-xs font-bold px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">
-          مشاهده فهرست کامل <ChevronLeft className="w-3.5 h-3.5" />
-        </button>
+        {/* روند ۶ ماهه (تاشو) */}
+        <div className="border-t border-amber-100">
+          <button
+            type="button"
+            onClick={() => setTrendOpen((v) => !v)}
+            aria-expanded={trendOpen}
+            className="!min-h-0 w-full h-8 flex items-center justify-between text-[11px] font-bold text-slate-600 cursor-pointer"
+          >
+            <span>روند ۶ ماهه ({trend[trend.length - 1]?.label}: {toPersianDigits(trend[trend.length - 1]?.n ?? 0)} نفر)</span>
+            <ChevronDown className={`w-4 h-4 text-amber-600 transition-transform ${trendOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {trendOpen && (
+            <div className="flex items-end justify-around gap-1.5 h-20 pb-2" role="img" aria-label="روند ماهانه ممتازین">
+              {trend.map((t) => (
+                <div key={t.label} className="flex flex-col items-center justify-end gap-0.5 flex-1 h-full" title={`${t.label}: ${toPersianDigits(t.n)} نفر`}>
+                  <span className="text-[9px] font-bold text-slate-600">{toPersianDigits(t.n)}</span>
+                  <span className="w-full max-w-9 rounded-t bg-gradient-to-t from-amber-500 to-yellow-300" style={{ height: `${Math.max(3, (t.n / trendMax) * 34)}px` }} />
+                  <span className="text-[9px] text-slate-500">{t.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${PERIOD_LABEL[period]} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
