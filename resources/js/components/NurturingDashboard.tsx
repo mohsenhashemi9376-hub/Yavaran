@@ -1,3 +1,4 @@
+import type { ProfileTab } from './StudentProfileModal';
 import { ObservationInsights } from './ObservationInsights';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
@@ -29,6 +30,7 @@ import { CoachAcademicDisciplineView } from './CoachAcademicDisciplineView';
 import { TaughtLessonsView } from './TaughtLessonsView';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { ParentMeetingsWorkspace } from './ParentMeetingsWorkspace';
+import { AtRiskWorkspace, useAtRisk } from './AtRiskWorkspace';
 import { NurturingAuditLog } from './NurturingAuditLog';
 import { TwoFactorRequiredBanner } from './TwoFactorRequiredBanner';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
@@ -97,7 +99,7 @@ import { FitTable } from './ui/FitTable';
 
 interface NurturingDashboardProps {
   onOpenClassDetail?: (cls: SchoolClass) => void;
-  onSelectStudent?: (student: Student, defaultTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades') => void;
+  onSelectStudent?: (student: Student, defaultTab?: ProfileTab) => void;
 }
 
 const RATING_INFO: Record<QualitativeRating, { label: string; bg: string; text: string; border: string; icon: string; color: string }> = {
@@ -532,6 +534,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   ).length;
 
   // Students requiring attention / guidance in nurturing
+  const atRiskList = useAtRisk();
   const attentionNeededStudents = useMemo(() => {
     return filteredStudents.filter((student) => {
       // Check coach evaluations for this student
@@ -819,6 +822,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             evaluations: coachEvaluations.length,
             coaches: allCoaches.length,
             attentionNeeded: attentionNeededStudents.length,
+            atRisk: atRiskList.length,
           }}
           canManageCoaches={isAdmin || isNurturingVice}
           students={students}
@@ -869,6 +873,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           evaluations: coachEvaluations.length,
           coaches: allCoaches.length,
           attentionNeeded: attentionNeededStudents.length,
+          atRisk: atRiskList.length,
         }}
         canManageCoaches={isAdmin || isNurturingVice}
         students={students}
@@ -970,6 +975,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                 {currentView === 'coachEvaluations' && 'ارزیابی رشد و تعالی'}
                 {currentView === 'coaches' && 'مربیان تربیتی یاوران ولایت'}
                 {currentView === 'attention' && 'موارد نیازمند توجه و پیگیری'}
+                {currentView === 'at_risk' && 'دانش‌آموزان در خطر'}
                 {currentView === 'reports' && 'گزارش‌های تحلیلی رشد'}
                 {currentView === 'settings' && 'تنظیمات و شاخص‌های تربیتی'}
                 {currentView === 'academic_and_discipline' && 'آموزش و انضباط کلاس‌ها'}
@@ -1306,6 +1312,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {currentView === 'taught_lessons' && <TaughtLessonsView />}
       {currentView === 'homework_followup' && <HomeworkFollowUpReport onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'worksheets' && <WorksheetsWorkspace />}
+      {currentView === 'at_risk' && <AtRiskWorkspace onSelectStudent={onSelectStudent} />}
       {currentView === 'parent_meetings' && <ParentMeetingsWorkspace onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 

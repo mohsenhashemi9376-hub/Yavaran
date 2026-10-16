@@ -1,3 +1,4 @@
+import type { ProfileTab } from './components/StudentProfileModal';
 import { ViewDateBar } from './components/ViewDateBar';
 import React, { useState, useEffect, useRef } from 'react';
 import { useScrollTop } from './utils/useScrollTop';
@@ -105,7 +106,7 @@ const MainApp: React.FC = () => {
 
   const [studentProfileModalOpen, setStudentProfileModalOpen] = useState(false);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
-  const [profileInitialTab, setProfileInitialTab] = useState<'overview' | 'info' | 'attendance' | 'discipline' | 'grades'>('overview');
+  const [profileInitialTab, setProfileInitialTab] = useState<ProfileTab>('overview');
 
   const [academicGradesModalOpen, setAcademicGradesModalOpen] = useState(false);
   const [targetClassForGrades, setTargetClassForGrades] = useState<string | undefined>(undefined);
@@ -190,7 +191,7 @@ const MainApp: React.FC = () => {
 
   const handleOpenStudentProfile = (
     student: Student, 
-    tab: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' = 'overview'
+    tab: ProfileTab = 'overview'
   ) => {
     setSelectedStudentForProfile(student);
     setProfileInitialTab(tab);
