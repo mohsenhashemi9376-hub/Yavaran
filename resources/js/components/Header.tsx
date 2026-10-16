@@ -58,7 +58,7 @@ const DualPanelTabs: React.FC<{
       role="tablist"
       aria-label="انتخاب پنل کاری"
       dir="rtl"
-      className={`relative grid grid-cols-2 items-center h-10 p-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-[11px] ${full ? 'w-full' : 'w-[14rem]'}`}
+      className={`yv-panel-seg relative grid grid-cols-2 items-center h-10 p-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-[11px] ${full ? 'w-full' : 'w-[14rem]'}`}
     >
       {/* قرص سبز کشویی: در RTL تب اول سمت راست است، پس برای تب دوم به چپ می‌لغزد */}
       <span
@@ -720,24 +720,15 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
           {onSelectTab && !isAdmin && currentUser.isAlsoTeacher && currentUser.role !== 'coach' && currentUser.role !== 'teacher' && (
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {([['main', 'پنل معاونت'], ['teacher', 'پنل آموزشی']] as const).map(([tab, label]) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => {
-                    onSelectTab(tab);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    (tab === 'teacher') === (currentActiveTab === 'teacher')
-                      ? 'bg-teal-800 text-white'
-                      : 'bg-white border border-slate-200 text-slate-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="mb-2">
+              <DualPanelTabs
+                currentActiveTab={currentActiveTab}
+                onSelectTab={(tab) => {
+                  onSelectTab(tab);
+                  setMobileMenuOpen(false);
+                }}
+                full
+              />
             </div>
           )}
         </div>
