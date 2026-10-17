@@ -17,6 +17,7 @@ import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { WorksheetAlertsCard } from './WorksheetAlertsCard';
 import { GradePeriodsModal } from './GradePeriodsModal';
+import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
@@ -762,14 +763,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
                     <span>پیشخوان اصلی</span>
                     <span>/</span>
-                    <span className="text-teal-800">کارپوشه ثبت نمرات مستمر و پایانی</span>
+                    <span className="text-teal-800">کارپوشه ثبت نمرات ماهانه</span>
                   </div>
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
                     <Award className="w-6 h-6 text-teal-800" />
-                    <span>ثبت نمرات ۴ نوبته دانش‌آموزان</span>
+                    <span>ثبت نمرات ماهانه دانش‌آموزان</span>
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    ورود نمرات با جدول تعاملی، محاسبات خودکار سالانه، خروجی اکسل و فیلترهای نمره‌ای.
+                    با باز شدن هر ماه، فقط یک نمره برای همان ماه ثبت می‌شود؛ مثل پنل اساتید.
                   </p>
                 </div>
 
@@ -790,15 +791,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   >
                     <Menu className="w-4 h-4 text-slate-700" />
                     <span>منو</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSaveGrades}
-                    className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>ذخیره نمرات کلاس</span>
                   </button>
 
                   <button
@@ -831,247 +823,20 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     </select>
                   </div>
 
-                  {/* انتخاب درس */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-600">درس:</span>
-                    <select
-                      value={selectedSubjectId}
-                      onChange={(e) => setSelectedSubjectId(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
-                    >
-                      {classSubjects.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* جستجوی نام دانش‌آموز */}
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="جستجوی دانش‌آموز..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pr-8 pl-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 w-44"
-                    />
-                  </div>
-
-                  {/* خروجی اکسل نمرات کلاس */}
-                  <button
-                    type="button"
-                    onClick={handleExportClassExcel}
-                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    title="دریافت فایل اکسل ریز نمرات این کلاس"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
-                    <span>خروجی اکسل</span>
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* اعلان ذخیره موفق */}
-            {isSavedToast && (
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>نمرات با موفقیت در پایگاه داده ثبت و به‌روزرسانی شد.</span>
-              </div>
+            {/* ۳. ثبت نمره‌ی ماه‌به‌ماه: با باز شدن هر ماه فقط یک نمره ثبت می‌شود */}
+            {currentClass && (
+              <ClassMonthlyGradesSection
+                key={currentClass.id}
+                classData={currentClass}
+                initialSubjectId={selectedSubjectId}
+                onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
+              />
             )}
-
-            {/* ۳. جدول تعاملی ثبت نمرات کلاسی */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-800 text-xs sm:text-sm">
-                    لیست نمرات کلاس {currentClass?.name} • درس {currentSubject?.name}
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    ({toPersianDigits(filteredStudents.length)} دانش‌آموز)
-                  </span>
-                </div>
-
-                {/* فیلترهای نمره‌ای */}
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      statusFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    همه
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('excellent')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      statusFilter === 'excellent' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    ممتاز (بالای ۱۷)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('weak')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                      statusFilter === 'weak' ? 'bg-rose-700 text-white' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    نیازمند تلاش (زیر ۱۲)
-                  </button>
-                </div>
-              </div>
-
-              <FitTable className="">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-white">
-                      <th className="p-3 w-12 text-center border-l border-slate-100">ردیف</th>
-                      <th className="p-3 border-l border-slate-200">مشخصات دانش‌آموز</th>
-                      <th className="p-2.5 text-center w-28 bg-sky-50/70 text-sky-900 border-x border-sky-100">مستمر نوبت ۱</th>
-                      <th className="p-2.5 text-center w-28 bg-sky-50/70 text-sky-900 border-x border-sky-100">پایانی نوبت ۱</th>
-                      <th className="p-2.5 text-center w-28 bg-indigo-50/60 text-indigo-900 border-x border-indigo-100">مستمر نوبت ۲</th>
-                      <th className="p-2.5 text-center w-28 bg-indigo-50/60 text-indigo-900 border-x border-indigo-100">پایانی نوبت ۲</th>
-                      <th className="p-2.5 text-center w-24 bg-emerald-50/80 text-emerald-900 font-black border-x border-emerald-100">نمره سالانه</th>
-                      <th className="p-3 text-center w-24">وضعیت</th>
-                      <th className="p-3 text-left w-20">نمودار</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredStudents.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="p-8 text-center text-slate-400">
-                          دانش‌آموزی با این مشخصات یافت نشد.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredStudents.map((stu, idx) => {
-                        const draft = draftGrades[stu.id] || {};
-                        const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
-                        const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
-                        const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
-                        const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
-                        const ann = calculateAnnualScore(c1, f1, c2, f2);
-
-                        return (
-                          <tr key={stu.id} className="hover:bg-slate-50/70 transition-colors duration-200">
-                            <td className="p-3 text-center text-slate-400 font-mono">
-                              {toPersianDigits(idx + 1)}
-                            </td>
-                            <td className="p-3 bg-white border-l border-slate-200">
-                              <button
-                                type="button"
-                                onClick={() => onSelectStudent(stu, 'grades')}
-                                className="font-bold text-slate-900 hover:text-teal-800 hover:underline transition text-right cursor-pointer"
-                              >
-                                {studentFullName(stu)}
-                              </button>
-                              <div className="text-[10px] text-slate-400 font-mono">
-                                {stu.studentCode || stu.nationalId || ''}
-                              </div>
-                            </td>
-                            
-                            {/* مستمر نوبت ۱ */}
-                            <td className="p-2 text-center bg-sky-50/40 border-x border-sky-100">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={toPersianDigits(draft.c1 ?? '')}
-                                onChange={(e) => handleScoreChange(stu.id, 'c1', e.target.value)}
-                                placeholder="-"
-                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-sky-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
-                              />
-                            </td>
-
-                            {/* پایانی نوبت ۱ */}
-                            <td className="p-2 text-center bg-sky-50/40 border-x border-sky-100">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={toPersianDigits(draft.f1 ?? '')}
-                                onChange={(e) => handleScoreChange(stu.id, 'f1', e.target.value)}
-                                placeholder="-"
-                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-sky-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
-                              />
-                            </td>
-
-                            {/* مستمر نوبت ۲ */}
-                            <td className="p-2 text-center bg-indigo-50/30 border-x border-indigo-100">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={toPersianDigits(draft.c2 ?? '')}
-                                onChange={(e) => handleScoreChange(stu.id, 'c2', e.target.value)}
-                                placeholder="-"
-                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-indigo-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
-                              />
-                            </td>
-
-                            {/* پایانی نوبت ۲ */}
-                            <td className="p-2 text-center bg-indigo-50/30 border-x border-indigo-100">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={toPersianDigits(draft.f2 ?? '')}
-                                onChange={(e) => handleScoreChange(stu.id, 'f2', e.target.value)}
-                                placeholder="-"
-                                className="w-16 px-2 py-1.5 text-center bg-white/90 border-indigo-200 rounded-xl font-extrabold text-sm text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 focus:bg-white"
-                              />
-                            </td>
-
-                            {/* نمره سالانه محاسبه شده */}
-                            <td className="p-2 text-center font-black text-base bg-emerald-50/60 border-x border-emerald-100">
-                              {ann !== undefined ? (
-                                <span className={
-                                  ann >= 17 ? 'text-emerald-700' :
-                                  ann >= 12 ? 'text-slate-800' : 'text-rose-700'
-                                }>
-                                  {toPersianDigits(ann)}
-                                </span>
-                              ) : (
-                                <span className="text-slate-300">-</span>
-                              )}
-                            </td>
-
-                            {/* وضعیت قبولی */}
-                            <td className="p-3 text-center">
-                              {ann !== undefined ? (
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  ann >= 10 
-                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                                }`}>
-                                  {ann >= 10 ? 'قبول' : 'تجدید'}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">ثبت نشده</span>
-                              )}
-                            </td>
-
-                            {/* دکمه مشاهده روند رشد */}
-                            <td className="p-3 text-left">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedStudentForChart(stu)}
-                                className="p-1.5 text-slate-400 hover:text-teal-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                                title="مشاهده نمودار پیشرفت"
-                              >
-                                <BarChart3 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </FitTable>
-            </div>
 
           </div>
         )}

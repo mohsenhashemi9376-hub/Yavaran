@@ -21,7 +21,9 @@ import {
   FileSpreadsheet,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BarChart3,
+  X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -37,6 +39,12 @@ import {
 } from 'recharts';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { StudentGrowthChart } from './StudentGrowthChart';
+
+/** ماه‌هایی که در لیست کلاسی ثبت می‌شوند (بدون پایانی نوبت اول و مستمر نوبت دوم) */
+const ENTRY_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+const ENTRY_TITLE: Partial<Record<MonthlyContinuousKey, string>> = { term1Continuous: 'نوبت اول', term2Final: 'پایانی خرداد' };
+
 
 interface ClassMonthlyGradesSectionProps {
   classData: SchoolClass;
@@ -103,9 +111,10 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Selected Month Key for tabbed entry (default: mehrContinuous)
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
-  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics'>('single_month');
+  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics'>('full_matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSavedToast, setIsSavedToast] = useState(false);
+  const [chartStudent, setChartStudent] = useState<Student | null>(null);
 
   // Local draft of all grades for the selected class & subject
   // key: studentId -> record of monthly fields
@@ -286,7 +295,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Compute monthly trend for this class & subject (Mehr through Khordad)
   const monthlyTrendData = useMemo(() => {
-    return MONTHLY_EVALUATION_PERIODS.map((period) => {
+    return ENTRY_PERIODS.map((period) => {
       const scores: number[] = [];
       classStudents.forEach((stu) => {
         const valStr = draftGrades[stu.id]?.[period.key];
@@ -302,8 +311,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
       return {
         key: period.key,
-        monthName: period.shortLabel,
-        fullLabel: period.label,
+        monthName: ENTRY_TITLE[period.key] || period.shortLabel,
+        fullLabel: ENTRY_TITLE[period.key] || period.label,
         average: avg,
         recordedCount: scores.length,
       };
@@ -327,9 +336,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
         'درس': currentSubject?.name || 'نامشخص',
       };
 
-      MONTHLY_EVALUATION_PERIODS.forEach((p) => {
+      ENTRY_PERIODS.forEach((p) => {
         const val = draftGrades[stu.id]?.[p.key];
-        row[p.label] = val && val.trim() !== '' ? parseFloat(val) : '-';
+        row[ENTRY_TITLE[p.key] || p.label] = val && val.trim() !== '' ? parseFloat(val) : '-';
       });
 
       row['یادداشت دبیر'] = draftGrades[stu.id]?.notes || '-';
@@ -448,9 +457,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
           {/* Month Tabs */}
           <div className="flex gap-2 flex-wrap pb-1 -mx-1 px-1">
-            {MONTHLY_EVALUATION_PERIODS.filter((p) => !p.key.endsWith('Final')).map((period) => {
+            {ENTRY_PERIODS.map((period) => {
               const isActive = activePeriodKey === period.key;
-              const title = period.key === 'term1Continuous' ? 'ترم اول' : period.key === 'term2Continuous' ? 'ترم دوم' : period.monthName;
+              const title = ENTRY_TITLE[period.key] || period.monthName;
               return (
                 <button
                   key={period.key}
@@ -544,7 +553,61 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
           </div>
 
-          <FitTable className="">
+          {/* موبایل: کارت برای هر دانش‌آموز */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {filteredStudents.length === 0 && <div className="p-8 text-center text-xs text-slate-400">دانش‌آموزی یافت نشد.</div>}
+            {filteredStudents.map((stu, idx) => {
+              const scoreStr = draftGrades[stu.id]?.[activePeriodKey] || '';
+              const scoreNum = scoreStr ? parseFloat(scoreStr) : undefined;
+              const sum = summarizeActivity(sessions, stu.id, {
+                classId: classData.id,
+                subjectId: selectedSubjectId,
+                subjectName: currentSubject?.name,
+                month: PERIOD_MONTH[activePeriodKey],
+              });
+              return (
+                <div key={stu.id} className="p-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</span>
+                    <button type="button" onClick={() => onSelectStudent && onSelectStudent(stu)} className="flex-1 min-w-0 text-right text-sm font-bold text-slate-900 truncate cursor-pointer">
+                      {studentFullName(stu)}
+                    </button>
+                    {scoreNum !== undefined ? (
+                      <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(scoreNum)}`}>{scoreLabel(scoreNum)}</span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-xl text-[11px] bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>
+                    )}
+                  </div>
+                  {sum.total > 0 && (
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">{formatActivitySummary(sum)}</span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.25"
+                      min="0"
+                      max="20"
+                      value={scoreStr}
+                      disabled={activeLocked}
+                      onChange={(e) => handleScoreChange(stu.id, activePeriodKey, e.target.value)}
+                      placeholder="نمره (۰ تا ۲۰)"
+                      className="w-28 h-11 text-center font-bold text-sm rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white disabled:bg-slate-100/70 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    />
+                    <input
+                      type="text"
+                      value={draftGrades[stu.id]?.notes || ''}
+                      onChange={(e) => handleScoreChange(stu.id, 'notes', e.target.value)}
+                      placeholder="یادداشت دبیر..."
+                      className="flex-1 min-w-0 h-11 text-xs bg-slate-50/60 border border-slate-200 rounded-xl px-3 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <FitTable className="hidden md:block">
             <table className="w-full text-right text-xs">
               <thead className="bg-slate-100/70 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
@@ -669,27 +732,74 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
           </div>
 
-          <FitTable className="">
+          {/* موبایل: کارت برای هر دانش‌آموز، بدون اسکرول افقی */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {classStudents.map((stu, idx) => {
+              const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
+              const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+              return (
+                <div key={stu.id} className="p-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</span>
+                    <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(stu)}</span>
+                    {avg !== undefined ? (
+                      <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(avg)}`}>{toPersianDigits(avg)} • {scoreLabel(avg)}</span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">ثبت نشده</span>
+                    )}
+                    <button type="button" onClick={() => setChartStudent(stu)} aria-label="نمودار پیشرفت" className="w-11 h-11 shrink-0 inline-flex items-center justify-center text-slate-500 bg-slate-50 rounded-xl cursor-pointer">
+                      <BarChart3 className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ENTRY_PERIODS.map((period) => {
+                      const val = draftGrades[stu.id]?.[period.key] || '';
+                      const open = isGradePeriodOpen(period.key, selectedSubjectId);
+                      return (
+                        <label key={period.key} className="block">
+                          <span className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-0.5">
+                            {ENTRY_TITLE[period.key] || period.monthName}
+                            {!open && <span className="text-slate-400">قفل</span>}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.25"
+                            min="0"
+                            max="20"
+                            value={val}
+                            disabled={!open}
+                            onChange={(e) => handleScoreChange(stu.id, period.key, e.target.value)}
+                            placeholder="-"
+                            className={`w-full h-11 text-center text-sm rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                              val !== '' ? scorePillClass(parseFloat(val)) : 'bg-slate-100/70 border border-slate-200/70 text-slate-400'
+                            }`}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <FitTable className="hidden md:block">
             <table className="w-full text-right text-xs whitespace-nowrap">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-2.5 w-10 text-center sticky right-0 bg-slate-100 z-10">ردیف</th>
                   <th className="p-2.5 sticky right-10 bg-slate-100 z-10">دانش‌آموز</th>
                   
-                  {/* Term 1 Months */}
-                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر{!isGradePeriodOpen('mehrContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آبان{!isGradePeriodOpen('abanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آذر{!isGradePeriodOpen('azarContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-100/80 font-black">نوبت اول{!isGradePeriodOpen('term1Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱{!isGradePeriodOpen('term1Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-
-                  {/* Term 2 Months */}
-                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن{!isGradePeriodOpen('bahmanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اسفند{!isGradePeriodOpen('esfandContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">فروردین{!isGradePeriodOpen('farvardinContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت{!isGradePeriodOpen('ordibeheshtContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲{!isGradePeriodOpen('term2Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲{!isGradePeriodOpen('term2Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  {ENTRY_PERIODS.map((period) => (
+                    <th key={period.key} className={`p-2 text-center ${period.term === 1 ? 'bg-amber-50/80' : 'bg-emerald-50/80'} ${ENTRY_TITLE[period.key] ? 'font-black' : ''}`}>
+                      {ENTRY_TITLE[period.key] || period.monthName}
+                      {!isGradePeriodOpen(period.key, selectedSubjectId) && <LockedBadge className="block mt-0.5" />}
+                    </th>
+                  ))}
+                  <th className="p-2 text-center bg-indigo-50 text-indigo-900 font-black">میانگین</th>
+                  <th className="p-2 text-center">وضعیت</th>
+                  <th className="p-2 text-center">نمودار</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -703,7 +813,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                     </td>
 
                     {/* Inputs for each period */}
-                    {MONTHLY_EVALUATION_PERIODS.map((period) => {
+                    {ENTRY_PERIODS.map((period) => {
                       const val = draftGrades[stu.id]?.[period.key] || '';
                       return (
                         <td key={period.key} className="p-1.5 text-center">
@@ -724,6 +834,27 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                         </td>
                       );
                     })}
+                    {(() => {
+                      const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
+                      const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+                      return (
+                        <>
+                          <td className="p-1.5 text-center font-black text-indigo-900 bg-indigo-50/50">{avg !== undefined ? toPersianDigits(avg) : '-'}</td>
+                          <td className="p-1.5 text-center">
+                            {avg !== undefined ? (
+                              <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(avg)}`}>{scoreLabel(avg)}</span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">ثبت نشده</span>
+                            )}
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <button type="button" onClick={() => setChartStudent(stu)} title="مشاهده نمودار پیشرفت" className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-emerald-700 hover:bg-slate-100 rounded-xl transition cursor-pointer">
+                              <BarChart3 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -758,7 +889,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             {/* Recharts Area Chart */}
             <div className="h-72 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 12, left: -16, bottom: 0 }}>
                   <defs>
                     <linearGradient id="classMonthlyGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#059669" stopOpacity={0.4}/>
@@ -768,8 +899,11 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="monthName" 
-                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
                     interval={0}
+                    angle={-40}
+                    textAnchor="end"
+                    height={56}
                   />
                   <YAxis 
                     domain={[0, 20]} 
@@ -809,7 +943,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
 
             {/* Monthly Trend Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 pt-2 border-t border-slate-100 text-xs">
               {monthlyTrendData.map((d) => (
                 <div key={d.key} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
                   <div className="text-[10px] text-slate-500 font-medium">{d.monthName}</div>
@@ -822,6 +956,36 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* دکمه‌ی ذخیره‌ی ثابت (نزدیک شست در موبایل) */}
+      {viewMode !== 'monthly_analytics' && (
+        <div className="sticky bottom-3 z-20 flex justify-center px-2 pointer-events-none">
+          <button
+            type="button"
+            onClick={handleSaveGrades}
+            className="pointer-events-auto h-12 w-full sm:w-auto sm:px-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span>ذخیره نمرات</span>
+          </button>
+        </div>
+      )}
+
+      {chartStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <span className="font-bold text-sm">نمودار رشد و پیشرفت تحصیلی • {studentFullName(chartStudent)}</span>
+              <button type="button" onClick={() => setChartStudent(null)} aria-label="بستن" className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <StudentGrowthChart grades={academicGrades.filter((g) => g.studentId === chartStudent.id)} studentName={studentFullName(chartStudent)} />
             </div>
           </div>
         </div>
