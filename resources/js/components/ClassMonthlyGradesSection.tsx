@@ -678,7 +678,59 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
           </div>
 
-          <FitTable className="">
+          {/* موبایل: کارت برای هر دانش‌آموز، بدون اسکرول افقی */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {classStudents.map((stu, idx) => {
+              const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
+              const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+              return (
+                <div key={stu.id} className="p-3 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</span>
+                    <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(stu)}</span>
+                    {avg !== undefined ? (
+                      <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(avg)}`}>{toPersianDigits(avg)} • {scoreLabel(avg)}</span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">ثبت نشده</span>
+                    )}
+                    <button type="button" onClick={() => setChartStudent(stu)} aria-label="نمودار پیشرفت" className="w-11 h-11 shrink-0 inline-flex items-center justify-center text-slate-500 bg-slate-50 rounded-xl cursor-pointer">
+                      <BarChart3 className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ENTRY_PERIODS.map((period) => {
+                      const val = draftGrades[stu.id]?.[period.key] || '';
+                      const open = isGradePeriodOpen(period.key, selectedSubjectId);
+                      return (
+                        <label key={period.key} className="block">
+                          <span className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-0.5">
+                            {ENTRY_TITLE[period.key] || period.monthName}
+                            {!open && <span className="text-slate-400">قفل</span>}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.25"
+                            min="0"
+                            max="20"
+                            value={val}
+                            disabled={!open}
+                            onChange={(e) => handleScoreChange(stu.id, period.key, e.target.value)}
+                            placeholder="-"
+                            className={`w-full h-11 text-center text-sm rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                              val !== '' ? scorePillClass(parseFloat(val)) : 'bg-slate-100/70 border border-slate-200/70 text-slate-400'
+                            }`}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <FitTable className="hidden md:block">
             <table className="w-full text-right text-xs whitespace-nowrap">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
@@ -849,6 +901,20 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* دکمه‌ی ذخیره‌ی ثابت (نزدیک شست در موبایل) */}
+      {viewMode !== 'monthly_analytics' && (
+        <div className="sticky bottom-3 z-20 flex justify-center px-2 pointer-events-none">
+          <button
+            type="button"
+            onClick={handleSaveGrades}
+            className="pointer-events-auto h-12 w-full sm:w-auto sm:px-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span>ذخیره نمرات</span>
+          </button>
         </div>
       )}
 
