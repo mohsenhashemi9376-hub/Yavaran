@@ -478,3 +478,43 @@ export const exportCoachReportToExcel = (
 };
 
 
+
+/** خروجی اکسل همان خلاصه‌ی ماهانه‌ای که روی صفحه دیده می‌شود (حضور، غیبت کلاسی و روزانه، تأخیر) */
+export const exportMonthlySummaryToExcel = (data: {
+  className: string;
+  monthName: string;
+  rows: {
+    student: Student;
+    present: number;
+    classAbsent: number;
+    classExcused: number;
+    dailyUnexcused: number;
+    dailyExcused: number;
+    delayCount: number;
+    delayMinutes: number;
+    averageScore?: number;
+    rate: number;
+    level: string;
+  }[];
+}) => {
+  const label: Record<string, string> = { alert: 'اخطار غیبت', late: 'پرتأخیر', perfect: 'عالی', normal: 'عادی' };
+  const rows = data.rows.map((r, i) => ({
+    'ردیف': i + 1,
+    'نام و نام خانوادگی': studentFullName(r.student),
+    'حاضر': r.present,
+    'غیبت کلاسی (غیرموجه)': r.classAbsent,
+    'غیبت کلاسی (موجه)': r.classExcused,
+    'غیبت روزانه (غیرموجه)': r.dailyUnexcused,
+    'غیبت روزانه (موجه)': r.dailyExcused,
+    'تعداد تأخیر': r.delayCount,
+    'مجموع دقایق تأخیر': r.delayMinutes,
+    'نمره میانگین': r.averageScore ?? '',
+    'درصد حضور': `${r.rate}%`,
+    'وضعیت': label[r.level] || r.level,
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [{ 'اطلاعات': 'دانش‌آموزی یافت نشد' }]);
+  ws['!views'] = [{ rightToLeft: true }];
+  XLSX.utils.book_append_sheet(wb, ws, `خلاصه ${data.monthName}`.slice(0, 31));
+  XLSX.writeFile(wb, `خلاصه_ماهانه_${data.className.replace(/\s+/g, '_')}_${data.monthName}.xlsx`);
+};
