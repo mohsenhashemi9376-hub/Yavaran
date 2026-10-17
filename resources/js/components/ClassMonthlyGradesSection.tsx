@@ -311,8 +311,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
       return {
         key: period.key,
-        monthName: period.shortLabel,
-        fullLabel: period.label,
+        monthName: ENTRY_TITLE[period.key] || period.shortLabel,
+        fullLabel: ENTRY_TITLE[period.key] || period.label,
         average: avg,
         recordedCount: scores.length,
       };
@@ -889,7 +889,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             {/* Recharts Area Chart */}
             <div className="h-72 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 12, left: -16, bottom: 0 }}>
                   <defs>
                     <linearGradient id="classMonthlyGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#059669" stopOpacity={0.4}/>
@@ -899,8 +899,11 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="monthName" 
-                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    tick={{ fontSize: 10, fill: '#64748b' }}
                     interval={0}
+                    angle={-40}
+                    textAnchor="end"
+                    height={56}
                   />
                   <YAxis 
                     domain={[0, 20]} 
@@ -940,7 +943,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
 
             {/* Monthly Trend Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 pt-2 border-t border-slate-100 text-xs">
               {monthlyTrendData.map((d) => (
                 <div key={d.key} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
                   <div className="text-[10px] text-slate-500 font-medium">{d.monthName}</div>
