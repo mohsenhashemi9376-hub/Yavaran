@@ -113,9 +113,10 @@ final class AccessPolicy
         }
 
         // حضور أولیا: مدیر و معاونین و مربی با مجوز ثبت یا مشاهده (مربی فقط کلاس‌های خودش، در DataExporter)
-        if ($collection === 'parentMeetings') {
-            return ($this->isManager() || $this->isCoach())
-                && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings'));
+        if ($collection === 'parentMeetings' || $collection === 'parentMeetingStates') {
+            return $this->canManageParentMeetingStates()
+                || (($this->isManager() || $this->isCoach())
+                    && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings')));
         }
 
         // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
@@ -178,10 +179,17 @@ final class AccessPolicy
         $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
     }
 
-    /** ثبت حضور پدر و مادر: فقط مدیر و معاونینِ دارای مجوز (پیش‌فرض: مدیر و معاون انضباطی) */
+    /** ثبت حضور پدر و مادر: مدیر و معاونینِ دارای مجوز (پیش‌فرض: مدیر و معاون انضباطی) و مربی (فقط کلاس‌های خودش) */
     public function canRecordParentMeetings(): bool
     {
-        return $this->isManager() && $this->user->hasPermission('parent-meetings');
+        return ($this->isManager() && $this->user->hasPermission('parent-meetings'))
+            || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
+    }
+
+    /** باز و بسته کردن جلسه‌های عمومی اولیاء: فقط مدیر و معاون اجرایی */
+    public function canManageParentMeetingStates(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_principal'], true);
     }
 
     /** یادداشت روی گزارش حضور أولیا: ثبت‌کنندگان، معاون تربیتی و مربی (دارای مجوز مشاهده) */
@@ -193,6 +201,10 @@ final class AccessPolicy
     private function authorizeParentMeeting(object $new): void
     {
         if ($this->canRecordParentMeetings()) {
+            if ($this->isCoach()) {
+                $this->requireStudent($this->prop($new, 'studentId'));
+            }
+
             return;
         }
         if (! $this->canNoteParentMeetings()) {
@@ -290,6 +302,14 @@ final class AccessPolicy
 
         if ($collection === 'parentMeetings') {
             $this->authorizeParentMeeting($new);
+
+            return;
+        }
+
+        if ($collection === 'parentMeetingStates') {
+            if (! $this->canManageParentMeetingStates()) {
+                $this->deny('باز و بسته کردن جلسه‌های اولیا فقط با مدیر و معاون اجرایی است.');
+            }
 
             return;
         }
@@ -397,10 +417,22 @@ final class AccessPolicy
         if ($collection === 'parentMeetings') {
             // حذف رکورد (برگشت به «ثبت‌نشده») فقط با مجوز ثبت حضور؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
             if (! $this->canRecordParentMeetings()) {
-                $this->deny('ثبت یا حذف حضور پدر و مادر فقط با مدیر و معاون انضباطی است.');
+                $this->deny('ثبت یا حذف حضور پدر و مادر فقط با مدیر، معاون انضباطی و مربی است.');
+            }
+            if ($this->isCoach()) {
+                $this->requireStudent($this->prop($old, 'studentId'));
+            }
+            $no = (int) $this->prop($old, 'meetingNo');
+            $year = (string) $this->prop($old, 'academicYear');
+            if (($old->hasAttendance ?? true) !== false && ! \App\Support\ParentMeetingGate::isOpen($year, $no)) {
+                $this->deny('این جلسه بسته شده و حضور و غیاب آن قابل تغییر نیست.');
             }
 
             return;
+        }
+
+        if ($collection === 'parentMeetingStates') {
+            $this->deny('جلسه‌ی اولیا حذف نمی‌شود؛ فقط باز یا بسته می‌شود.');
         }
 
         if ($collection === 'users') {

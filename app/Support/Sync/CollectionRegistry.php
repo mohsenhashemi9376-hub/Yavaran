@@ -35,6 +35,7 @@ final class CollectionRegistry
         'worksheetWeeks' => 'worksheet_weeks',
         'schoolHolidays' => 'school_holidays',
         'parentMeetings' => 'parent_meetings',
+        'parentMeetingStates' => 'parent_meeting_states',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -118,6 +119,24 @@ final class CollectionRegistry
                     $t->longText('data');
                     $t->timestamps();
                     $t->unique(['student_id', 'academic_year', 'meeting_no'], 'parent_meetings_student_year_no_unique');
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'parent_meeting_states') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('parent_meeting_states', function ($t): void {
+                    $t->string('id', 60)->primary();
+                    $t->string('academic_year', 20)->index();
+                    $t->unsignedTinyInteger('meeting_no')->index();
+                    $t->boolean('is_open')->default(false);
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                    $t->unique(['academic_year', 'meeting_no'], 'parent_meeting_states_year_no_unique');
                 });
             } catch (\Throwable) {
             }
@@ -476,6 +495,11 @@ final class CollectionRegistry
                 'father_present' => ! empty($d->father) && ($d->hasAttendance ?? true) !== false,
                 'mother_present' => ! empty($d->mother) && ($d->hasAttendance ?? true) !== false,
                 'meeting_date' => self::str($d, 'date', 20),
+            ],
+            'parentMeetingStates' => [
+                'academic_year' => self::str($d, 'academicYear', 20) ?? '',
+                'meeting_no' => max(1, min(3, (int) ($d->meetingNo ?? 1))),
+                'is_open' => ! empty($d->open),
             ],
             'worksheetWeeks' => [
                 'week_start' => self::str($d, 'weekStart', 20) ?? '',

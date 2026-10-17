@@ -17,6 +17,7 @@ import {
   Workshop,
   LoanItem,
   ParentMeetingRecord,
+  ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
   WorksheetWeek,
@@ -102,6 +103,9 @@ interface SchoolContextType {
   workshops: Workshop[];
   loanItems: LoanItem[];
   parentMeetings: ParentMeetingRecord[];
+  parentMeetingStates: ParentMeetingState[];
+  /** باز/بسته کردن جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی) */
+  setParentMeetingOpen: (meetingNo: ParentMeetingNo, open: boolean) => void;
   worksheets: WorksheetRecord[];
   worksheetWeeks: WorksheetWeek[];
   /** تعطیلی‌های اعلام‌شده؛ جمعه‌ها همیشه تعطیل‌اند و در این فهرست نیستند */
@@ -419,6 +423,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
+  const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -579,6 +584,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
     const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
+    const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -608,6 +614,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
       parentMeetings: nextParentMeetings as unknown as SyncRow[],
+      parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -637,6 +644,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
     setParentMeetings(nextParentMeetings);
+    setParentMeetingStates(nextParentMeetingStates);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -682,6 +690,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops([]);
     setLoanItems([]);
     setParentMeetings([]);
+    setParentMeetingStates([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -812,6 +821,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
   useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
@@ -1681,6 +1691,22 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updatedAt: new Date().toISOString(),
       };
       return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
+    });
+  };
+
+  const setParentMeetingOpen: SchoolContextType['setParentMeetingOpen'] = (meetingNo, open) => {
+    const year = String(currentAcademicStartYear());
+    const id = `pms-${year}-${meetingNo}`;
+    const now = new Date().toISOString();
+    setParentMeetingStates((prev) => {
+      const old = prev.find((s) => s.id === id);
+      const next: ParentMeetingState = {
+        id, academicYear: year, meetingNo, open,
+        openedAt: open ? (old?.open ? old.openedAt : now) : old?.openedAt ?? null,
+        closedAt: open ? null : old?.open ? now : old?.closedAt ?? null,
+        changedBy: currentUser.name, changedById: currentUser.id, updatedAt: now,
+      };
+      return old ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
     });
   };
 
@@ -2907,6 +2933,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workshops,
         loanItems,
         parentMeetings,
+        parentMeetingStates,
+        setParentMeetingOpen,
         setParentMeetingAttendance,
         setParentMeetingAttendanceBulk,
         clearParentMeetingAttendance,

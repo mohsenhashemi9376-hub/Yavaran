@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   CircleSlash,
   Eye,
+  Lock,
+  LockOpen,
   FileSpreadsheet,
   Menu,
   MessageSquareText,
@@ -28,8 +30,11 @@ import {
   PARENT_MEETING_LABELS,
   PARENT_MEETING_NUMBERS,
   ParentAttendanceState,
+  MEETING_STATUS_LABELS,
+  MeetingStatus,
   attendanceState,
   currentAcademicStartYear,
+  meetingStatus,
   studentParentSummary,
   summarizeMeeting,
 } from '../utils/parentMeetings';
@@ -88,6 +93,8 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
     nurturingClasses,
     currentUser,
     parentMeetings,
+    parentMeetingStates,
+    setParentMeetingOpen,
     setParentMeetingAttendance,
     setParentMeetingAttendanceBulk,
     clearParentMeetingAttendance,
@@ -96,9 +103,11 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
     showToast,
   } = useSchool();
 
-  // فقط مدیر و معاون انضباطی حضور را ثبت می‌کنند؛ مربی و معاون تربیتی آمار را می‌بینند و یادداشت می‌گذارند
-  const canRecord = hasPermission(currentUser, 'parent-meetings');
+  // مدیر، معاون انضباطی و مربی (فقط کلاس‌های خودش) حضور را ثبت می‌کنند؛ معاون تربیتی آمار را می‌بیند و یادداشت می‌گذارد
+  const canRecord = hasPermission(currentUser, 'parent-meetings') || (currentUser.role === 'coach' && hasPermission(currentUser, 'view-parent-meetings'));
   const canNote = canRecord || hasPermission(currentUser, 'view-parent-meetings');
+  // باز و بسته کردن جلسه‌ها: فقط مدیر و معاون اجرایی
+  const canManageMeetings = currentUser.role === 'admin' || currentUser.role === 'vice_principal';
 
   const today = getRealTodayShamsiString();
   const yearStart = currentAcademicStartYear();
@@ -110,6 +119,8 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
   );
   const [meetingNo, setMeetingNo] = useState<ParentMeetingNo>(() => {
     // پیش‌فرض: آخرین جلسه‌ای که در این سال برایش حضوری ثبت شده؛ وگرنه جلسه‌ی اول
+    const open = PARENT_MEETING_NUMBERS.filter((n) => meetingStatus(n, parentMeetingStates, parentMeetings, yearKey) === 'open');
+    if (open.length) return Math.max(...open) as ParentMeetingNo;
     const used = parentMeetings.filter((r) => r.academicYear === yearKey && r.hasAttendance !== false).map((r) => r.meetingNo);
     return (used.length ? Math.max(...used) : 1) as ParentMeetingNo;
   });
@@ -143,6 +154,30 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
 
   const schoolStudents = useMemo(() => realClasses.flatMap((c) => classStudents.get(c.id) || []), [realClasses, classStudents]);
   const records = byMeeting[meetingNo];
+  const statusOf = (n: ParentMeetingNo): MeetingStatus => meetingStatus(n, parentMeetingStates, parentMeetings, yearKey);
+  const status = statusOf(meetingNo);
+  /** ثبت حضور فقط در جلسه‌ی باز ممکن است؛ جلسه‌ی بسته (برگزارشده) و جلسه‌ی بازنشده قفل است */
+  const canEdit = canRecord && status === 'open';
+
+  const toggleMeeting = () => {
+    const label = PARENT_MEETING_LABELS[meetingNo];
+    if (status === 'open') {
+      const missing = schoolSummary.total - schoolSummary.recorded;
+      showConfirm({
+        title: `بستن ${label}`,
+        message: `${label} برگزارشده و تمام‌شده حساب می‌شود و بعد از بستن، حضور و غیابی در آن ثبت یا تغییر نمی‌کند.${missing > 0 ? ` توجه: حضور اولیای ${toPersianDigits(missing)} دانش‌آموز هنوز ثبت نشده است.` : ''} بسته شود؟`,
+        confirmLabel: 'بستن جلسه',
+        cancelLabel: 'انصراف',
+        onConfirm: () => {
+          setParentMeetingOpen(meetingNo, false);
+          showToast(`${label} بسته شد.`, 'success');
+        },
+      });
+      return;
+    }
+    setParentMeetingOpen(meetingNo, true);
+    showToast(`${label} باز شد و ثبت حضور فعال است.`, 'success');
+  };
 
   const meetingOverview = useMemo(
     () =>
@@ -197,6 +232,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
     }).length;
 
   const toggle = (s: Student, who: 'father' | 'mother') => {
+    if (!canEdit) return showToast('این جلسه باز نیست؛ ثبت حضور ممکن نیست.', 'info');
     const cur = records.get(s.id);
     const has = cur?.hasAttendance !== false;
     setParentMeetingAttendance(s, meetingNo, {
@@ -207,6 +243,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
 
   const bulk = (attendance: { father: boolean; mother: boolean }, label: string) => {
     const pending = (classStudents.get(activeClassId) || []).filter((s) => attendanceState(records.get(s.id)) === 'unrecorded');
+    if (!canEdit) return showToast('این جلسه باز نیست.', 'info');
     if (pending.length === 0) return showToast('همه‌ی دانش‌آموزان این کلاس قبلاً ثبت شده‌اند.', 'info');
     showConfirm({
       title: 'ثبت گروهی',
@@ -279,20 +316,20 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
           title="حضور أولیا"
           icon={UsersRound}
           section="امور روزانه"
-          badge={canRecord ? undefined : 'مشاهده و یادداشت'}
+          badge={canRecord ? undefined : canNote ? 'مشاهده و یادداشت' : 'مشاهده'}
           subtitle={
             <>
               جلسات عمومی أولیا · سال تحصیلی {toPersianDigits(`${yearStart}-${yearStart + 1}`)} · سه جلسه در سال.
               {canRecord
-                ? ' حضور پدر و مادر هر دانش‌آموز جداگانه ثبت می‌شود و تاریخ ثبت خودکار (امروز) درج می‌گردد.'
-                : ' آمار حضور پدر و مادر را می‌بینید و می‌توانید برای هر دانش‌آموز یادداشت بنویسید؛ ثبت حضور با مدیر و معاون انضباطی است.'}
+                ? ' جلسه باید باز باشد تا حضور ثبت شود (مدیر و معاون اجرایی جلسه را باز و بسته می‌کنند). حضور پدر و مادر هر دانش‌آموز جداگانه ثبت می‌شود و تاریخ ثبت خودکار (امروز) درج می‌گردد.'
+                : ' آمار حضور پدر و مادر را می‌بینید' + (canNote ? ' و می‌توانید برای هر دانش‌آموز یادداشت بنویسید' : '') + '؛ ثبت حضور با مدیر، معاون انضباطی و مربی است.'}
             </>
           }
           onBack={onBack}
           onOpenSidebar={onOpenSidebar}
           actions={
             <>
-              {canRecord && (
+              {canEdit && (
                 <span className="h-9 px-3 rounded-xl bg-teal-50 border border-teal-100 text-teal-800 text-xs font-bold inline-flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" />
                   <span>
@@ -324,6 +361,12 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
                   <span className={`text-sm font-black ${active ? 'text-teal-800' : 'text-slate-800'}`}>{PARENT_MEETING_LABELS[no]}</span>
                   <span className="text-lg font-black text-slate-900">{toPersianDigits(summary.rate)}٪</span>
                 </div>
+                <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  statusOf(no) === 'open' ? 'bg-emerald-100 text-emerald-800' : statusOf(no) === 'held' ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {statusOf(no) === 'open' ? <LockOpen className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                  {MEETING_STATUS_LABELS[statusOf(no)]}
+                </span>
                 <div className="h-1.5 rounded-full bg-slate-200 mt-2.5 overflow-hidden">
                   <div className="h-full bg-gradient-to-l from-teal-500 to-emerald-500 transition-all" style={{ width: `${summary.rate}%` }} />
                 </div>
@@ -335,6 +378,31 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
               </button>
             );
           })}
+        </div>
+
+        <div
+          className={`mt-4 rounded-2xl border px-4 py-3 flex items-center gap-3 flex-wrap ${
+            status === 'open' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : status === 'held' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-amber-50/70 border-amber-200 text-amber-900'
+          }`}
+        >
+          {status === 'open' ? <LockOpen className="w-5 h-5 shrink-0" /> : <Lock className="w-5 h-5 shrink-0" />}
+          <p className="text-xs font-bold leading-6 flex-1 min-w-[12rem]">
+            {status === 'open' && `${PARENT_MEETING_LABELS[meetingNo]} باز است و حضور و غیاب پدر و مادر ثبت می‌شود.`}
+            {status === 'held' && `${PARENT_MEETING_LABELS[meetingNo]} برگزار و بسته شده است؛ حضور و غیاب دیگر ثبت یا ویرایش نمی‌شود.`}
+            {status === 'pending' && `${PARENT_MEETING_LABELS[meetingNo]} هنوز توسط مدیر یا معاون اجرایی باز نشده است؛ تا آن زمان حضوری ثبت نمی‌شود.`}
+          </p>
+          {canManageMeetings && (
+            <button
+              type="button"
+              onClick={toggleMeeting}
+              className={`h-10 px-4 rounded-xl text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer text-white ${
+                status === 'open' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-700 hover:bg-teal-800'
+              }`}
+            >
+              {status === 'open' ? <Lock className="w-4 h-4" /> : <LockOpen className="w-4 h-4" />}
+              {status === 'open' ? 'بستن جلسه (برگزار شد)' : status === 'held' ? 'باز کردن دوباره' : 'باز کردن جلسه'}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap mt-4 text-xs text-slate-600">
@@ -441,7 +509,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
               </div>
             </div>
 
-            {canRecord && !q && activeClass && (
+            {canEdit && !q && activeClass && (
               <div className="flex items-center gap-2 flex-wrap text-xs">
                 <span className="font-bold text-slate-500">ثبت گروهی برای ثبت‌نشده‌های این کلاس:</span>
                 <button
@@ -531,7 +599,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {canRecord ? (
+                        {canEdit ? (
                           <>
                             <button
                               type="button"

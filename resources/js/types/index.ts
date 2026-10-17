@@ -314,6 +314,22 @@ export interface ParentMeetingRecord {
   updatedAt?: string;
 }
 
+/**
+ * وضعیت باز/بسته‌ی هر جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی تغییر می‌دهند).
+ * جلسه‌ی بسته یعنی برگزار و تمام شده؛ حضور و غیاب آن دیگر ثبت نمی‌شود. جلسه‌ی بدون رکورد وضعیت تا باز شدن، بسته است.
+ */
+export interface ParentMeetingState {
+  id: string; // pms-{سال تحصیلی}-{شماره جلسه}
+  academicYear: string;
+  meetingNo: ParentMeetingNo;
+  open: boolean;
+  openedAt?: string | null;
+  closedAt?: string | null;
+  changedBy?: string;
+  changedById?: string;
+  updatedAt?: string;
+}
+
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */
 export interface GradePeriod {
   id: string; // = code

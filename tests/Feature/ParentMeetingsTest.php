@@ -16,6 +16,24 @@ class ParentMeetingsTest extends TestCase
         parent::setUp();
         $this->makeClass('cls-1');
         $this->makeStudent('stu-1', 'cls-1');
+        foreach ([1, 2, 3] as $no) {
+            $this->setMeeting($no, true);
+        }
+    }
+
+    private function setMeeting(int $no, bool $open): void
+    {
+        DB::table('parent_meeting_states')->updateOrInsert(
+            ['id' => 'pms-'.$this->year().'-'.$no],
+            ['academic_year' => $this->year(), 'meeting_no' => $no, 'is_open' => $open, 'data' => json_encode(['open' => $open]), 'created_at' => now(), 'updated_at' => now()]
+        );
+    }
+
+    private function state(User $u, int $no, bool $open)
+    {
+        $id = 'pms-'.$this->year().'-'.$no;
+
+        return $this->actingAs($u)->postJson('/api/sync', ['collection' => 'parentMeetingStates', 'upserts' => [['id' => $id, 'data' => ['id' => $id, 'meetingNo' => $no, 'open' => $open]]], 'deletes' => []]);
     }
 
     private function sync(User $u, array $upserts = [], array $deletes = [])
@@ -81,13 +99,13 @@ class ParentMeetingsTest extends TestCase
 
     public function test_only_admin_and_disciplinary_vice_record_attendance(): void
     {
-        foreach (['teacher', 'coach', 'vice_nurturing', 'vice_educational', 'vice_principal'] as $role) {
+        foreach (['teacher', 'vice_nurturing', 'vice_educational', 'vice_principal'] as $role) {
             $this->sync($this->makeUser($role, [], ['assignedClassIds' => ['cls-1']]), [$this->row(1, true, true)])->assertStatus(403);
         }
         $this->assertDatabaseCount('parent_meetings', 0);
 
-        foreach (['admin', 'vice_disciplinary'] as $role) {
-            $this->sync($this->makeUser($role), [$this->row(1, true, true)])->assertOk();
+        foreach (['admin', 'vice_disciplinary', 'coach'] as $role) {
+            $this->sync($this->makeUser($role, [], ['assignedClassIds' => ['cls-1']]), [$this->row(1, true, true)])->assertOk();
         }
     }
 
@@ -115,7 +133,7 @@ class ParentMeetingsTest extends TestCase
     public function test_note_on_unrecorded_student_does_not_count_as_attendance(): void
     {
         $coach = $this->makeUser('coach', [], ['assignedClassIds' => ['cls-1']]);
-        $this->sync($coach, [$this->row(2, true, true, ['note' => 'یادداشت'])])->assertOk();
+        $this->sync($coach, [$this->row(2, true, true, ['note' => 'یادداشت', 'hasAttendance' => false])])->assertOk();
 
         $stored = json_decode((string) DB::table('parent_meetings')->value('data'), true);
         $this->assertFalse($stored['hasAttendance']);
@@ -191,5 +209,54 @@ class ParentMeetingsTest extends TestCase
         $this->sync($vice, [$this->row(1, false, false)])->assertOk();
         $this->sync($vice, [$this->row(2, true, false)])->assertOk();
         $this->assertDatabaseCount('notifications', 0);
+    }
+
+    public function test_closed_or_unopened_meeting_rejects_attendance_but_allows_notes(): void
+    {
+        $vice = $this->makeUser('vice_disciplinary');
+        $this->sync($vice, [$this->row(1, true, false)])->assertOk();
+        $this->setMeeting(1, false);
+
+        $this->sync($vice, [$this->row(1, true, true)])->assertStatus(422);
+        $this->sync($vice, [], ['pm-'.$this->year().'-1-stu-1'])->assertStatus(403);
+        $this->assertDatabaseHas('parent_meetings', ['meeting_no' => 1, 'mother_present' => 0]);
+
+        $nv = $this->makeUser('vice_nurturing');
+        $this->sync($nv, [$this->row(1, true, false, ['note' => 'یادداشت'])])->assertOk();
+
+        DB::table('parent_meeting_states')->where('meeting_no', 2)->delete();
+        $this->sync($vice, [$this->row(2, true, true)])->assertStatus(422);
+    }
+
+    public function test_only_admin_and_executive_vice_toggle_meetings(): void
+    {
+        foreach (['vice_disciplinary', 'coach', 'vice_nurturing', 'teacher'] as $role) {
+            $this->state($this->makeUser($role, [], ['assignedClassIds' => ['cls-1']]), 1, false)->assertStatus(403);
+        }
+        $admin = $this->makeUser('admin');
+        $this->state($admin, 1, false)->assertOk();
+        $this->assertDatabaseHas('parent_meeting_states', ['id' => 'pms-'.$this->year().'-1', 'is_open' => 0]);
+        $this->sync($this->makeUser('vice_disciplinary'), [$this->row(1, true, true)])->assertStatus(422);
+
+        $this->state($this->makeUser('vice_principal'), 1, true)->assertOk();
+        $this->sync($this->makeUser('vice_disciplinary'), [$this->row(1, true, true)])->assertOk();
+        $this->state($admin, 4, true)->assertStatus(422);
+    }
+
+    public function test_closing_with_unrecorded_students_alerts_admin_and_executive_vice(): void
+    {
+        $admin = $this->makeUser('admin');
+        $vp = $this->makeUser('vice_principal');
+        $this->state($admin, 1, false)->assertOk();
+        $this->assertDatabaseHas('notifications', ['receiver_id' => $vp->id, 'priority' => 'urgent']);
+        $this->assertDatabaseHas('notifications', ['receiver_id' => $admin->id]);
+    }
+
+    public function test_executive_vice_can_read_meetings_and_states(): void
+    {
+        $this->sync($this->makeUser('admin'), [$this->row()])->assertOk();
+        $json = $this->actingAs($this->makeUser('vice_principal'))->getJson('/api/bootstrap')->json('data');
+        $this->assertCount(1, $json['parentMeetings']);
+        $this->assertCount(3, $json['parentMeetingStates']);
     }
 }
