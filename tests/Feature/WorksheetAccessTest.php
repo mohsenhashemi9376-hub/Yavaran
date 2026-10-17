@@ -36,7 +36,7 @@ class WorksheetAccessTest extends TestCase
         if ($this->autoOpenWeeks && $collection === 'worksheets') {
             foreach ($upserts as $row) {
                 $week = $row['data']['weekStart'] ?? null;
-                if ($week && ! DB::table('worksheet_weeks')->where('week_start', $week)->exists()) {
+                if (is_string($week) && preg_match('#^\d{4}/\d{2}/\d{2}$#', $week) && ! DB::table('worksheet_weeks')->where('week_start', $week)->exists()) {
                     DB::table('worksheet_weeks')->insert([
                         'id' => 'wk-'.str_replace('/', '-', $week), 'week_start' => $week, 'deadline' => '1400/01/01', 'sort_order' => 0,
                         'data' => json_encode(['weekStart' => $week, 'deadline' => '1400/01/01']), 'created_at' => now(), 'updated_at' => now(),
@@ -126,14 +126,20 @@ class WorksheetAccessTest extends TestCase
 
     public function test_nurturing_vice_disciplinary_vice_and_teacher_cannot_write(): void
     {
+        // هفته مهلتِ گذشته دارد تا فقط دسترسی بررسی شود (نه نبودن مهلت)؛ تلاش ردشده نباید مهلت را تغییر دهد
         $this->autoOpenWeeks = false;
+        DB::table('worksheet_weeks')->insert([
+            'id' => 'wk-1405-07-15', 'week_start' => '1405/07/15', 'deadline' => '1400/01/01', 'sort_order' => 0,
+            'data' => json_encode(['weekStart' => '1405/07/15', 'deadline' => '1400/01/01']), 'created_at' => now(), 'updated_at' => now(),
+        ]);
         foreach (['vice_nurturing', 'vice_disciplinary', 'teacher'] as $role) {
             $u = $this->makeUser($role);
             $this->saveWs($u, [$this->rec('stu-mine')])->assertStatus(403);
             $this->saveWs($u, [['id' => 'wk-1405-07-15', 'data' => ['id' => 'wk-1405-07-15', 'weekStart' => '1405/07/15', 'deadline' => '1405/07/19']]], [], 'worksheetWeeks')->assertStatus(403);
         }
         $this->assertDatabaseCount('worksheet_records', 0);
-        $this->assertDatabaseCount('worksheet_weeks', 0);
+        $this->assertDatabaseCount('worksheet_weeks', 1);
+        $this->assertDatabaseHas('worksheet_weeks', ['week_start' => '1405/07/15', 'deadline' => '1400/01/01']);
     }
 
     public function test_only_educational_management_sets_the_deadline_and_coach_can_read_it(): void
