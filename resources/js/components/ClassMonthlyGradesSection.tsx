@@ -21,7 +21,9 @@ import {
   FileSpreadsheet,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BarChart3,
+  X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -37,6 +39,12 @@ import {
 } from 'recharts';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { StudentGrowthChart } from './StudentGrowthChart';
+
+/** ماه‌هایی که در لیست کلاسی ثبت می‌شوند (بدون پایانی نوبت اول و مستمر نوبت دوم) */
+const ENTRY_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+const ENTRY_TITLE: Partial<Record<MonthlyContinuousKey, string>> = { term1Continuous: 'نوبت اول', term2Final: 'پایانی خرداد' };
+
 
 interface ClassMonthlyGradesSectionProps {
   classData: SchoolClass;
@@ -103,9 +111,10 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Selected Month Key for tabbed entry (default: mehrContinuous)
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
-  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics'>('single_month');
+  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics'>('full_matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSavedToast, setIsSavedToast] = useState(false);
+  const [chartStudent, setChartStudent] = useState<Student | null>(null);
 
   // Local draft of all grades for the selected class & subject
   // key: studentId -> record of monthly fields
@@ -286,7 +295,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Compute monthly trend for this class & subject (Mehr through Khordad)
   const monthlyTrendData = useMemo(() => {
-    return MONTHLY_EVALUATION_PERIODS.map((period) => {
+    return ENTRY_PERIODS.map((period) => {
       const scores: number[] = [];
       classStudents.forEach((stu) => {
         const valStr = draftGrades[stu.id]?.[period.key];
@@ -327,9 +336,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
         'درس': currentSubject?.name || 'نامشخص',
       };
 
-      MONTHLY_EVALUATION_PERIODS.forEach((p) => {
+      ENTRY_PERIODS.forEach((p) => {
         const val = draftGrades[stu.id]?.[p.key];
-        row[p.label] = val && val.trim() !== '' ? parseFloat(val) : '-';
+        row[ENTRY_TITLE[p.key] || p.label] = val && val.trim() !== '' ? parseFloat(val) : '-';
       });
 
       row['یادداشت دبیر'] = draftGrades[stu.id]?.notes || '-';
@@ -448,9 +457,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
           {/* Month Tabs */}
           <div className="flex gap-2 flex-wrap pb-1 -mx-1 px-1">
-            {MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key)).map((period) => {
+            {ENTRY_PERIODS.map((period) => {
               const isActive = activePeriodKey === period.key;
-              const title = period.key === 'term1Continuous' ? 'نوبت اول' : period.key === 'term2Final' ? 'پایانی خرداد' : period.monthName;
+              const title = ENTRY_TITLE[period.key] || period.monthName;
               return (
                 <button
                   key={period.key}
@@ -676,20 +685,15 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <th className="p-2.5 w-10 text-center sticky right-0 bg-slate-100 z-10">ردیف</th>
                   <th className="p-2.5 sticky right-10 bg-slate-100 z-10">دانش‌آموز</th>
                   
-                  {/* Term 1 Months */}
-                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر{!isGradePeriodOpen('mehrContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آبان{!isGradePeriodOpen('abanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آذر{!isGradePeriodOpen('azarContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-100/80 font-black">نوبت اول{!isGradePeriodOpen('term1Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱{!isGradePeriodOpen('term1Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-
-                  {/* Term 2 Months */}
-                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن{!isGradePeriodOpen('bahmanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اسفند{!isGradePeriodOpen('esfandContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">فروردین{!isGradePeriodOpen('farvardinContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت{!isGradePeriodOpen('ordibeheshtContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲{!isGradePeriodOpen('term2Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲{!isGradePeriodOpen('term2Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  {ENTRY_PERIODS.map((period) => (
+                    <th key={period.key} className={`p-2 text-center ${period.term === 1 ? 'bg-amber-50/80' : 'bg-emerald-50/80'} ${ENTRY_TITLE[period.key] ? 'font-black' : ''}`}>
+                      {ENTRY_TITLE[period.key] || period.monthName}
+                      {!isGradePeriodOpen(period.key, selectedSubjectId) && <LockedBadge className="block mt-0.5" />}
+                    </th>
+                  ))}
+                  <th className="p-2 text-center bg-indigo-50 text-indigo-900 font-black">میانگین</th>
+                  <th className="p-2 text-center">وضعیت</th>
+                  <th className="p-2 text-center">نمودار</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -703,7 +707,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                     </td>
 
                     {/* Inputs for each period */}
-                    {MONTHLY_EVALUATION_PERIODS.map((period) => {
+                    {ENTRY_PERIODS.map((period) => {
                       const val = draftGrades[stu.id]?.[period.key] || '';
                       return (
                         <td key={period.key} className="p-1.5 text-center">
@@ -724,6 +728,27 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                         </td>
                       );
                     })}
+                    {(() => {
+                      const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
+                      const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+                      return (
+                        <>
+                          <td className="p-1.5 text-center font-black text-indigo-900 bg-indigo-50/50">{avg !== undefined ? toPersianDigits(avg) : '-'}</td>
+                          <td className="p-1.5 text-center">
+                            {avg !== undefined ? (
+                              <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(avg)}`}>{scoreLabel(avg)}</span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">ثبت نشده</span>
+                            )}
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <button type="button" onClick={() => setChartStudent(stu)} title="مشاهده نمودار پیشرفت" className="w-10 h-10 inline-flex items-center justify-center text-slate-400 hover:text-emerald-700 hover:bg-slate-100 rounded-xl transition cursor-pointer">
+                              <BarChart3 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -809,7 +834,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
             </div>
 
             {/* Monthly Trend Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2 pt-2 border-t border-slate-100 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-2 pt-2 border-t border-slate-100 text-xs">
               {monthlyTrendData.map((d) => (
                 <div key={d.key} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
                   <div className="text-[10px] text-slate-500 font-medium">{d.monthName}</div>
@@ -822,6 +847,22 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {chartStudent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <span className="font-bold text-sm">نمودار رشد و پیشرفت تحصیلی • {studentFullName(chartStudent)}</span>
+              <button type="button" onClick={() => setChartStudent(null)} aria-label="بستن" className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <StudentGrowthChart grades={academicGrades.filter((g) => g.studentId === chartStudent.id)} studentName={studentFullName(chartStudent)} />
             </div>
           </div>
         </div>
