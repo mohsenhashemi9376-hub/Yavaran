@@ -138,9 +138,10 @@ export const WorksheetsWorkspace: React.FC = () => {
     [students, myClasses, worksheets, worksheetWeeks]
   );
 
-  /** تا نرسیدن روز تعیین‌شده برای تحویل، ثبت وضعیت کاربرگ ممکن نیست */
-  const notYetDue = !!deadline && !isDeadlineReached(deadline);
-  const warnNotDue = () => showToast('هنوز روز تعیین‌شده برای تحویل کاربرگ نرسیده است.', 'info');
+  /** ثبت وضعیت فقط برای هفته‌ای ممکن است که مهلت دارد و روز تعیین‌شده رسیده است */
+  const notYetDue = !isDeadlineReached(deadline);
+  const warnNotDue = () =>
+    showToast(deadline ? 'هنوز روز تعیین‌شده برای تحویل کاربرگ نرسیده است.' : 'برای این هفته مهلت تعیین نشده است؛ معاونت آموزش باید مهلت را مشخص کند.', 'info');
 
   const toggle = (s: Student, status: WorksheetStatus) => {
     if (!canRecord) return;
@@ -165,7 +166,7 @@ export const WorksheetsWorkspace: React.FC = () => {
   // وضعیت مهلت
   let deadlineChip: { text: string; tone: string };
   if (!deadline) {
-    deadlineChip = { text: 'مهلت این هفته تعیین نشده', tone: 'bg-slate-100 text-slate-600 border-slate-200' };
+    deadlineChip = { text: 'مهلت این هفته تعیین نشده — ثبت وضعیت غیرفعال است', tone: 'bg-slate-100 text-slate-600 border-slate-200' };
   } else if (isDeadlinePassed(deadline)) {
     deadlineChip = { text: `مهلت ثبت گذشته (${toPersianDigits(deadline)})`, tone: 'bg-rose-50 text-rose-700 border-rose-200' };
   } else {
@@ -367,7 +368,7 @@ export const WorksheetsWorkspace: React.FC = () => {
               </button>
             ))}
           </div>
-          {canRecord && sum.missing > 0 && (
+          {canRecord && !notYetDue && sum.missing > 0 && (
             <button
               type="button"
               onClick={completeAllMissing}

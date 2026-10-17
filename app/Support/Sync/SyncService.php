@@ -547,11 +547,16 @@ final class SyncService
         if (! isset($data->status) || ! in_array($data->status, ['complete', 'partial', 'absent', 'none'], true)) {
             abort(422, 'وضعیت کاربرگ نامعتبر است.');
         }
-        // تا نرسیدن روز تعیین‌شده برای تحویل، ثبت وضعیت کاربرگ ممکن نیست (یادداشت فردی بدون وضعیت آزاد است)
-        if ($data->status !== 'none' && CollectionRegistry::tableExists('worksheet_weeks')) {
-            $deadline = DB::table('worksheet_weeks')->where('week_start', $weekStart)->value('deadline');
-            $deadlineDate = is_string($deadline) ? \App\Support\Jalali::shamsiToDate($deadline) : null;
-            if ($deadlineDate !== null && \Illuminate\Support\Carbon::now('Asia/Tehran')->format('Y-m-d') < $deadlineDate) {
+        // ثبت وضعیت فقط برای هفته‌ای ممکن است که مهلت دارد و روز تعیین‌شده رسیده است (یادداشت فردی بدون وضعیت آزاد است)
+        if ($data->status !== 'none') {
+            $deadline = CollectionRegistry::tableExists('worksheet_weeks')
+                ? DB::table('worksheet_weeks')->where('week_start', $weekStart)->value('deadline')
+                : null;
+            $deadlineDate = is_string($deadline) && $deadline !== '' ? \App\Support\Jalali::shamsiToDate($deadline) : null;
+            if ($deadlineDate === null) {
+                abort(422, 'برای این هفته مهلت تعیین نشده است؛ ابتدا معاونت آموزش مهلت را مشخص کند.');
+            }
+            if (\Illuminate\Support\Carbon::now('Asia/Tehran')->format('Y-m-d') < $deadlineDate) {
                 abort(422, 'هنوز روز تعیین‌شده برای تحویل کاربرگ نرسیده است.');
             }
         }
