@@ -116,9 +116,21 @@ export const WorksheetsWorkspace: React.FC = () => {
   const saveDeadline = (value: string) => {
     const clean = toEnglishDigits(value).trim();
     if (clean === '') {
-      setWorksheetDeadline(weekStart, null);
-      showToast('مهلت این هفته برداشته شد.', 'info');
-      setDeadlineOpen(false);
+      const remove = () => {
+        setWorksheetDeadline(weekStart, null);
+        showToast('مهلت این هفته برداشته شد.', 'info');
+        setDeadlineOpen(false);
+      };
+      // با برداشتن مهلت، وضعیت‌های ثبت‌شده‌ی این هفته قفل می‌شوند (ثبت یا تغییر وضعیت فقط در هفته‌ی دارای مهلت ممکن است)
+      const recorded = worksheets.filter((r) => r.weekStart === weekStart && r.status !== 'none').length;
+      if (recorded === 0) return remove();
+      showConfirm({
+        title: 'برداشتن مهلت این هفته؟',
+        message: `برای این هفته ${toPersianDigits(recorded)} وضعیت کاربرگ ثبت شده است. با برداشتن مهلت، ثبت و تغییر وضعیت این هفته غیرفعال می‌شود و دانش‌آموزان دیگر در هشدارها حساب نمی‌شوند؛ وضعیت‌های ثبت‌شده پاک نمی‌شوند و با تعیین دوباره‌ی مهلت قابل ویرایش‌اند. ادامه می‌دهید؟`,
+        confirmLabel: 'بله، مهلت برداشته شود',
+        cancelLabel: 'انصراف',
+        onConfirm: remove,
+      });
       return;
     }
     if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(clean)) {
