@@ -9,8 +9,9 @@ import { dateToShamsiString, getAcademicYearStart, getActiveAcademicYear, getTod
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { academicMonths } from '../utils/teacherActivities';
 
-/** تأخیر تا این مقدار (دقیقه) «مورد جزئی» حساب می‌شود */
-const MINOR_DELAY_MINUTES = 20;
+/** تأخیر نسبت به ۰۷:۰۰ محاسبه می‌شود؛ ورود تا ۰۷:۱۰ (۱۰ دقیقه) «تأخیر جزئی» است و دانش‌آموز را از «تقریباً ممتاز» خارج نمی‌کند */
+const MINOR_DELAY_MINUTES = 10;
+const MINOR_DELAY_TIME = '۰۷:۱۰';
 
 /** بازه‌ی ارزیابی: ۷/۱۴/۳۰ روز اخیر یا یکی از ماه‌های سال تحصیلی (m7 = مهر، m8 = آبان، …) */
 export type ExcellencePeriod = 'd7' | 'd14' | 'd30' | `m${number}`;
@@ -162,11 +163,13 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
     verdicts.forEach(({ student, incidents }) => {
       const inc = incidents.filter((i) => inWin(i.date));
       if (inc.length === 0) { excellent.push(student); return; }
-      if (inc.length === 1) {
-        const i = inc[0];
-        if (i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES) { near.push({ student, reason: `یک تأخیر ${toPersianDigits(i.minutes || 0)} دقیقه‌ای` }); return; }
-        if (i.kind === 'absence' && i.excused) { near.push({ student, reason: 'یک غیبت موجه' }); return; }
+      // هر مورد انضباطی ثبت‌شده، غیبت کلاسی یا غیبت غیرموجه یعنی «غیرممتاز»
+      // تقریباً ممتاز: فقط تأخیرهایی که همگی تا ۰۷:۱۰ بوده‌اند (هر تعداد)، یا فقط یک غیبت موجه
+      if (inc.every((i) => i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES)) {
+        near.push({ student, reason: inc.length === 1 ? `یک تأخیر تا ${MINOR_DELAY_TIME}` : `${toPersianDigits(inc.length)} تأخیر، همگی تا ${MINOR_DELAY_TIME}` });
+        return;
       }
+      if (inc.length === 1 && inc[0].kind === 'absence' && inc[0].excused) { near.push({ student, reason: 'یک غیبت موجه' }); return; }
       others.push({ student, reason: describe(inc) });
     });
     excellent.sort(compareStudents);
@@ -388,7 +391,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
         )}
         <p className="text-[10px] text-slate-400 leading-5">
           معیار ممتاز: در {periodLabel(period)} هیچ غیبت (موجه/غیرموجه، روزانه/کلاسی)، تأخیر یا سابقه‌ی انضباطی نداشته باشد. آغاز حضور همه‌ی دانش‌آموزان اول مهر است.
-          تقریباً ممتاز: فقط یک مورد جزئی (تأخیر تا {toPersianDigits(MINOR_DELAY_MINUTES)} دقیقه یا یک غیبت موجه).
+          تقریباً ممتاز: بدون مورد انضباطی و غیبت غیرموجه، و هیچ‌گاه بعد از {MINOR_DELAY_TIME} وارد نشده باشد (تأخیرهای تا {MINOR_DELAY_TIME}) یا فقط یک غیبت موجه داشته باشد.
         </p>
       </Modal>
     </>
