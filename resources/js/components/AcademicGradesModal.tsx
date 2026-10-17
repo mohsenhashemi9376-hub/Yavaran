@@ -57,7 +57,7 @@ export const AcademicGradesModal: React.FC<AcademicGradesModalProps> = ({
   } = useSchool();
 
   const FIELD_PERIOD = { c1: 'term1Continuous', f1: 'term1Final', c2: 'term2Continuous', f2: 'term2Final' } as const;
-  const fieldOpen = (f: keyof typeof FIELD_PERIOD) => isGradePeriodOpen(FIELD_PERIOD[f]);
+  const fieldOpen = (f: keyof typeof FIELD_PERIOD) => isGradePeriodOpen(FIELD_PERIOD[f], selectedSubjectId);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');

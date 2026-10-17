@@ -874,26 +874,39 @@ final class AccessPolicy
         return $this->nurturingIds = array_values(array_unique($ids));
     }
 
-    /** معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش مجاز به تغییر نمره است */
+    /**
+     * معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش و فقط برای دروسی که آن بازه برایشان باز شده مجاز به تغییر نمره است.
+     * بازه‌ی بدون فهرست درس (openSubjectIds) برای همه‌ی دروس باز است.
+     */
     private function requireOpenGradePeriods(?object $old, object $new): void
     {
         if (! CollectionRegistry::tableExists('grade_periods')) {
             return;
         }
 
-        $periods = DB::table('grade_periods')->pluck('is_active', 'code')->all();
-        if ($periods === []) {
+        $rows = DB::table('grade_periods')->get(['code', 'is_active', 'data']);
+        if ($rows->isEmpty()) {
             return;
         }
 
-        foreach ($periods as $code => $active) {
-            if ($active) {
+        $subjectId = $this->prop($new, 'subjectId') ?? ($old !== null ? $this->prop($old, 'subjectId') : null);
+        foreach ($rows as $row) {
+            $code = (string) $row->code;
+            $open = (bool) $row->is_active;
+            if ($open) {
+                $d = json_decode((string) $row->data, false);
+                $ids = is_object($d) && isset($d->openSubjectIds) && is_array($d->openSubjectIds) ? $d->openSubjectIds : null;
+                if ($ids !== null) {
+                    $open = $subjectId !== null && in_array($subjectId, $ids, true);
+                }
+            }
+            if ($open) {
                 continue;
             }
             $before = $old !== null && isset($old->{$code}) ? (string) $old->{$code} : '';
             $after = isset($new->{$code}) ? (string) $new->{$code} : '';
             if ($before !== $after) {
-                $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
+                $this->deny('ثبت نمره‌ی این ماه برای این درس هنوز توسط معاونت آموزش باز نشده است.');
             }
         }
     }

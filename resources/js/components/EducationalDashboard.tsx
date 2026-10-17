@@ -17,7 +17,7 @@ import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { WorksheetAlertsCard } from './WorksheetAlertsCard';
 import { GradePeriodsModal } from './GradePeriodsModal';
-import { scorePillClass } from '../utils/gradePeriods';
+import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
@@ -74,7 +74,8 @@ import {
   Calendar,
   AlertTriangle,
   X,
-  FileText
+  FileText,
+  CalendarCheck,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -316,28 +317,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   const activeGradePeriods = gradePeriods.filter((p) => p.isActive);
   const homeworkProblemCount = useMemo(() => homeworkProblemStudentCount(sessions, lastShamsiDays(14)), [sessions]);
 
+  // فقط دروسی که نمره‌ی آن ماه برایشان باز شده و نمره‌ای ثبت نشده حساب می‌شوند
   const { totalUngradedGrades } = useMemo(() => {
-    if (activeGradePeriods.length === 0) return { totalUngradedGrades: 0 };
-    const subjectClassIds = new Map<string, Set<string>>();
-    academicSubjects.forEach((sub) => {
-      subjectClassIds.set(sub.id, new Set(classes.filter((c) => subjectAppliesToClass(sub, c)).map((c) => c.id)));
-    });
-    let expected = 0;
-    academicSubjects.forEach((sub) => {
-      const ids = subjectClassIds.get(sub.id)!;
-      expected += students.filter((st) => ids.has(st.classId)).length * activeGradePeriods.length;
-    });
-    const studentClass = new Map(students.map((st) => [st.id, st.classId]));
-    let recorded = 0;
-    academicGrades.forEach((g) => {
-      const classId = studentClass.get(g.studentId);
-      if (!classId || !subjectClassIds.get(g.subjectId)?.has(classId)) return;
-      activeGradePeriods.forEach((p) => {
-        const v = g[p.code];
-        if (typeof v === 'number' && !Number.isNaN(v)) recorded++;
-      });
-    });
-    return { totalUngradedGrades: Math.max(0, expected - recorded) };
+    const totalUngradedGrades = activeGradePeriods.reduce(
+      (n, p) => n + periodUngradedStats(p, academicSubjects, classes, students, academicGrades).missing,
+      0,
+    );
+    return { totalUngradedGrades };
   }, [activeGradePeriods, academicSubjects, classes, students, academicGrades]);
   const [isGradePeriodsOpen, setIsGradePeriodsOpen] = useState(false);
 
@@ -652,6 +638,15 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               ))}
             </div>
 
+            <button
+              type="button"
+              onClick={() => setIsGradePeriodsOpen(true)}
+              className="w-full sm:w-auto min-h-11 px-4 rounded-2xl bg-emerald-50/70 backdrop-blur border border-emerald-200/90 text-emerald-800 hover:bg-emerald-100 text-xs font-extrabold inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <CalendarCheck className="w-4 h-4" />
+              <span>مدیریت ثبت نمره‌ی ماه‌ها (مهر تا اردیبهشت)</span>
+            </button>
+
             <ClassActivityTrends />
 
             {/* ۲/۱. هشدار کاربرگ هفتگی */}
@@ -779,6 +774,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsGradePeriodsOpen(true)}
+                    className="min-h-11 px-4 rounded-2xl bg-emerald-50/80 backdrop-blur border border-emerald-200 text-emerald-800 hover:bg-emerald-100 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <CalendarCheck className="w-4 h-4" />
+                    <span>باز و بسته کردن نمره‌ی ماه‌ها</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}

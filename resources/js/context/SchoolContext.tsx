@@ -61,7 +61,7 @@ import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetin
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
-import { buildGradePeriodList } from '../utils/gradePeriods';
+import { buildGradePeriodList, isPeriodOpenForSubject, openSubjectIdsOf } from '../utils/gradePeriods';
 import { buildWorkshopList, workshopAsClass, workshopSubjectName } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 import { studentFullName, compareStudents, splitListName } from '../utils/studentName';
@@ -141,8 +141,10 @@ interface SchoolContextType {
   addWorkshop: (data: Pick<Workshop, 'name' | 'category' | 'gradeLevel'> & { teacherId?: string; teacherName?: string }) => string;
   deleteWorkshop: (id: string) => void;
   setGradePeriodActive: (code: string, isActive: boolean) => void;
+  /** باز/بسته کردن نمره‌ی یک ماه (بازه) برای یک درس مشخص */
+  setGradePeriodSubjectOpen: (code: string, subjectId: string, open: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
-  isGradePeriodOpen: (code: string) => boolean;
+  isGradePeriodOpen: (code: string, subjectId?: string) => boolean;
   addTeacherActivity: (data: Pick<TeacherActivity, 'date' | 'title' | 'hours'>) => void;
   updateTeacherActivity: (id: string, updates: Partial<Pick<TeacherActivity, 'date' | 'title' | 'hours' | 'status'>>) => void;
   deleteTeacherActivity: (id: string) => void;
@@ -1608,7 +1610,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!base) return;
     setStoredGradePeriods((prev) => {
       const exists = prev.some((p) => (p.code || p.id) === code);
-      const next: GradePeriod = { ...base, isActive };
+      // باز کردن کل بازه یعنی همه‌ی دروس؛ بستن آن، انتخاب دروس را هم پاک می‌کند
+      const next: GradePeriod = { ...base, isActive, openSubjectIds: null };
+      return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
+    });
+  };
+
+  const setGradePeriodSubjectOpen = (code: string, subjectId: string, open: boolean) => {
+    const base = gradePeriods.find((p) => p.code === code);
+    if (!base) return;
+    const all = academicSubjects.map((s) => s.id);
+    const current = new Set(openSubjectIdsOf(base, academicSubjects));
+    if (open) current.add(subjectId);
+    else current.delete(subjectId);
+    const ids = all.filter((id) => current.has(id));
+    const next: GradePeriod = {
+      ...base,
+      isActive: ids.length > 0,
+      openSubjectIds: ids.length === 0 || ids.length === all.length ? null : ids,
+    };
+    setStoredGradePeriods((prev) => {
+      const exists = prev.some((p) => (p.code || p.id) === code);
       return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
     });
   };
@@ -1745,10 +1767,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops((prev) => prev.filter((w) => w.id !== id));
   };
 
-  const isGradePeriodOpen = (code: string): boolean => {
+  const isGradePeriodOpen = (code: string, subjectId?: string): boolean => {
     const managerRole = ['admin', 'vice_educational', 'vice_principal'].includes(currentUser.role);
     if (managerRole) return true;
-    return Boolean(gradePeriods.find((p) => p.code === code)?.isActive);
+    return isPeriodOpenForSubject(gradePeriods.find((p) => p.code === code), subjectId);
   };
 
   // Morning Entrance Delays CRUD
@@ -2961,6 +2983,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addWorkshop,
         deleteWorkshop,
         setGradePeriodActive,
+        setGradePeriodSubjectOpen,
         isGradePeriodOpen,
         addTeacherActivity,
         updateTeacherActivity,
