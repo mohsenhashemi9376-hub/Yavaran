@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, StudentMonthlyStat, Student } from '../types';
-import { PERSIAN_MONTHS, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
+import { PERSIAN_MONTHS, getActiveAcademicYear, getAcademicYearStart, getTodayShamsi, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
+import { delayEventsOf } from '../utils/attendanceStats';
 import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { 
   X, 
@@ -25,6 +26,9 @@ interface MonthlySummaryModalProps {
   onSelectStudent?: (student: Student) => void;
 }
 
+/** ماه‌های سال تحصیلی که گزارش دارند (به ترتیب سال تحصیلی) */
+const REPORT_MONTHS = [7, 8, 9, 10, 11, 12, 1, 2];
+
 export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
   isOpen,
   onClose,
@@ -35,6 +39,9 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
     accessibleClasses, 
     students, 
     sessions, 
+    morningDelays,
+    morningAttendance,
+    schoolAbsences,
     currentUser, 
     isTeacher 
   } = useSchool();
@@ -45,7 +52,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
     initialClassId || (accessibleClasses.length > 0 ? accessibleClasses[0].id : '')
   );
 
-  const [selectedMonth, setSelectedMonth] = useState<number>(todayInfo.month); // 1 to 12
+  const [selectedMonth, setSelectedMonth] = useState<number>(REPORT_MONTHS.includes(todayInfo.month) ? todayInfo.month : REPORT_MONTHS[0]);
 
   if (!isOpen) return null;
 
@@ -53,13 +60,17 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
   const classStudents = currentClass ? students.filter((s) => s.classId === currentClass.id) : [];
 
   // Filter sessions for this class and selected month
-  const monthSessions = sessions.filter((s) => {
-    if (s.classId !== currentClass?.id) return false;
-    const parts = s.date.split('/');
-    return Number(parts[1]) === selectedMonth;
-  });
+  const academicStart = getAcademicYearStart(getActiveAcademicYear());
+  const monthYear = selectedMonth >= 7 ? academicStart : academicStart + 1;
+  const inSelectedMonth = (date: string) => {
+    const parts = toEnglishDigits(date || '').split('/').map(Number);
+    return parts[1] === selectedMonth && (!parts[0] || parts[0] === monthYear);
+  };
+  const monthSessions = sessions.filter((s) => s.classId === currentClass?.id && inSelectedMonth(s.date));
+  const delaySrc = { morningDelays: morningDelays || [], morningAttendance: morningAttendance || [], schoolAbsences: schoolAbsences || [], sessions: sessions || [] };
 
   // Calculate stats per student
+  const sessionLates = new Map<string, number>(); // تأخیر زنگ کلاس (برای محاسبه‌ی حضور)
   const studentsStats: StudentMonthlyStat[] = classStudents.map((student) => {
     let presentCount = 0;
     let absentCount = 0;
@@ -88,7 +99,10 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
     });
 
     const totalSessions = monthSessions.length;
-    const attended = presentCount + lateCount;
+    sessionLates.set(student.id, lateCount);
+    const attended = presentCount + lateCount; // تأخیر زنگ کلاس هم حضور حساب می‌شود
+    // تأخیر ماه: دفتر تأخیر + ورود دیرهنگام صبحگاه + تأخیر زنگ کلاس (همان منبع آمار تأخیر پرونده)
+    const monthDelays = delayEventsOf(student, delaySrc).filter((e) => inSelectedMonth(e.date));
     const attendanceRate = totalSessions > 0 ? Math.round((attended / totalSessions) * 100) : 100;
     const averageScore = scoreCount > 0 ? Number((totalScore / scoreCount).toFixed(1)) : undefined;
 
@@ -98,8 +112,8 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
       presentCount,
       absentCount,
       excusedCount,
-      lateCount,
-      totalDelayMinutes,
+      lateCount: monthDelays.length,
+      totalDelayMinutes: monthDelays.reduce((a, e) => a + e.minutes, 0),
       attendanceRate,
       averageScore,
       warningFlag: absentCount >= 2,
@@ -116,7 +130,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
   let totalClassLates = 0;
 
   studentsStats.forEach((st) => {
-    totalClassAttended += st.presentCount + st.lateCount;
+    totalClassAttended += st.presentCount + (sessionLates.get(st.student.id) || 0);
     totalClassPossible += st.totalSessions;
     totalClassAbsences += st.absentCount;
     totalClassLates += st.lateCount;
@@ -186,8 +200,8 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
 
             {/* Month Buttons Slider */}
             <div className="flex items-center gap-1 flex-wrap py-1 max-w-md scrollbar-none">
-              {PERSIAN_MONTHS.map((mName, idx) => {
-                const monthNum = idx + 1;
+              {REPORT_MONTHS.map((monthNum) => {
+                const mName = PERSIAN_MONTHS[monthNum - 1];
                 const isSelected = selectedMonth === monthNum;
                 return (
                   <button
@@ -252,48 +266,29 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
             </div>
           </div>
 
-          {/* Warning Box for Frequent Absentees */}
+          {/* هشدار غیبت: کادر فشرده */}
           {warningList.length > 0 && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-rose-900">
-                <AlertTriangle className="w-4 h-4 text-rose-600" />
-                <span>دانش‌آموزان با بیش از ۲ جلسه غیبت در ماه {selectedMonthName} (نیازمند تماس با اولیاء و اقدام انضباطی):</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
-                {warningList.map((item) => (
-                  <div key={item.student.id} className="bg-white p-2.5 rounded-lg border border-rose-200 shadow-xs flex items-center justify-between text-xs">
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => onSelectStudent && onSelectStudent(item.student)}
-                        className="font-bold text-slate-900 hover:text-indigo-600 hover:underline text-right cursor-pointer"
-                        title="مشاهده کارنامه و پرونده دانش‌آموز"
-                      >
-                        {studentFullName(item.student)}
-                      </button>
-                      <div className="text-[11px] text-rose-600 font-semibold mt-0.5">
-                        {toPersianDigits(item.absentCount)} جلسه غیبت غیرموجه
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onSelectStudent && onSelectStudent(item.student)}
-                        className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md text-[11px] font-bold transition cursor-pointer"
-                      >
-                        کارنامه
-                      </button>
-                      <a
-                        href={`tel:${item.student.parentPhone}`}
-                        className="px-2 py-1 bg-rose-100 text-rose-800 rounded-md font-mono text-[11px] hover:bg-rose-200 flex items-center gap-1"
-                        title="تماس مستقیم با اولیاء"
-                      >
-                        <Phone className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap">
+              <span className="flex items-center gap-1.5 text-[11px] font-bold text-rose-900 whitespace-nowrap">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                بیش از ۲ جلسه غیبت در {selectedMonthName}:
+              </span>
+              {warningList.map((item) => (
+                <span key={item.student.id} className="inline-flex items-center gap-1 bg-white border border-rose-200 rounded-lg ps-2 pe-1 py-0.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => onSelectStudent && onSelectStudent(item.student)}
+                    className="font-bold text-slate-900 hover:text-indigo-600 cursor-pointer"
+                    title="مشاهده پرونده دانش‌آموز"
+                  >
+                    {studentFullName(item.student)}
+                  </button>
+                  <span className="text-rose-600 font-semibold">{toPersianDigits(item.absentCount)} غیبت</span>
+                  <a href={`tel:${item.student.parentPhone}`} className="p-1 bg-rose-100 text-rose-800 rounded-md hover:bg-rose-200" title="تماس با اولیاء">
+                    <Phone className="w-3 h-3" />
+                  </a>
+                </span>
+              ))}
             </div>
           )}
 
@@ -319,7 +314,6 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                     <tr>
                       <th className="p-3 w-12 text-center">ردیف</th>
                       <th className="p-3">نام و نام خانوادگی</th>
-                      <th className="p-3 font-mono text-center">کد دانش‌آموزی</th>
                       <th className="p-3 text-center">حاضر</th>
                       <th className="p-3 text-center">غایب غیرموجه</th>
                       <th className="p-3 text-center">غیبت موجه</th>
@@ -350,9 +344,6 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({
                             </div>
                             <span>{studentFullName(item.student)}</span>
                           </button>
-                        </td>
-                        <td className="p-3 font-mono text-slate-600 text-center">
-                          {item.student.studentCode || '-'}
                         </td>
                         <td className="p-3 text-center text-emerald-700 font-bold">
                           {toPersianDigits(item.presentCount)}
