@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { CalendarCheck, ChevronDown, Lock, LockOpen, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { toPersianDigits } from '../utils/persianDate';
-import { MONTHLY_EVALUATION_PERIODS } from '../types';
 import { isPeriodOpenForSubject, periodUngradedStats } from '../utils/gradePeriods';
 
 interface Props {
@@ -11,7 +10,7 @@ interface Props {
 }
 
 /** ماه‌هایی که معاون آموزش جداگانه برایشان ثبت نمره را باز یا بسته می‌کند */
-const MONTH_CODES = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'term1Continuous', 'bahmanContinuous', 'esfandContinuous', 'farvardinContinuous', 'ordibeheshtContinuous'];
+const MONTH_CODES = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'term1Continuous', 'bahmanContinuous', 'esfandContinuous', 'farvardinContinuous', 'ordibeheshtContinuous', 'term2Final'];
 
 const MONTH_TITLE: Record<string, string> = {
   mehrContinuous: 'مهر',
@@ -22,13 +21,13 @@ const MONTH_TITLE: Record<string, string> = {
   esfandContinuous: 'اسفند',
   farvardinContinuous: 'فروردین',
   ordibeheshtContinuous: 'اردیبهشت',
+  term2Final: 'پایانی خرداد',
 };
 
 /** مدیریت ثبت نمره‌ی هر ماه: باز/بسته برای همه‌ی دروس یا فقط چند درس مشخص (ویژه معاون آموزش) */
 export const GradePeriodsModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { gradePeriods, academicSubjects, classes, students, academicGrades, setGradePeriodActive, setGradePeriodSubjectOpen } = useSchool();
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [showExtra, setShowExtra] = useState(false);
 
   const stats = useMemo(() => {
     const map = new Map(gradePeriods.map((p) => [p.code, periodUngradedStats(p, academicSubjects, classes, students, academicGrades)]));
@@ -37,10 +36,9 @@ export const GradePeriodsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const openCount = gradePeriods.filter((p) => p.isActive).length;
-  const totalMissing = Array.from(stats.values()).reduce((n, s) => n + s.missing, 0);
   const months = MONTH_CODES.map((c) => gradePeriods.find((p) => p.code === c)).filter((p): p is NonNullable<typeof p> => !!p);
-  const extra = gradePeriods.filter((p) => !MONTH_CODES.includes(p.code));
+  const openCount = months.filter((p) => p.isActive).length;
+  const totalMissing = months.reduce((n, p) => n + (stats.get(p.code)?.missing || 0), 0);
 
   const card = (p: (typeof gradePeriods)[number]) => {
     const st = stats.get(p.code)!;
@@ -156,7 +154,7 @@ export const GradePeriodsModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="relative px-5 pt-4 grid grid-cols-2 gap-3 shrink-0">
           <div className="rounded-2xl bg-white/70 backdrop-blur border border-white/80 px-4 py-3">
             <div className="text-[11px] text-slate-500 font-bold">بازه‌های باز</div>
-            <div className="text-2xl font-black text-emerald-700 tabular-nums">{toPersianDigits(openCount)}<span className="text-xs text-slate-400 font-bold"> از {toPersianDigits(gradePeriods.length)}</span></div>
+            <div className="text-2xl font-black text-emerald-700 tabular-nums">{toPersianDigits(openCount)}<span className="text-xs text-slate-400 font-bold"> از {toPersianDigits(months.length)}</span></div>
           </div>
           <div className="rounded-2xl bg-white/70 backdrop-blur border border-white/80 px-4 py-3">
             <div className="text-[11px] text-slate-500 font-bold">نمره‌ی ثبت‌نشده (دروس باز)</div>
@@ -166,16 +164,6 @@ export const GradePeriodsModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         <div className="relative p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{months.map(card)}</div>
-
-          {extra.length > 0 && (
-            <div className="space-y-3">
-              <button type="button" onClick={() => setShowExtra((v) => !v)} aria-expanded={showExtra} className="min-h-11 inline-flex items-center gap-1.5 text-xs font-extrabold text-sky-700 cursor-pointer">
-                <ChevronDown className={`w-4 h-4 transition-transform ${showExtra ? 'rotate-180' : ''}`} />
-                مستمر نوبت دوم و آزمون‌های پایانی
-              </button>
-              {showExtra && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{extra.map(card)}</div>}
-            </div>
-          )}
         </div>
 
         <div className="relative px-5 py-4 bg-white/60 backdrop-blur-xl border-t border-white/80 shrink-0">
