@@ -28,8 +28,22 @@ class WorksheetAccessTest extends TestCase
         return ['id' => $id, 'data' => array_merge(['id' => $id, 'studentId' => $student, 'weekStart' => $week, 'status' => $status], $extra)];
     }
 
+    /** هفته‌ای که مهلت ندارد وضعیت نمی‌پذیرد؛ مگر آنکه تست خودش مهلت را مدیریت کند */
+    private bool $autoOpenWeeks = true;
+
     private function saveWs(User $u, array $upserts = [], array $deletes = [], string $collection = 'worksheets')
     {
+        if ($this->autoOpenWeeks && $collection === 'worksheets') {
+            foreach ($upserts as $row) {
+                $week = $row['data']['weekStart'] ?? null;
+                if ($week && ! DB::table('worksheet_weeks')->where('week_start', $week)->exists()) {
+                    DB::table('worksheet_weeks')->insert([
+                        'id' => 'wk-'.str_replace('/', '-', $week), 'week_start' => $week, 'deadline' => '1400/01/01', 'sort_order' => 0,
+                        'data' => json_encode(['weekStart' => $week, 'deadline' => '1400/01/01']), 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
         return $this->actingAs($u)->postJson('/api/sync', ['collection' => $collection, 'upserts' => $upserts, 'deletes' => $deletes]);
     }
 
@@ -112,6 +126,7 @@ class WorksheetAccessTest extends TestCase
 
     public function test_nurturing_vice_disciplinary_vice_and_teacher_cannot_write(): void
     {
+        $this->autoOpenWeeks = false;
         foreach (['vice_nurturing', 'vice_disciplinary', 'teacher'] as $role) {
             $u = $this->makeUser($role);
             $this->saveWs($u, [$this->rec('stu-mine')])->assertStatus(403);
@@ -164,5 +179,17 @@ class WorksheetAccessTest extends TestCase
         $past = ['id' => 'wk-1405-07-15', 'data' => ['id' => 'wk-1405-07-15', 'weekStart' => '1405/07/15', 'deadline' => '1400/01/01']];
         $this->saveWs($edu, [$past], [], 'worksheetWeeks')->assertOk();
         $this->saveWs($edu, [$this->rec('stu-mine', 'complete')])->assertOk();
+    }
+
+    public function test_status_cannot_be_recorded_for_a_week_without_deadline(): void
+    {
+        $this->autoOpenWeeks = false;
+        $edu = $this->makeUser('vice_educational');
+
+        $this->saveWs($edu, [$this->rec('stu-mine', 'complete')])->assertStatus(422);
+        $this->assertDatabaseCount('worksheet_records', 0);
+
+        // یادداشت فردی بدون وضعیت همچنان آزاد است
+        $this->saveWs($edu, [$this->rec('stu-mine', 'none', '1405/07/15', ['note' => 'یادداشت'])])->assertOk();
     }
 }

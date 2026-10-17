@@ -28,9 +28,9 @@ export const worksheetKey = (studentId: string, weekStart: string): string => `w
 export const isDeadlinePassed = (deadline?: string | null): boolean =>
   !!deadline && getTodayShamsi().formattedDate > deadline;
 
-/** روز تعیین‌شده برای تحویل رسیده است؟ (بدون مهلت: محدودیتی نیست) */
+/** روز تعیین‌شده برای تحویل رسیده است؟ (بدون مهلت: هنوز رسیده نیست و ثبت وضعیت ممکن نیست) */
 export const isDeadlineReached = (deadline?: string | null): boolean =>
-  !deadline || getTodayShamsi().formattedDate >= deadline;
+  !!deadline && getTodayShamsi().formattedDate >= deadline;
 
 export interface WeekClassSummary {
   total: number;

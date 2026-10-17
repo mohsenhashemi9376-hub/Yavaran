@@ -17,6 +17,7 @@ import {
   Workshop,
   LoanItem,
   ParentMeetingRecord,
+  ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
   WorksheetWeek,
@@ -60,7 +61,7 @@ import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetin
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
-import { buildGradePeriodList } from '../utils/gradePeriods';
+import { buildGradePeriodList, isPeriodOpenForSubject, openSubjectIdsOf } from '../utils/gradePeriods';
 import { buildWorkshopList, workshopAsClass, workshopSubjectName } from '../utils/workshops';
 import { SyncEngine, apiRequest, ApiError, BootstrapPayload, SyncRow } from '../lib/serverSync';
 import { studentFullName, compareStudents, splitListName } from '../utils/studentName';
@@ -83,6 +84,8 @@ interface SchoolContextType {
   toggleMorningAttendance: (student: Student) => void;
   /** اصلاح دستی دقیقه تأخیر صبحگاه */
   setMorningDelayMinutes: (recordId: string, minutes: number) => void;
+  /** ثبت ساعت واقعی ورود دانش‌آموز (HH:MM)؛ تأخیر نسبت به ۰۷:۰۰ دوباره محاسبه می‌شود */
+  setMorningEntryTime: (recordId: string, entryTime: string) => void;
   /** ثبت موجه/غیرموجه و علت غیبت صبحگاه */
   setMorningAbsenceInfo: (student: Student, info: { isExcused?: boolean; absenceNote?: string }) => void;
   /** تأیید پیگیری غیبت/تأخیر (is_acknowledged = true) */
@@ -102,6 +105,9 @@ interface SchoolContextType {
   workshops: Workshop[];
   loanItems: LoanItem[];
   parentMeetings: ParentMeetingRecord[];
+  parentMeetingStates: ParentMeetingState[];
+  /** باز/بسته کردن جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی) */
+  setParentMeetingOpen: (meetingNo: ParentMeetingNo, open: boolean) => void;
   worksheets: WorksheetRecord[];
   worksheetWeeks: WorksheetWeek[];
   /** تعطیلی‌های اعلام‌شده؛ جمعه‌ها همیشه تعطیل‌اند و در این فهرست نیستند */
@@ -137,8 +143,10 @@ interface SchoolContextType {
   addWorkshop: (data: Pick<Workshop, 'name' | 'category' | 'gradeLevel'> & { teacherId?: string; teacherName?: string }) => string;
   deleteWorkshop: (id: string) => void;
   setGradePeriodActive: (code: string, isActive: boolean) => void;
+  /** باز/بسته کردن نمره‌ی یک ماه (بازه) برای یک درس مشخص */
+  setGradePeriodSubjectOpen: (code: string, subjectId: string, open: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
-  isGradePeriodOpen: (code: string) => boolean;
+  isGradePeriodOpen: (code: string, subjectId?: string) => boolean;
   addTeacherActivity: (data: Pick<TeacherActivity, 'date' | 'title' | 'hours'>) => void;
   updateTeacherActivity: (id: string, updates: Partial<Pick<TeacherActivity, 'date' | 'title' | 'hours' | 'status'>>) => void;
   deleteTeacherActivity: (id: string) => void;
@@ -419,6 +427,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
+  const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -579,6 +588,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
     const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
+    const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -608,6 +618,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
       parentMeetings: nextParentMeetings as unknown as SyncRow[],
+      parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -637,6 +648,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
     setParentMeetings(nextParentMeetings);
+    setParentMeetingStates(nextParentMeetingStates);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -682,6 +694,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops([]);
     setLoanItems([]);
     setParentMeetings([]);
+    setParentMeetingStates([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -812,6 +825,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
   useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
   useEffect(() => { syncEngine.push('gradePeriods', storedGradePeriods as unknown as SyncRow[]); }, [storedGradePeriods, syncEngine]);
@@ -1498,6 +1512,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const setMorningEntryTime = (recordId: string, entryTime: string) => {
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(entryTime)) return;
+    const hhmm = entryTime.padStart(5, '0');
+    setMorningAttendance((prev) =>
+      prev.map((r) =>
+        r.id === recordId && r.status === 'present'
+          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
+  };
+
   const setMorningAbsenceInfo = (student: Student, info: { isExcused?: boolean; absenceNote?: string }) => {
     const today = getTodayShamsi();
     const id = morningRecordId(today.formattedDate, student.id);
@@ -1598,7 +1624,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!base) return;
     setStoredGradePeriods((prev) => {
       const exists = prev.some((p) => (p.code || p.id) === code);
-      const next: GradePeriod = { ...base, isActive };
+      // باز کردن کل بازه یعنی همه‌ی دروس؛ بستن آن، انتخاب دروس را هم پاک می‌کند
+      const next: GradePeriod = { ...base, isActive, openSubjectIds: null };
+      return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
+    });
+  };
+
+  const setGradePeriodSubjectOpen = (code: string, subjectId: string, open: boolean) => {
+    const base = gradePeriods.find((p) => p.code === code);
+    if (!base) return;
+    const all = academicSubjects.map((s) => s.id);
+    const current = new Set(openSubjectIdsOf(base, academicSubjects));
+    if (open) current.add(subjectId);
+    else current.delete(subjectId);
+    const ids = all.filter((id) => current.has(id));
+    const next: GradePeriod = {
+      ...base,
+      isActive: ids.length > 0,
+      openSubjectIds: ids.length === 0 || ids.length === all.length ? null : ids,
+    };
+    setStoredGradePeriods((prev) => {
+      const exists = prev.some((p) => (p.code || p.id) === code);
       return exists ? prev.map((p) => ((p.code || p.id) === code ? { ...p, ...next } : p)) : [...prev, next];
     });
   };
@@ -1684,6 +1730,22 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const setParentMeetingOpen: SchoolContextType['setParentMeetingOpen'] = (meetingNo, open) => {
+    const year = String(currentAcademicStartYear());
+    const id = `pms-${year}-${meetingNo}`;
+    const now = new Date().toISOString();
+    setParentMeetingStates((prev) => {
+      const old = prev.find((s) => s.id === id);
+      const next: ParentMeetingState = {
+        id, academicYear: year, meetingNo, open,
+        openedAt: open ? (old?.open ? old.openedAt : now) : old?.openedAt ?? null,
+        closedAt: open ? null : old?.open ? now : old?.closedAt ?? null,
+        changedBy: currentUser.name, changedById: currentUser.id, updatedAt: now,
+      };
+      return old ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
+    });
+  };
+
   // امانات و لوازم
   const addLoanItem: SchoolContextType['addLoanItem'] = (data) => {
     const id = `loan-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1719,10 +1781,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setStoredWorkshops((prev) => prev.filter((w) => w.id !== id));
   };
 
-  const isGradePeriodOpen = (code: string): boolean => {
+  const isGradePeriodOpen = (code: string, subjectId?: string): boolean => {
     const managerRole = ['admin', 'vice_educational', 'vice_principal'].includes(currentUser.role);
     if (managerRole) return true;
-    return Boolean(gradePeriods.find((p) => p.code === code)?.isActive);
+    return isPeriodOpenForSubject(gradePeriods.find((p) => p.code === code), subjectId);
   };
 
   // Morning Entrance Delays CRUD
@@ -2900,6 +2962,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         morningAttendance,
         toggleMorningAttendance,
         setMorningDelayMinutes,
+        setMorningEntryTime,
         acknowledgeMorningRecord,
         setMorningAbsenceInfo,
         teacherActivities,
@@ -2907,6 +2970,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workshops,
         loanItems,
         parentMeetings,
+        parentMeetingStates,
+        setParentMeetingOpen,
         setParentMeetingAttendance,
         setParentMeetingAttendanceBulk,
         clearParentMeetingAttendance,
@@ -2933,6 +2998,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addWorkshop,
         deleteWorkshop,
         setGradePeriodActive,
+        setGradePeriodSubjectOpen,
         isGradePeriodOpen,
         addTeacherActivity,
         updateTeacherActivity,

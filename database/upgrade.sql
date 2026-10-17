@@ -327,3 +327,20 @@ CREATE TABLE IF NOT EXISTS `parent_meetings` (
   KEY `parent_meetings_meeting_no_index` (`meeting_no`),
   KEY `parent_meetings_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- باز/بسته بودن جلسات عمومی اولیاء (جلسه‌ی بسته: برگزارشده و پایان‌یافته)
+CREATE TABLE IF NOT EXISTS `parent_meeting_states` (
+  `id` varchar(60) NOT NULL,
+  `academic_year` varchar(20) NOT NULL,
+  `meeting_no` tinyint unsigned NOT NULL,
+  `is_open` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `parent_meeting_states_year_no_unique` (`academic_year`, `meeting_no`),
+  KEY `parent_meeting_states_academic_year_index` (`academic_year`),
+  KEY `parent_meeting_states_meeting_no_index` (`meeting_no`),
+  KEY `parent_meeting_states_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -138,7 +138,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   }, [classData.id, selectedSubjectId, classStudents, academicGrades]);
 
   const currentSubject = academicSubjects.find((s) => s.id === selectedSubjectId);
-  const activeLocked = !isGradePeriodOpen(activePeriodKey);
+  const activeLocked = !isGradePeriodOpen(activePeriodKey, selectedSubjectId);
   const LockedBadge: React.FC<{ className?: string }> = ({ className = '' }) => (
     <span className={`inline-block px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium whitespace-nowrap ${className}`}>
       هنوز باز نشده
@@ -148,7 +148,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Handle score change for a specific student and month
   const handleScoreChange = (studentId: string, periodKey: string, rawValue: string) => {
-    if (periodKey !== 'notes' && !isGradePeriodOpen(periodKey)) return;
+    if (periodKey !== 'notes' && !isGradePeriodOpen(periodKey, selectedSubjectId)) return;
     const val = toEnglishDigits(rawValue);
     if (periodKey !== 'notes' && val !== '') {
       const num = parseFloat(val);
@@ -166,7 +166,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Quick fill score for all students (e.g. 20, 19, clear)
   const handleQuickFill = (scoreVal: string) => {
-    if (!isGradePeriodOpen(activePeriodKey)) return;
+    if (!isGradePeriodOpen(activePeriodKey, selectedSubjectId)) return;
     showConfirm({
       title: 'تأیید عملیات',
       message: `آیا می‌خواهید نمره «${toPersianDigits(scoreVal || 'خالی')}» برای تمام دانش‌آموزان کلاس در این ماه ثبت شود؟`,
@@ -462,7 +462,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   }`}
                 >
                   <span>{title}</span>
-                  {!isGradePeriodOpen(period.key) && (
+                  {!isGradePeriodOpen(period.key, selectedSubjectId) && (
                     <span className="mr-1.5 inline-block px-1.5 py-0.5 rounded-full bg-slate-200/70 text-slate-500 text-[9px] font-medium align-middle">بسته</span>
                   )}
                 </button>
@@ -677,19 +677,19 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <th className="p-2.5 sticky right-10 bg-slate-100 z-10">دانش‌آموز</th>
                   
                   {/* Term 1 Months */}
-                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر{!isGradePeriodOpen('mehrContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آبان{!isGradePeriodOpen('abanContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-50/80">آذر{!isGradePeriodOpen('azarContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-100/80 font-black">مستمر ۱{!isGradePeriodOpen('term1Continuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱{!isGradePeriodOpen('term1Final') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-50/80 border-r border-amber-200">مهر{!isGradePeriodOpen('mehrContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-50/80">آبان{!isGradePeriodOpen('abanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-50/80">آذر{!isGradePeriodOpen('azarContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-100/80 font-black">نوبت اول{!isGradePeriodOpen('term1Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-amber-200/60 font-black border-l border-amber-300">پایانی ۱{!isGradePeriodOpen('term1Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
 
                   {/* Term 2 Months */}
-                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن{!isGradePeriodOpen('bahmanContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اسفند{!isGradePeriodOpen('esfandContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">فروردین{!isGradePeriodOpen('farvardinContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت{!isGradePeriodOpen('ordibeheshtContinuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲{!isGradePeriodOpen('term2Continuous') && <LockedBadge className="block mt-0.5" />}</th>
-                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲{!isGradePeriodOpen('term2Final') && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80 border-r border-emerald-200">بهمن{!isGradePeriodOpen('bahmanContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">اسفند{!isGradePeriodOpen('esfandContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">فروردین{!isGradePeriodOpen('farvardinContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-50/80">اردیبهشت{!isGradePeriodOpen('ordibeheshtContinuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-100/80 font-black">مستمر ۲{!isGradePeriodOpen('term2Continuous', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
+                  <th className="p-2 text-center bg-emerald-200/60 font-black border-l border-emerald-300">پایانی ۲{!isGradePeriodOpen('term2Final', selectedSubjectId) && <LockedBadge className="block mt-0.5" />}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -713,8 +713,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                             min="0"
                             max="20"
                             value={val}
-                            disabled={!isGradePeriodOpen(period.key)}
-                            title={!isGradePeriodOpen(period.key) ? 'هنوز باز نشده' : undefined}
+                            disabled={!isGradePeriodOpen(period.key, selectedSubjectId)}
+                            title={!isGradePeriodOpen(period.key, selectedSubjectId) ? 'هنوز باز نشده' : undefined}
                             onChange={(e) => handleScoreChange(stu.id, period.key, e.target.value)}
                             placeholder="-"
                             className={`w-14 text-center text-xs py-1 px-1 rounded-xl focus:ring-2 focus:ring-emerald-200 outline-none disabled:cursor-not-allowed disabled:opacity-60 ${

@@ -1,4 +1,4 @@
-import type { ParentMeetingNo, ParentMeetingRecord } from '../types';
+import type { ParentMeetingNo, ParentMeetingRecord, ParentMeetingState } from '../types';
 import { getRealTodayShamsiString, toEnglishDigits } from './persianDate';
 
 /** سه جلسه‌ی عمومی اولیاء در هر سال تحصیلی */
@@ -96,3 +96,28 @@ export function studentParentSummary(studentId: string, records: ParentMeetingRe
     meetings,
   };
 }
+
+export type MeetingStatus = 'open' | 'held' | 'pending';
+
+/**
+ * وضعیت جلسه در سال تحصیلی: open = باز (حضور ثبت می‌شود)، held = برگزارشده و بسته، pending = هنوز باز نشده.
+ * جلسه‌ای که دست‌کم برای یک نفر حضورش ثبت شده «برگزارشده» حساب می‌شود؛ جلسه‌ی بدون رکورد وضعیت که قبلاً حضور دارد، باز است.
+ */
+export function meetingStatus(no: ParentMeetingNo, states: ParentMeetingState[], records: ParentMeetingRecord[], yearKey = String(currentAcademicStartYear())): MeetingStatus {
+  const st = states.find((s) => s.academicYear === yearKey && s.meetingNo === no);
+  if (st) return st.open ? 'open' : st.closedAt ? 'held' : records.some((r) => r.academicYear === yearKey && r.meetingNo === no && r.hasAttendance !== false) ? 'held' : 'pending';
+  return records.some((r) => r.academicYear === yearKey && r.meetingNo === no && r.hasAttendance !== false) ? 'open' : 'pending';
+}
+
+export const MEETING_STATUS_LABELS: Record<MeetingStatus, string> = {
+  open: 'باز',
+  held: 'برگزار شد · بسته',
+  pending: 'هنوز باز نشده',
+};
+
+/** جلسه‌ی «برگزارشده» برای هشدار: بسته‌شده یا دست‌کم یک نفر در آن ثبت شده باشد */
+export const isMeetingHeld = (no: ParentMeetingNo, states: ParentMeetingState[], records: ParentMeetingRecord[], yearKey?: string): boolean => {
+  const key = yearKey ?? String(currentAcademicStartYear());
+  const st = states.find((s) => s.academicYear === key && s.meetingNo === no);
+  return !!st?.closedAt || records.some((r) => r.academicYear === key && r.meetingNo === no && r.hasAttendance !== false);
+};

@@ -104,6 +104,9 @@ final class SyncService
                 if ($collection === 'parentMeetings') {
                     $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user, $policy);
                 }
+                if ($collection === 'parentMeetingStates') {
+                    $this->normalizeParentMeetingState($data, (string) $item->id, $oldData, $user, $policy);
+                }
 
                 $policy->authorizeUpsert($collection, $oldData, $data);
 
@@ -159,6 +162,9 @@ final class SyncService
 
                 if ($collection === 'parentMeetings') {
                     $this->alertParentAbsenceStreak($data);
+                }
+                if ($collection === 'parentMeetingStates' && empty($data->open) && $oldData !== null && ! empty($oldData->open)) {
+                    $this->alertUnrecordedAtMeetingClose($data);
                 }
             }
         });
@@ -344,6 +350,80 @@ final class SyncService
     }
 
     /**
+     * وضعیت باز/بسته‌ی جلسه‌ی عمومی اولیاء: فقط مدیر و معاون اجرایی؛ شناسه قطعی است و سال تحصیلی و زمان‌ها را سرور می‌گذارد.
+     * «بسته» یعنی جلسه برگزار و تمام شده است.
+     */
+    private function normalizeParentMeetingState(object $data, string $id, ?object $old, User $user, AccessPolicy $policy): void
+    {
+        if (! $policy->canManageParentMeetingStates()) {
+            abort(403, 'باز و بسته کردن جلسه‌های اولیا فقط با مدیر و معاون اجرایی است.');
+        }
+        $no = isset($data->meetingNo) && is_numeric($data->meetingNo) ? (int) $data->meetingNo : 0;
+        if ($no < 1 || $no > 3) {
+            abort(422, 'شماره‌ی جلسه‌ی أولیا نامعتبر است (فقط جلسه‌ی اول تا سوم).');
+        }
+        $year = (string) \App\Support\AcademicYear::current()[0];
+        if ($id !== 'pms-'.$year.'-'.$no) {
+            abort(422, 'شناسه‌ی وضعیت جلسه‌ی أولیا نامعتبر است.');
+        }
+        $now = now()->toIso8601String();
+        $open = ! empty($data->open);
+        $wasOpen = $old !== null && ! empty($old->open);
+
+        $data->academicYear = $year;
+        $data->meetingNo = $no;
+        $data->open = $open;
+        if ($open) {
+            $data->openedAt = $wasOpen ? ($old->openedAt ?? $now) : $now;
+            $data->closedAt = null;
+        } else {
+            $data->openedAt = $old->openedAt ?? null;
+            $data->closedAt = $wasOpen ? $now : ($old->closedAt ?? null);
+        }
+        $data->changedById = (string) $user->id;
+        $data->changedBy = (string) $user->name;
+        $data->updatedAt = $now;
+    }
+
+    /** هشدار به مدیر و معاون اجرایی: جلسه بسته شد ولی حضور اولیای برخی دانش‌آموزان ثبت نشده است */
+    private function alertUnrecordedAtMeetingClose(object $state): void
+    {
+        try {
+            if (! Notifier::ensureTable()) {
+                return;
+            }
+            $year = (string) $state->academicYear;
+            $no = (int) $state->meetingNo;
+            $total = DB::table('students')
+                ->join('school_classes', 'school_classes.id', '=', 'students.class_id')
+                ->count();
+            $recorded = 0;
+            foreach (DB::table('parent_meetings')->where('academic_year', $year)->where('meeting_no', $no)->pluck('data') as $raw) {
+                $d = is_string($raw) ? json_decode($raw, false) : null;
+                if (is_object($d) && ($d->hasAttendance ?? true) !== false) {
+                    $recorded++;
+                }
+            }
+            $missing = max(0, $total - $recorded);
+            if ($missing === 0) {
+                return;
+            }
+            $ref = 'pmclose:'.$year.'-'.$no.'-'.($state->closedAt ?? '');
+            $receivers = DB::table('users')->whereIn('role', ['admin', 'vice_principal'])->where('is_active', true)->pluck('id')->map(fn ($v) => (string) $v)->all();
+            $labels = [1 => 'اول', 2 => 'دوم', 3 => 'سوم'];
+            Notifier::send($receivers, [
+                'title' => 'هشدار حضور أولیا: جلسه بسته شد',
+                'message' => sprintf('جلسه‌ی عمومی %s أولیا بسته شد، اما حضور و غیاب پدر و مادر %d دانش‌آموز ثبت نشده است. در صورت نیاز جلسه را دوباره باز کنید.', $labels[$no], $missing),
+                'type' => 'announcement',
+                'priority' => 'urgent',
+                'ref_id' => $ref,
+            ]);
+        } catch (\Throwable) {
+            // هشدار نباید باز و بسته کردن جلسه را مختل کند
+        }
+    }
+
+    /**
      * حضور أولیا در جلسه‌ی عمومی: شناسه قطعی است (یک رکورد برای هر دانش‌آموز در هر جلسه‌ی سال تحصیلی جاری)،
      * کلاس از دیتابیس و سال تحصیلی و تاریخ ثبت از ساعت سرور تعیین می‌شود؛ تاریخ پس از اولین ثبت تغییر نمی‌کند.
      * فقط ثبت‌کنندگان حضور (مدیر و معاون انضباطی) حضور پدر و مادر را تغییر می‌دهند؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
@@ -375,6 +455,11 @@ final class SyncService
             $has = ($data->hasAttendance ?? true) !== false;
             $data->father = $has && ! empty($data->father);
             $data->mother = $has && ! empty($data->mother);
+            $changed = $has !== $oldHas
+                || ($has && (! empty($data->father) !== ($oldHas && ! empty($old->father)) || ! empty($data->mother) !== ($oldHas && ! empty($old->mother))));
+            if ($changed && ! \App\Support\ParentMeetingGate::isOpen($year, $no)) {
+                abort(422, 'این جلسه‌ی اولیا بسته شده (برگزار و تمام شده) و حضور و غیاب آن دیگر قابل ثبت نیست؛ مدیر یا معاون اجرایی باید جلسه را باز کند.');
+            }
             $data->hasAttendance = $has;
             $data->date = $has ? ($oldDate ?? $today) : null;
         } else {
@@ -462,11 +547,16 @@ final class SyncService
         if (! isset($data->status) || ! in_array($data->status, ['complete', 'partial', 'absent', 'none'], true)) {
             abort(422, 'وضعیت کاربرگ نامعتبر است.');
         }
-        // تا نرسیدن روز تعیین‌شده برای تحویل، ثبت وضعیت کاربرگ ممکن نیست (یادداشت فردی بدون وضعیت آزاد است)
-        if ($data->status !== 'none' && CollectionRegistry::tableExists('worksheet_weeks')) {
-            $deadline = DB::table('worksheet_weeks')->where('week_start', $weekStart)->value('deadline');
-            $deadlineDate = is_string($deadline) ? \App\Support\Jalali::shamsiToDate($deadline) : null;
-            if ($deadlineDate !== null && \Illuminate\Support\Carbon::now('Asia/Tehran')->format('Y-m-d') < $deadlineDate) {
+        // ثبت وضعیت فقط برای هفته‌ای ممکن است که مهلت دارد و روز تعیین‌شده رسیده است (یادداشت فردی بدون وضعیت آزاد است)
+        if ($data->status !== 'none') {
+            $deadline = CollectionRegistry::tableExists('worksheet_weeks')
+                ? DB::table('worksheet_weeks')->where('week_start', $weekStart)->value('deadline')
+                : null;
+            $deadlineDate = is_string($deadline) && $deadline !== '' ? \App\Support\Jalali::shamsiToDate($deadline) : null;
+            if ($deadlineDate === null) {
+                abort(422, 'برای این هفته مهلت تعیین نشده است؛ ابتدا معاونت آموزش مهلت را مشخص کند.');
+            }
+            if (\Illuminate\Support\Carbon::now('Asia/Tehran')->format('Y-m-d') < $deadlineDate) {
                 abort(422, 'هنوز روز تعیین‌شده برای تحویل کاربرگ نرسیده است.');
             }
         }

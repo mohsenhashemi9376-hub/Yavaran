@@ -113,9 +113,10 @@ final class AccessPolicy
         }
 
         // حضور أولیا: مدیر و معاونین و مربی با مجوز ثبت یا مشاهده (مربی فقط کلاس‌های خودش، در DataExporter)
-        if ($collection === 'parentMeetings') {
-            return ($this->isManager() || $this->isCoach())
-                && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings'));
+        if ($collection === 'parentMeetings' || $collection === 'parentMeetingStates') {
+            return $this->canManageParentMeetingStates()
+                || (($this->isManager() || $this->isCoach())
+                    && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings')));
         }
 
         // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
@@ -178,10 +179,17 @@ final class AccessPolicy
         $this->deny('شما به این بخش از سامانه دسترسی ندارید. لطفاً با مدیر مدرسه هماهنگ کنید.');
     }
 
-    /** ثبت حضور پدر و مادر: فقط مدیر و معاونینِ دارای مجوز (پیش‌فرض: مدیر و معاون انضباطی) */
+    /** ثبت حضور پدر و مادر: مدیر و معاونینِ دارای مجوز (پیش‌فرض: مدیر و معاون انضباطی) و مربی (فقط کلاس‌های خودش) */
     public function canRecordParentMeetings(): bool
     {
-        return $this->isManager() && $this->user->hasPermission('parent-meetings');
+        return ($this->isManager() && $this->user->hasPermission('parent-meetings'))
+            || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
+    }
+
+    /** باز و بسته کردن جلسه‌های عمومی اولیاء: فقط مدیر و معاون اجرایی */
+    public function canManageParentMeetingStates(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_principal'], true);
     }
 
     /** یادداشت روی گزارش حضور أولیا: ثبت‌کنندگان، معاون تربیتی و مربی (دارای مجوز مشاهده) */
@@ -193,6 +201,10 @@ final class AccessPolicy
     private function authorizeParentMeeting(object $new): void
     {
         if ($this->canRecordParentMeetings()) {
+            if ($this->isCoach()) {
+                $this->requireStudent($this->prop($new, 'studentId'));
+            }
+
             return;
         }
         if (! $this->canNoteParentMeetings()) {
@@ -290,6 +302,14 @@ final class AccessPolicy
 
         if ($collection === 'parentMeetings') {
             $this->authorizeParentMeeting($new);
+
+            return;
+        }
+
+        if ($collection === 'parentMeetingStates') {
+            if (! $this->canManageParentMeetingStates()) {
+                $this->deny('باز و بسته کردن جلسه‌های اولیا فقط با مدیر و معاون اجرایی است.');
+            }
 
             return;
         }
@@ -397,10 +417,22 @@ final class AccessPolicy
         if ($collection === 'parentMeetings') {
             // حذف رکورد (برگشت به «ثبت‌نشده») فقط با مجوز ثبت حضور؛ مربی و معاون تربیتی فقط یادداشت می‌نویسند
             if (! $this->canRecordParentMeetings()) {
-                $this->deny('ثبت یا حذف حضور پدر و مادر فقط با مدیر و معاون انضباطی است.');
+                $this->deny('ثبت یا حذف حضور پدر و مادر فقط با مدیر، معاون انضباطی و مربی است.');
+            }
+            if ($this->isCoach()) {
+                $this->requireStudent($this->prop($old, 'studentId'));
+            }
+            $no = (int) $this->prop($old, 'meetingNo');
+            $year = (string) $this->prop($old, 'academicYear');
+            if (($old->hasAttendance ?? true) !== false && ! \App\Support\ParentMeetingGate::isOpen($year, $no)) {
+                $this->deny('این جلسه بسته شده و حضور و غیاب آن قابل تغییر نیست.');
             }
 
             return;
+        }
+
+        if ($collection === 'parentMeetingStates') {
+            $this->deny('جلسه‌ی اولیا حذف نمی‌شود؛ فقط باز یا بسته می‌شود.');
         }
 
         if ($collection === 'users') {
@@ -842,26 +874,39 @@ final class AccessPolicy
         return $this->nurturingIds = array_values(array_unique($ids));
     }
 
-    /** معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش مجاز به تغییر نمره است */
+    /**
+     * معلم فقط در بازه‌های فعال‌شده توسط معاونت آموزش و فقط برای دروسی که آن بازه برایشان باز شده مجاز به تغییر نمره است.
+     * بازه‌ی بدون فهرست درس (openSubjectIds) برای همه‌ی دروس باز است.
+     */
     private function requireOpenGradePeriods(?object $old, object $new): void
     {
         if (! CollectionRegistry::tableExists('grade_periods')) {
             return;
         }
 
-        $periods = DB::table('grade_periods')->pluck('is_active', 'code')->all();
-        if ($periods === []) {
+        $rows = DB::table('grade_periods')->get(['code', 'is_active', 'data']);
+        if ($rows->isEmpty()) {
             return;
         }
 
-        foreach ($periods as $code => $active) {
-            if ($active) {
+        $subjectId = $this->prop($new, 'subjectId') ?? ($old !== null ? $this->prop($old, 'subjectId') : null);
+        foreach ($rows as $row) {
+            $code = (string) $row->code;
+            $open = (bool) $row->is_active;
+            if ($open) {
+                $d = json_decode((string) $row->data, false);
+                $ids = is_object($d) && isset($d->openSubjectIds) && is_array($d->openSubjectIds) ? $d->openSubjectIds : null;
+                if ($ids !== null) {
+                    $open = $subjectId !== null && in_array($subjectId, $ids, true);
+                }
+            }
+            if ($open) {
                 continue;
             }
             $before = $old !== null && isset($old->{$code}) ? (string) $old->{$code} : '';
             $after = isset($new->{$code}) ? (string) $new->{$code} : '';
             if ($before !== $after) {
-                $this->deny('ثبت نمره برای این بازه هنوز توسط معاونت آموزش باز نشده است.');
+                $this->deny('ثبت نمره‌ی این ماه برای این درس هنوز توسط معاونت آموزش باز نشده است.');
             }
         }
     }

@@ -77,6 +77,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
 import { LoansWorkspace } from './LoansWorkspace';
 import { ParentMeetingsWorkspace } from './ParentMeetingsWorkspace';
+import { ParentMeetingAlertsCard } from './ParentMeetingAlertsCard';
 import { LoanOverdueBanner, useOverdueLoans } from './LoanOverdueBanner';
 import { studentFullName } from '../utils/studentName';
 
@@ -674,6 +675,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* هشدار غیبت غیرموجه ماهانه برای مدیر مدرسه */}
           <AttendanceAlertsPanel onSelectStudent={(stu) => onSelectStudent?.(stu, 'attendance')} />
+
+          <ParentMeetingAlertsCard onOpen={() => setCurrentFullScreenView('parent_meetings')} />
 
           <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} />
 

@@ -1,11 +1,12 @@
-import { GradePeriod, MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey } from '../types';
+import { AcademicSubject, GradePeriod, MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student, StudentAcademicGrade } from '../types';
+import { subjectAppliesToClass } from './courseAssignments';
 
 /** عنوان فارسی هر بازه ثبت نمره */
 export const GRADE_PERIOD_NAMES: Record<MonthlyContinuousKey, string> = {
   mehrContinuous: 'مستمر مهر',
   abanContinuous: 'مستمر آبان',
   azarContinuous: 'مستمر آذر',
-  term1Continuous: 'مستمر دی',
+  term1Continuous: 'نوبت اول (دی)',
   term1Final: 'پایانی نوبت اول (دی)',
   bahmanContinuous: 'مستمر بهمن',
   esfandContinuous: 'مستمر اسفند',
@@ -25,9 +26,62 @@ export function buildGradePeriodList(stored: GradePeriod[]): GradePeriod[] {
       code: p.key,
       name: GRADE_PERIOD_NAMES[p.key],
       isActive: Boolean(rec?.isActive),
+      openSubjectIds: Array.isArray(rec?.openSubjectIds) ? rec!.openSubjectIds : null,
       deadline: rec?.deadline,
     };
   });
+}
+
+/** آیا ثبت نمره‌ی این بازه برای درس مشخص باز است؟ (بدون درس: آیا برای دست‌کم یک درس باز است) */
+export function isPeriodOpenForSubject(period: GradePeriod | undefined, subjectId?: string): boolean {
+  if (!period?.isActive) return false;
+  if (!Array.isArray(period.openSubjectIds)) return true;
+  return subjectId ? period.openSubjectIds.includes(subjectId) : period.openSubjectIds.length > 0;
+}
+
+/** شناسه‌ی دروسی که این بازه برایشان باز است */
+export function openSubjectIdsOf(period: GradePeriod, subjects: AcademicSubject[]): string[] {
+  return subjects.filter((s) => isPeriodOpenForSubject(period, s.id)).map((s) => s.id);
+}
+
+export interface PeriodUngradedStats {
+  /** نمره‌ی ثبت‌نشده در دروسِ بازشده‌ی این بازه */
+  missing: number;
+  expected: number;
+  /** دروس باز که هنوز دست‌کم یک نمره‌ی ثبت‌نشده دارند: subjectId ← تعداد */
+  bySubject: Map<string, number>;
+}
+
+/**
+ * آمار نمره‌های ثبت‌نشده‌ی یک بازه: فقط دروسی که نمره‌ی این بازه برایشان باز شده است.
+ * هر درس برای دانش‌آموزان کلاس‌هایی که درس برایشان تعریف شده انتظار نمره دارد.
+ */
+export function periodUngradedStats(
+  period: GradePeriod,
+  subjects: AcademicSubject[],
+  classes: SchoolClass[],
+  students: Student[],
+  grades: StudentAcademicGrade[],
+): PeriodUngradedStats {
+  const stats: PeriodUngradedStats = { missing: 0, expected: 0, bySubject: new Map() };
+  if (!period.isActive) return stats;
+  const classOf = new Map(students.map((s) => [s.id, s.classId]));
+  for (const sub of subjects) {
+    if (!isPeriodOpenForSubject(period, sub.id)) continue;
+    const classIds = new Set(classes.filter((c) => !c.isWorkshop && subjectAppliesToClass(sub, c)).map((c) => c.id));
+    const expectedIds = new Set(students.filter((s) => classIds.has(s.classId)).map((s) => s.id));
+    let recorded = 0;
+    for (const g of grades) {
+      if (g.subjectId !== sub.id || !expectedIds.has(g.studentId) || !classIds.has(classOf.get(g.studentId) || '')) continue;
+      const v = g[period.code];
+      if (typeof v === 'number' && !Number.isNaN(v)) recorded++;
+    }
+    const miss = Math.max(0, expectedIds.size - recorded);
+    stats.expected += expectedIds.size;
+    stats.missing += miss;
+    if (miss > 0) stats.bySubject.set(sub.id, miss);
+  }
+  return stats;
 }
 
 /** رنگ پاستلی کپسول نمره: عالی ۱۸+، خوب ۱۵+، متوسط ۱۲+، نیازمند تلاش زیر ۱۲ */

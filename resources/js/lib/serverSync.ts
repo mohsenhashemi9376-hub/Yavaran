@@ -30,6 +30,7 @@ export type CollectionKey =
   | 'worksheetWeeks'
   | 'schoolHolidays'
   | 'parentMeetings'
+  | 'parentMeetingStates'
   | 'grades'
   | 'settings';
 
@@ -59,6 +60,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'worksheetWeeks',
   'schoolHolidays',
   'parentMeetings',
+  'parentMeetingStates',
   'grades',
   'settings',
 ];
@@ -168,7 +170,7 @@ interface OutboxItem {
  * مجموعه‌هایی که صف ارسالشان در حافظه‌ی گوشی/مرورگر (localStorage) هم نگه داشته می‌شود تا با بسته‌شدن صفحه
  * یا قطع اینترنت از بین نروند. پرونده‌های تربیتی و حساب کاربران (رمز) هرگز روی دستگاه ذخیره نمی‌شوند.
  */
-const PERSISTED_COLLECTIONS: CollectionKey[] = ['sessions', 'morningAttendance', 'morningDelays', 'schoolAbsences', 'parentMeetings'];
+const PERSISTED_COLLECTIONS: CollectionKey[] = ['sessions', 'morningAttendance', 'morningDelays', 'schoolAbsences', 'parentMeetings', 'parentMeetingStates'];
 
 /** خطاهایی که یعنی «ارتباط موقتاً برقرار نیست» و باید بعداً دوباره ارسال شود */
 const isTransient = (status: number): boolean => status === 0 || status === 408 || status === 502 || status === 503 || status === 504;

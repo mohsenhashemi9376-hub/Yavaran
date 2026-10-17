@@ -314,12 +314,30 @@ export interface ParentMeetingRecord {
   updatedAt?: string;
 }
 
+/**
+ * وضعیت باز/بسته‌ی هر جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی تغییر می‌دهند).
+ * جلسه‌ی بسته یعنی برگزار و تمام شده؛ حضور و غیاب آن دیگر ثبت نمی‌شود. جلسه‌ی بدون رکورد وضعیت تا باز شدن، بسته است.
+ */
+export interface ParentMeetingState {
+  id: string; // pms-{سال تحصیلی}-{شماره جلسه}
+  academicYear: string;
+  meetingNo: ParentMeetingNo;
+  open: boolean;
+  openedAt?: string | null;
+  closedAt?: string | null;
+  changedBy?: string;
+  changedById?: string;
+  updatedAt?: string;
+}
+
 /** بازه ثبت نمره که معاون آموزش آن را فعال/قفل می‌کند (مثل «مستمر مهر») */
 export interface GradePeriod {
   id: string; // = code
   code: MonthlyContinuousKey;
   name: string;
   isActive: boolean;
+  /** فقط این دروس برای ثبت نمره باز هستند؛ نبودن (یا null) یعنی بازه برای همه‌ی دروس باز است */
+  openSubjectIds?: string[] | null;
   deadline?: string; // مهلت ثبت (شمسی)
 }
 
@@ -327,7 +345,7 @@ export const MONTHLY_EVALUATION_PERIODS: MonthlyPeriodInfo[] = [
   { key: 'mehrContinuous', monthName: 'مهر', label: 'مستمر مهر', shortLabel: 'مهر', term: 1, order: 1 },
   { key: 'abanContinuous', monthName: 'آبان', label: 'مستمر آبان', shortLabel: 'آبان', term: 1, order: 2 },
   { key: 'azarContinuous', monthName: 'آذر', label: 'مستمر آذر', shortLabel: 'آذر', term: 1, order: 3 },
-  { key: 'term1Continuous', monthName: 'دی', label: 'مستمر ترم اول', shortLabel: 'مستمر ۱', term: 1, order: 4 },
+  { key: 'term1Continuous', monthName: 'دی', label: 'نوبت اول', shortLabel: 'نوبت اول', term: 1, order: 4 },
   { key: 'term1Final', monthName: 'دی', label: 'پایانی ترم اول', shortLabel: 'پایانی ۱', term: 1, order: 5 },
   { key: 'bahmanContinuous', monthName: 'بهمن', label: 'مستمر بهمن', shortLabel: 'بهمن', term: 2, order: 6 },
   { key: 'esfandContinuous', monthName: 'اسفند', label: 'مستمر اسفند', shortLabel: 'اسفند', term: 2, order: 7 },

@@ -22,7 +22,6 @@ import {
   toEnglishDigits
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
-import { summarizeActivity } from '../utils/classroomActivity';
 import { nationalIdError, phoneError } from '../utils/validators';
 import {
   X,
@@ -60,13 +59,13 @@ import {
   History
 } from 'lucide-react';
 import { hasPermission } from '../utils/permissions';
-import { studentWorksheetHistory, weekTitle, WORKSHEET_STATUS_LABEL } from '../utils/worksheets';
 import { studentFullName } from '../utils/studentName';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { FitTable } from './ui/FitTable';
 import { StudentTimeline } from './StudentTimeline';
+import { StudentEducationTab } from './StudentEducationTab';
 
-export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'worksheets' | 'timeline';
+export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'education' | 'timeline';
 
 interface StudentProfileModalProps {
   isOpen: boolean;
@@ -161,7 +160,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(teacherView && (initialTab === 'info' || initialTab === 'discipline') ? 'overview' : initialTab || 'overview');
+      setActiveTab(teacherView && initialTab === 'info' ? 'overview' : initialTab === 'attendance' ? 'discipline' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -258,21 +257,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [classSessions, currentStudent]);
 
-  // آمار تکالیف انجام‌نشده به تفکیک درس (کلاس)
-  const homeworkBySubject = useMemo(() => {
-    const map = new Map<string, { subject: string; notDone: number; incomplete: number; total: number }>();
-    sessionLogs.forEach((l) => {
-      if (!l.homeworkStatus) return;
-      const key = l.session.subjectId || l.session.subject || 'نامشخص';
-      const row = map.get(key) || { subject: l.session.subject || 'نامشخص', notDone: 0, incomplete: 0, total: 0 };
-      row.total++;
-      if (l.homeworkStatus === 'not_done') row.notDone++;
-      else if (l.homeworkStatus === 'incomplete') row.incomplete++;
-      map.set(key, row);
-    });
-    return Array.from(map.values()).sort((x, y) => y.notDone + y.incomplete - (x.notDone + x.incomplete));
-  }, [sessionLogs]);
-
   // سوابق یکپارچه غیبت و تأخیر: صبحگاه (سامانه جدید + دفترهای قدیمی) و کلاسی
   const attendanceRecords = useMemo(() => {
     type Row = {
@@ -357,7 +341,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) */
   const openAttendanceTab = (filter: 'all' | 'absent' | 'late') => {
     setAttendanceFilter(filter);
-    setActiveTab('attendance');
+    setActiveTab('discipline');
     setIsEditing(false);
   };
 
@@ -616,16 +600,16 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
       {/* کل پنجره یک کانتینر اسکرول‌شونده است (بدون اسکرول داخلی تودرتو) */}
       <div 
         id="student-profile-modal-container"
-        className="bg-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
+        className="bg-gradient-to-b from-emerald-50/80 via-slate-50 to-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
       >
         {/* ===================== HEADER ===================== */}
-        <div className="bg-white px-5 sm:px-7 pt-5 pb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white/70 backdrop-blur-xl border-b border-white/80 px-3 sm:px-7 pt-3 sm:pt-5 pb-3 sm:pb-4 flex items-start justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl font-extrabold shrink-0">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl sm:text-2xl font-extrabold shrink-0">
               {currentStudent.firstName[0]}
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl font-extrabold text-slate-900 truncate">
+              <h2 className="text-base sm:text-xl font-extrabold text-slate-900 truncate">
                 {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
@@ -637,10 +621,33 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 {currentStudent.studentCode && <span>کد: {toPersianDigits(currentStudent.studentCode)}</span>}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          {currentStudent.parentPhone && (
+            <a
+              href={`tel:${currentStudent.parentPhone}`}
+              className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1 shrink-0"
+              title="تماس تلفنی با ولی دانش‌آموز"
+            >
+              <Phone className="w-3 h-3 text-emerald-600" />
+              <span className="font-mono">{toPersianDigits(currentStudent.parentPhone)}</span>
+            </a>
+          )}
+          {currentStudent.motherPhone && (
+            <a
+              href={`tel:${currentStudent.motherPhone}`}
+              className="px-2 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100 transition flex items-center gap-1 shrink-0"
+              title="تماس تلفنی با مادر دانش‌آموز"
+            >
+              <Phone className="w-3 h-3 text-rose-600" />
+              <span>مادر:</span>
+              <span className="font-mono">{toPersianDigits(currentStudent.motherPhone)}</span>
+            </a>
+          )}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-0 sm:gap-1.5 shrink-0">
             {!teacherView && (
             <>
             <button
@@ -649,7 +656,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('info');
                 setIsEditing(true);
               }}
-              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
               title="ویرایش مشخصات"
             >
               <Edit3 className="w-5 h-5" />
@@ -657,7 +664,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <button
               id="btn-profile-print"
               onClick={handlePrint}
-              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
               title="چاپ پرونده"
             >
               <Printer className="w-5 h-5" />
@@ -665,7 +672,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <button
               id="btn-profile-excel"
               onClick={handleExportExcel}
-              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded-xl transition cursor-pointer"
+              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded-xl transition cursor-pointer"
               title="خروجی اکسل"
             >
               <FileSpreadsheet className="w-5 h-5" />
@@ -673,7 +680,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <button
               id="btn-profile-sms"
               onClick={handleOpenSms}
-              className="p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
+              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
               title="پیام به اولیاء"
             >
               <MessageSquare className="w-5 h-5" />
@@ -683,7 +690,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             <button
               id="btn-close-student-profile"
               onClick={onClose}
-              className="p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
               title="بستن پرونده"
             >
               <X className="w-5 h-5" />
@@ -693,27 +700,27 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
 
         {/* ===================== عملیات سریع ===================== */}
         {!teacherView && (
-        <div className="bg-white px-5 sm:px-7 pb-5 grid grid-cols-1 gap-3">
+        <div className="bg-white/70 backdrop-blur-xl px-3 sm:px-7 pb-3 sm:pb-5 grid grid-cols-1 gap-3">
           <button
             id="btn-quick-add-discipline"
             onClick={() => setIsAddDisciplineOpen(true)}
-            className="h-16 rounded-2xl bg-violet-50 hover:bg-violet-100 text-violet-700 font-extrabold text-sm transition flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 cursor-pointer"
+            className="h-11 sm:h-16 rounded-2xl bg-violet-100/60 backdrop-blur border border-violet-200/80 hover:bg-violet-100 text-violet-700 font-extrabold text-sm transition flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer"
           >
-            <ShieldAlert className="w-6 h-6" />
+            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
             <span>ثبت مورد انضباطی</span>
           </button>
         </div>
         )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 sm:px-7 pt-5 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 px-3 sm:px-7 pt-3 sm:pt-5 text-xs">
           <button
             type="button"
             onClick={() => openAttendanceTab('absent')}
-            className="text-right bg-white p-4 rounded-2xl shadow-xs border border-transparent hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
+            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
           >
             <div className="text-slate-500 text-xs">غیبت</div>
-            <div className={`text-2xl font-extrabold mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalAbsentCount)}
               {totalExcusedCount > 0 && (
                 <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(totalExcusedCount)} موجه</span>
@@ -727,10 +734,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           <button
             type="button"
             onClick={() => openAttendanceTab('late')}
-            className="text-right bg-white p-4 rounded-2xl shadow-xs border border-transparent hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
+            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
           >
             <div className="text-slate-500 text-xs">تأخیر</div>
-            <div className={`text-2xl font-extrabold mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalDelaysCount)}
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
@@ -743,9 +750,9 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             )}
           </button>
 
-          <div className="bg-white p-4 rounded-2xl shadow-xs">
+          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
             <div className="text-slate-500 text-xs">موارد انضباطی</div>
-            <div className={`text-2xl font-extrabold mt-1 ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
+            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
               {toPersianDigits(disciplinaryNotes.length)}
               {totalDeductedPoints > 0 && (
                 <span className="text-[11px] font-normal text-rose-500 mr-1.5">-{toPersianDigits(totalDeductedPoints)} نمره</span>
@@ -756,9 +763,9 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl shadow-xs">
+          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
             <div className="text-slate-500 text-xs">نمره انضباط</div>
-            <div className={`text-2xl font-extrabold mt-1 ${
+            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${
               disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'
             }`}>
               {toPersianDigits(disciplineScore)}<span className="text-sm font-normal text-slate-400"> از ۲۰</span>
@@ -769,45 +776,21 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           </div>
         </div>
 
-        {homeworkBySubject.length > 0 && (
-          <div className="mx-5 sm:mx-7 mt-3 bg-white p-4 rounded-2xl shadow-xs">
-            <div className="text-slate-500 text-xs mb-2">تکالیف انجام‌نشده به تفکیک درس</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-              {homeworkBySubject.map((h) => (
-                <div key={h.subject} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-bold text-slate-700 truncate">{h.subject}</span>
-                  <span className="shrink-0 flex items-center gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full font-bold ${h.notDone > 0 ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-400'}`}>
-                      {toPersianDigits(h.notDone)} انجام‌نشده
-                    </span>
-                    {h.incomplete > 0 && (
-                      <span className="px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700">
-                        {toPersianDigits(h.incomplete)} ناقص
-                      </span>
-                    )}
-                    <span className="text-slate-400">از {toPersianDigits(h.total)}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* =========================================================================
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
-        <div className="flex items-center justify-between px-5 sm:px-7 pt-5 gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap py-1 max-w-full">
+        <div className="flex items-center px-3 sm:px-7 pt-3 sm:pt-5">
+          <div className="flex items-center gap-1.5 py-1 max-w-full overflow-x-auto sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               id="tab-btn-overview"
               onClick={() => {
                 setActiveTab('overview');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                 activeTab === 'overview' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
@@ -821,10 +804,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('info');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                 activeTab === 'info' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <User className="w-3.5 h-3.5" />
@@ -833,38 +816,20 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             )}
 
             <button
-              id="tab-btn-attendance"
-              onClick={() => {
-                setActiveTab('attendance');
-                setIsEditing(false);
-              }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'attendance' && !isEditing
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>حضور و غیاب ({toPersianDigits(attendanceRecords.length)})</span>
-            </button>
-
-            {!teacherView && (
-            <button
               id="tab-btn-discipline"
               onClick={() => {
                 setActiveTab('discipline');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                 activeTab === 'discipline' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>انضباط ({toPersianDigits(disciplinaryNotes.length)})</span>
+              <span>انضباط و حضور ({toPersianDigits(disciplinaryNotes.length + attendanceRecords.length)})</span>
             </button>
-            )}
 
             <button
               id="tab-btn-grades"
@@ -872,10 +837,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('grades');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                 activeTab === 'grades' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <Award className="w-3.5 h-3.5" />
@@ -889,10 +854,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 setActiveTab('timeline');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                 activeTab === 'timeline' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <History className="w-3.5 h-3.5" />
@@ -900,52 +865,29 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </button>
             )}
 
-            {canSeeWorksheets && (
             <button
-              id="tab-btn-worksheets"
+              id="tab-btn-education"
               onClick={() => {
-                setActiveTab('worksheets');
+                setActiveTab('education');
                 setIsEditing(false);
               }}
-              className={`px-4 py-2.5 text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === 'worksheets' && !isEditing
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                activeTab === 'education' && !isEditing
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100'
+                  : 'bg-white/70 backdrop-blur text-slate-600 hover:bg-white'
               }`}
             >
               <ClipboardCheck className="w-3.5 h-3.5" />
-              <span>کاربرگ</span>
+              <span>آموزش و تکالیف</span>
             </button>
-            )}
           </div>
 
-          {currentStudent.parentPhone && (
-            <a
-              href={`tel:${currentStudent.parentPhone}`}
-              className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition flex items-center gap-1 shrink-0"
-              title="تماس تلفنی با ولی دانش‌آموز"
-            >
-              <Phone className="w-3 h-3 text-emerald-600" />
-              <span className="font-mono">{toPersianDigits(currentStudent.parentPhone)}</span>
-            </a>
-          )}
-          {currentStudent.motherPhone && (
-            <a
-              href={`tel:${currentStudent.motherPhone}`}
-              className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs font-semibold hover:bg-rose-100 transition flex items-center gap-1 shrink-0"
-              title="تماس تلفنی با مادر دانش‌آموز"
-            >
-              <Phone className="w-3 h-3 text-rose-600" />
-              <span>مادر:</span>
-              <span className="font-mono">{toPersianDigits(currentStudent.motherPhone)}</span>
-            </a>
-          )}
         </div>
 
         {/* =========================================================================
             SCROLLABLE BODY
         ========================================================================= */}
-        <div className="p-5 sm:p-7 space-y-5">
+        <div className="p-3 sm:p-7 space-y-4 sm:space-y-5">
           
           {/* =======================================================================
               TAB 1: خلاصه پرونده (OVERVIEW) - مهم‌ترین بخش
@@ -1271,29 +1213,10 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           {/* =======================================================================
               TAB 3: حضور و غیاب و تأخیرها (ATTENDANCE & DELAYS)
           ======================================================================= */}
-          {activeTab === 'attendance' && !isEditing && (
+          {activeTab === 'discipline' && !isEditing && (
             <div className="space-y-4">
               {/* آمار تجمیعی حضور پدر و مادر در جلسات عمومی أولیا (فقط با مجوز) */}
               <ParentMeetingsProfileCard studentId={currentStudent.id} />
-
-              {/* خلاصه فعالیت و تکالیف کلاسی */}
-              {(() => {
-                const sum = summarizeActivity(sessions, currentStudent.id, { classId: currentStudent.classId });
-                return (
-                  <div className="bg-sky-50/50 border border-sky-200/80 rounded-2xl p-3.5 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-extrabold text-sky-900 whitespace-nowrap">فعالیت و تکالیف کلاسی:</span>
-                    {sum.total === 0 ? (
-                      <span className="text-[11px] text-slate-500">هنوز ارزیابی روزانه‌ای ثبت نشده است.</span>
-                    ) : (
-                      <>
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold whitespace-nowrap">⭐ {toPersianDigits(sum.excellent)} عالی</span>
-                        <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold whitespace-nowrap">{toPersianDigits(sum.done)} انجام‌شده</span>
-                        <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold whitespace-nowrap">{toPersianDigits(sum.incomplete)} ناقص</span>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
 
               {/* خلاصه غیبت و تأخیر + کسر خودکار نمره */}
               <div className="rounded-2xl border border-slate-200 bg-gradient-to-l from-rose-50/60 via-white to-amber-50/70 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -1429,7 +1352,7 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
             </div>
           )}
 
-          {activeTab === 'discipline' && !isEditing && (
+          {activeTab === 'discipline' && !isEditing && !teacherView && (
             <div className="space-y-4">
               
               {/* Discipline Score Overview Card */}
@@ -1534,44 +1457,15 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
           ======================================================================= */}
           {activeTab === 'timeline' && !isEditing && !teacherView && <StudentTimeline student={currentStudent} />}
 
-          {activeTab === 'worksheets' && !isEditing && canSeeWorksheets && (() => {
-            const history = studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks);
-            const counted = history.filter((h) => h.status !== 'absent');
-            const doneCount = counted.filter((h) => h.status === 'complete').length;
-            const rate = counted.length ? Math.round((doneCount / counted.length) * 100) : null;
-            const tone: Record<string, string> = {
-              complete: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-              partial: 'bg-amber-50 text-amber-800 border-amber-200',
-              absent: 'bg-slate-100 text-slate-600 border-slate-200',
-              missing: 'bg-rose-50 text-rose-700 border-rose-200',
-            };
-            return (
-              <div className="space-y-4" id="profile-worksheets">
-                <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-3 flex-wrap">
-                  <div>
-                    <div className="text-sm font-black text-slate-900">سابقه‌ی کاربرگ هفتگی</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">هفته‌های غایب در درصد حساب نمی‌شود.</div>
-                  </div>
-                  <div className="text-left">
-                    <div className="text-2xl font-black text-slate-900 font-mono">{rate === null ? '—' : `${toPersianDigits(rate)}٪`}</div>
-                    <div className="text-[11px] text-slate-500">تحویل کامل</div>
-                  </div>
-                </div>
-                {history.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500">هنوز سابقه‌ای ثبت نشده است.</div>
-                ) : (
-                  <ul className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                    {history.map((h) => (
-                      <li key={h.weekStart} className="px-4 py-3 flex items-center justify-between gap-3 text-xs">
-                        <span className="font-bold text-slate-800">هفته‌ی {weekTitle(h.weekStart)}</span>
-                        <span className={`px-3 py-1 rounded-full border font-extrabold ${tone[h.status]}`}>{WORKSHEET_STATUS_LABEL[h.status]}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })()}
+          {activeTab === 'education' && !isEditing && (
+            <StudentEducationTab
+              studentId={currentStudent.id}
+              sessionLogs={sessionLogs}
+              worksheets={worksheets}
+              worksheetWeeks={worksheetWeeks}
+              showWorksheets={canSeeWorksheets}
+            />
+          )}
 
           {activeTab === 'grades' && !isEditing && (
             <div className="space-y-6">

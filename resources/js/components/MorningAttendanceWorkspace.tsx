@@ -188,6 +188,22 @@ const AckButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   </button>
 );
 
+/** ساعت واقعی ورود دانش‌آموز؛ با تغییر آن، تأخیر نسبت به ۰۷:۰۰ دوباره محاسبه می‌شود */
+const EntryTimeInput: React.FC<{ value: string; onSave: (time: string) => void; compact?: boolean }> = ({ value, onSave, compact }) => (
+  <label className="inline-flex items-center gap-1 text-[11px] text-slate-500" onClick={(e) => e.stopPropagation()}>
+    <span>{compact ? 'ساعت ورود:' : ''}</span>
+    <input
+      type="time"
+      dir="ltr"
+      value={value}
+      onChange={(e) => e.target.value && onSave(e.target.value)}
+      aria-label="ساعت ورود دانش‌آموز"
+      className="h-8 px-1.5 rounded-lg bg-white/80 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer"
+    />
+  </label>
+);
+
+
 export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProps> = ({
   initialStatusFilter,
   onBack,
@@ -200,6 +216,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
     morningAttendance,
     toggleMorningAttendance,
     setMorningDelayMinutes,
+    setMorningEntryTime,
     acknowledgeMorningRecord,
     setMorningAbsenceInfo,
     todayClosedReason,
@@ -615,7 +632,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
 
                 {present && rec && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-[11px] opacity-70">ورود: {toPersianDigits(rec.entryTime || '')}</span>
+                    <EntryTimeInput compact value={rec.entryTime || ''} onSave={(t) => setMorningEntryTime(rec.id, t)} />
                     {delayed && (
                       <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
                         {formatDelayText(rec.delayMinutes, 'صبحگاه')}
@@ -810,7 +827,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
                       <div className="mt-1"><ParentPhoneButton student={student} compact /></div>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-slate-600">{classNameOf(student.classId)}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-700 font-bold">{toPersianDigits(rec.entryTime || '—')}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-700 font-bold"><EntryTimeInput value={rec.entryTime || ''} onSave={(t) => setMorningEntryTime(rec.id, t)} /></td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-col items-start gap-1">
                         <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
