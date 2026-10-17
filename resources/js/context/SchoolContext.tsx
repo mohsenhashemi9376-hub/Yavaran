@@ -84,6 +84,8 @@ interface SchoolContextType {
   toggleMorningAttendance: (student: Student) => void;
   /** اصلاح دستی دقیقه تأخیر صبحگاه */
   setMorningDelayMinutes: (recordId: string, minutes: number) => void;
+  /** ثبت ساعت واقعی ورود دانش‌آموز (HH:MM)؛ تأخیر نسبت به ۰۷:۰۰ دوباره محاسبه می‌شود */
+  setMorningEntryTime: (recordId: string, entryTime: string) => void;
   /** ثبت موجه/غیرموجه و علت غیبت صبحگاه */
   setMorningAbsenceInfo: (student: Student, info: { isExcused?: boolean; absenceNote?: string }) => void;
   /** تأیید پیگیری غیبت/تأخیر (is_acknowledged = true) */
@@ -1505,6 +1507,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       prev.map((r) =>
         r.id === recordId
           ? { ...r, delayMinutes: clean, delayManuallyAdjusted: true, updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
+  };
+
+  const setMorningEntryTime = (recordId: string, entryTime: string) => {
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(entryTime)) return;
+    const hhmm = entryTime.padStart(5, '0');
+    setMorningAttendance((prev) =>
+      prev.map((r) =>
+        r.id === recordId && r.status === 'present'
+          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
           : r
       )
     );
@@ -2948,6 +2962,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         morningAttendance,
         toggleMorningAttendance,
         setMorningDelayMinutes,
+        setMorningEntryTime,
         acknowledgeMorningRecord,
         setMorningAbsenceInfo,
         teacherActivities,

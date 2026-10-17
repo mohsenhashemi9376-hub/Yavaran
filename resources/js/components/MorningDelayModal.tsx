@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { delayFromEntryTime } from '../utils/morningAttendance';
 import { getEntryClock, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
@@ -25,6 +26,12 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+
+/** ساعت ورود معادل «X دقیقه بعد از ۰۷:۰۰» */
+const minutesToClock = (minutes: number): string => {
+  const t = 7 * 60 + Math.max(0, Math.round(minutes || 0));
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
 
 export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   isOpen,
@@ -53,6 +60,8 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState<boolean>(false);
   const [date, setDate] = useState<string>(todayInfo.formattedDate);
   const [delayMinutesInput, setDelayMinutesInput] = useState<string>('15');
+  /** ساعت واقعی ورود دانش‌آموز (HH:MM)، نه ساعت ثبت در سامانه */
+  const [arrivalInput, setArrivalInput] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [isExcused, setIsExcused] = useState<boolean>(false);
   const [showDetails, setShowDetails] = useState<boolean>(false);
@@ -92,6 +101,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId(editRecord.studentId);
         setDate(toEnglishDigits(editRecord.date));
         setDelayMinutesInput(String(editRecord.delayMinutes || 15));
+        setArrivalInput(editRecord.arrivalTime || minutesToClock(editRecord.delayMinutes || 15));
         setReason(editRecord.reason || '');
         setIsExcused(editRecord.isExcused ?? false);
         setShowDetails(Boolean(editRecord.reason) || Boolean(editRecord.isExcused));
@@ -101,6 +111,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId(initialStudent.id);
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
+        setArrivalInput(minutesToClock(15));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -109,6 +120,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
+        setArrivalInput(minutesToClock(15));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -117,6 +129,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
+        setArrivalInput(minutesToClock(15));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -223,7 +236,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const dayOfWeek = getDayOfWeekFromShamsi(cleanDate);
     const studentDisplayName = studentFullName(selectedStudent);
 
-    const arrivalTime = editRecord?.arrivalTime || getEntryClock();
+    const arrivalTime = /^\d{1,2}:\d{2}$/.test(arrivalInput) ? arrivalInput.padStart(5, '0') : minutesToClock(parsedMinutes);
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -369,6 +382,28 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
             )}
           </div>
 
+          {/* ساعت ورود دانش‌آموز */}
+          <div className="space-y-2">
+            <label htmlFor="delay-arrival-input" className="block text-sm font-bold text-slate-700">ساعت ورود دانش‌آموز</label>
+            <div className="flex items-center gap-3">
+              <input
+                id="delay-arrival-input"
+                type="time"
+                dir="ltr"
+                value={arrivalInput}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setArrivalInput(v);
+                  const m = delayFromEntryTime(v);
+                  if (v && m > 0) setDelayMinutesInput(String(m));
+                  setErrorMessage(null);
+                }}
+                className="h-12 w-36 text-center text-lg font-extrabold bg-slate-50 rounded-2xl text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition cursor-pointer"
+              />
+              <span className="text-xs text-slate-500 leading-5">ساعتی که دانش‌آموز به مدرسه رسیده است؛ تأخیر نسبت به ۰۷:۰۰ خودکار محاسبه می‌شود.</span>
+            </div>
+          </div>
+
           {/* مدت تأخیر */}
           <div className="space-y-2">
             <label className="block text-sm font-bold text-slate-700">مدت تأخیر (دقیقه)</label>
@@ -381,6 +416,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                     key={mins}
                     onClick={() => {
                       setDelayMinutesInput(String(mins));
+                      setArrivalInput(minutesToClock(mins));
                       setErrorMessage(null);
                     }}
                     className={`h-14 rounded-2xl text-xl font-extrabold transition cursor-pointer ${
@@ -402,7 +438,9 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                 inputMode="numeric"
                 value={isQuickValue ? '' : toPersianDigits(delayMinutesInput)}
                 onChange={(e) => {
-                  setDelayMinutesInput(toEnglishDigits(e.target.value).replace(/[^0-9]/g, ''));
+                  const clean = toEnglishDigits(e.target.value).replace(/[^0-9]/g, '');
+                  setDelayMinutesInput(clean);
+                  if (Number(clean) > 0) setArrivalInput(minutesToClock(Number(clean)));
                   setErrorMessage(null);
                 }}
                 placeholder="مثلاً ۲۵"
