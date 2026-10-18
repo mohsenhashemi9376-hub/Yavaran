@@ -17,6 +17,7 @@ import {
   Workshop,
   LoanItem,
   ParentMeetingRecord,
+  ReflectionPointRecord,
   ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
@@ -105,6 +106,10 @@ interface SchoolContextType {
   workshops: Workshop[];
   loanItems: LoanItem[];
   parentMeetings: ParentMeetingRecord[];
+  /** گزارش نقاط تفکر (فقط معاون تربیتی و مربی) */
+  reflectionPoints: ReflectionPointRecord[];
+  /** ثبت تحویل / عدم تحویل و یادداشت نقاط تفکر برای یک دانش‌آموز در یک هفته؛ بدون تحویل و بدون یادداشت = حذف رکورد */
+  setReflectionPoint: (student: Pick<Student, 'id' | 'classId'>, weekStart: string, patch: { delivered?: boolean; note?: string }) => void;
   parentMeetingStates: ParentMeetingState[];
   /** باز/بسته کردن جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی) */
   setParentMeetingOpen: (meetingNo: ParentMeetingNo, open: boolean) => void;
@@ -427,6 +432,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
+  const [reflectionPoints, setReflectionPoints] = useState<ReflectionPointRecord[]>([]);
   const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
@@ -589,6 +595,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
     const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
     const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
+    const nextReflectionPoints = (d.reflectionPoints || []) as unknown as ReflectionPointRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -619,6 +626,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loanItems: nextLoanItems as unknown as SyncRow[],
       parentMeetings: nextParentMeetings as unknown as SyncRow[],
       parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
+      reflectionPoints: nextReflectionPoints as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -649,6 +657,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoanItems(nextLoanItems);
     setParentMeetings(nextParentMeetings);
     setParentMeetingStates(nextParentMeetingStates);
+    setReflectionPoints(nextReflectionPoints);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -695,6 +704,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoanItems([]);
     setParentMeetings([]);
     setParentMeetingStates([]);
+    setReflectionPoints([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -825,6 +835,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('reflectionPoints', reflectionPoints as unknown as SyncRow[]); }, [reflectionPoints, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
   useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
@@ -1743,6 +1754,22 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         changedBy: currentUser.name, changedById: currentUser.id, updatedAt: now,
       };
       return old ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
+    });
+  };
+
+  // نقاط تفکر: پیش‌فرض «تحویل نداده» است؛ رکورد فقط وقتی ساخته می‌شود که تحویل داده شده یا یادداشتی هست
+  const setReflectionPoint: SchoolContextType['setReflectionPoint'] = (student, weekStart, patch) => {
+    const id = `rp-${student.id}-${weekStart.replace(/\//g, '-')}`;
+    setReflectionPoints((prev) => {
+      const old = prev.find((r) => r.id === id);
+      const delivered = patch.delivered ?? old?.delivered ?? false;
+      const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
+      if (!delivered && !note) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: ReflectionPointRecord = {
+        id, studentId: student.id, classId: student.classId, weekStart, delivered, note: note || null,
+        recordedById: currentUser.id, recordedBy: currentUser.name, updatedAt: new Date().toISOString(),
+      };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
   };
 
@@ -2970,6 +2997,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workshops,
         loanItems,
         parentMeetings,
+        reflectionPoints,
+        setReflectionPoint,
         parentMeetingStates,
         setParentMeetingOpen,
         setParentMeetingAttendance,

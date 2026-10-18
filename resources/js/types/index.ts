@@ -290,6 +290,19 @@ export interface LoanItem {
 }
 
 /** حضور اولیای یک دانش‌آموز در یکی از سه جلسه‌ی عمومی اولیاء در سال تحصیلی */
+/** گزارش نقاط تفکر: تحویل / عدم تحویل هر دانش‌آموز در هر هفته (پیش‌فرض: تحویل نداده) */
+export interface ReflectionPointRecord {
+  id: string; // rp-{studentId}-{weekStart با خط تیره}
+  studentId: string;
+  classId: string;
+  weekStart: string; // شنبه‌ی هفته: "1405/07/15"
+  delivered: boolean;
+  note?: string | null;
+  recordedBy?: string; // توسط سرور تعیین می‌شود
+  recordedById?: string;
+  updatedAt?: string;
+}
+
 export type ParentMeetingNo = 1 | 2 | 3;
 
 export interface ParentMeetingRecord {

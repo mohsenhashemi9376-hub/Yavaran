@@ -119,6 +119,11 @@ final class AccessPolicy
                     && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings')));
         }
 
+        // گزارش نقاط تفکر: فقط معاون تربیتی و مربی (مربی فقط کلاس‌های خودش، در DataExporter)
+        if ($collection === 'reflectionPoints') {
+            return $this->canUseReflectionPoints();
+        }
+
         // کاربرگ هفتگی: با مجوز مشاهده یا ثبت کاربرگ (دبیر و معاون انضباطی به‌طور پیش‌فرض ندارند)
         if (in_array($collection, self::WORKSHEETS, true)) {
             return $this->user->hasPermission('view-worksheets') || $this->user->hasPermission('manage-worksheets');
@@ -184,6 +189,27 @@ final class AccessPolicy
     {
         return ($this->isManager() && $this->user->hasPermission('parent-meetings'))
             || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
+    }
+
+    /** گزارش نقاط تفکر (تحویل / عدم تحویل): فقط معاون تربیتی و مربی */
+    public function canUseReflectionPoints(): bool
+    {
+        return in_array($this->user->role, ['vice_nurturing', 'coach'], true);
+    }
+
+    private function authorizeReflectionPoint(?object $old, ?object $new): void
+    {
+        if (! $this->canUseReflectionPoints()) {
+            $this->deny('گزارش نقاط تفکر فقط برای معاون تربیتی و مربی است.');
+        }
+        // مربی فقط برای دانش‌آموزان کلاس‌های خودش ثبت می‌کند
+        if ($this->isCoach()) {
+            foreach ([$old, $new] as $record) {
+                if ($record !== null) {
+                    $this->requireStudent($this->prop($record, 'studentId'));
+                }
+            }
+        }
     }
 
     /** باز و بسته کردن جلسه‌های عمومی اولیاء: فقط مدیر و معاون اجرایی */
@@ -272,6 +298,12 @@ final class AccessPolicy
     public function authorizeUpsert(string $collection, ?object $old, object $new): void
     {
         $this->requireWritePermission($collection, $old, $new);
+
+        if ($collection === 'reflectionPoints') {
+            $this->authorizeReflectionPoint($old, $new);
+
+            return;
+        }
 
         if (in_array($collection, self::NURTURING, true)) {
             if ($old !== null) {
@@ -395,6 +427,12 @@ final class AccessPolicy
     public function authorizeDelete(string $collection, object $old): void
     {
         $this->requireWritePermission($collection, $old);
+
+        if ($collection === 'reflectionPoints') {
+            $this->authorizeReflectionPoint($old, null);
+
+            return;
+        }
 
         if (in_array($collection, self::NURTURING, true)) {
             $this->authorizeNurturing('delete', $collection, $old);

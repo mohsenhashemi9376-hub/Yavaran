@@ -130,6 +130,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   student_observations: ['counseling-report', 'view-nurturing-file'],
   dossier: ['view-nurturing-file'],
   coachEvaluations: ['counseling-report'],
+  reflection_points: ['counseling-report', 'view-nurturing-file'],
 };
 
 /** آیا کاربر به این بخش (بر اساس شناسه آیتم منو) دسترسی دارد؟ */

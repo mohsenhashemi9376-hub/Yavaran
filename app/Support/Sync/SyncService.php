@@ -101,6 +101,9 @@ final class SyncService
                 if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
+                if ($collection === 'reflectionPoints') {
+                    $this->normalizeReflectionPoint($data, (string) $item->id, $user);
+                }
                 if ($collection === 'parentMeetings') {
                     $this->normalizeParentMeeting($data, (string) $item->id, $oldData, $user, $policy);
                 }
@@ -565,6 +568,32 @@ final class SyncService
         $data->recordedById = (string) $user->id;
         $data->recordedBy = (string) $user->name;
         $data->updatedAt = $now;
+    }
+
+    /**
+     * نقاط تفکر: شناسه‌ی رکورد قطعی است (یک رکورد برای هر دانش‌آموز در هر هفته)، کلاس از دیتابیس تعیین می‌شود
+     * و ثبت‌کننده و زمان را سرور می‌گذارد.
+     */
+    private function normalizeReflectionPoint(object $data, string $id, User $user): void
+    {
+        $weekStart = isset($data->weekStart) && is_string($data->weekStart) ? trim($data->weekStart) : '';
+        if (! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $weekStart)) {
+            abort(422, 'تاریخ شروع هفته نامعتبر است.');
+        }
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        if ($id !== 'rp-'.$studentId.'-'.str_replace('/', '-', $weekStart)) {
+            abort(422, 'شناسه‌ی رکورد نقاط تفکر نامعتبر است.');
+        }
+        $data->classId = (string) $classId;
+        $data->delivered = ! empty($data->delivered);
+        $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        $data->recordedById = (string) $user->id;
+        $data->recordedBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
     }
 
     private function validateSession(object $data, string $id): void

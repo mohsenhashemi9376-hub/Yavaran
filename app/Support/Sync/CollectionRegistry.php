@@ -36,6 +36,7 @@ final class CollectionRegistry
         'schoolHolidays' => 'school_holidays',
         'parentMeetings' => 'parent_meetings',
         'parentMeetingStates' => 'parent_meeting_states',
+        'reflectionPoints' => 'reflection_points',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -172,6 +173,25 @@ final class CollectionRegistry
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'reflection_points') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('reflection_points', function ($t): void {
+                    $t->string('id', 150)->primary();
+                    $t->string('student_id', 100)->index();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('week_start', 20)->index();
+                    $t->boolean('delivered')->default(false)->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                    $t->unique(['student_id', 'week_start'], 'reflection_points_student_week_unique');
                 });
             } catch (\Throwable) {
             }
@@ -500,6 +520,12 @@ final class CollectionRegistry
                 'academic_year' => self::str($d, 'academicYear', 20) ?? '',
                 'meeting_no' => max(1, min(3, (int) ($d->meetingNo ?? 1))),
                 'is_open' => ! empty($d->open),
+            ],
+            'reflectionPoints' => [
+                'student_id' => self::str($d, 'studentId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'week_start' => self::str($d, 'weekStart', 20) ?? '',
+                'delivered' => ! empty($d->delivered),
             ],
             'worksheetWeeks' => [
                 'week_start' => self::str($d, 'weekStart', 20) ?? '',

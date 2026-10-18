@@ -2,6 +2,7 @@ import { filterNavGroups } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { 
   LayoutDashboard,
+  Lightbulb,
   Eye, 
   FolderHeart, 
   Award, 
@@ -39,7 +40,8 @@ export type NurturingViewType =
   | 'taught_lessons'
   | 'homework_followup'
   | 'worksheets'
-  | 'parent_meetings';
+  | 'parent_meetings'
+  | 'reflection_points';
 
 export interface NurturingSidebarCounts {
   observations?: number;
@@ -217,6 +219,12 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           tooltip: 'پرونده جامع ۸ بخشی تربیتی دانش‌آموزان',
           icon: FolderHeart,
           count: totalDossiers > 0 ? totalDossiers : undefined,
+        },
+        {
+          id: 'reflection_points',
+          label: 'نقاط تفکر',
+          tooltip: 'گزارش تحویل نقاط تفکر دانش‌آموزان',
+          icon: Lightbulb,
         },
         {
           id: 'coachEvaluations',
