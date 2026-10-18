@@ -84,7 +84,9 @@ export const WorksheetsWorkspace: React.FC = () => {
     return map;
   }, [myClasses, students]);
 
-  const [weekStart, setWeekStart] = useState(() => weekStartOf());
+  // کاربرگ هر هفته در هفته‌ی بعد تحویل گرفته می‌شود (مهلتش در هفته‌ی بعد است)؛ پس هفته‌ی «در حال تحویل»، هفته‌ی قبل است
+  const collectingWeek = useMemo(() => shiftWeek(weekStartOf(), -1), []);
+  const [weekStart, setWeekStart] = useState(collectingWeek);
   const [classId, setClassId] = useState<string>('');
   const [filter, setFilter] = useState<Filter>('all');
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -100,7 +102,8 @@ export const WorksheetsWorkspace: React.FC = () => {
   const deadline = week?.deadline || null;
   const range = getShamsiWeekRange(weekStart);
   const todayStr = getTodayShamsi().formattedDate;
-  const isCurrentWeek = weekStart === weekStartOf();
+  const isCollectingWeek = weekStart === collectingWeek;
+  const weekNote = weekStart === weekStartOf() ? 'هفته جاری • تحویل در هفته‌ی بعد' : isCollectingWeek ? 'هفته‌ی قبل • در حال تحویل' : toPersianDigits(range.startDate);
 
   const list = classStudents.get(classId) || [];
   const sum = summarizeClassWeek(list, records, weekStart);
@@ -225,7 +228,7 @@ export const WorksheetsWorkspace: React.FC = () => {
             </button>
             <div className="min-w-[8.5rem] text-center">
               <div className="text-sm font-black text-slate-900">{weekTitle(weekStart)}</div>
-              <div className="text-[11px] text-slate-400">{isCurrentWeek ? 'هفته جاری' : toPersianDigits(range.startDate)}</div>
+              <div className="text-[11px] text-slate-400">{weekNote}</div>
             </div>
             <button
               type="button"
@@ -235,9 +238,9 @@ export const WorksheetsWorkspace: React.FC = () => {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            {!isCurrentWeek && (
-              <button type="button" onClick={() => setWeekStart(weekStartOf())} className="px-3 h-10 rounded-xl text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 cursor-pointer">
-                امروز
+            {!isCollectingWeek && (
+              <button type="button" onClick={() => setWeekStart(collectingWeek)} className="px-3 h-10 rounded-xl text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 cursor-pointer">
+                هفته‌ی در حال تحویل
               </button>
             )}
           </div>
@@ -278,13 +281,13 @@ export const WorksheetsWorkspace: React.FC = () => {
         {isEducationalManager && deadlineOpen && (
           <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-3.5 space-y-3">
             <div className="text-xs text-slate-600 leading-6">
-              مهلت ثبت کاربرگ این هفته را مشخص کنید. پس از گذشتن مهلت، دانش‌آموزان «تحویل نداده» و «ناقص» در داشبورد معاونت آموزش هشدار می‌شوند.
+              مهلت ثبت کاربرگ این هفته را مشخص کنید؛ کاربرگ هر هفته معمولاً در هفته‌ی بعد تحویل گرفته می‌شود، پس مهلت را در هفته‌ی بعد بگذارید. پس از گذشتن مهلت، دانش‌آموزان «تحویل نداده» و «ناقص» در داشبورد معاونت آموزش هشدار می‌شوند.
               هفته‌ای که مهلت ندارد (مثلاً تعطیل یا بدون کاربرگ) هشدار هم ندارد.
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {[
-                ['چهارشنبه', 4],
-                ['پنجشنبه', 5],
+                ['چهارشنبه هفته بعد', 11],
+                ['پنجشنبه هفته بعد', 12],
               ].map(([label, offset]) => (
                 <button
                   key={String(label)}
@@ -292,13 +295,13 @@ export const WorksheetsWorkspace: React.FC = () => {
                   onClick={() => saveDeadline(addDays(weekStart, Number(offset)))}
                   className="px-3.5 py-2 rounded-xl border border-teal-300 bg-white hover:bg-teal-50 text-xs font-bold text-teal-800 cursor-pointer"
                 >
-                  {label} همین هفته
+                  {label}
                 </button>
               ))}
               <ShamsiDatePicker
                 value={deadlineText}
                 onChange={setDeadlineText}
-                fallbackDate={addDays(weekStart, 4)}
+                fallbackDate={addDays(weekStart, 11)}
                 className="w-32 text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-600 font-mono text-center cursor-pointer"
               />
               <button type="button" onClick={() => saveDeadline(deadlineText)} className="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-extrabold cursor-pointer">
@@ -356,7 +359,11 @@ export const WorksheetsWorkspace: React.FC = () => {
             <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">کامل {toPersianDigits(sum.complete)}</span>
             <span className="px-2 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">ناقص {toPersianDigits(sum.partial)}</span>
             <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">غایب {toPersianDigits(sum.absent)}</span>
-            <span className="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">تحویل نداده {toPersianDigits(sum.missing)}</span>
+            {notYetDue ? (
+              <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">منتظر تحویل {toPersianDigits(sum.missing)} • مهلت نرسیده</span>
+            ) : (
+              <span className="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">تحویل نداده {toPersianDigits(sum.missing)}</span>
+            )}
           </div>
         </div>
         <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex" aria-hidden="true">
@@ -414,7 +421,7 @@ export const WorksheetsWorkspace: React.FC = () => {
                   <span className="w-6 text-center text-[11px] font-mono text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</div>
-                    {!status && <div className="text-[11px] font-bold text-rose-600 mt-0.5">تحویل نداده</div>}
+                    {!status && (notYetDue ? <div className="text-[11px] font-bold text-slate-400 mt-0.5">منتظر تحویل</div> : <div className="text-[11px] font-bold text-rose-600 mt-0.5">تحویل نداده</div>)}
                     {rec?.note && noteFor !== s.id && <div className="text-[11px] text-sky-700 mt-0.5 truncate">یادداشت: {rec.note}</div>}
                   </div>
                   </div>
