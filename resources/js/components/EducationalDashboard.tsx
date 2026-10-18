@@ -4,6 +4,11 @@ import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
+import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
+import { SCORE_COLUMNS } from '../utils/examReport';
+import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
+import { AcademicFollowUpStatus } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
@@ -20,6 +25,14 @@ import { GradePeriodsModal } from './GradePeriodsModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
+import { ExamEducationalReport } from './ExamEducationalReport';
+import { SubjectClassAnalysis } from './SubjectClassAnalysis';
+import { TermComprehensiveReport } from './TermComprehensiveReport';
+import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
+import { GreyListWorkspace } from './GreyListWorkspace';
+import { WeeklyFollowUpDigest } from './WeeklyFollowUpDigest';
+import { buildGreySnapshot } from '../utils/greyList';
+import { currentMonthKey } from '../utils/teacherActivities';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -112,6 +125,17 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     morningDelays,
     academicSubjects, 
     academicGrades, 
+    comprehensiveExams,
+    academicFollowUps,
+    setAcademicFollowUp,
+    followUpConfig,
+    saveFollowUpConfig,
+    greyList,
+    sendToGreyList,
+    withdrawFromGreyList,
+    showToast,
+    worksheets,
+    worksheetWeeks,
     gradePeriods,
     allTeachers,
     allCoaches,
@@ -153,10 +177,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // وضعیت‌های بخش کارنامه
   const [reportCardClassId, setReportCardClassId] = useState<string>(classes[0]?.id || 'all');
   const [reportCardSearch, setReportCardSearch] = useState('');
+  const [reportMonth, setReportMonth] = useState<ReportMonth>('all');
 
   // وضعیت‌های بخش هشدارهای آموزشی
   const [warningClassFilter, setWarningClassFilter] = useState<string>('all');
   const [warningSearch, setWarningSearch] = useState('');
+  const [warningGroup, setWarningGroup] = useState<'all' | FollowUpGroup>('all');
+  const [showResolved, setShowResolved] = useState(false);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   // مدال‌های افزودن و ویرایش کلاس، معلم، و ثبت سریع دانش‌آموز
   const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
@@ -180,122 +208,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     return () => window.removeEventListener('click', handleDocumentClick);
   }, []);
 
-  // حالت پیش‌نویس موقت نمرات
-  const [draftGrades, setDraftGrades] = useState<Record<string, {
-    c1?: string;
-    f1?: string;
-    c2?: string;
-    f2?: string;
-    notes?: string;
-  }>>({});
-
-  // به‌روزرسانی پیش‌نویس نمرات هنگام تغییر کلاس یا درس
-  React.useEffect(() => {
-    if (!selectedClassId || !selectedSubjectId) return;
-
-    const classStudents = students.filter(s => s.classId === selectedClassId);
-    const draft: Record<string, { c1?: string; f1?: string; c2?: string; f2?: string; notes?: string }> = {};
-
-    classStudents.forEach(stu => {
-      const existing = academicGrades.find(
-        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
-      );
-      if (existing) {
-        draft[stu.id] = {
-          c1: existing.term1Continuous !== undefined ? existing.term1Continuous.toString() : '',
-          f1: existing.term1Final !== undefined ? existing.term1Final.toString() : '',
-          c2: existing.term2Continuous !== undefined ? existing.term2Continuous.toString() : '',
-          f2: existing.term2Final !== undefined ? existing.term2Final.toString() : '',
-          notes: existing.notes || '',
-        };
-      } else {
-        draft[stu.id] = { c1: '', f1: '', c2: '', f2: '', notes: '' };
-      }
-    });
-
-    setDraftGrades(draft);
-  }, [selectedClassId, selectedSubjectId, students, academicGrades]);
-
   const currentClass = classes.find(c => c.id === selectedClassId);
   const currentSubject = academicSubjects.find(s => s.id === selectedSubjectId);
   const classStudents = students.filter(s => s.classId === selectedClassId);
-
-  // فیلتر دانش‌آموزان در جدول ثبت نمره
-  const filteredStudents = classStudents.filter(s => {
-    const fullName = `${studentFullName(s)}`.toLowerCase();
-    const code = s.studentCode?.toLowerCase() || '';
-    const matchSearch = !searchQuery || fullName.includes(searchQuery.toLowerCase()) || code.includes(searchQuery);
-    if (!matchSearch) return false;
-
-    const draft = draftGrades[s.id] || {};
-    const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
-    const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
-    const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
-    const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
-    const annual = calculateAnnualScore(c1, f1, c2, f2);
-
-    if (statusFilter === 'excellent') return annual !== undefined && annual >= 17;
-    if (statusFilter === 'normal') return annual !== undefined && annual >= 12 && annual < 17;
-    if (statusFilter === 'weak') return annual !== undefined && annual < 12;
-    if (statusFilter === 'ungraded') return c1 === undefined && f1 === undefined && c2 === undefined && f2 === undefined;
-
-    return true;
-  });
-
-  const handleScoreChange = (
-    studentId: string, 
-    field: 'c1' | 'f1' | 'c2' | 'f2' | 'notes', 
-    rawVal: string
-  ) => {
-    const val = toEnglishDigits(rawVal);
-    if (field !== 'notes' && val !== '') {
-      const num = parseFloat(val);
-      if (isNaN(num) || num < 0 || num > 20) return;
-    }
-
-    setDraftGrades(prev => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        [field]: val,
-      }
-    }));
-  };
-
-  const handleSaveGrades = () => {
-    if (!selectedClassId || !selectedSubjectId || !currentSubject) return;
-
-    const gradesToSave: StudentAcademicGrade[] = classStudents.map(stu => {
-      const draft = draftGrades[stu.id] || {};
-      const c1 = draft.c1 && draft.c1.trim() !== '' ? parseFloat(draft.c1) : undefined;
-      const f1 = draft.f1 && draft.f1.trim() !== '' ? parseFloat(draft.f1) : undefined;
-      const c2 = draft.c2 && draft.c2.trim() !== '' ? parseFloat(draft.c2) : undefined;
-      const f2 = draft.f2 && draft.f2.trim() !== '' ? parseFloat(draft.f2) : undefined;
-
-      const existing = academicGrades.find(
-        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
-      );
-
-      return {
-        id: existing ? existing.id : `grd-${stu.id}-${selectedSubjectId}`,
-        studentId: stu.id,
-        classId: selectedClassId,
-        subjectId: selectedSubjectId,
-        subjectName: currentSubject.name,
-        term1Continuous: c1,
-        term1Final: f1,
-        term2Continuous: c2,
-        term2Final: f2,
-        notes: draft.notes,
-        teacherName: currentSubject.defaultTeacherName,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
-    saveBatchAcademicGrades(gradesToSave);
-    setIsSavedToast(true);
-    setTimeout(() => setIsSavedToast(false), 3000);
-  };
 
   // محاسبات آماری آموزشی کل مدرسه
   let schoolTotalStudents = students.length;
@@ -305,7 +220,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   let needHelpCount = 0;
 
   academicGrades.forEach(g => {
-    const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
+    const ann = gradeScoreForMonth(g, 'all');
     if (ann !== undefined) {
       if (ann >= 10) passedCount++;
       if (ann >= 17) excellentCount++;
@@ -332,8 +247,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   let schoolGradeSum = 0;
   let schoolGradeCount = 0;
   academicGrades.forEach(g => {
-    if (g.term1Continuous !== undefined) {
-      schoolGradeSum += g.term1Continuous;
+    const v = gradeScoreForMonth(g, 'all');
+    if (v !== undefined) {
+      schoolGradeSum += v;
       schoolGradeCount++;
     }
   });
@@ -349,12 +265,12 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       let totalWeight = 0;
       let weakSubjects: string[] = [];
 
+      // نمره‌ی هر ماه جداگانه: ماه انتخابی، یا میانگین ماه‌های ثبت‌شده
       stuGrades.forEach(g => {
-        const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
-        const coeff = 1;
+        const ann = gradeScoreForMonth(g, reportMonth);
         if (ann !== undefined) {
-          sum += ann * coeff;
-          totalWeight += coeff;
+          sum += ann;
+          totalWeight += 1;
           if (ann < 12) {
             weakSubjects.push(g.subjectName);
           }
@@ -368,52 +284,41 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         className: studentClass?.name || 'نامشخص',
         classId: stu.classId,
         gpa: gpa !== undefined ? Number(gpa.toFixed(2)) : undefined,
-        gradesCount: stuGrades.length,
+        gradesCount: stuGrades.filter((g) => gradeScoreForMonth(g, reportMonth) !== undefined).length,
         weakSubjects,
         hasWarning: gpa !== undefined ? gpa < 12 : false,
       };
     });
-  }, [students, classes, academicGrades]);
+  }, [students, classes, academicGrades, reportMonth]);
 
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
+  // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
+  const followUpsByStudent = useMemo(
+    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions, config: followUpConfig }),
+    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions, followUpConfig]
+  );
   const academicWarningStudents = useMemo(() => {
-    return studentsAcademicData.filter(s => s.hasWarning || s.weakSubjects.length > 0);
-  }, [studentsAcademicData]);
-
-  // خروجی اکسل کارپوشه کلاسی
-  const handleExportClassExcel = () => {
-    if (!currentClass || !currentSubject) return;
-
-    const data = filteredStudents.map((s, idx) => {
-      const draft = draftGrades[s.id] || {};
-      const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
-      const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
-      const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
-      const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
-      const ann = calculateAnnualScore(c1, f1, c2, f2);
-
-      return {
-        'ردیف': idx + 1,
-        'کد دانش‌آموز': s.studentCode || '',
-        'نام': s.firstName,
-        'نام خانوادگی': s.lastName,
-        'کلاس': currentClass.name,
-        'درس': currentSubject.name,
-        'مستمر نوبت اول': draft.c1 || '',
-        'پایانی نوبت اول': draft.f1 || '',
-        'مستمر نوبت دوم': draft.c2 || '',
-        'پایانی نوبت دوم': draft.f2 || '',
-        'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
-        'وضعیت': ann === undefined ? 'ثبت نشده' : ann >= 10 ? 'قبول' : 'تجدید',
-        'ملاحظات': draft.notes || '',
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'ریز نمرات');
-    XLSX.writeFile(workbook, `ریز_نمرات_${currentSubject.name}_${currentClass.name}_مدرسه_یاوران_ولایت.xlsx`);
-  };
+    const byStudent = new Map(academicFollowUps.map((r) => [r.studentId, r]));
+    return studentsAcademicData
+      .map((s) => {
+        const followUps = followUpsByStudent.get(s.student.id) || ([] as FollowUpReason[]);
+        // اولویت: تعداد انواع مختلف مشکل (۱–۲ زرد، ۳ نارنجی، ۴ به بالا قرمز)
+        const priority = new Set(followUps.map((f) => f.kind)).size;
+        return { ...s, followUps, priority, followRecord: byStudent.get(s.student.id) };
+      })
+      .filter((s) => s.followUps.length > 0)
+      .sort((a, b) => b.priority - a.priority);
+  }, [studentsAcademicData, followUpsByStudent, academicFollowUps]);
+  // موارد حل‌شده در شمارنده‌ها نمی‌آیند
+  // لیست خاکستری این ماه: کدام دانش‌آموزان فرستاده شده‌اند
+  const greyMonth = currentMonthKey();
+  const greyThisMonth = useMemo(() => new Map(greyList.filter((r) => r.month === greyMonth).map((r) => [r.studentId, r])), [greyList, greyMonth]);
+  const digestEntries = useMemo(
+    () => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved').map((s) => ({ id: s.student.id, name: studentFullName(s.student), className: s.className, priority: s.priority })),
+    [academicWarningStudents]
+  );
+  const unsentIds = useMemo(() => new Set(digestEntries.filter((e) => !greyThisMonth.has(e.id)).map((e) => e.id)), [digestEntries, greyThisMonth]);
+  const openWarningStudents = useMemo(() => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved'), [academicWarningStudents]);
 
   // خروجی اکسل کلی مدرسه
   const handleExportSchoolExcel = () => {
@@ -423,17 +328,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       clsStudents.forEach(stu => {
         academicSubjects.forEach(sub => {
           const g = academicGrades.find(grd => grd.studentId === stu.id && grd.subjectId === sub.id);
-          const ann = g ? calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final) : undefined;
+          const avg = g ? gradeScoreForMonth(g, 'all') : undefined;
           data.push({
             'کلاس': c.name,
             'نام دانش‌آموز': `${studentFullName(stu)}`,
             'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
             'نام درس': sub.name,
-            'مستمر ۱': g?.term1Continuous !== undefined ? g.term1Continuous : '',
-            'پایانی ۱': g?.term1Final !== undefined ? g.term1Final : '',
-            'مستمر ۲': g?.term2Continuous !== undefined ? g.term2Continuous : '',
-            'پایانی ۲': g?.term2Final !== undefined ? g.term2Final : '',
-            'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
+            ...Object.fromEntries(SCORE_COLUMNS.map((m) => [m.monthName, g && typeof g[m.key] === 'number' ? g[m.key] : ''])),
+            'میانگین مستمر': avg !== undefined ? Math.round(avg * 100) / 100 : 'ثبت نشده',
             'دبیر': sub.defaultTeacherName || sub.teacherName || c.academicAdvisor || '-',
           });
         });
@@ -456,7 +358,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'نام و نام خانوادگی': `${studentFullName(item.student)}`,
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
-      'معدل کل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
+      'ستون': reportMonth === 'all' ? 'میانگین مستمر' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
+      'معدل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
       'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
       'دروس دارای افت': item.weakSubjects.join('، ') || 'ندارد',
@@ -473,7 +376,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     <div className="edu-pastel flex flex-col lg:flex-row items-start gap-6 relative" dir="rtl">
       
       {/* سایدبار در حالت دسکتاپ (Docked Sidebar) */}
-      <div className="hidden lg:block shrink-0 sticky top-20 z-20">
+      <div className="hidden lg:block shrink-0 sticky top-20 z-20 yv-sidebar-dock">
         <EducationalSidebarNav
           variant="docked"
           isCollapsed={isSidebarCollapsed}
@@ -489,7 +392,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             teachers: allTeachers.length,
             grades: totalUngradedGrades,
             reportCards: students.length,
-            warnings: academicWarningStudents.length,
+            warnings: openWarningStudents.length,
             students: students.length,
             attendanceSessions: sessions.length,
           }}
@@ -498,7 +401,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = educationalMobileNav({ warnings: academicWarningStudents.length });
+        const nav = educationalMobileNav({ warnings: openWarningStudents.length });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -530,7 +433,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           teachers: allTeachers.length,
           grades: totalUngradedGrades,
           reportCards: students.length,
-          warnings: academicWarningStudents.length,
+          warnings: openWarningStudents.length,
           students: students.length,
           attendanceSessions: sessions.length,
         }}
@@ -543,6 +446,15 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت آموزشی (currentView === null) */}
         {/* ========================================================================= */}
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
+        {(currentView === null || currentView === 'warnings') && (
+          <WeeklyFollowUpDigest
+            userId={currentUser.id}
+            entries={digestEntries}
+            unsentIds={unsentIds}
+            ready={students.length > 0}
+            onOpenList={() => setCurrentView('warnings')}
+          />
+        )}
         {currentView === null && (
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             
@@ -608,7 +520,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   'bg-amber-50/70 border-amber-200/80 text-amber-950',
                   'text-amber-600',
                 ],
-                ['warnings', 'نیازمند پیگیری', toPersianDigits(academicWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
+                ['warnings', 'نیازمند پیگیری', toPersianDigits(openWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
               ] as const).map(([view, label, value, hint, Icon, tone, iconTone], idx) => (
                 <button
                   key={view}
@@ -828,14 +740,25 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </div>
             </div>
 
+            {/* دروس بدون نمره */}
+            <UngradedSubjectsPanel
+              onPick={(classId, subjectId) => {
+                setSelectedClassId(classId);
+                setSelectedSubjectId(subjectId);
+                window.setTimeout(() => document.getElementById('educational-grade-book')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+            />
+
             {/* ۳. ثبت نمره‌ی ماه‌به‌ماه: با باز شدن هر ماه فقط یک نمره ثبت می‌شود */}
             {currentClass && (
-              <ClassMonthlyGradesSection
-                key={currentClass.id}
-                classData={currentClass}
-                initialSubjectId={selectedSubjectId}
-                onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
-              />
+              <div id="educational-grade-book" className="scroll-mt-4">
+                <ClassMonthlyGradesSection
+                  key={`${currentClass.id}-${selectedSubjectId}`}
+                  classData={currentClass}
+                  initialSubjectId={selectedSubjectId}
+                  onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
+                />
+              </div>
             )}
 
           </div>
@@ -847,6 +770,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           />
+        )}
+
+        {currentView === 'grey_list' && (
+          <div className="space-y-3">
+            <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
+            <GreyListWorkspace onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          </div>
         )}
 
         {currentView === 'homework_followup' && (
@@ -987,6 +917,16 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   ))}
                 </div>
 
+                <select
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value as ReportMonth)}
+                  aria-label="ماه کارنامه"
+                  className="min-h-[40px] px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                >
+                  <option value="all">میانگین مستمر</option>
+                  {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.key.endsWith('Final') ? m.monthName : `مستمر ${m.monthName}`}</option>)}
+                </select>
+
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -1093,6 +1033,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* حالت ۷: گزارش‌های آموزشی (currentView === 'reports') */}
         {/* ========================================================================= */}
         {currentView === 'reports' && (
+          <div className="space-y-6">
           <AdminReportsWorkspace
             classes={classes}
             students={students}
@@ -1103,6 +1044,10 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onOpenAcademicGrades={() => setCurrentView('grades')}
             onViewWarnings={() => setCurrentView('warnings')}
           />
+          <ExamEducationalReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          <TermComprehensiveReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          <SubjectClassAnalysis />
+          </div>
         )}
 
         {/* ========================================================================= */}
@@ -1125,7 +1070,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     <span>دانش‌آموزان نیازمند توجه و پیگیری آموزشی</span>
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    شناسایی دانش‌آموزان دارای افت معدل (زیر ۱۲) یا تجدیدی جهت هماهنگی با اولیا و دبیران مربوطه.
+                    شناسایی دانش‌آموزان دارای نقص آموزشی از هر جهت: نمره (مستمر، افت، آزمون جامع)، تکلیف (مثلاً ۳ بار انجام‌نشده در یک ماه برای هر درس)، کاربرگ (دو هفته متوالی) و غیبت، تأخیر یا اخطار کلاسی. هرچه انواع مشکل بیشتر، اولویت بالاتر.
                   </p>
                 </div>
 
@@ -1138,6 +1083,17 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   >
                     <Menu className="w-4 h-4 text-slate-700" />
                     <span>منو</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCriteriaOpen(true)}
+                    className="min-h-11 px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="تعیین ملاک‌های نمایش دانش‌آموزان در این لیست"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    <span>پیشرفته</span>
+                    {!isDefaultFollowUpConfig(followUpConfig) && <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">سفارشی</span>}
                   </button>
 
                   <button
@@ -1190,7 +1146,28 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   />
                 </div>
               </div>
+
+              {/* نوع مشکل و موارد حل‌شده */}
+              <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold">
+                {(['all', 'grades', 'homework', 'worksheet', 'attendance'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setWarningGroup(g)}
+                    aria-pressed={warningGroup === g}
+                    className={`min-h-[40px] px-3.5 rounded-full border cursor-pointer transition ${warningGroup === g ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    {g === 'all' ? 'همه موارد' : FOLLOW_UP_GROUP_LABEL[g]}
+                  </button>
+                ))}
+                <label className="mr-auto inline-flex items-center gap-1.5 min-h-[40px] text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="w-4 h-4" />
+                  نمایش موارد حل‌شده
+                </label>
+              </div>
             </div>
+
+            {criteriaOpen && <FollowUpCriteriaModal config={followUpConfig} onSave={saveFollowUpConfig} onClose={() => setCriteriaOpen(false)} />}
 
             {/* ۳. جدول موارد پیگیری */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -1202,7 +1179,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       <th className="p-3">دانش‌آموز</th>
                       <th className="p-3">کلاس</th>
                       <th className="p-3 text-center">معدل کل</th>
-                      <th className="p-3">دروس نیازمند تقویت</th>
+                      <th className="p-3">علت پیگیری</th>
+                      <th className="p-3">وضعیت پیگیری</th>
+                      <th className="p-3">لیست خاکستری</th>
                       <th className="p-3">شماره ولی</th>
                       <th className="p-3 text-left">اقدام فوری</th>
                     </tr>
@@ -1211,6 +1190,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     {academicWarningStudents
                       .filter(item => {
                         if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
+                        if (!showResolved && item.followRecord?.status === 'resolved') return false;
+                        if (warningGroup !== 'all' && !item.followUps.some((f) => f.group === warningGroup)) return false;
                         if (!warningSearch) return true;
                         const q = warningSearch.trim().toLowerCase();
                         const name = `${studentFullName(item.student)}`.toLowerCase();
@@ -1229,6 +1210,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                             >
                               {studentFullName(item.student)}
                             </button>
+                            <span
+                              className={`mr-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                item.priority >= 4 ? 'bg-rose-50 text-rose-700 border-rose-200' : item.priority === 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              {item.priority >= 4 ? 'فوری' : item.priority === 3 ? 'مهم' : 'توجه'} • {toPersianDigits(item.priority)} مورد
+                            </span>
                           </td>
                           <td className="p-3 text-slate-600">
                             کلاس {item.className}
@@ -1238,8 +1226,61 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                               {item.gpa !== undefined ? toPersianDigits(item.gpa) : '—'}
                             </span>
                           </td>
-                          <td className="p-3 text-rose-700 font-semibold">
-                            {item.weakSubjects.length > 0 ? item.weakSubjects.join('، ') : 'معدل کمتر از ۱۲'}
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              {item.followUps.map((f, i) => (
+                                <span key={`${f.kind}-${i}`} className="inline-flex items-start gap-1 text-rose-700 font-semibold leading-5">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                  <span>{f.label}: <span className="font-medium text-slate-700">{toPersianDigits(f.detail)}</span></span>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-3 min-w-44">
+                            <select
+                              value={item.followRecord?.status ?? 'open'}
+                              onChange={(e) => setAcademicFollowUp(item.student, { status: e.target.value as AcademicFollowUpStatus })}
+                              aria-label={`وضعیت پیگیری ${studentFullName(item.student)}`}
+                              className="w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                            >
+                              <option value="open">پیگیری نشده</option>
+                              <option value="in_progress">در حال بررسی</option>
+                              <option value="called_parent">تماس با ولی گرفته شد</option>
+                              <option value="resolved">حل شد</option>
+                            </select>
+                            <input
+                              key={item.followRecord?.note ?? ''}
+                              type="text"
+                              defaultValue={item.followRecord?.note ?? ''}
+                              onBlur={(e) => e.target.value.trim() !== (item.followRecord?.note ?? '') && setAcademicFollowUp(item.student, { note: e.target.value })}
+                              placeholder="یادداشت پیگیری..."
+                              maxLength={500}
+                              aria-label={`یادداشت پیگیری ${studentFullName(item.student)}`}
+                              className="mt-1.5 w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs outline-none focus:border-emerald-500"
+                            />
+                            {item.followRecord?.updatedBy && <div className="mt-1 text-[10px] text-slate-400">{item.followRecord.updatedBy}</div>}
+                          </td>
+                          <td className="p-3 min-w-40">
+                            {(() => {
+                              const sent = greyThisMonth.get(item.student.id);
+                              return sent ? (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-extrabold">✓ در لیست خاکستری مربی</span>
+                                  <button type="button" onClick={() => withdrawFromGreyList(sent.id)} className="block text-[11px] font-bold text-rose-600 cursor-pointer">برگرداندن</button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sendToGreyList(item.student, buildGreySnapshot(academicGrades.filter((g) => g.studentId === item.student.id), item.followUps), greyMonth);
+                                    showToast(`«${studentFullName(item.student)}» به لیست خاکستری مربی فرستاده شد.`, 'success');
+                                  }}
+                                  className="min-h-[44px] px-3 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-800 text-[11px] font-extrabold cursor-pointer whitespace-nowrap"
+                                >
+                                  ارسال به لیست خاکستری
+                                </button>
+                              );
+                            })()}
                           </td>
                           <td className="p-3 font-mono text-slate-600">
                             {item.student.parentPhone}

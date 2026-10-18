@@ -4,6 +4,9 @@ import { SchoolClass, Student, AttendanceSession, User } from '../types';
 import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { ClassProfileView } from './ClassProfileView';
+import { useSchool } from '../context/SchoolContext';
+import { classExamAverage } from '../utils/examReport';
+import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { AddStudentToClassModal } from './AddStudentToClassModal';
 import { 
   GraduationCap, 
@@ -61,6 +64,10 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
   onSelectStudent,
   onEditClass,
 }) => {
+  // معدل آزمون جامع کلاس: فقط برای مدیر و معاون آموزش
+  const { comprehensiveExams, isAdmin, isEducationalVice } = useSchool();
+  const canSeeExamAverage = isAdmin || isEducationalVice;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -392,6 +399,25 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
                           {hasNoStudents ? 'بدون دانش‌آموز' : `${toPersianDigits(classStudents.length)} نفر`}
                         </span>
                       </div>
+
+                      {/* معدل آزمون جامع کلاس */}
+                      {canSeeExamAverage && (() => {
+                        const avg = classExamAverage(comprehensiveExams.find((r) => r.classId === cls.id), cls, classStudents);
+                        const band = scoreBand(avg);
+                        return (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1.5">
+                              <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>معدل آزمون جامع:</span>
+                            </span>
+                            {avg === undefined || !band ? (
+                              <span className="text-slate-400 text-[11px]">ثبت نشده</span>
+                            ) : (
+                              <span className={`px-2.5 py-0.5 rounded-lg font-black ${SCORE_BAND_STYLE[band].cell}`}>{toPersianDigits(Math.round(avg * 100) / 100)}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* معلم کلاس */}
                       <div className="flex items-start justify-between gap-2">

@@ -290,6 +290,66 @@ export interface LoanItem {
 }
 
 /** حضور اولیای یک دانش‌آموز در یکی از سه جلسه‌ی عمومی اولیاء در سال تحصیلی */
+/** وضعیت پیگیری آموزشی یک دانش‌آموز در فهرست «نیازمند پیگیری» (مدیر و معاونت آموزش) */
+export type AcademicFollowUpStatus = 'open' | 'in_progress' | 'called_parent' | 'resolved';
+
+export interface AcademicFollowUpRecord {
+  id: string; // afu-{studentId}
+  studentId: string;
+  classId: string;
+  status: AcademicFollowUpStatus;
+  note?: string | null;
+  updatedBy?: string; // توسط سرور تعیین می‌شود
+  updatedById?: string;
+  updatedAt?: string;
+}
+
+/** تصویر ثابتِ وضعیت آموزشی دانش‌آموز در لحظه‌ی ارسال به لیست خاکستری */
+export interface GreySnapshot {
+  average: number | null;
+  weakSubjects: { name: string; score: number }[];
+  reasons: { kind: string; group: string; label: string; detail: string }[];
+}
+
+export interface GreyAction {
+  id: string;
+  text: string;
+  at: string; // ISO؛ توسط سرور تعیین می‌شود
+  by: string;
+  byId?: string;
+}
+
+/** لیست خاکستری آموزش: یک رکورد برای هر دانش‌آموز در هر ماه؛ معاونت آموزش می‌فرستد، مربی علت و اقدام را می‌نویسد */
+export interface GreyListRecord {
+  id: string; // gl-{studentId}-{سال}-{ماه}
+  studentId: string;
+  classId: string;
+  month: string; // "1405/07"
+  snapshot: GreySnapshot;
+  causes: string[];
+  causeOther?: string | null;
+  actions: GreyAction[];
+  nextFollowUp?: string | null; // تاریخ شمسی پیگیری بعدی
+  sentBy?: string;
+  sentById?: string;
+  sentAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+/** گزارش نقاط تفکر: تحویل / عدم تحویل هر دانش‌آموز در هر هفته (پیش‌فرض: تحویل نداده) */
+export interface ReflectionPointRecord {
+  id: string; // rp-{studentId}-{weekStart با خط تیره}
+  studentId: string;
+  classId: string;
+  weekStart: string; // شنبه‌ی هفته: "1405/07/15"
+  delivered: boolean;
+  note?: string | null;
+  recordedBy?: string; // توسط سرور تعیین می‌شود
+  recordedById?: string;
+  updatedAt?: string;
+}
+
 export type ParentMeetingNo = 1 | 2 | 3;
 
 export interface ParentMeetingRecord {
@@ -341,18 +401,20 @@ export interface GradePeriod {
   deadline?: string; // مهلت ثبت (شمسی)
 }
 
+/**
+ * ستون‌های نمره: مستمر هر ماه (مهر، آبان، آذر؛ بهمن، اسفند، فروردین، اردیبهشت) و دو نمره‌ی پایانی (اول و دوم).
+ * «مستمر ۱ / مستمر ۲ / نوبت» وجود ندارد؛ کلیدهای قدیمی term1Continuous و term2Continuous فقط برای داده‌های قدیمی مانده‌اند و نمایش داده نمی‌شوند.
+ */
 export const MONTHLY_EVALUATION_PERIODS: MonthlyPeriodInfo[] = [
   { key: 'mehrContinuous', monthName: 'مهر', label: 'مستمر مهر', shortLabel: 'مهر', term: 1, order: 1 },
   { key: 'abanContinuous', monthName: 'آبان', label: 'مستمر آبان', shortLabel: 'آبان', term: 1, order: 2 },
   { key: 'azarContinuous', monthName: 'آذر', label: 'مستمر آذر', shortLabel: 'آذر', term: 1, order: 3 },
-  { key: 'term1Continuous', monthName: 'دی', label: 'نوبت اول', shortLabel: 'نوبت اول', term: 1, order: 4 },
-  { key: 'term1Final', monthName: 'دی', label: 'پایانی ترم اول', shortLabel: 'پایانی ۱', term: 1, order: 5 },
-  { key: 'bahmanContinuous', monthName: 'بهمن', label: 'مستمر بهمن', shortLabel: 'بهمن', term: 2, order: 6 },
-  { key: 'esfandContinuous', monthName: 'اسفند', label: 'مستمر اسفند', shortLabel: 'اسفند', term: 2, order: 7 },
-  { key: 'farvardinContinuous', monthName: 'فروردین', label: 'مستمر فروردین', shortLabel: 'فروردین', term: 2, order: 8 },
-  { key: 'ordibeheshtContinuous', monthName: 'اردیبهشت', label: 'مستمر اردیبهشت', shortLabel: 'اردیبهشت', term: 2, order: 9 },
-  { key: 'term2Continuous', monthName: 'خرداد', label: 'مستمر ترم دوم', shortLabel: 'مستمر ۲', term: 2, order: 10 },
-  { key: 'term2Final', monthName: 'خرداد', label: 'پایانی ترم دوم', shortLabel: 'پایانی ۲', term: 2, order: 11 },
+  { key: 'term1Final', monthName: 'پایانی اول', label: 'پایانی اول', shortLabel: 'پایانی اول', term: 1, order: 4 },
+  { key: 'bahmanContinuous', monthName: 'بهمن', label: 'مستمر بهمن', shortLabel: 'بهمن', term: 2, order: 5 },
+  { key: 'esfandContinuous', monthName: 'اسفند', label: 'مستمر اسفند', shortLabel: 'اسفند', term: 2, order: 6 },
+  { key: 'farvardinContinuous', monthName: 'فروردین', label: 'مستمر فروردین', shortLabel: 'فروردین', term: 2, order: 7 },
+  { key: 'ordibeheshtContinuous', monthName: 'اردیبهشت', label: 'مستمر اردیبهشت', shortLabel: 'اردیبهشت', term: 2, order: 8 },
+  { key: 'term2Final', monthName: 'پایانی دوم', label: 'پایانی دوم', shortLabel: 'پایانی دوم', term: 2, order: 9 },
 ];
 
 export interface MorningDelayRecord {
@@ -678,7 +740,12 @@ export interface ComprehensiveExamRecord {
   id: string; // cexam-{classId}
   classId: string;
   activeSubjects: ExamSubjectKey[];
+  /** نمرات ثبت‌شده بدون ماه (سوابق قبل از ثبت ماهانه) */
   scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
+  /** نمرات آزمون جامع هر ماه: کلید ماه ← studentId ← نمرات (برای نمودار رشد) */
+  monthly?: Partial<Record<MonthlyContinuousKey, Record<string, Partial<Record<ExamSubjectKey, number>>>>>;
+  /** دروس فعال هر ماه (اگر تعریف نشده باشد، activeSubjects کلاس) */
+  monthlyActive?: Partial<Record<MonthlyContinuousKey, ExamSubjectKey[]>>;
   updatedAt?: string;
 }
 

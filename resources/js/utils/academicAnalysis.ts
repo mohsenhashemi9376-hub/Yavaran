@@ -110,7 +110,7 @@ export function calculateAnnualScore(
 
 export function analyzeSubjectGrade(grade: StudentAcademicGrade): SubjectAnalysis {
   // If term1Continuous is not explicitly set, average monthly marks of Semester 1
-  let c1 = grade.term1Continuous;
+  let c1: number | undefined = undefined;
   if (c1 === undefined) {
     const s1Months = [grade.mehrContinuous, grade.abanContinuous, grade.azarContinuous].filter(v => v !== undefined) as number[];
     if (s1Months.length > 0) {
@@ -119,7 +119,7 @@ export function analyzeSubjectGrade(grade: StudentAcademicGrade): SubjectAnalysi
   }
 
   // If term2Continuous is not explicitly set, average monthly marks of Semester 2
-  let c2 = grade.term2Continuous;
+  let c2: number | undefined = undefined;
   if (c2 === undefined) {
     const s2Months = [grade.bahmanContinuous, grade.esfandContinuous, grade.farvardinContinuous, grade.ordibeheshtContinuous].filter(v => v !== undefined) as number[];
     if (s2Months.length > 0) {
@@ -148,7 +148,9 @@ export function analyzeSubjectGrade(grade: StudentAcademicGrade): SubjectAnalysi
     term2Overall = c2;
   }
 
-  const annualScore = calculateAnnualScore(c1, f1, c2, f2);
+  // نمره‌ی درس = میانگین مستمرهای ماهانه (پایانی اول و دوم جدا می‌مانند و در میانگین نمی‌آیند)
+  const continuousValues = [grade.mehrContinuous, grade.abanContinuous, grade.azarContinuous, grade.bahmanContinuous, grade.esfandContinuous, grade.farvardinContinuous, grade.ordibeheshtContinuous].filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+  const annualScore = continuousValues.length ? Math.round((continuousValues.reduce((a, b) => a + b, 0) / continuousValues.length) * 100) / 100 : undefined;
 
   // Growth Delta calculation
   let growthDelta: number | undefined = undefined;
@@ -173,7 +175,7 @@ export function analyzeSubjectGrade(grade: StudentAcademicGrade): SubjectAnalysi
   // Pass status
   let passStatus: SubjectAnalysis['passStatus'] = 'in_progress';
   if (annualScore !== undefined) {
-    if (annualScore >= 10 && (f2 === undefined || f2 >= 10)) {
+    if (annualScore >= 10) {
       passStatus = 'passed';
     } else if (annualScore >= 7) {
       passStatus = 'conditional';

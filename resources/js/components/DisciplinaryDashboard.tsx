@@ -310,7 +310,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
       <div className="flex flex-col lg:flex-row items-start gap-6">
 
         {/* سایدبار ثابت دسکتاپ (Docked Sidebar) */}
-        <div className="hidden lg:block shrink-0 sticky top-20">
+        <div className="hidden lg:block shrink-0 sticky top-20 yv-sidebar-dock">
           <ExecutiveSidebarNav
             variant="docked"
             isCollapsed={isSidebarCollapsed}

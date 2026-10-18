@@ -112,7 +112,7 @@ export const AdminReportsWorkspace: React.FC<AdminReportsWorkspaceProps> = ({
                 دفتر ثبت نمرات ۴ نوبته و ارزشیابی
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                سامانه ثبت، مدیریت و صدور کارنامه نمرات مستمر ۱، نوبت اول، مستمر ۲ و نوبت دوم به تفکیک تمام دروس و معلمان.
+                سامانه ثبت، مدیریت و صدور کارنامه نمرات مستمر هر ماه و پایانی اول و دوم به تفکیک تمام دروس و معلمان.
               </p>
             </div>
           </div>

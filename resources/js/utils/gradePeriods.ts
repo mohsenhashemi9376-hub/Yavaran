@@ -6,14 +6,14 @@ export const GRADE_PERIOD_NAMES: Record<MonthlyContinuousKey, string> = {
   mehrContinuous: 'مستمر مهر',
   abanContinuous: 'مستمر آبان',
   azarContinuous: 'مستمر آذر',
-  term1Continuous: 'نوبت اول (دی)',
-  term1Final: 'پایانی نوبت اول (دی)',
+  term1Continuous: 'مستمر (قدیمی)',
+  term1Final: 'پایانی اول',
   bahmanContinuous: 'مستمر بهمن',
   esfandContinuous: 'مستمر اسفند',
   farvardinContinuous: 'مستمر فروردین',
   ordibeheshtContinuous: 'مستمر اردیبهشت',
-  term2Continuous: 'مستمر ترم دوم (خرداد)',
-  term2Final: 'پایانی نوبت دوم (خرداد)',
+  term2Continuous: 'مستمر (قدیمی)',
+  term2Final: 'پایانی دوم',
 };
 
 /** فهرست کامل بازه‌ها؛ بازه‌ای که هنوز رکوردی ندارد «غیرفعال» فرض می‌شود */
@@ -114,3 +114,19 @@ export function subjectPillClass(name: string): string {
   if (n.includes('قرآن') || n.includes('پیام') || n.includes('دینی')) return 'bg-indigo-50 text-indigo-800 border border-indigo-200/80';
   return 'bg-slate-50 text-slate-700 border border-slate-200/80';
 }
+
+export type ScoreBand = 'excellent' | 'good' | 'weak';
+
+/** ممتاز: ۱۷ به بالا • متوسط: ۱۰ تا کمتر از ۱۷ • ضعیف: کمتر از ۱۰ */
+export function scoreBand(score: number | undefined | null): ScoreBand | undefined {
+  if (score === undefined || score === null || Number.isNaN(score)) return undefined;
+  if (score >= 17) return 'excellent';
+  if (score >= 10) return 'good';
+  return 'weak';
+}
+
+export const SCORE_BAND_STYLE: Record<ScoreBand, { cell: string; chip: string; label: string }> = {
+  excellent: { cell: 'bg-emerald-50 text-emerald-800', chip: 'bg-emerald-50 text-emerald-800 border-emerald-200', label: 'ممتاز (۱۷ به بالا)' },
+  good: { cell: 'bg-amber-50 text-amber-800', chip: 'bg-amber-50 text-amber-800 border-amber-200', label: 'متوسط (۱۰ تا ۱۷)' },
+  weak: { cell: 'bg-rose-50 text-rose-800', chip: 'bg-rose-50 text-rose-800 border-rose-200', label: 'ضعیف (زیر ۱۰)' },
+};

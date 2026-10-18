@@ -344,3 +344,58 @@ CREATE TABLE IF NOT EXISTS `parent_meeting_states` (
   KEY `parent_meeting_states_meeting_no_index` (`meeting_no`),
   KEY `parent_meeting_states_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- گزارش نقاط تفکر: تحویل / عدم تحویل هر دانش‌آموز در هر هفته (معاون تربیتی و مربی)
+CREATE TABLE IF NOT EXISTS `reflection_points` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `week_start` varchar(20) NOT NULL,
+  `delivered` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `reflection_points_student_week_unique` (`student_id`,`week_start`),
+  KEY `reflection_points_student_id_index` (`student_id`),
+  KEY `reflection_points_class_id_index` (`class_id`),
+  KEY `reflection_points_week_start_index` (`week_start`),
+  KEY `reflection_points_delivered_index` (`delivered`),
+  KEY `reflection_points_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- وضعیت پیگیری آموزشی دانش‌آموزان (مدیر و معاونت آموزش)
+CREATE TABLE IF NOT EXISTS `academic_follow_ups` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'open',
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `academic_follow_ups_student_id_unique` (`student_id`),
+  KEY `academic_follow_ups_class_id_index` (`class_id`),
+  KEY `academic_follow_ups_status_index` (`status`),
+  KEY `academic_follow_ups_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- لیست خاکستری آموزش: یک رکورد برای هر دانش‌آموز در هر ماه (ارسال توسط معاونت آموزش)
+CREATE TABLE IF NOT EXISTS `grey_list_entries` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `month` varchar(7) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `grey_list_entries_student_month_unique` (`student_id`,`month`),
+  KEY `grey_list_entries_student_id_index` (`student_id`),
+  KEY `grey_list_entries_class_id_index` (`class_id`),
+  KEY `grey_list_entries_month_index` (`month`),
+  KEY `grey_list_entries_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

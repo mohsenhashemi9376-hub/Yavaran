@@ -10,18 +10,18 @@ interface Props {
 }
 
 /** ماه‌هایی که معاون آموزش جداگانه برایشان ثبت نمره را باز یا بسته می‌کند */
-const MONTH_CODES = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'term1Continuous', 'bahmanContinuous', 'esfandContinuous', 'farvardinContinuous', 'ordibeheshtContinuous', 'term2Final'];
+const MONTH_CODES = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'term1Final', 'bahmanContinuous', 'esfandContinuous', 'farvardinContinuous', 'ordibeheshtContinuous', 'term2Final'];
 
 const MONTH_TITLE: Record<string, string> = {
   mehrContinuous: 'مهر',
   abanContinuous: 'آبان',
   azarContinuous: 'آذر',
-  term1Continuous: 'نوبت اول',
+  term1Final: 'پایانی اول',
   bahmanContinuous: 'بهمن',
   esfandContinuous: 'اسفند',
   farvardinContinuous: 'فروردین',
   ordibeheshtContinuous: 'اردیبهشت',
-  term2Final: 'پایانی خرداد',
+  term2Final: 'پایانی دوم',
 };
 
 /** مدیریت ثبت نمره‌ی هر ماه: باز/بسته برای همه‌ی دروس یا فقط چند درس مشخص (ویژه معاون آموزش) */

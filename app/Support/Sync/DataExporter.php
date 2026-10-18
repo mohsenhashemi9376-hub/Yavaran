@@ -123,6 +123,16 @@ final class DataExporter
             $query->whereIn('class_id', $policy->nurturingClassIds());
         }
 
+        // لیست خاکستری: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
+        if ($collection === 'greyList' && $policy->isCoach()) {
+            $query->whereIn('class_id', $policy->nurturingClassIds());
+        }
+
+        // نقاط تفکر: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
+        if ($collection === 'reflectionPoints' && $policy->isCoach()) {
+            $query->whereIn('class_id', $policy->nurturingClassIds());
+        }
+
         // حضور أولیا: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
         if ($collection === 'parentMeetings' && $policy->isCoach()) {
             $query->whereIn('class_id', $policy->nurturingClassIds());

@@ -21,13 +21,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /** آغاز حضور همه‌ی دانش‌آموزان: اول مهر سال تحصیلی جاری */
 const yearStart = (): string => `${getAcademicYearStart(getActiveAcademicYear())}/07/01`;
 
-/** ماه‌های سپری‌شده‌ی سال تحصیلی (از مهر تا ماه جاری) */
-const elapsedMonths = () => {
-  const all = academicMonths();
-  const cur = getTodayShamsi().month;
-  const idx = all.findIndex((m) => m.month === cur);
-  return idx < 0 ? all.slice(0, 1) : all.slice(0, idx + 1);
-};
+/** همه‌ی ماه‌های سال تحصیلی (مهر تا شهریور)؛ ماه‌هایی که هنوز نرسیده‌اند قابل انتخاب نیستند */
+const elapsedMonths = () => academicMonths();
+const isFutureMonth = (m: { month: number; year: number }) => `${m.year}/${pad(m.month)}/01` > key(getTodayShamsi().formattedDate);
 
 const PERIOD_FIXED: { key: ExcellencePeriod; label: string }[] = [
   { key: 'd7', label: '۷ روز اخیر' },
@@ -211,7 +207,11 @@ const PeriodSelect: React.FC<{ value: ExcellencePeriod; onChange: (p: Excellence
       {PERIOD_FIXED.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
     </optgroup>
     <optgroup label="ماه‌های سال تحصیلی">
-      {elapsedMonths().map((m) => <option key={m.month} value={`m${m.month}`}>{m.label} {toPersianDigits(m.year)}</option>)}
+      {elapsedMonths().map((m) => (
+        <option key={m.month} value={`m${m.month}`} disabled={isFutureMonth(m)}>
+          {m.label} {toPersianDigits(m.year)}{isFutureMonth(m) ? ' (هنوز نرسیده)' : ''}
+        </option>
+      ))}
     </optgroup>
   </select>
 );

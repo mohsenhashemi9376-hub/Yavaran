@@ -18,6 +18,13 @@ import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { previousCourseSession } from '../utils/homework';
+import {
+  ActiveAttendance,
+  clearAttendanceDraft,
+  loadAttendanceDraft,
+  saveActiveAttendance,
+  saveAttendanceDraft,
+} from '../utils/attendanceDraft';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -26,6 +33,8 @@ interface AttendanceModalProps {
   targetSubject?: string;
   existingSession?: AttendanceSession | null;
   onSelectStudent?: (student: Student) => void;
+  /** بازگشت به فهرستی که پیش از خاموش‌شدن صفحه / بارگذاری دوباره باز بوده */
+  resume?: ActiveAttendance | null;
 }
 
 /** یک «درس تخصیص‌یافته به کلاس» (Subject-Class Assignment) — واحد اصلی ثبت حضور و غیاب */
@@ -59,6 +68,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   targetSubject,
   existingSession,
   onSelectStudent,
+  resume,
 }) => {
   const {
     currentUser,
@@ -102,13 +112,19 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [records, setRecords] = useState<Record<string, StudentAttendanceRecord>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  /** امضای وضعیت بارگذاری‌شده؛ فقط تغییر نسبت به آن به‌عنوان پیش‌نویس ذخیره می‌شود */
+  const baselineRef = useRef<string | null>(null);
   const topicRef = useRef<HTMLInputElement>(null);
+  const homeworkRef = useRef<HTMLTextAreaElement>(null);
+  /** وقتی استاد برای ثبت تکلیف به جلسه‌ی قبل رفته، مسیر برگشت به جلسه‌ی فعلی */
+  const [returnSlot, setReturnSlot] = useState<{ courseKey: string; period: number; date: string } | null>(null);
 
   // پاپ‌آپ ثبت اخطار کلاسی
   const [warningStudent, setWarningStudent] = useState<Student | null>(null);
   const [warningKind, setWarningKind] = useState<string>(WARNING_KINDS[0].label);
   const [warningNote, setWarningNote] = useState<string>('');
-  const [warningDeduction, setWarningDeduction] = useState<number>(0.5);
+  const [warningDeduction, setWarningDeduction] = useState<number>(0);
 
   // ------------------------------------------------------------------
   // فهرست «درس • کلاس» های قابل ثبت برای کاربر جاری
@@ -220,6 +236,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     [sessions, course, date, periodNumber, editingSessionId]
   );
 
+  const prevHasHomework = Boolean(prevSession && (prevSession.homeworkDescription || '').trim());
+
   const findSlotSession = (opt: CourseOption | undefined, period: number, forDate: string) =>
     opt
       ? sessions.find(
@@ -240,27 +258,48 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     return initial;
   };
 
-  /** بارگذاری یک زنگ مشخص: اگر قبلاً ثبت شده باشد برای ویرایش بازخوانی می‌شود */
+  const formSignature = (topic: string, homework: string, notes: string, recs: Record<string, StudentAttendanceRecord>) =>
+    JSON.stringify([topic, homework, notes, recs]);
+
+  /** بارگذاری یک زنگ مشخص: اگر قبلاً ثبت شده باشد برای ویرایش بازخوانی می‌شود؛ پیش‌نویس ذخیره‌شده بر هر دو مقدم است */
   const loadSlot = (opt: CourseOption | undefined, period: number, forDate: string) => {
     if (!opt) return;
     const existing = findSlotSession(opt, period, forDate);
     setTopicError('');
     setExpandedId(null);
+    let topic = '';
+    let homework = '';
+    let notes = '';
+    let recs = freshRecords(opt.classId);
     if (existing) {
-      setEditingSessionId(existing.id);
-      setLessonTopic(existing.lessonTopic || '');
-      setHomeworkDescription(existing.homeworkDescription || '');
-      setSessionNotes(existing.sessionNotes || '');
-      setShowSessionNotes(Boolean(existing.homeworkDescription || existing.sessionNotes));
-      setRecords({ ...freshRecords(opt.classId), ...(existing.records || {}) });
-    } else {
-      setEditingSessionId(undefined);
-      setLessonTopic('');
-      setHomeworkDescription('');
-      setSessionNotes('');
-      setShowSessionNotes(false);
-      setRecords(freshRecords(opt.classId));
+      topic = existing.lessonTopic || '';
+      homework = existing.homeworkDescription || '';
+      notes = existing.sessionNotes || '';
+      recs = { ...recs, ...(existing.records || {}) };
     }
+    setEditingSessionId(existing?.id);
+    baselineRef.current = formSignature(topic, homework, notes, recs);
+
+    const draft = loadAttendanceDraft(currentUser.id, opt.key, forDate, period);
+    if (draft) {
+      topic = draft.lessonTopic;
+      homework = draft.homeworkDescription;
+      notes = draft.sessionNotes;
+      recs = { ...recs, ...draft.records };
+    }
+    setDraftRestored(Boolean(draft) && formSignature(topic, homework, notes, recs) !== baselineRef.current);
+    setLessonTopic(topic);
+    setHomeworkDescription(homework);
+    setSessionNotes(notes);
+    setShowSessionNotes(Boolean(homework || notes));
+    setRecords(recs);
+  };
+
+  /** دور ریختن پیش‌نویس و بازگشت به وضعیت ثبت‌شده (یا فرم خالی) */
+  const discardDraft = () => {
+    if (!course) return;
+    clearAttendanceDraft(currentUser.id, course.key, date, periodNumber);
+    loadSlot(course, periodNumber, date);
   };
 
   // مقداردهی اولیه هنگام باز شدن
@@ -277,13 +316,16 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       setCourseKey(opt?.key || '');
       setPeriodNumber(existingSession.periodNumber || 1);
       setDate(existingSession.date);
-      setEditingSessionId(existingSession.id);
-      setLessonTopic(existingSession.lessonTopic || '');
-      setHomeworkDescription(existingSession.homeworkDescription || '');
-      setSessionNotes(existingSession.sessionNotes || '');
-      setShowSessionNotes(Boolean(existingSession.homeworkDescription || existingSession.sessionNotes));
-      setRecords({ ...freshRecords(existingSession.classId), ...(existingSession.records || {}) });
-      setTopicError('');
+      loadSlot(opt, existingSession.periodNumber || 1, existingSession.date);
+      return;
+    }
+
+    const resumed = resume ? courseOptions.find((o) => o.key === resume.courseKey) : undefined;
+    if (resume && resumed) {
+      setCourseKey(resumed.key);
+      setPeriodNumber(resume.period);
+      setDate(resume.date);
+      loadSlot(resumed, resume.period, resume.date);
       return;
     }
 
@@ -298,9 +340,34 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     setDate(todayInfo.formattedDate);
     loadSlot(preferred, 1, todayInfo.formattedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, existingSession?.id, targetClassId, targetSubject]);
+  }, [isOpen, existingSession?.id, targetClassId, targetSubject, resume?.updatedAt]);
+
+  // ذخیره‌ی لحظه‌ای پیش‌نویس: هر تغییر بلافاصله روی دستگاه نوشته می‌شود تا با خاموش‌شدن صفحه از بین نرود
+  useEffect(() => {
+    if (!isOpen || !course || baselineRef.current === null) return;
+    if (formSignature(lessonTopic, homeworkDescription, sessionNotes, records) === baselineRef.current) {
+      clearAttendanceDraft(currentUser.id, course.key, date, periodNumber);
+      return;
+    }
+    saveAttendanceDraft(currentUser.id, course.key, date, periodNumber, { lessonTopic, homeworkDescription, sessionNotes, records });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, course?.key, date, periodNumber, lessonTopic, homeworkDescription, sessionNotes, records]);
+
+  // یادآوری فهرست باز، برای بازگشت به همان فهرست پس از بارگذاری دوباره‌ی برنامه
+  useEffect(() => {
+    if (!isOpen || !course) return;
+    saveActiveAttendance(currentUser.id, {
+      classId: course.classId,
+      subject: course.subjectName,
+      courseKey: course.key,
+      period: periodNumber,
+      date,
+      sessionId: editingSessionId,
+    });
+  }, [isOpen, course?.key, course?.classId, course?.subjectName, periodNumber, date, editingSessionId, currentUser.id]);
 
   const handleCourseChange = (key: string) => {
+    setReturnSlot(null);
     const opt = courseOptions.find((o) => o.key === key);
     setCourseKey(key);
     // لیست زنگ‌ها بازتولید و اولین زنگ پیش‌فرض انتخاب می‌شود
@@ -317,6 +384,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       return;
     }
     const apply = () => {
+      setReturnSlot(null);
       setDate(next);
       loadSlot(course, periodNumber, next);
     };
@@ -340,6 +408,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   };
 
   const handlePeriodChange = (n: number) => {
+    setReturnSlot(null);
     setPeriodNumber(n);
     loadSlot(course, n, date);
   };
@@ -350,6 +419,29 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       sessionNotes.trim() ||
       Object.values(records).some((r) => r.status !== 'present' || r.note || r.disciplinaryWarning || r.homeworkStatus)
   );
+
+  /** استاد فراموش کرده تکلیف جلسه‌ی قبل را ثبت کند: همان جلسه برای ویرایش باز می‌شود (فرم فعلی به‌صورت پیش‌نویس می‌ماند) */
+  const goToPreviousSession = () => {
+    if (!prevSession || !course) return;
+    const opt = courseOptions.find((o) => o.classId === prevSession.classId && sameSubject(o, prevSession.subjectId, prevSession.subject)) || course;
+    setReturnSlot({ courseKey: course.key, period: periodNumber, date });
+    setCourseKey(opt.key);
+    setPeriodNumber(prevSession.periodNumber ?? 1);
+    setDate(prevSession.date);
+    loadSlot(opt, prevSession.periodNumber ?? 1, prevSession.date);
+    setShowSessionNotes(true);
+    window.setTimeout(() => homeworkRef.current?.focus(), 150);
+  };
+
+  const backToCurrentSession = () => {
+    if (!returnSlot) return;
+    const opt = courseOptions.find((o) => o.key === returnSlot.courseKey);
+    setCourseKey(returnSlot.courseKey);
+    setPeriodNumber(returnSlot.period);
+    setDate(returnSlot.date);
+    loadSlot(opt, returnSlot.period, returnSlot.date);
+    setReturnSlot(null);
+  };
 
   const handleRequestClose = () => {
     if (hasUnsavedChanges && !editingSessionId) setShowExitConfirm(true);
@@ -376,7 +468,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     const next: AttendanceStatus = current === target ? 'present' : target;
     patchRecord(studentId, {
       status: next,
-      delayMinutes: next === 'late' ? records[studentId]?.delayMinutes || 10 : undefined,
+      delayMinutes: next === 'late' ? records[studentId]?.delayMinutes : undefined,
     });
   };
 
@@ -390,7 +482,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     } else {
       setWarningKind(WARNING_KINDS[0].label);
       setWarningNote('');
-      setWarningDeduction(0.5);
+      setWarningDeduction(0);
     }
   };
 
@@ -470,6 +562,11 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       const finalRecords: Record<string, StudentAttendanceRecord> = {};
       classStudents.forEach((st) => {
         finalRecords[st.id] = records[st.id] || { studentId: st.id, status: 'present' };
+        // جلسه‌ی قبل تکلیف نداشته: وضعیت تکلیف معنایی ندارد
+        if (!prevHasHomework && finalRecords[st.id].homeworkStatus) {
+          const { homeworkStatus: _drop, ...rest } = finalRecords[st.id];
+          finalRecords[st.id] = rest;
+        }
       });
 
       const bell = [...bellPeriods].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[periodNumber - 1];
@@ -514,6 +611,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         });
       });
 
+      clearAttendanceDraft(currentUser.id, course.key, date.trim(), periodNumber);
+      baselineRef.current = null;
       onClose();
     } catch {
       showToast('خطا در ذخیره اطلاعات جلسه. لطفاً مجدداً بررسی کنید.', 'error');
@@ -638,6 +737,26 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </label>
           </div>
 
+          {draftRestored && (
+            <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+              <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1">پیش‌نویس ذخیره‌شده‌ی شما بازیابی شد؛ هنوز ثبت نهایی نشده است.</span>
+              <button type="button" onClick={discardDraft} className="min-h-[32px] px-2.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 cursor-pointer whitespace-nowrap">
+                پاک‌کردن پیش‌نویس
+              </button>
+            </div>
+          )}
+
+          {returnSlot && (
+            <div className="flex items-center gap-2 text-[11px] font-bold text-sky-900 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
+              <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1">در حال ثبت تکلیف برای جلسه‌ی قبل هستید. پس از «ذخیره ویرایش»، به جلسه‌ی فعلی برگردید.</span>
+              <button type="button" onClick={backToCurrentSession} className="min-h-[32px] px-2.5 rounded-lg border border-sky-300 bg-white text-sky-900 cursor-pointer whitespace-nowrap">
+                بازگشت به جلسه‌ی فعلی
+              </button>
+            </div>
+          )}
+
           {editingSessionId && !existingSession && (
             <div className="flex items-center gap-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -679,6 +798,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </label>
             <textarea
               id="textarea-homework"
+              ref={homeworkRef}
               rows={2}
               value={homeworkDescription}
               onChange={(e) => setHomeworkDescription(e.target.value)}
@@ -706,10 +826,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         <div className="px-3 sm:px-4 pt-3 pb-28 border-t border-slate-100 space-y-2.5">
           {classStudents.length > 0 && (
             <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-900">
-              {prevSession ? (
+              {prevSession && prevHasHomework ? (
                 <>
                   <b>تکلیف جلسه قبل ({toPersianDigits(prevSession.date)}):</b>{' '}
-                  {(prevSession.homeworkDescription || '').trim() || 'تکلیفی ثبت نشده بود'}
+                  {(prevSession.homeworkDescription || '').trim()}
                   <button
                     type="button"
                     onClick={() =>
@@ -728,6 +848,17 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     همه انجام شده
                   </button>
                   <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است؛ پیش‌فرض بدون وضعیت است (با زدن دوباره‌ی گزینه‌ی انتخاب‌شده برداشته می‌شود).</span>
+                </>
+              ) : prevSession ? (
+                <>
+                  <b>جلسه قبل ({toPersianDigits(prevSession.date)}) تکلیفی نداشت</b>؛ پس وضعیت تکلیف برای این جلسه ثبت نمی‌شود.
+                  <button
+                    type="button"
+                    onClick={goToPreviousSession}
+                    className="mt-1.5 w-full min-h-[40px] px-3 rounded-xl border border-sky-300 bg-white text-sky-900 text-[12px] font-bold cursor-pointer hover:bg-sky-100"
+                  >
+                    تکلیف جلسه قبل را فراموش کرده‌ام؛ ثبت تکلیف
+                  </button>
                 </>
               ) : (
                 <>جلسه قبلی برای این درس ثبت نشده است؛ وضعیت تکلیف از جلسه بعد قابل ثبت است.</>
@@ -779,10 +910,11 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                           <input
                             type="text"
                             inputMode="numeric"
-                            value={toPersianDigits(rec.delayMinutes || 10)}
+                            value={rec.delayMinutes ? toPersianDigits(rec.delayMinutes) : ''}
+                            placeholder="؟"
                             onChange={(e) => {
                               const n = parseInt(toEnglishDigits(e.target.value).replace(/[^0-9]/g, ''), 10);
-                              patchRecord(student.id, { status: 'late', delayMinutes: Math.min(90, Math.max(1, Number.isNaN(n) ? 1 : n)) });
+                              patchRecord(student.id, { status: 'late', delayMinutes: Number.isNaN(n) || n < 1 ? undefined : Math.min(90, n) });
                             }}
                             aria-label="دقیقه تأخیر"
                             className="w-11 text-center text-xs font-bold bg-white/80 text-amber-800 border border-amber-200 rounded-xl py-1.5 outline-none focus:ring-2 focus:ring-amber-200"
@@ -849,7 +981,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
-                  {status !== 'absent' && prevSession && (
+                  {status !== 'absent' && prevHasHomework && (
                     <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">تکلیف جلسه قبل:</span>
                       {([
@@ -1012,7 +1144,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         <div className="fixed inset-0 z-60 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 space-y-4 text-center">
             <h3 className="text-base font-extrabold text-slate-900">خروج بدون ذخیره؟</h3>
-            <p className="text-xs text-slate-500">تغییرات این جلسه هنوز ثبت نشده است.</p>
+            <p className="text-xs text-slate-500">تغییرات این جلسه هنوز ثبت نهایی نشده است؛ به‌صورت پیش‌نویس نگه داشته می‌شود و با باز کردن دوباره‌ی همین زنگ برمی‌گردد.</p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -1029,7 +1161,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 }}
                 className="flex-1 h-11 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-2xl text-sm font-bold cursor-pointer"
               >
-                خروج
+                خروج و نگه‌داشتن پیش‌نویس
               </button>
             </div>
           </div>

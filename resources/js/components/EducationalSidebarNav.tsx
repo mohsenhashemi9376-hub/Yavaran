@@ -20,7 +20,8 @@ import {
   UserCheck,
   X, 
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ListChecks,
 } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
 
@@ -37,6 +38,7 @@ export type EducationalViewType =
   | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
+  | 'grey_list'
   | 'homework_followup'
   | 'worksheets'
   | 'students' 
@@ -227,6 +229,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           icon: AlertTriangle,
           count: totalWarnings > 0 ? totalWarnings : undefined,
           isWarning: true,
+        },
+        {
+          id: 'grey_list',
+          label: 'لیست خاکستری آموزش',
+          tooltip: 'دانش‌آموزان نیازمند پیگیری آموزشی با علت ضعف و اقدام',
+          icon: ListChecks,
         },
         {
           id: 'students',

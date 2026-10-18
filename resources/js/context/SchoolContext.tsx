@@ -17,6 +17,11 @@ import {
   Workshop,
   LoanItem,
   ParentMeetingRecord,
+  ReflectionPointRecord,
+  AcademicFollowUpRecord,
+  AcademicFollowUpStatus,
+  GreyListRecord,
+  GreySnapshot,
   ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
@@ -57,6 +62,7 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
+import { FollowUpConfig, mergeFollowUpConfig } from '../utils/academicFollowUp';
 import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetings';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
@@ -105,6 +111,25 @@ interface SchoolContextType {
   workshops: Workshop[];
   loanItems: LoanItem[];
   parentMeetings: ParentMeetingRecord[];
+  /** وضعیت پیگیری آموزشی دانش‌آموزان (فقط مدیر و معاونت آموزش) */
+  academicFollowUps: AcademicFollowUpRecord[];
+  /** تغییر وضعیت / یادداشت پیگیری؛ «باز» بدون یادداشت = حذف رکورد */
+  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string }) => void;
+  /** معیارهای «نیازمند پیگیری آموزشی» (پیش‌فرض یا تنظیم‌شده‌ی معاون آموزش در بخش «پیشرفته») */
+  followUpConfig: FollowUpConfig;
+  saveFollowUpConfig: (config: FollowUpConfig) => void;
+  /** لیست خاکستری آموزش (هر دانش‌آموز در هر ماه یک رکورد) */
+  greyList: GreyListRecord[];
+  /** ارسال دانش‌آموز به لیست خاکستری مربیان برای یک ماه (معاونت آموزش)؛ تصویر وضعیت آموزشی همان لحظه ثابت می‌ماند */
+  sendToGreyList: (student: Pick<Student, 'id' | 'classId'>, snapshot: GreySnapshot, month: string) => void;
+  /** برگرداندن دانش‌آموز از لیست خاکستری یک ماه (معاونت آموزش) */
+  withdrawFromGreyList: (id: string) => void;
+  /** علت ضعف، تاریخ پیگیری بعدی و افزودن اقدام (مربی / معاون تربیتی / معاونت آموزش) */
+  updateGreyEntry: (id: string, patch: { causes?: string[]; causeOther?: string; nextFollowUp?: string | null; addAction?: string }) => void;
+  /** گزارش نقاط تفکر (فقط معاون تربیتی و مربی) */
+  reflectionPoints: ReflectionPointRecord[];
+  /** ثبت تحویل / عدم تحویل و یادداشت نقاط تفکر برای یک دانش‌آموز در یک هفته؛ بدون تحویل و بدون یادداشت = حذف رکورد */
+  setReflectionPoint: (student: Pick<Student, 'id' | 'classId'>, weekStart: string, patch: { delivered?: boolean; note?: string }) => void;
   parentMeetingStates: ParentMeetingState[];
   /** باز/بسته کردن جلسه‌ی عمومی اولیاء (فقط مدیر و معاون اجرایی) */
   setParentMeetingOpen: (meetingNo: ParentMeetingNo, open: boolean) => void;
@@ -427,6 +452,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [lateEntry, setLateEntryState] = useState(false);
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
+  const [reflectionPoints, setReflectionPoints] = useState<ReflectionPointRecord[]>([]);
+  const [academicFollowUps, setAcademicFollowUps] = useState<AcademicFollowUpRecord[]>([]);
+  const [greyList, setGreyList] = useState<GreyListRecord[]>([]);
   const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
@@ -589,6 +617,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
     const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
     const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
+    const nextReflectionPoints = (d.reflectionPoints || []) as unknown as ReflectionPointRecord[];
+    const nextAcademicFollowUps = (d.academicFollowUps || []) as unknown as AcademicFollowUpRecord[];
+    const nextGreyList = (d.greyList || []) as unknown as GreyListRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -619,6 +650,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loanItems: nextLoanItems as unknown as SyncRow[],
       parentMeetings: nextParentMeetings as unknown as SyncRow[],
       parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
+      reflectionPoints: nextReflectionPoints as unknown as SyncRow[],
+      academicFollowUps: nextAcademicFollowUps as unknown as SyncRow[],
+      greyList: nextGreyList as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -649,6 +683,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoanItems(nextLoanItems);
     setParentMeetings(nextParentMeetings);
     setParentMeetingStates(nextParentMeetingStates);
+    setReflectionPoints(nextReflectionPoints);
+    setAcademicFollowUps(nextAcademicFollowUps);
+    setGreyList(nextGreyList);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -695,6 +732,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoanItems([]);
     setParentMeetings([]);
     setParentMeetingStates([]);
+    setReflectionPoints([]);
+    setAcademicFollowUps([]);
+    setGreyList([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -825,6 +865,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('greyList', greyList as unknown as SyncRow[]); }, [greyList, syncEngine]);
+  useEffect(() => { syncEngine.push('academicFollowUps', academicFollowUps as unknown as SyncRow[]); }, [academicFollowUps, syncEngine]);
+  useEffect(() => { syncEngine.push('reflectionPoints', reflectionPoints as unknown as SyncRow[]); }, [reflectionPoints, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
   useEffect(() => { syncEngine.push('worksheetWeeks', worksheetWeeks as unknown as SyncRow[]); }, [worksheetWeeks, syncEngine]);
@@ -891,7 +934,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /**
    * مشاهده‌ی اطلاعات ثبت‌شده در یک روز گذشته. «امروز» در کل سامانه همان روز می‌شود و داشبوردها داده‌ی آن روز را نشان می‌دهند.
-   * این حالت فقط‌مشاهده است: تغییرات ذخیره نمی‌شود و با بازگشت به امروز، داده‌ی سرور دوباره بارگذاری می‌شود.
+   * در این حالت ویرایش و ثبت (با تاریخ همان روز) آزاد است؛ با بازگشت به امروز، داده‌ی سرور دوباره بارگذاری می‌شود.
    */
   const changeViewDate = async (date: string | null): Promise<boolean> => {
     const clean = date ? toEnglishDigits(date).trim() : null;
@@ -906,11 +949,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (norm > today) { showToast('تاریخ آینده قابل مشاهده نیست.', 'error'); return false; }
       if (norm === today) return changeViewDate(null);
       await syncEngine.flush(); // تغییرات در صف، پیش از ورود به حالت مشاهده ذخیره شود
-      applyLateEntry(false);
-      setLateEntryState(false);
-      enterReadOnly();
+      // روز گذشته به‌صورت پیش‌فرض قابل ویرایش است (ثبت با تاریخ همان روز)؛ با «توقف ثبت دیرهنگام» می‌شود فقط‌مشاهده کرد
       applyViewDate(norm);
       setViewDateState(norm);
+      applyLateEntry(true);
+      setLateEntryState(true);
+      syncEngine.setReadOnly(false);
       return true;
     }
     applyViewDate(null);
@@ -1743,6 +1787,77 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         changedBy: currentUser.name, changedById: currentUser.id, updatedAt: now,
       };
       return old ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
+    });
+  };
+
+  const setAcademicFollowUp: SchoolContextType['setAcademicFollowUp'] = (student, patch) => {
+    const id = `afu-${student.id}`;
+    setAcademicFollowUps((prev) => {
+      const old = prev.find((r) => r.id === id);
+      const status = patch.status ?? old?.status ?? 'open';
+      const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
+      if (status === 'open' && !note) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
+    });
+  };
+
+  const followUpConfig = useMemo(
+    () => mergeFollowUpConfig((academicFollowUps.find((r) => r.id === 'afu-config') as unknown as { config?: Partial<FollowUpConfig> } | undefined)?.config),
+    [academicFollowUps]
+  );
+  const saveFollowUpConfig: SchoolContextType['saveFollowUpConfig'] = (config) => {
+    const record = { id: 'afu-config', studentId: '', classId: '', status: 'open', config, updatedBy: currentUser.name, updatedAt: new Date().toISOString() } as unknown as AcademicFollowUpRecord;
+    setAcademicFollowUps((prev) => (prev.some((r) => r.id === 'afu-config') ? prev.map((r) => (r.id === 'afu-config' ? record : r)) : [...prev, record]));
+  };
+
+  const greyId = (studentId: string, month: string) => `gl-${studentId}-${month.replace('/', '-')}`;
+
+  const sendToGreyList: SchoolContextType['sendToGreyList'] = (student, snapshot, month) => {
+    const id = greyId(student.id, month);
+    setGreyList((prev) =>
+      prev.some((r) => r.id === id)
+        ? prev
+        : [...prev, { id, studentId: student.id, classId: student.classId, month, snapshot, causes: [], actions: [], nextFollowUp: null, sentBy: currentUser.name, sentById: currentUser.id, sentAt: new Date().toISOString() }]
+    );
+  };
+
+  const withdrawFromGreyList: SchoolContextType['withdrawFromGreyList'] = (id) => setGreyList((prev) => prev.filter((r) => r.id !== id));
+
+  const updateGreyEntry: SchoolContextType['updateGreyEntry'] = (id, patch) => {
+    const now = new Date().toISOString();
+    setGreyList((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const actions = patch.addAction?.trim()
+          ? [...r.actions, { id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`, text: patch.addAction.trim(), at: now, by: currentUser.name, byId: currentUser.id }]
+          : r.actions;
+        return {
+          ...r,
+          causes: patch.causes ?? r.causes,
+          causeOther: patch.causeOther !== undefined ? patch.causeOther.trim() || null : r.causeOther,
+          nextFollowUp: patch.nextFollowUp !== undefined ? patch.nextFollowUp : r.nextFollowUp,
+          actions,
+          updatedBy: currentUser.name,
+          updatedAt: now,
+        };
+      })
+    );
+  };
+
+  // نقاط تفکر: پیش‌فرض «تحویل نداده» است؛ رکورد فقط وقتی ساخته می‌شود که تحویل داده شده یا یادداشتی هست
+  const setReflectionPoint: SchoolContextType['setReflectionPoint'] = (student, weekStart, patch) => {
+    const id = `rp-${student.id}-${weekStart.replace(/\//g, '-')}`;
+    setReflectionPoints((prev) => {
+      const old = prev.find((r) => r.id === id);
+      const delivered = patch.delivered ?? old?.delivered ?? false;
+      const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
+      if (!delivered && !note) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: ReflectionPointRecord = {
+        id, studentId: student.id, classId: student.classId, weekStart, delivered, note: note || null,
+        recordedById: currentUser.id, recordedBy: currentUser.name, updatedAt: new Date().toISOString(),
+      };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
   };
 
@@ -2970,6 +3085,16 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         workshops,
         loanItems,
         parentMeetings,
+        reflectionPoints,
+        setReflectionPoint,
+        academicFollowUps,
+        setAcademicFollowUp,
+        followUpConfig,
+        saveFollowUpConfig,
+        greyList,
+        sendToGreyList,
+        withdrawFromGreyList,
+        updateGreyEntry,
         parentMeetingStates,
         setParentMeetingOpen,
         setParentMeetingAttendance,
