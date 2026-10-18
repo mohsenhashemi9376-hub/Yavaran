@@ -23,6 +23,7 @@ import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { ExamEducationalReport } from './ExamEducationalReport';
 import { SubjectClassAnalysis } from './SubjectClassAnalysis';
+import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -841,14 +842,25 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </div>
             </div>
 
+            {/* دروس بدون نمره */}
+            <UngradedSubjectsPanel
+              onPick={(classId, subjectId) => {
+                setSelectedClassId(classId);
+                setSelectedSubjectId(subjectId);
+                window.setTimeout(() => document.getElementById('educational-grade-book')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+            />
+
             {/* ۳. ثبت نمره‌ی ماه‌به‌ماه: با باز شدن هر ماه فقط یک نمره ثبت می‌شود */}
             {currentClass && (
-              <ClassMonthlyGradesSection
-                key={currentClass.id}
-                classData={currentClass}
-                initialSubjectId={selectedSubjectId}
-                onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
-              />
+              <div id="educational-grade-book" className="scroll-mt-4">
+                <ClassMonthlyGradesSection
+                  key={`${currentClass.id}-${selectedSubjectId}`}
+                  classData={currentClass}
+                  initialSubjectId={selectedSubjectId}
+                  onSelectStudent={(stu) => onSelectStudent(stu, 'grades')}
+                />
+              </div>
             )}
 
           </div>
