@@ -930,7 +930,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   /**
    * مشاهده‌ی اطلاعات ثبت‌شده در یک روز گذشته. «امروز» در کل سامانه همان روز می‌شود و داشبوردها داده‌ی آن روز را نشان می‌دهند.
-   * این حالت فقط‌مشاهده است: تغییرات ذخیره نمی‌شود و با بازگشت به امروز، داده‌ی سرور دوباره بارگذاری می‌شود.
+   * در این حالت ویرایش و ثبت (با تاریخ همان روز) آزاد است؛ با بازگشت به امروز، داده‌ی سرور دوباره بارگذاری می‌شود.
    */
   const changeViewDate = async (date: string | null): Promise<boolean> => {
     const clean = date ? toEnglishDigits(date).trim() : null;
@@ -945,11 +945,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (norm > today) { showToast('تاریخ آینده قابل مشاهده نیست.', 'error'); return false; }
       if (norm === today) return changeViewDate(null);
       await syncEngine.flush(); // تغییرات در صف، پیش از ورود به حالت مشاهده ذخیره شود
-      applyLateEntry(false);
-      setLateEntryState(false);
-      enterReadOnly();
+      // روز گذشته به‌صورت پیش‌فرض قابل ویرایش است (ثبت با تاریخ همان روز)؛ با «توقف ثبت دیرهنگام» می‌شود فقط‌مشاهده کرد
       applyViewDate(norm);
       setViewDateState(norm);
+      applyLateEntry(true);
+      setLateEntryState(true);
+      syncEngine.setReadOnly(false);
       return true;
     }
     applyViewDate(null);

@@ -23,7 +23,7 @@ const QUICK: [string, number][] = [
 
 /**
  * مشاهده‌ی اطلاعات روزهای گذشته: با انتخاب یک روز، همه‌ی بخش‌ها (غیبت، تأخیر، جلسات، کاربرگ و…) همان روز را «امروز» می‌گیرند.
- * این حالت فقط‌مشاهده است و چیزی در سامانه ذخیره نمی‌شود.
+ * پس از انتخاب روز، ویرایش و ثبت (با تاریخ همان روز) آزاد است؛ با «فقط مشاهده» می‌شود از تغییر جلوگیری کرد.
  */
 export const ViewDateBar: React.FC = () => {
   const { viewDate, changeViewDate, lateEntry, changeLateEntry, showConfirm } = useSchool();
@@ -76,9 +76,9 @@ export const ViewDateBar: React.FC = () => {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-2 text-xs font-extrabold">
             {lateEntry ? <PencilLine className="w-4 h-4 shrink-0" /> : <Eye className="w-4 h-4 shrink-0" />}
-            <span>{lateEntry ? 'ثبت دیرهنگام برای روز' : 'نمایش اطلاعات روز'} {toPersianDigits(formatShamsiWithWeekday(viewDate))}</span>
+            <span>{lateEntry ? 'ویرایش و ثبت برای روز' : 'نمایش اطلاعات روز'} {toPersianDigits(formatShamsiWithWeekday(viewDate))}</span>
             <span className={`font-bold ${lateEntry ? 'text-rose-800' : 'text-amber-800'}`}>
-              {lateEntry ? '— تغییرات با تاریخ همین روز ذخیره می‌شود.' : '— فقط مشاهده؛ تغییرات ذخیره نمی‌شود.'}
+              {lateEntry ? '— ویرایش و ثبت آزاد است؛ تغییرات با تاریخ همین روز ذخیره می‌شود (ساعت ورود صبحگاه ۰۷:۰۰ ثبت می‌شود، تأخیر را دستی اصلاح کنید).' : '— فقط مشاهده؛ تغییرات ذخیره نمی‌شود.'}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mr-auto">
@@ -89,7 +89,7 @@ export const ViewDateBar: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-current bg-white/70 hover:bg-white text-xs font-extrabold cursor-pointer"
             >
               <PencilLine className="w-3.5 h-3.5" />
-              {lateEntry ? 'توقف ثبت دیرهنگام' : 'فعال‌سازی ثبت دیرهنگام'}
+              {lateEntry ? 'فقط مشاهده' : 'فعال‌سازی ویرایش'}
             </button>
             <button
               type="button"

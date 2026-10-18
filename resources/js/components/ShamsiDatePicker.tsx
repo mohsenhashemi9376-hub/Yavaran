@@ -40,14 +40,8 @@ export const ShamsiDatePicker: React.FC<{
   const selected = parse(value);
   const base = selected ?? parse(fallbackDate || '') ?? parse(today) ?? { y: 1405, m: 1, d: 1 };
   const [view, setView] = useState({ y: base.y, m: base.m });
-  // موبایل: تقویم وسط صفحه (پنجره‌ی مرکزی) و بدون باز شدن کیبورد؛ دسکتاپ: کشوی کوچک زیر فیلد
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)');
-    const on = () => setIsMobile(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
+  // تقویم در همه‌ی دستگاه‌ها (موبایل و ویندوز) یک پنجره‌ی زیبای وسط صفحه است؛ داخل ردیف‌های اسکرول‌دار هم بریده نمی‌شود
+  const isMobile = true;
 
   useEffect(() => {
     if (open) setView({ y: base.y, m: base.m });
