@@ -4,6 +4,7 @@ import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
+import { computeFollowUps, FollowUpReason } from '../utils/academicFollowUp';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
@@ -112,6 +113,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     morningDelays,
     academicSubjects, 
     academicGrades, 
+    comprehensiveExams,
+    worksheets,
+    worksheetWeeks,
     gradePeriods,
     allTeachers,
     allCoaches,
@@ -376,9 +380,16 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   }, [students, classes, academicGrades]);
 
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
+  // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
+  const followUpsByStudent = useMemo(
+    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks }),
+    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks]
+  );
   const academicWarningStudents = useMemo(() => {
-    return studentsAcademicData.filter(s => s.hasWarning || s.weakSubjects.length > 0);
-  }, [studentsAcademicData]);
+    return studentsAcademicData
+      .map((s) => ({ ...s, followUps: followUpsByStudent.get(s.student.id) || ([] as FollowUpReason[]) }))
+      .filter((s) => s.followUps.length > 0);
+  }, [studentsAcademicData, followUpsByStudent]);
 
   // خروجی اکسل کارپوشه کلاسی
   const handleExportClassExcel = () => {
@@ -1125,7 +1136,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     <span>دانش‌آموزان نیازمند توجه و پیگیری آموزشی</span>
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    شناسایی دانش‌آموزان دارای افت معدل (زیر ۱۲) یا تجدیدی جهت هماهنگی با اولیا و دبیران مربوطه.
+                    شناسایی دانش‌آموزان دارای نمره‌ی مستمر یا میانگین مستمر زیر ۱۲، آزمون جامع زیر ۱۲ یا دو هفته متوالی عدم تحویل کاربرگ.
                   </p>
                 </div>
 
@@ -1202,7 +1213,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       <th className="p-3">دانش‌آموز</th>
                       <th className="p-3">کلاس</th>
                       <th className="p-3 text-center">معدل کل</th>
-                      <th className="p-3">دروس نیازمند تقویت</th>
+                      <th className="p-3">علت پیگیری</th>
                       <th className="p-3">شماره ولی</th>
                       <th className="p-3 text-left">اقدام فوری</th>
                     </tr>
@@ -1238,8 +1249,15 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                               {item.gpa !== undefined ? toPersianDigits(item.gpa) : '—'}
                             </span>
                           </td>
-                          <td className="p-3 text-rose-700 font-semibold">
-                            {item.weakSubjects.length > 0 ? item.weakSubjects.join('، ') : 'معدل کمتر از ۱۲'}
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              {item.followUps.map((f) => (
+                                <span key={f.kind} className="inline-flex items-start gap-1 text-rose-700 font-semibold leading-5">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                  <span>{f.label}: <span className="font-medium text-slate-700">{toPersianDigits(f.detail)}</span></span>
+                                </span>
+                              ))}
+                            </div>
                           </td>
                           <td className="p-3 font-mono text-slate-600">
                             {item.student.parentPhone}
