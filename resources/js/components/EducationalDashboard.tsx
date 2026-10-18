@@ -21,6 +21,7 @@ import { GradePeriodsModal } from './GradePeriodsModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
+import { ExamEducationalReport } from './ExamEducationalReport';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -1104,6 +1105,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* حالت ۷: گزارش‌های آموزشی (currentView === 'reports') */}
         {/* ========================================================================= */}
         {currentView === 'reports' && (
+          <div className="space-y-6">
           <AdminReportsWorkspace
             classes={classes}
             students={students}
@@ -1114,6 +1116,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onOpenAcademicGrades={() => setCurrentView('grades')}
             onViewWarnings={() => setCurrentView('warnings')}
           />
+          <ExamEducationalReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          </div>
         )}
 
         {/* ========================================================================= */}

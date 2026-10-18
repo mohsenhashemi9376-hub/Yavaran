@@ -678,7 +678,10 @@ export interface ComprehensiveExamRecord {
   id: string; // cexam-{classId}
   classId: string;
   activeSubjects: ExamSubjectKey[];
+  /** نمرات ثبت‌شده بدون ماه (سوابق قبل از ثبت ماهانه) */
   scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
+  /** نمرات آزمون جامع هر ماه: کلید ماه ← studentId ← نمرات (برای نمودار رشد) */
+  monthly?: Partial<Record<MonthlyContinuousKey, Record<string, Partial<Record<ExamSubjectKey, number>>>>>;
   updatedAt?: string;
 }
 

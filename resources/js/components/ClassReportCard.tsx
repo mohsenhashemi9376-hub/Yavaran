@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileSpreadsheet, Filter, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
@@ -8,6 +8,7 @@ import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { compareByLastName } from '../utils/morningAttendance';
+import { ScoreColumnHeader } from './ScoreColumnHeader';
 import { StudentReportCardModal } from './StudentReportCardModal';
 
 /** ماه‌های قابل نمایش در کارنامه (بدون پایانی نوبت اول و مستمر نوبت دوم، مثل دفتر نمرات) */
@@ -83,27 +84,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       return next ? { ...rest, [col]: next } : rest;
     });
 
-  const headerCell = (col: string, title: string) => {
-    const band = filters[col];
-    return (
-      <th key={col} className="px-2 py-2 text-center align-bottom min-w-24">
-        <button
-          type="button"
-          onClick={() => cycle(col)}
-          aria-label={`فیلتر ستون ${title}`}
-          className={`w-full min-h-[44px] px-2 py-1.5 rounded-xl border text-[11px] font-extrabold leading-4 cursor-pointer transition flex flex-col items-center justify-center gap-0.5 ${
-            band ? SCORE_BAND_STYLE[band].chip : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          <span>{title}</span>
-          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold opacity-80">
-            <Filter className="w-3 h-3" />
-            {band ? SCORE_BAND_STYLE[band].label.split(' ')[0] : 'همه'}
-          </span>
-        </button>
-      </th>
-    );
-  };
+  const headerCell = (col: string, title: string) => <ScoreColumnHeader key={col} title={title} band={filters[col]} onCycle={() => cycle(col)} />;
 
   const cellClass = (score: number | undefined) => {
     const b = scoreBand(score);

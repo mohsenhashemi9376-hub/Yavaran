@@ -6,6 +6,7 @@ import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -53,6 +54,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   const { classes, students, comprehensiveExams, saveComprehensiveExam, showToast, showConfirm } = useSchool();
 
   const [classId, setClassId] = useState<string>(classes[0]?.id || '');
+  /** ماه آزمونی که در حال ثبت است؛ «legacy» = نمرات قدیمی بدون ماه */
+  const [month, setMonth] = useState<Exclude<ExamMonth, 'all'>>(() => defaultExamMonth(comprehensiveExams.find((r) => r.classId === (classes[0]?.id || ''))));
   const [active, setActive] = useState<ExamSubjectKey[]>(EXAM_SUBJECTS.map((s) => s.key));
   const [draft, setDraft] = useState<Draft>({});
   const [dirty, setDirty] = useState(false);
@@ -71,7 +74,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     const record = comprehensiveExams.find((r) => r.classId === classId);
     setActive(record?.activeSubjects?.length ? record.activeSubjects : EXAM_SUBJECTS.map((s) => s.key));
     const next: Draft = {};
-    Object.entries(record?.scores || {}).forEach(([sid, sc]) => {
+    Object.entries(examScoresOf(record, month)).forEach(([sid, sc]) => {
       next[sid] = {};
       (Object.entries(sc) as [ExamSubjectKey, number][]).forEach(([k, v]) => {
         if (typeof v === 'number') next[sid][k] = String(v);
@@ -80,22 +83,27 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     setDraft(next);
     setDirty(false);
     setSort(null);
-  }, [classId]);
+  }, [classId, month]);
 
-  const changeClass = (id: string) => {
-    if (dirty) {
-      showConfirm({
-        title: 'تغییرات ذخیره‌نشده',
-        message: 'تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟',
-        confirmLabel: 'بله، ادامه',
-        cancelLabel: 'ماندن در صفحه',
-        isDangerous: true,
-        onConfirm: () => setClassId(id),
-      });
-      return;
-    }
-    setClassId(id);
+  const confirmDiscard = (then: () => void) => {
+    if (!dirty) return then();
+    showConfirm({
+      title: 'تغییرات ذخیره‌نشده',
+      message: 'تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟',
+      confirmLabel: 'بله، ادامه',
+      cancelLabel: 'ماندن در صفحه',
+      isDangerous: true,
+      onConfirm: then,
+    });
   };
+
+  const changeMonth = (m: Exclude<ExamMonth, 'all'>) => confirmDiscard(() => setMonth(m));
+
+  const changeClass = (id: string) =>
+    confirmDiscard(() => {
+      setClassId(id);
+      setMonth(defaultExamMonth(comprehensiveExams.find((r) => r.classId === id)));
+    });
 
   const activeSubjects = EXAM_SUBJECTS.filter((s) => active.includes(s.key));
 
@@ -168,9 +176,16 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       });
       if (Object.keys(entry).length) scores[st.id] = entry;
     });
-    saveComprehensiveExam({ id: `cexam-${classId}`, classId, activeSubjects: active, scores });
+    const base = comprehensiveExams.find((r) => r.classId === classId);
+    saveComprehensiveExam({
+      id: `cexam-${classId}`,
+      classId,
+      activeSubjects: active,
+      scores: month === 'legacy' ? scores : base?.scores || {},
+      monthly: month === 'legacy' ? base?.monthly : { ...base?.monthly, [month]: scores },
+    });
     setDirty(false);
-    showToast('نمرات آزمون جامع ذخیره شد.', 'success');
+    showToast(`نمرات آزمون جامع ${examMonthLabel(month)} ذخیره شد.`, 'success');
   };
 
   const SortIcon = ({ k }: { k: SortKey }) =>
@@ -219,6 +234,22 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                 {c.name}
               </option>
             ))}
+          </select>
+
+          <select
+            value={month}
+            onChange={(e) => changeMonth(e.target.value as Exclude<ExamMonth, 'all'>)}
+            aria-label="ماه آزمون"
+            className="h-11 bg-slate-50 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer min-w-40"
+          >
+            {EXAM_MONTHS.map((m) => (
+              <option key={m.key} value={m.key}>
+                آزمون {m.monthName}{examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes(m.key) ? ' ✓' : ''}
+              </option>
+            ))}
+            {examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes('legacy') && (
+              <option value="legacy">{examMonthLabel('legacy')}</option>
+            )}
           </select>
 
           <button
