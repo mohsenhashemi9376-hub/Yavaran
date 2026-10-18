@@ -116,6 +116,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   /** امضای وضعیت بارگذاری‌شده؛ فقط تغییر نسبت به آن به‌عنوان پیش‌نویس ذخیره می‌شود */
   const baselineRef = useRef<string | null>(null);
   const topicRef = useRef<HTMLInputElement>(null);
+  const homeworkRef = useRef<HTMLTextAreaElement>(null);
+  /** وقتی استاد برای ثبت تکلیف به جلسه‌ی قبل رفته، مسیر برگشت به جلسه‌ی فعلی */
+  const [returnSlot, setReturnSlot] = useState<{ courseKey: string; period: number; date: string } | null>(null);
 
   // پاپ‌آپ ثبت اخطار کلاسی
   const [warningStudent, setWarningStudent] = useState<Student | null>(null);
@@ -232,6 +235,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         : undefined,
     [sessions, course, date, periodNumber, editingSessionId]
   );
+
+  const prevHasHomework = Boolean(prevSession && (prevSession.homeworkDescription || '').trim());
 
   const findSlotSession = (opt: CourseOption | undefined, period: number, forDate: string) =>
     opt
@@ -362,6 +367,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   }, [isOpen, course?.key, course?.classId, course?.subjectName, periodNumber, date, editingSessionId, currentUser.id]);
 
   const handleCourseChange = (key: string) => {
+    setReturnSlot(null);
     const opt = courseOptions.find((o) => o.key === key);
     setCourseKey(key);
     // لیست زنگ‌ها بازتولید و اولین زنگ پیش‌فرض انتخاب می‌شود
@@ -378,6 +384,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       return;
     }
     const apply = () => {
+      setReturnSlot(null);
       setDate(next);
       loadSlot(course, periodNumber, next);
     };
@@ -401,6 +408,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   };
 
   const handlePeriodChange = (n: number) => {
+    setReturnSlot(null);
     setPeriodNumber(n);
     loadSlot(course, n, date);
   };
@@ -411,6 +419,29 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       sessionNotes.trim() ||
       Object.values(records).some((r) => r.status !== 'present' || r.note || r.disciplinaryWarning || r.homeworkStatus)
   );
+
+  /** استاد فراموش کرده تکلیف جلسه‌ی قبل را ثبت کند: همان جلسه برای ویرایش باز می‌شود (فرم فعلی به‌صورت پیش‌نویس می‌ماند) */
+  const goToPreviousSession = () => {
+    if (!prevSession || !course) return;
+    const opt = courseOptions.find((o) => o.classId === prevSession.classId && sameSubject(o, prevSession.subjectId, prevSession.subject)) || course;
+    setReturnSlot({ courseKey: course.key, period: periodNumber, date });
+    setCourseKey(opt.key);
+    setPeriodNumber(prevSession.periodNumber ?? 1);
+    setDate(prevSession.date);
+    loadSlot(opt, prevSession.periodNumber ?? 1, prevSession.date);
+    setShowSessionNotes(true);
+    window.setTimeout(() => homeworkRef.current?.focus(), 150);
+  };
+
+  const backToCurrentSession = () => {
+    if (!returnSlot) return;
+    const opt = courseOptions.find((o) => o.key === returnSlot.courseKey);
+    setCourseKey(returnSlot.courseKey);
+    setPeriodNumber(returnSlot.period);
+    setDate(returnSlot.date);
+    loadSlot(opt, returnSlot.period, returnSlot.date);
+    setReturnSlot(null);
+  };
 
   const handleRequestClose = () => {
     if (hasUnsavedChanges && !editingSessionId) setShowExitConfirm(true);
@@ -531,6 +562,11 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       const finalRecords: Record<string, StudentAttendanceRecord> = {};
       classStudents.forEach((st) => {
         finalRecords[st.id] = records[st.id] || { studentId: st.id, status: 'present' };
+        // جلسه‌ی قبل تکلیف نداشته: وضعیت تکلیف معنایی ندارد
+        if (!prevHasHomework && finalRecords[st.id].homeworkStatus) {
+          const { homeworkStatus: _drop, ...rest } = finalRecords[st.id];
+          finalRecords[st.id] = rest;
+        }
       });
 
       const bell = [...bellPeriods].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[periodNumber - 1];
@@ -711,6 +747,16 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </div>
           )}
 
+          {returnSlot && (
+            <div className="flex items-center gap-2 text-[11px] font-bold text-sky-900 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2">
+              <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1">در حال ثبت تکلیف برای جلسه‌ی قبل هستید. پس از «ذخیره ویرایش»، به جلسه‌ی فعلی برگردید.</span>
+              <button type="button" onClick={backToCurrentSession} className="min-h-[32px] px-2.5 rounded-lg border border-sky-300 bg-white text-sky-900 cursor-pointer whitespace-nowrap">
+                بازگشت به جلسه‌ی فعلی
+              </button>
+            </div>
+          )}
+
           {editingSessionId && !existingSession && (
             <div className="flex items-center gap-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -752,6 +798,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             </label>
             <textarea
               id="textarea-homework"
+              ref={homeworkRef}
               rows={2}
               value={homeworkDescription}
               onChange={(e) => setHomeworkDescription(e.target.value)}
@@ -779,10 +826,10 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         <div className="px-3 sm:px-4 pt-3 pb-28 border-t border-slate-100 space-y-2.5">
           {classStudents.length > 0 && (
             <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 text-[11px] text-sky-900">
-              {prevSession ? (
+              {prevSession && prevHasHomework ? (
                 <>
                   <b>تکلیف جلسه قبل ({toPersianDigits(prevSession.date)}):</b>{' '}
-                  {(prevSession.homeworkDescription || '').trim() || 'تکلیفی ثبت نشده بود'}
+                  {(prevSession.homeworkDescription || '').trim()}
                   <button
                     type="button"
                     onClick={() =>
@@ -801,6 +848,17 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     همه انجام شده
                   </button>
                   <span className="block opacity-70 mt-0.5">وضعیت «انجام شده / ناقص / انجام نشده» هر دانش‌آموز مربوط به همین تکلیف است؛ پیش‌فرض بدون وضعیت است (با زدن دوباره‌ی گزینه‌ی انتخاب‌شده برداشته می‌شود).</span>
+                </>
+              ) : prevSession ? (
+                <>
+                  <b>جلسه قبل ({toPersianDigits(prevSession.date)}) تکلیفی نداشت</b>؛ پس وضعیت تکلیف برای این جلسه ثبت نمی‌شود.
+                  <button
+                    type="button"
+                    onClick={goToPreviousSession}
+                    className="mt-1.5 w-full min-h-[40px] px-3 rounded-xl border border-sky-300 bg-white text-sky-900 text-[12px] font-bold cursor-pointer hover:bg-sky-100"
+                  >
+                    تکلیف جلسه قبل را فراموش کرده‌ام؛ ثبت تکلیف
+                  </button>
                 </>
               ) : (
                 <>جلسه قبلی برای این درس ثبت نشده است؛ وضعیت تکلیف از جلسه بعد قابل ثبت است.</>
@@ -923,7 +981,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                     </div>
                   </div>
 
-                  {status !== 'absent' && prevSession && (
+                  {status !== 'absent' && prevHasHomework && (
                     <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] font-bold opacity-70 whitespace-nowrap">تکلیف جلسه قبل:</span>
                       {([
