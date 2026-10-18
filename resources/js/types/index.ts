@@ -290,6 +290,20 @@ export interface LoanItem {
 }
 
 /** حضور اولیای یک دانش‌آموز در یکی از سه جلسه‌ی عمومی اولیاء در سال تحصیلی */
+/** وضعیت پیگیری آموزشی یک دانش‌آموز در فهرست «نیازمند پیگیری» (مدیر و معاونت آموزش) */
+export type AcademicFollowUpStatus = 'open' | 'in_progress' | 'called_parent' | 'resolved';
+
+export interface AcademicFollowUpRecord {
+  id: string; // afu-{studentId}
+  studentId: string;
+  classId: string;
+  status: AcademicFollowUpStatus;
+  note?: string | null;
+  updatedBy?: string; // توسط سرور تعیین می‌شود
+  updatedById?: string;
+  updatedAt?: string;
+}
+
 /** گزارش نقاط تفکر: تحویل / عدم تحویل هر دانش‌آموز در هر هفته (پیش‌فرض: تحویل نداده) */
 export interface ReflectionPointRecord {
   id: string; // rp-{studentId}-{weekStart با خط تیره}

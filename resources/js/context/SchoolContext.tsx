@@ -18,6 +18,8 @@ import {
   LoanItem,
   ParentMeetingRecord,
   ReflectionPointRecord,
+  AcademicFollowUpRecord,
+  AcademicFollowUpStatus,
   ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
@@ -106,6 +108,10 @@ interface SchoolContextType {
   workshops: Workshop[];
   loanItems: LoanItem[];
   parentMeetings: ParentMeetingRecord[];
+  /** وضعیت پیگیری آموزشی دانش‌آموزان (فقط مدیر و معاونت آموزش) */
+  academicFollowUps: AcademicFollowUpRecord[];
+  /** تغییر وضعیت / یادداشت پیگیری؛ «باز» بدون یادداشت = حذف رکورد */
+  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string }) => void;
   /** گزارش نقاط تفکر (فقط معاون تربیتی و مربی) */
   reflectionPoints: ReflectionPointRecord[];
   /** ثبت تحویل / عدم تحویل و یادداشت نقاط تفکر برای یک دانش‌آموز در یک هفته؛ بدون تحویل و بدون یادداشت = حذف رکورد */
@@ -433,6 +439,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loanItems, setLoanItems] = useState<LoanItem[]>([]);
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
   const [reflectionPoints, setReflectionPoints] = useState<ReflectionPointRecord[]>([]);
+  const [academicFollowUps, setAcademicFollowUps] = useState<AcademicFollowUpRecord[]>([]);
   const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
@@ -596,6 +603,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextParentMeetings = (d.parentMeetings || []) as unknown as ParentMeetingRecord[];
     const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
     const nextReflectionPoints = (d.reflectionPoints || []) as unknown as ReflectionPointRecord[];
+    const nextAcademicFollowUps = (d.academicFollowUps || []) as unknown as AcademicFollowUpRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -627,6 +635,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       parentMeetings: nextParentMeetings as unknown as SyncRow[],
       parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
       reflectionPoints: nextReflectionPoints as unknown as SyncRow[],
+      academicFollowUps: nextAcademicFollowUps as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -658,6 +667,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setParentMeetings(nextParentMeetings);
     setParentMeetingStates(nextParentMeetingStates);
     setReflectionPoints(nextReflectionPoints);
+    setAcademicFollowUps(nextAcademicFollowUps);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -705,6 +715,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setParentMeetings([]);
     setParentMeetingStates([]);
     setReflectionPoints([]);
+    setAcademicFollowUps([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -835,6 +846,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('academicFollowUps', academicFollowUps as unknown as SyncRow[]); }, [academicFollowUps, syncEngine]);
   useEffect(() => { syncEngine.push('reflectionPoints', reflectionPoints as unknown as SyncRow[]); }, [reflectionPoints, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
   useEffect(() => { syncEngine.push('worksheets', worksheets as unknown as SyncRow[]); }, [worksheets, syncEngine]);
@@ -1754,6 +1766,18 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         changedBy: currentUser.name, changedById: currentUser.id, updatedAt: now,
       };
       return old ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
+    });
+  };
+
+  const setAcademicFollowUp: SchoolContextType['setAcademicFollowUp'] = (student, patch) => {
+    const id = `afu-${student.id}`;
+    setAcademicFollowUps((prev) => {
+      const old = prev.find((r) => r.id === id);
+      const status = patch.status ?? old?.status ?? 'open';
+      const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
+      if (status === 'open' && !note) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
+      return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
   };
 
@@ -2999,6 +3023,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         parentMeetings,
         reflectionPoints,
         setReflectionPoint,
+        academicFollowUps,
+        setAcademicFollowUp,
         parentMeetingStates,
         setParentMeetingOpen,
         setParentMeetingAttendance,

@@ -101,6 +101,9 @@ final class SyncService
                 if ($collection === 'worksheets' || $collection === 'worksheetWeeks') {
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
+                if ($collection === 'academicFollowUps') {
+                    $this->normalizeAcademicFollowUp($data, (string) $item->id, $user);
+                }
                 if ($collection === 'reflectionPoints') {
                     $this->normalizeReflectionPoint($data, (string) $item->id, $user);
                 }
@@ -568,6 +571,27 @@ final class SyncService
         $data->recordedById = (string) $user->id;
         $data->recordedBy = (string) $user->name;
         $data->updatedAt = $now;
+    }
+
+    /** وضعیت پیگیری آموزشی: یک رکورد برای هر دانش‌آموز؛ کلاس و ثبت‌کننده را سرور تعیین می‌کند */
+    private function normalizeAcademicFollowUp(object $data, string $id, User $user): void
+    {
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        if ($id !== 'afu-'.$studentId) {
+            abort(422, 'شناسه‌ی پیگیری نامعتبر است.');
+        }
+        if (! isset($data->status) || ! in_array($data->status, ['open', 'in_progress', 'called_parent', 'resolved'], true)) {
+            abort(422, 'وضعیت پیگیری نامعتبر است.');
+        }
+        $data->classId = (string) $classId;
+        $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        $data->updatedById = (string) $user->id;
+        $data->updatedBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
     }
 
     /**

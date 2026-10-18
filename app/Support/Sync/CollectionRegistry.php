@@ -37,6 +37,7 @@ final class CollectionRegistry
         'parentMeetings' => 'parent_meetings',
         'parentMeetingStates' => 'parent_meeting_states',
         'reflectionPoints' => 'reflection_points',
+        'academicFollowUps' => 'academic_follow_ups',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -170,6 +171,23 @@ final class CollectionRegistry
                     $t->string('id', 100)->primary();
                     $t->string('week_start', 20)->unique();
                     $t->string('deadline', 20)->nullable();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'academic_follow_ups') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('academic_follow_ups', function ($t): void {
+                    $t->string('id', 150)->primary();
+                    $t->string('student_id', 100)->unique();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('status', 20)->default('open')->index();
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
@@ -520,6 +538,11 @@ final class CollectionRegistry
                 'academic_year' => self::str($d, 'academicYear', 20) ?? '',
                 'meeting_no' => max(1, min(3, (int) ($d->meetingNo ?? 1))),
                 'is_open' => ! empty($d->open),
+            ],
+            'academicFollowUps' => [
+                'student_id' => self::str($d, 'studentId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'status' => self::str($d, 'status', 20) ?? 'open',
             ],
             'reflectionPoints' => [
                 'student_id' => self::str($d, 'studentId', 100) ?? '',

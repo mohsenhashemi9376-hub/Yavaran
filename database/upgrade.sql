@@ -364,3 +364,20 @@ CREATE TABLE IF NOT EXISTS `reflection_points` (
   KEY `reflection_points_delivered_index` (`delivered`),
   KEY `reflection_points_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- وضعیت پیگیری آموزشی دانش‌آموزان (مدیر و معاونت آموزش)
+CREATE TABLE IF NOT EXISTS `academic_follow_ups` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'open',
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `academic_follow_ups_student_id_unique` (`student_id`),
+  KEY `academic_follow_ups_class_id_index` (`class_id`),
+  KEY `academic_follow_ups_status_index` (`status`),
+  KEY `academic_follow_ups_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

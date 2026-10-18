@@ -4,7 +4,8 @@ import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
-import { computeFollowUps, FollowUpReason } from '../utils/academicFollowUp';
+import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup } from '../utils/academicFollowUp';
+import { AcademicFollowUpStatus } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
@@ -117,6 +118,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     academicSubjects, 
     academicGrades, 
     comprehensiveExams,
+    academicFollowUps,
+    setAcademicFollowUp,
     worksheets,
     worksheetWeeks,
     gradePeriods,
@@ -164,6 +167,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // وضعیت‌های بخش هشدارهای آموزشی
   const [warningClassFilter, setWarningClassFilter] = useState<string>('all');
   const [warningSearch, setWarningSearch] = useState('');
+  const [warningGroup, setWarningGroup] = useState<'all' | FollowUpGroup>('all');
+  const [showResolved, setShowResolved] = useState(false);
 
   // مدال‌های افزودن و ویرایش کلاس، معلم، و ثبت سریع دانش‌آموز
   const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
@@ -385,14 +390,23 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
   // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
   const followUpsByStudent = useMemo(
-    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks }),
-    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks]
+    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions }),
+    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions]
   );
   const academicWarningStudents = useMemo(() => {
+    const byStudent = new Map(academicFollowUps.map((r) => [r.studentId, r]));
     return studentsAcademicData
-      .map((s) => ({ ...s, followUps: followUpsByStudent.get(s.student.id) || ([] as FollowUpReason[]) }))
-      .filter((s) => s.followUps.length > 0);
-  }, [studentsAcademicData, followUpsByStudent]);
+      .map((s) => {
+        const followUps = followUpsByStudent.get(s.student.id) || ([] as FollowUpReason[]);
+        // اولویت: تعداد انواع مختلف مشکل (۱–۲ زرد، ۳ نارنجی، ۴ به بالا قرمز)
+        const priority = new Set(followUps.map((f) => f.kind)).size;
+        return { ...s, followUps, priority, followRecord: byStudent.get(s.student.id) };
+      })
+      .filter((s) => s.followUps.length > 0)
+      .sort((a, b) => b.priority - a.priority);
+  }, [studentsAcademicData, followUpsByStudent, academicFollowUps]);
+  // موارد حل‌شده در شمارنده‌ها نمی‌آیند
+  const openWarningStudents = useMemo(() => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved'), [academicWarningStudents]);
 
   // خروجی اکسل کارپوشه کلاسی
   const handleExportClassExcel = () => {
@@ -503,7 +517,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             teachers: allTeachers.length,
             grades: totalUngradedGrades,
             reportCards: students.length,
-            warnings: academicWarningStudents.length,
+            warnings: openWarningStudents.length,
             students: students.length,
             attendanceSessions: sessions.length,
           }}
@@ -512,7 +526,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = educationalMobileNav({ warnings: academicWarningStudents.length });
+        const nav = educationalMobileNav({ warnings: openWarningStudents.length });
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -544,7 +558,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           teachers: allTeachers.length,
           grades: totalUngradedGrades,
           reportCards: students.length,
-          warnings: academicWarningStudents.length,
+          warnings: openWarningStudents.length,
           students: students.length,
           attendanceSessions: sessions.length,
         }}
@@ -622,7 +636,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   'bg-amber-50/70 border-amber-200/80 text-amber-950',
                   'text-amber-600',
                 ],
-                ['warnings', 'نیازمند پیگیری', toPersianDigits(academicWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
+                ['warnings', 'نیازمند پیگیری', toPersianDigits(openWarningStudents.length), 'رسیدگی فوری', AlertTriangle, 'bg-rose-50/70 border-rose-200/80 text-rose-950', 'text-rose-600'],
               ] as const).map(([view, label, value, hint, Icon, tone, iconTone], idx) => (
                 <button
                   key={view}
@@ -1154,7 +1168,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     <span>دانش‌آموزان نیازمند توجه و پیگیری آموزشی</span>
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    شناسایی دانش‌آموزان دارای نمره‌ی مستمر یا میانگین مستمر زیر ۱۲، آزمون جامع زیر ۱۲ یا دو هفته متوالی عدم تحویل کاربرگ.
+                    شناسایی دانش‌آموزان دارای نقص آموزشی از هر جهت: نمره (مستمر، افت، آزمون جامع)، تکلیف (مثلاً ۳ بار انجام‌نشده در یک ماه برای هر درس)، کاربرگ (دو هفته متوالی) و غیبت، تأخیر یا اخطار کلاسی. هرچه انواع مشکل بیشتر، اولویت بالاتر.
                   </p>
                 </div>
 
@@ -1219,6 +1233,25 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   />
                 </div>
               </div>
+
+              {/* نوع مشکل و موارد حل‌شده */}
+              <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold">
+                {(['all', 'grades', 'homework', 'worksheet', 'attendance'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setWarningGroup(g)}
+                    aria-pressed={warningGroup === g}
+                    className={`min-h-[40px] px-3.5 rounded-full border cursor-pointer transition ${warningGroup === g ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    {g === 'all' ? 'همه موارد' : FOLLOW_UP_GROUP_LABEL[g]}
+                  </button>
+                ))}
+                <label className="mr-auto inline-flex items-center gap-1.5 min-h-[40px] text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} className="w-4 h-4" />
+                  نمایش موارد حل‌شده
+                </label>
+              </div>
             </div>
 
             {/* ۳. جدول موارد پیگیری */}
@@ -1232,6 +1265,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       <th className="p-3">کلاس</th>
                       <th className="p-3 text-center">معدل کل</th>
                       <th className="p-3">علت پیگیری</th>
+                      <th className="p-3">وضعیت پیگیری</th>
                       <th className="p-3">شماره ولی</th>
                       <th className="p-3 text-left">اقدام فوری</th>
                     </tr>
@@ -1240,6 +1274,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     {academicWarningStudents
                       .filter(item => {
                         if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
+                        if (!showResolved && item.followRecord?.status === 'resolved') return false;
+                        if (warningGroup !== 'all' && !item.followUps.some((f) => f.group === warningGroup)) return false;
                         if (!warningSearch) return true;
                         const q = warningSearch.trim().toLowerCase();
                         const name = `${studentFullName(item.student)}`.toLowerCase();
@@ -1258,6 +1294,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                             >
                               {studentFullName(item.student)}
                             </button>
+                            <span
+                              className={`mr-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                item.priority >= 4 ? 'bg-rose-50 text-rose-700 border-rose-200' : item.priority === 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}
+                            >
+                              {item.priority >= 4 ? 'فوری' : item.priority === 3 ? 'مهم' : 'توجه'} • {toPersianDigits(item.priority)} مورد
+                            </span>
                           </td>
                           <td className="p-3 text-slate-600">
                             کلاس {item.className}
@@ -1269,13 +1312,37 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                           </td>
                           <td className="p-3">
                             <div className="flex flex-col gap-1">
-                              {item.followUps.map((f) => (
-                                <span key={f.kind} className="inline-flex items-start gap-1 text-rose-700 font-semibold leading-5">
+                              {item.followUps.map((f, i) => (
+                                <span key={`${f.kind}-${i}`} className="inline-flex items-start gap-1 text-rose-700 font-semibold leading-5">
                                   <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                   <span>{f.label}: <span className="font-medium text-slate-700">{toPersianDigits(f.detail)}</span></span>
                                 </span>
                               ))}
                             </div>
+                          </td>
+                          <td className="p-3 min-w-44">
+                            <select
+                              value={item.followRecord?.status ?? 'open'}
+                              onChange={(e) => setAcademicFollowUp(item.student, { status: e.target.value as AcademicFollowUpStatus })}
+                              aria-label={`وضعیت پیگیری ${studentFullName(item.student)}`}
+                              className="w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                            >
+                              <option value="open">پیگیری نشده</option>
+                              <option value="in_progress">در حال بررسی</option>
+                              <option value="called_parent">تماس با ولی گرفته شد</option>
+                              <option value="resolved">حل شد</option>
+                            </select>
+                            <input
+                              key={item.followRecord?.note ?? ''}
+                              type="text"
+                              defaultValue={item.followRecord?.note ?? ''}
+                              onBlur={(e) => e.target.value.trim() !== (item.followRecord?.note ?? '') && setAcademicFollowUp(item.student, { note: e.target.value })}
+                              placeholder="یادداشت پیگیری..."
+                              maxLength={500}
+                              aria-label={`یادداشت پیگیری ${studentFullName(item.student)}`}
+                              className="mt-1.5 w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs outline-none focus:border-emerald-500"
+                            />
+                            {item.followRecord?.updatedBy && <div className="mt-1 text-[10px] text-slate-400">{item.followRecord.updatedBy}</div>}
                           </td>
                           <td className="p-3 font-mono text-slate-600">
                             {item.student.parentPhone}

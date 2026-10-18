@@ -119,6 +119,11 @@ final class AccessPolicy
                     && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings')));
         }
 
+        // وضعیت پیگیری آموزشی: فقط مدیر و معاونین آموزشی
+        if ($collection === 'academicFollowUps') {
+            return $this->canUseAcademicFollowUps();
+        }
+
         // گزارش نقاط تفکر: فقط معاون تربیتی و مربی (مربی فقط کلاس‌های خودش، در DataExporter)
         if ($collection === 'reflectionPoints') {
             return $this->canUseReflectionPoints();
@@ -189,6 +194,12 @@ final class AccessPolicy
     {
         return ($this->isManager() && $this->user->hasPermission('parent-meetings'))
             || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
+    }
+
+    /** پیگیری آموزشی دانش‌آموزان: مدیر، معاون آموزش و معاون اجرایی (نه معاون تربیتی و انضباطی) */
+    public function canUseAcademicFollowUps(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
     }
 
     /** گزارش نقاط تفکر (تحویل / عدم تحویل): فقط معاون تربیتی و مربی */
@@ -298,6 +309,14 @@ final class AccessPolicy
     public function authorizeUpsert(string $collection, ?object $old, object $new): void
     {
         $this->requireWritePermission($collection, $old, $new);
+
+        if ($collection === 'academicFollowUps') {
+            if (! $this->canUseAcademicFollowUps()) {
+                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
+            }
+
+            return;
+        }
 
         if ($collection === 'reflectionPoints') {
             $this->authorizeReflectionPoint($old, $new);
@@ -427,6 +446,14 @@ final class AccessPolicy
     public function authorizeDelete(string $collection, object $old): void
     {
         $this->requireWritePermission($collection, $old);
+
+        if ($collection === 'academicFollowUps') {
+            if (! $this->canUseAcademicFollowUps()) {
+                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
+            }
+
+            return;
+        }
 
         if ($collection === 'reflectionPoints') {
             $this->authorizeReflectionPoint($old, null);
