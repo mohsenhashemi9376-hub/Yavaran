@@ -33,6 +33,7 @@ export type CollectionKey =
   | 'parentMeetingStates'
   | 'reflectionPoints'
   | 'academicFollowUps'
+  | 'greyList'
   | 'grades'
   | 'settings';
 
@@ -65,6 +66,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'parentMeetingStates',
   'reflectionPoints',
   'academicFollowUps',
+  'greyList',
   'grades',
   'settings',
 ];

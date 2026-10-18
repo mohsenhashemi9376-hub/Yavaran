@@ -102,10 +102,9 @@ final class AccessPolicy
             return false;
         }
 
-        // نمرات آزمون جامع: مدیر و معاونین دارای مجوز؛ معاون تربیتی و مربی فقط برای «لیست خاکستری آموزش» (فقط خواندنی؛ مربی فقط کلاس‌های خودش)
+        // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
         if ($collection === 'comprehensiveExams') {
-            return ($this->isManager() && $this->user->hasPermission('comprehensive-exam'))
-                || in_array($this->user->role, ['vice_nurturing', 'coach'], true);
+            return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
         }
 
         // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
@@ -120,9 +119,14 @@ final class AccessPolicy
                     && ($this->user->hasPermission('parent-meetings') || $this->user->hasPermission('view-parent-meetings')));
         }
 
-        // وضعیت پیگیری آموزشی: فقط مدیر و معاونین آموزشی
+        // وضعیت پیگیری آموزشی: فقط مدیر و معاونت آموزش
         if ($collection === 'academicFollowUps') {
             return $this->canUseAcademicFollowUps();
+        }
+
+        // لیست خاکستری آموزش: معاونت آموزش (ارسال) و مربی و معاون تربیتی (علت و اقدام؛ مربی فقط کلاس‌های خودش)
+        if ($collection === 'greyList') {
+            return $this->canUseGreyList();
         }
 
         // گزارش نقاط تفکر: فقط معاون تربیتی و مربی (مربی فقط کلاس‌های خودش، در DataExporter)
@@ -197,16 +201,40 @@ final class AccessPolicy
             || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
     }
 
-    /** پیگیری آموزشی و لیست خاکستری: مدیر، معاون آموزش، معاون اجرایی، معاون تربیتی و مربی (نه معاون انضباطی) */
+    /** پیگیری آموزشی دانش‌آموزان: مدیر، معاون آموزش و معاون اجرایی (نه معاون تربیتی و انضباطی) */
     public function canUseAcademicFollowUps(): bool
     {
-        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal', 'vice_nurturing', 'coach'], true);
+        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
     }
 
-    /** وضعیت و یادداشت پیگیری آموزشی فقط با مدیر و معاونت آموزش؛ مربی و معاون تربیتی فقط علت ضعف و اقدام را می‌نویسند */
-    public function managesAcademicFollowUpStatus(): bool
+    /** مدیریت لیست خاکستری (ارسال دانش‌آموز و برگرداندن): همان نقش‌های پیگیری آموزشی */
+    public function managesGreyList(): bool
     {
-        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
+        return $this->canUseAcademicFollowUps();
+    }
+
+    /** مشاهده و ثبت علت و اقدام در لیست خاکستری: معاونت آموزش، معاون تربیتی و مربی */
+    public function canUseGreyList(): bool
+    {
+        return $this->managesGreyList() || in_array($this->user->role, ['vice_nurturing', 'coach'], true);
+    }
+
+    private function authorizeGreyList(?object $old, ?object $new, bool $delete = false): void
+    {
+        if (! $this->canUseGreyList()) {
+            $this->deny('لیست خاکستری آموزش برای شما فعال نیست.');
+        }
+        // ایجاد و حذف (ارسال و برگرداندن) فقط با معاونت آموزش
+        if (($old === null || $delete) && ! $this->managesGreyList()) {
+            $this->deny('ارسال دانش‌آموز به لیست خاکستری فقط با معاونت آموزش است.');
+        }
+        if ($this->isCoach()) {
+            foreach ([$old, $new] as $record) {
+                if ($record !== null) {
+                    $this->requireStudent($this->prop($record, 'studentId'));
+                }
+            }
+        }
     }
 
     /** گزارش نقاط تفکر (تحویل / عدم تحویل): فقط معاون تربیتی و مربی */
@@ -319,15 +347,14 @@ final class AccessPolicy
 
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
-                $this->deny('لیست خاکستری آموزش برای شما فعال نیست.');
+                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
             }
-            if ($this->isCoach()) {
-                foreach ([$old, $new] as $record) {
-                    if ($record !== null) {
-                        $this->requireStudent($this->prop($record, 'studentId'));
-                    }
-                }
-            }
+
+            return;
+        }
+
+        if ($collection === 'greyList') {
+            $this->authorizeGreyList($old, $new);
 
             return;
         }
@@ -463,11 +490,14 @@ final class AccessPolicy
 
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
-                $this->deny('لیست خاکستری آموزش برای شما فعال نیست.');
+                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
             }
-            if ($this->isCoach()) {
-                $this->requireStudent($this->prop($old, 'studentId'));
-            }
+
+            return;
+        }
+
+        if ($collection === 'greyList') {
+            $this->authorizeGreyList($old, null, true);
 
             return;
         }

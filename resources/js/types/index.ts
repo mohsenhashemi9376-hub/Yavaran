@@ -299,12 +299,41 @@ export interface AcademicFollowUpRecord {
   classId: string;
   status: AcademicFollowUpStatus;
   note?: string | null;
-  /** لیست خاکستری آموزش: علل ضعف (کلید از GREY_CAUSES)، علت دلخواه و اقدام */
-  causes?: string[];
-  causeOther?: string | null;
-  action?: string | null;
   updatedBy?: string; // توسط سرور تعیین می‌شود
   updatedById?: string;
+  updatedAt?: string;
+}
+
+/** تصویر ثابتِ وضعیت آموزشی دانش‌آموز در لحظه‌ی ارسال به لیست خاکستری */
+export interface GreySnapshot {
+  average: number | null;
+  weakSubjects: { name: string; score: number }[];
+  reasons: { kind: string; group: string; label: string; detail: string }[];
+}
+
+export interface GreyAction {
+  id: string;
+  text: string;
+  at: string; // ISO؛ توسط سرور تعیین می‌شود
+  by: string;
+  byId?: string;
+}
+
+/** لیست خاکستری آموزش: یک رکورد برای هر دانش‌آموز در هر ماه؛ معاونت آموزش می‌فرستد، مربی علت و اقدام را می‌نویسد */
+export interface GreyListRecord {
+  id: string; // gl-{studentId}-{سال}-{ماه}
+  studentId: string;
+  classId: string;
+  month: string; // "1405/07"
+  snapshot: GreySnapshot;
+  causes: string[];
+  causeOther?: string | null;
+  actions: GreyAction[];
+  nextFollowUp?: string | null; // تاریخ شمسی پیگیری بعدی
+  sentBy?: string;
+  sentById?: string;
+  sentAt?: string;
+  updatedBy?: string;
   updatedAt?: string;
 }
 

@@ -20,6 +20,8 @@ import {
   ReflectionPointRecord,
   AcademicFollowUpRecord,
   AcademicFollowUpStatus,
+  GreyListRecord,
+  GreySnapshot,
   ParentMeetingState,
   ParentMeetingNo,
   WorksheetRecord,
@@ -111,7 +113,15 @@ interface SchoolContextType {
   /** وضعیت پیگیری آموزشی دانش‌آموزان (فقط مدیر و معاونت آموزش) */
   academicFollowUps: AcademicFollowUpRecord[];
   /** تغییر وضعیت / یادداشت پیگیری؛ «باز» بدون یادداشت = حذف رکورد */
-  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string; causes?: string[]; causeOther?: string; action?: string }) => void;
+  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string }) => void;
+  /** لیست خاکستری آموزش (هر دانش‌آموز در هر ماه یک رکورد) */
+  greyList: GreyListRecord[];
+  /** ارسال دانش‌آموز به لیست خاکستری مربیان برای یک ماه (معاونت آموزش)؛ تصویر وضعیت آموزشی همان لحظه ثابت می‌ماند */
+  sendToGreyList: (student: Pick<Student, 'id' | 'classId'>, snapshot: GreySnapshot, month: string) => void;
+  /** برگرداندن دانش‌آموز از لیست خاکستری یک ماه (معاونت آموزش) */
+  withdrawFromGreyList: (id: string) => void;
+  /** علت ضعف، تاریخ پیگیری بعدی و افزودن اقدام (مربی / معاون تربیتی / معاونت آموزش) */
+  updateGreyEntry: (id: string, patch: { causes?: string[]; causeOther?: string; nextFollowUp?: string | null; addAction?: string }) => void;
   /** گزارش نقاط تفکر (فقط معاون تربیتی و مربی) */
   reflectionPoints: ReflectionPointRecord[];
   /** ثبت تحویل / عدم تحویل و یادداشت نقاط تفکر برای یک دانش‌آموز در یک هفته؛ بدون تحویل و بدون یادداشت = حذف رکورد */
@@ -440,6 +450,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [parentMeetings, setParentMeetings] = useState<ParentMeetingRecord[]>([]);
   const [reflectionPoints, setReflectionPoints] = useState<ReflectionPointRecord[]>([]);
   const [academicFollowUps, setAcademicFollowUps] = useState<AcademicFollowUpRecord[]>([]);
+  const [greyList, setGreyList] = useState<GreyListRecord[]>([]);
   const [parentMeetingStates, setParentMeetingStates] = useState<ParentMeetingState[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRecord[]>([]);
   const [worksheetWeeks, setWorksheetWeeks] = useState<WorksheetWeek[]>([]);
@@ -604,6 +615,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextParentMeetingStates = (d.parentMeetingStates || []) as unknown as ParentMeetingState[];
     const nextReflectionPoints = (d.reflectionPoints || []) as unknown as ReflectionPointRecord[];
     const nextAcademicFollowUps = (d.academicFollowUps || []) as unknown as AcademicFollowUpRecord[];
+    const nextGreyList = (d.greyList || []) as unknown as GreyListRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
@@ -636,6 +648,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       parentMeetingStates: nextParentMeetingStates as unknown as SyncRow[],
       reflectionPoints: nextReflectionPoints as unknown as SyncRow[],
       academicFollowUps: nextAcademicFollowUps as unknown as SyncRow[],
+      greyList: nextGreyList as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
@@ -668,6 +681,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setParentMeetingStates(nextParentMeetingStates);
     setReflectionPoints(nextReflectionPoints);
     setAcademicFollowUps(nextAcademicFollowUps);
+    setGreyList(nextGreyList);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setWorksheetWeeks(nextWorksheetWeeks);
@@ -716,6 +730,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setParentMeetingStates([]);
     setReflectionPoints([]);
     setAcademicFollowUps([]);
+    setGreyList([]);
     setWorksheets([]);
     setSchoolHolidays([]);
     setWorksheetWeeks([]);
@@ -846,6 +861,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
+  useEffect(() => { syncEngine.push('greyList', greyList as unknown as SyncRow[]); }, [greyList, syncEngine]);
   useEffect(() => { syncEngine.push('academicFollowUps', academicFollowUps as unknown as SyncRow[]); }, [academicFollowUps, syncEngine]);
   useEffect(() => { syncEngine.push('reflectionPoints', reflectionPoints as unknown as SyncRow[]); }, [reflectionPoints, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetingStates', parentMeetingStates as unknown as SyncRow[]); }, [parentMeetingStates, syncEngine]);
@@ -1775,13 +1791,44 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const old = prev.find((r) => r.id === id);
       const status = patch.status ?? old?.status ?? 'open';
       const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
-      const causes = patch.causes ?? old?.causes ?? [];
-      const causeOther = (patch.causeOther !== undefined ? patch.causeOther : old?.causeOther ?? '').trim();
-      const action = (patch.action !== undefined ? patch.action : old?.action ?? '').trim();
-      if (status === 'open' && !note && causes.length === 0 && !causeOther && !action) return old ? prev.filter((r) => r.id !== id) : prev;
-      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, causes, causeOther: causeOther || null, action: action || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
+      if (status === 'open' && !note) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
       return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
+  };
+
+  const greyId = (studentId: string, month: string) => `gl-${studentId}-${month.replace('/', '-')}`;
+
+  const sendToGreyList: SchoolContextType['sendToGreyList'] = (student, snapshot, month) => {
+    const id = greyId(student.id, month);
+    setGreyList((prev) =>
+      prev.some((r) => r.id === id)
+        ? prev
+        : [...prev, { id, studentId: student.id, classId: student.classId, month, snapshot, causes: [], actions: [], nextFollowUp: null, sentBy: currentUser.name, sentById: currentUser.id, sentAt: new Date().toISOString() }]
+    );
+  };
+
+  const withdrawFromGreyList: SchoolContextType['withdrawFromGreyList'] = (id) => setGreyList((prev) => prev.filter((r) => r.id !== id));
+
+  const updateGreyEntry: SchoolContextType['updateGreyEntry'] = (id, patch) => {
+    const now = new Date().toISOString();
+    setGreyList((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const actions = patch.addAction?.trim()
+          ? [...r.actions, { id: `act-${Date.now()}-${Math.floor(Math.random() * 1000)}`, text: patch.addAction.trim(), at: now, by: currentUser.name, byId: currentUser.id }]
+          : r.actions;
+        return {
+          ...r,
+          causes: patch.causes ?? r.causes,
+          causeOther: patch.causeOther !== undefined ? patch.causeOther.trim() || null : r.causeOther,
+          nextFollowUp: patch.nextFollowUp !== undefined ? patch.nextFollowUp : r.nextFollowUp,
+          actions,
+          updatedBy: currentUser.name,
+          updatedAt: now,
+        };
+      })
+    );
   };
 
   // نقاط تفکر: پیش‌فرض «تحویل نداده» است؛ رکورد فقط وقتی ساخته می‌شود که تحویل داده شده یا یادداشتی هست
@@ -3028,6 +3075,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setReflectionPoint,
         academicFollowUps,
         setAcademicFollowUp,
+        greyList,
+        sendToGreyList,
+        withdrawFromGreyList,
+        updateGreyEntry,
         parentMeetingStates,
         setParentMeetingOpen,
         setParentMeetingAttendance,

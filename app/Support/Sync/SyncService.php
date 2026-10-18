@@ -102,7 +102,10 @@ final class SyncService
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
                 if ($collection === 'academicFollowUps') {
-                    $this->normalizeAcademicFollowUp($data, (string) $item->id, $user, $oldData, $policy);
+                    $this->normalizeAcademicFollowUp($data, (string) $item->id, $user);
+                }
+                if ($collection === 'greyList') {
+                    $this->normalizeGreyEntry($data, (string) $item->id, $user, $oldData, $policy);
                 }
                 if ($collection === 'reflectionPoints') {
                     $this->normalizeReflectionPoint($data, (string) $item->id, $user);
@@ -574,7 +577,7 @@ final class SyncService
     }
 
     /** وضعیت پیگیری آموزشی: یک رکورد برای هر دانش‌آموز؛ کلاس و ثبت‌کننده را سرور تعیین می‌کند */
-    private function normalizeAcademicFollowUp(object $data, string $id, User $user, ?object $old, AccessPolicy $policy): void
+    private function normalizeAcademicFollowUp(object $data, string $id, User $user): void
     {
         $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
         $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
@@ -589,19 +592,106 @@ final class SyncService
         }
         $data->classId = (string) $classId;
         $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
-        // مربی و معاون تربیتی وضعیت و یادداشت معاونت آموزش را تغییر نمی‌دهند
-        if (! $policy->managesAcademicFollowUpStatus()) {
-            $data->status = isset($old->status) && is_string($old->status) ? $old->status : 'open';
-            $data->note = isset($old->note) && is_string($old->note) ? $old->note : null;
-        }
-        // لیست خاکستری: علل ضعف (چندانتخابی)، علت دلخواه و اقدام
-        $causes = isset($data->causes) && is_array($data->causes) ? array_values(array_unique(array_filter($data->causes, static fn ($c) => is_string($c) && preg_match('/^[a-z_]{1,40}$/', $c)))) : [];
-        $data->causes = array_slice($causes, 0, 20);
-        $data->causeOther = isset($data->causeOther) && is_string($data->causeOther) && trim($data->causeOther) !== '' ? mb_substr(trim($data->causeOther), 0, 300) : null;
-        $data->action = isset($data->action) && is_string($data->action) && trim($data->action) !== '' ? mb_substr(trim($data->action), 0, 1000) : null;
         $data->updatedById = (string) $user->id;
         $data->updatedBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
+    }
+
+    /**
+     * لیست خاکستری آموزش: یک رکورد برای هر دانش‌آموز در هر ماه. معاونت آموزش هنگام ارسال، تصویر ثابت (میانگین، دروس ضعیف،
+     * دلایل) را می‌گذارد که بعد از آن تغییر نمی‌کند. مربی و معاون تربیتی فقط علت ضعف، اقدام‌ها و تاریخ پیگیری بعدی را می‌نویسند.
+     * ثبت‌کننده و زمان هر اقدام را سرور می‌گذارد و اقدام‌های قبلی تغییر نمی‌کنند (تاریخچه‌ی ثابت).
+     */
+    private function normalizeGreyEntry(object $data, string $id, User $user, ?object $old, AccessPolicy $policy): void
+    {
+        $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
+        $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
+        if ($classId === null) {
+            abort(422, 'دانش‌آموز نامعتبر است.');
+        }
+        $month = isset($data->month) && is_string($data->month) ? trim($data->month) : '';
+        if (! preg_match('/^\d{4}\/\d{2}$/', $month)) {
+            abort(422, 'ماه لیست خاکستری نامعتبر است.');
+        }
+        if ($id !== 'gl-'.$studentId.'-'.str_replace('/', '-', $month)) {
+            abort(422, 'شناسه‌ی لیست خاکستری نامعتبر است.');
+        }
+        $now = now()->toIso8601String();
+        $data->classId = (string) $classId;
+        $data->month = $month;
+
+        if ($old === null) {
+            // تصویر ثابت زمان ارسال
+            $snap = isset($data->snapshot) && is_object($data->snapshot) ? $data->snapshot : new stdClass();
+            $average = isset($snap->average) && is_numeric($snap->average) ? max(0, min(20, round((float) $snap->average, 2))) : null;
+            $weak = [];
+            foreach (array_slice(isset($snap->weakSubjects) && is_array($snap->weakSubjects) ? $snap->weakSubjects : [], 0, 40) as $w) {
+                if (is_object($w) && isset($w->name) && is_string($w->name) && isset($w->score) && is_numeric($w->score)) {
+                    $weak[] = ['name' => mb_substr($w->name, 0, 100), 'score' => max(0, min(20, round((float) $w->score, 2)))];
+                }
+            }
+            $reasons = [];
+            foreach (array_slice(isset($snap->reasons) && is_array($snap->reasons) ? $snap->reasons : [], 0, 30) as $r) {
+                if (is_object($r) && isset($r->label) && is_string($r->label)) {
+                    $reasons[] = [
+                        'kind' => mb_substr((string) ($r->kind ?? ''), 0, 40),
+                        'group' => mb_substr((string) ($r->group ?? ''), 0, 20),
+                        'label' => mb_substr($r->label, 0, 100),
+                        'detail' => mb_substr((string) ($r->detail ?? ''), 0, 1000),
+                    ];
+                }
+            }
+            $data->snapshot = ['average' => $average, 'weakSubjects' => $weak, 'reasons' => $reasons];
+            $data->sentById = (string) $user->id;
+            $data->sentBy = (string) $user->name;
+            $data->sentAt = $now;
+        } else {
+            // بعد از ارسال، تصویر ثابت و مشخصات ارسال تغییر نمی‌کند
+            foreach (['snapshot', 'sentById', 'sentBy', 'sentAt'] as $k) {
+                $data->{$k} = $old->{$k} ?? null;
+            }
+        }
+
+        $causes = isset($data->causes) && is_array($data->causes) ? array_values(array_unique(array_filter($data->causes, static fn ($c) => is_string($c) && preg_match('/^[a-z_]{1,40}$/', $c)))) : [];
+        $data->causes = array_slice($causes, 0, 20);
+        $data->causeOther = isset($data->causeOther) && is_string($data->causeOther) && trim($data->causeOther) !== '' ? mb_substr(trim($data->causeOther), 0, 300) : null;
+
+        $next = isset($data->nextFollowUp) && is_string($data->nextFollowUp) ? trim($data->nextFollowUp) : '';
+        if ($next !== '' && ! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $next)) {
+            abort(422, 'تاریخ پیگیری بعدی نامعتبر است.');
+        }
+        $data->nextFollowUp = $next === '' ? null : $next;
+
+        // تاریخچه‌ی اقدام‌ها: قبلی‌ها ثابت، فقط موارد تازه اضافه می‌شود (ثبت‌کننده و زمان از سرور)
+        $oldActions = [];
+        $oldIds = [];
+        foreach (isset($old->actions) && is_array($old->actions) ? $old->actions : [] as $a) {
+            $oldActions[] = $a;
+            if (is_object($a) && isset($a->id)) {
+                $oldIds[(string) $a->id] = true;
+            }
+        }
+        $actions = $oldActions;
+        foreach (isset($data->actions) && is_array($data->actions) ? $data->actions : [] as $a) {
+            if (! is_object($a) || ! isset($a->id) || ! is_string($a->id) || isset($oldIds[$a->id])) {
+                continue;
+            }
+            $text = isset($a->text) && is_string($a->text) ? trim($a->text) : '';
+            if ($text === '' || count($actions) >= 200) {
+                continue;
+            }
+            $actions[] = (object) [
+                'id' => mb_substr($a->id, 0, 40),
+                'text' => mb_substr($text, 0, 1000),
+                'at' => $now,
+                'by' => (string) $user->name,
+                'byId' => (string) $user->id,
+            ];
+        }
+        $data->actions = $actions;
+        $data->updatedById = (string) $user->id;
+        $data->updatedBy = (string) $user->name;
+        $data->updatedAt = $now;
     }
 
     /**

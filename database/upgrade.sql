@@ -381,3 +381,21 @@ CREATE TABLE IF NOT EXISTS `academic_follow_ups` (
   KEY `academic_follow_ups_status_index` (`status`),
   KEY `academic_follow_ups_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- لیست خاکستری آموزش: یک رکورد برای هر دانش‌آموز در هر ماه (ارسال توسط معاونت آموزش)
+CREATE TABLE IF NOT EXISTS `grey_list_entries` (
+  `id` varchar(150) NOT NULL,
+  `student_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `month` varchar(7) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `grey_list_entries_student_month_unique` (`student_id`,`month`),
+  KEY `grey_list_entries_student_id_index` (`student_id`),
+  KEY `grey_list_entries_class_id_index` (`class_id`),
+  KEY `grey_list_entries_month_index` (`month`),
+  KEY `grey_list_entries_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -38,6 +38,7 @@ final class CollectionRegistry
         'parentMeetingStates' => 'parent_meeting_states',
         'reflectionPoints' => 'reflection_points',
         'academicFollowUps' => 'academic_follow_ups',
+        'greyList' => 'grey_list_entries',
         'grades' => 'school_grades',
         'settings' => 'school_settings',
     ];
@@ -191,6 +192,24 @@ final class CollectionRegistry
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'grey_list_entries') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('grey_list_entries', function ($t): void {
+                    $t->string('id', 150)->primary();
+                    $t->string('student_id', 100)->index();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('month', 7)->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                    $t->unique(['student_id', 'month'], 'grey_list_entries_student_month_unique');
                 });
             } catch (\Throwable) {
             }
@@ -543,6 +562,11 @@ final class CollectionRegistry
                 'student_id' => self::str($d, 'studentId', 100) ?? '',
                 'class_id' => self::str($d, 'classId', 100),
                 'status' => self::str($d, 'status', 20) ?? 'open',
+            ],
+            'greyList' => [
+                'student_id' => self::str($d, 'studentId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'month' => self::str($d, 'month', 7) ?? '',
             ],
             'reflectionPoints' => [
                 'student_id' => self::str($d, 'studentId', 100) ?? '',

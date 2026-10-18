@@ -26,6 +26,9 @@ import { ExamEducationalReport } from './ExamEducationalReport';
 import { SubjectClassAnalysis } from './SubjectClassAnalysis';
 import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
 import { GreyListWorkspace } from './GreyListWorkspace';
+import { WeeklyFollowUpDigest } from './WeeklyFollowUpDigest';
+import { buildGreySnapshot } from '../utils/greyList';
+import { currentMonthKey } from '../utils/teacherActivities';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -121,6 +124,10 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     comprehensiveExams,
     academicFollowUps,
     setAcademicFollowUp,
+    greyList,
+    sendToGreyList,
+    withdrawFromGreyList,
+    showToast,
     worksheets,
     worksheetWeeks,
     gradePeriods,
@@ -407,6 +414,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       .sort((a, b) => b.priority - a.priority);
   }, [studentsAcademicData, followUpsByStudent, academicFollowUps]);
   // موارد حل‌شده در شمارنده‌ها نمی‌آیند
+  // لیست خاکستری این ماه: کدام دانش‌آموزان فرستاده شده‌اند
+  const greyMonth = currentMonthKey();
+  const greyThisMonth = useMemo(() => new Map(greyList.filter((r) => r.month === greyMonth).map((r) => [r.studentId, r])), [greyList, greyMonth]);
+  const digestEntries = useMemo(
+    () => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved').map((s) => ({ id: s.student.id, name: studentFullName(s.student), className: s.className, priority: s.priority })),
+    [academicWarningStudents]
+  );
+  const unsentIds = useMemo(() => new Set(digestEntries.filter((e) => !greyThisMonth.has(e.id)).map((e) => e.id)), [digestEntries, greyThisMonth]);
   const openWarningStudents = useMemo(() => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved'), [academicWarningStudents]);
 
   // خروجی اکسل کارپوشه کلاسی
@@ -572,6 +587,15 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {/* حالت ۱: پیشخوان اصلی کار روزانه معاونت آموزشی (currentView === null) */}
         {/* ========================================================================= */}
         {deniedView && <AccessDeniedNotice onClose={() => setCurrentView(null)} />}
+        {(currentView === null || currentView === 'warnings') && (
+          <WeeklyFollowUpDigest
+            userId={currentUser.id}
+            entries={digestEntries}
+            unsentIds={unsentIds}
+            ready={students.length > 0}
+            onOpenList={() => setCurrentView('warnings')}
+          />
+        )}
         {currentView === null && (
           <div className="space-y-6 animate-in fade-in" id="educational-dashboard-home">
             
@@ -1274,6 +1298,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                       <th className="p-3 text-center">معدل کل</th>
                       <th className="p-3">علت پیگیری</th>
                       <th className="p-3">وضعیت پیگیری</th>
+                      <th className="p-3">لیست خاکستری</th>
                       <th className="p-3">شماره ولی</th>
                       <th className="p-3 text-left">اقدام فوری</th>
                     </tr>
@@ -1351,6 +1376,28 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                               className="mt-1.5 w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs outline-none focus:border-emerald-500"
                             />
                             {item.followRecord?.updatedBy && <div className="mt-1 text-[10px] text-slate-400">{item.followRecord.updatedBy}</div>}
+                          </td>
+                          <td className="p-3 min-w-40">
+                            {(() => {
+                              const sent = greyThisMonth.get(item.student.id);
+                              return sent ? (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-extrabold">✓ در لیست خاکستری مربی</span>
+                                  <button type="button" onClick={() => withdrawFromGreyList(sent.id)} className="block text-[11px] font-bold text-rose-600 cursor-pointer">برگرداندن</button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sendToGreyList(item.student, buildGreySnapshot(academicGrades.filter((g) => g.studentId === item.student.id), item.followUps), greyMonth);
+                                    showToast(`«${studentFullName(item.student)}» به لیست خاکستری مربی فرستاده شد.`, 'success');
+                                  }}
+                                  className="min-h-[44px] px-3 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-800 text-[11px] font-extrabold cursor-pointer whitespace-nowrap"
+                                >
+                                  ارسال به لیست خاکستری
+                                </button>
+                              );
+                            })()}
                           </td>
                           <td className="p-3 font-mono text-slate-600">
                             {item.student.parentPhone}
