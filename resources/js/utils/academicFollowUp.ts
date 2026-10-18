@@ -9,7 +9,7 @@ import {
 } from '../types';
 import { isDeadlinePassed, worksheetKey } from './worksheets';
 import { monthKeyOf } from './attendanceStats';
-import { PERSIAN_MONTHS } from './persianDate';
+import { PERSIAN_MONTHS, toPersianDigits } from './persianDate';
 import { activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
 
 export const FOLLOW_UP_THRESHOLD = 12;
@@ -37,6 +37,24 @@ export const FOLLOW_UP_RULES = {
   continuousVsExamGap: 5,
 };
 
+/** تنظیمات قابل تغییر معیارهای «نیازمند پیگیری» (پیشرفته)؛ پیش‌فرض همان معیارهای توافق‌شده است */
+export interface FollowUpConfig {
+  /** هر قانون روشن / خاموش */
+  enabled: Record<FollowUpKind, boolean>;
+  /** نمره‌ی مستمر یا آزمون جامع کمتر از این مقدار «ضعیف» است */
+  lowScore: number;
+  homeworkNotDonePerMonth: number;
+  homeworkIncompletePerMonth: number;
+  homeworkNotDoneStreak: number;
+  subjectAbsencesPerMonth: number;
+  classLatesPerMonth: number;
+  classWarningsPerMonth: number;
+  dropFromPreviousMonth: number;
+  continuousVsExamGap: number;
+  /** تعداد هفته‌ی متوالی عدم تحویل کاربرگ */
+  worksheetStreakWeeks: number;
+}
+
 export type FollowUpGroup = 'grades' | 'homework' | 'worksheet' | 'attendance';
 export const FOLLOW_UP_GROUP_LABEL: Record<FollowUpGroup, string> = {
   grades: 'نمره',
@@ -57,6 +75,30 @@ const GROUP_OF: Record<FollowUpKind, FollowUpGroup> = {
   homework_not_done: 'homework', homework_incomplete: 'homework', homework_streak: 'homework',
   subject_absences: 'attendance', class_lates: 'attendance', class_warnings: 'attendance',
 };
+
+const ALL_KINDS: FollowUpKind[] = [
+  'low_continuous', 'low_continuous_avg', 'score_decline', 'low_exam', 'low_exam_avg', 'exam_gap',
+  'homework_not_done', 'homework_incomplete', 'homework_streak', 'worksheet_streak',
+  'subject_absences', 'class_lates', 'class_warnings',
+];
+
+export const DEFAULT_FOLLOW_UP_CONFIG: FollowUpConfig = {
+  enabled: Object.fromEntries(ALL_KINDS.map((k) => [k, true])) as Record<FollowUpKind, boolean>,
+  lowScore: 12,
+  ...FOLLOW_UP_RULES,
+  worksheetStreakWeeks: 2,
+};
+
+/** ادغام تنظیمات ذخیره‌شده با پیش‌فرض (کلیدهای جاافتاده پیش‌فرض می‌گیرند) */
+export function mergeFollowUpConfig(stored?: Partial<FollowUpConfig> | null): FollowUpConfig {
+  return {
+    ...DEFAULT_FOLLOW_UP_CONFIG,
+    ...(stored || {}),
+    enabled: { ...DEFAULT_FOLLOW_UP_CONFIG.enabled, ...(stored?.enabled || {}) },
+  };
+}
+
+export const isDefaultFollowUpConfig = (c: FollowUpConfig): boolean => JSON.stringify(c) === JSON.stringify(DEFAULT_FOLLOW_UP_CONFIG);
 
 export interface FollowUpReason {
   kind: FollowUpKind;
@@ -89,12 +131,18 @@ export interface FollowUpInput {
   worksheets: WorksheetRecord[];
   worksheetWeeks: WorksheetWeek[];
   sessions: AttendanceSession[];
+  config?: FollowUpConfig;
 }
 
 /** دلایل نیاز به پیگیری هر دانش‌آموز (فقط دانش‌آموزانی که دست‌کم یک دلیل دارند) */
-export function computeFollowUps({ students, grades, exams, worksheets, worksheetWeeks, sessions }: FollowUpInput): Map<string, FollowUpReason[]> {
+export function computeFollowUps({ students, grades, exams, worksheets, worksheetWeeks, sessions, config = DEFAULT_FOLLOW_UP_CONFIG }: FollowUpInput): Map<string, FollowUpReason[]> {
   const result = new Map<string, FollowUpReason[]>();
-  const add = (id: string, r: Omit<FollowUpReason, 'group'>) => result.set(id, [...(result.get(id) || []), { ...r, group: GROUP_OF[r.kind] }]);
+  const add = (id: string, r: Omit<FollowUpReason, 'group'>) => {
+    if (!config.enabled[r.kind]) return;
+    result.set(id, [...(result.get(id) || []), { ...r, group: GROUP_OF[r.kind] }]);
+  };
+  const T = config.lowScore;
+  const tl = toPersianDigits(T);
 
   const byKey = new Map(worksheets.map((r) => [worksheetKey(r.studentId, r.weekStart), r]));
   const examByClass = new Map(exams.map((e) => [e.classId, e]));
@@ -109,11 +157,11 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
     grades.filter((g) => g.studentId === st.id).forEach((g) => {
       const vals = CONTINUOUS_KEYS.map((p) => g[p.key]).filter(num);
       all.push(...vals);
-      if (vals.some((v) => v < FOLLOW_UP_THRESHOLD)) lowSubjects.push(g.subjectName);
+      if (vals.some((v) => v < T)) lowSubjects.push(g.subjectName);
     });
-    if (lowSubjects.length) add(st.id, { kind: 'low_continuous', label: 'مستمر زیر ۱۲', detail: lowSubjects.join('، ') });
+    if (lowSubjects.length) add(st.id, { kind: 'low_continuous', label: `مستمر زیر ${tl}`, detail: lowSubjects.join('، ') });
     const avg = mean(all);
-    if (avg !== undefined && avg < FOLLOW_UP_THRESHOLD) add(st.id, { kind: 'low_continuous_avg', label: 'میانگین مستمر زیر ۱۲', detail: String(round2(avg)) });
+    if (avg !== undefined && avg < T) add(st.id, { kind: 'low_continuous_avg', label: `میانگین مستمر زیر ${tl}`, detail: String(round2(avg)) });
 
     // ۳: دو هفته‌ی متوالی کاربرگ تحویل‌نشده (غایب، رشته را قطع می‌کند)
     if (!weeksByClass.has(st.classId)) weeksByClass.set(st.classId, worksheetWeeksOf(st.classId, worksheetWeeks, byKey, idsByClass.get(st.classId) || []));
@@ -124,7 +172,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
       streak = !r || r.status === 'none' ? streak + 1 : 0;
       worst = Math.max(worst, streak);
     }
-    if (worst >= 2) add(st.id, { kind: 'worksheet_streak', label: 'کاربرگ تحویل‌نداده', detail: `${worst} هفته متوالی` });
+    if (worst >= config.worksheetStreakWeeks) add(st.id, { kind: 'worksheet_streak', label: 'کاربرگ تحویل‌نداده', detail: `${worst} هفته متوالی` });
 
     // ۴ و ۵: آزمون جامع (هر ماه جدا؛ میانگین روی همه‌ی ماه‌های ثبت‌شده)
     const exam = examByClass.get(st.classId);
@@ -135,12 +183,12 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
         if (!scores) return;
         activeExamSubjects(exam, month).forEach((sub) => {
           const v = scores[sub.key];
-          if (num(v) && v < FOLLOW_UP_THRESHOLD) low.push(month === 'legacy' ? sub.label : `${sub.label} (${examMonthLabel(month)})`);
+          if (num(v) && v < T) low.push(month === 'legacy' ? sub.label : `${sub.label} (${examMonthLabel(month)})`);
         });
       });
-      if (low.length) add(st.id, { kind: 'low_exam', label: 'آزمون جامع زیر ۱۲', detail: low.join('، ') });
+      if (low.length) add(st.id, { kind: 'low_exam', label: `آزمون جامع زیر ${tl}`, detail: low.join('، ') });
       const examAvg = mean(activeExamSubjects(exam, 'all').map((sub) => examSubjectScore(exam, st.id, sub.key, 'all')).filter(num));
-      if (examAvg !== undefined && examAvg < FOLLOW_UP_THRESHOLD) add(st.id, { kind: 'low_exam_avg', label: 'میانگین آزمون جامع زیر ۱۲', detail: String(round2(examAvg)) });
+      if (examAvg !== undefined && examAvg < T) add(st.id, { kind: 'low_exam_avg', label: `میانگین آزمون جامع زیر ${tl}`, detail: String(round2(examAvg)) });
     }
   }
 
@@ -155,7 +203,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
       const n = vals.length;
       const last3 = vals.slice(-3);
       const steady = n >= 3 && last3[0] > last3[1] && last3[1] > last3[2];
-      const bigDrop = n >= 2 && vals[n - 2] - vals[n - 1] > FOLLOW_UP_RULES.dropFromPreviousMonth;
+      const bigDrop = n >= 2 && vals[n - 2] - vals[n - 1] > config.dropFromPreviousMonth;
       if (steady || bigDrop) declines.push(`${g.subjectName}: ${(steady ? last3 : vals.slice(-2)).map(fa).join(' ← ')}`);
     });
     if (declines.length) add(st.id, { kind: 'score_decline', label: 'افت نمره', detail: declines.join('، ') });
@@ -165,7 +213,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
       const all = own.flatMap((g) => CONTINUOUS_KEYS.map((p) => g[p.key]).filter(num));
       const contAvg = mean(all);
       const examAvg = mean(activeExamSubjects(exam, 'all').map((sub) => examSubjectScore(exam, st.id, sub.key, 'all')).filter(num));
-      if (contAvg !== undefined && examAvg !== undefined && Math.abs(contAvg - examAvg) >= FOLLOW_UP_RULES.continuousVsExamGap) {
+      if (contAvg !== undefined && examAvg !== undefined && Math.abs(contAvg - examAvg) >= config.continuousVsExamGap) {
         add(st.id, { kind: 'exam_gap', label: 'اختلاف مستمر و آزمون جامع', detail: `مستمر ${fa(contAvg)} / جامع ${fa(examAvg)}` });
       }
     }
@@ -213,16 +261,16 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
   perSubjectMonth.forEach((c, key) => {
     const [sid, subject, mk] = key.split('|');
     const put = (m: Map<string, string[]>, n: number) => m.set(sid, [...(m.get(sid) || []), `${subject} (${n} بار در ${monthLabel(mk)})`]);
-    if (c.notDone >= FOLLOW_UP_RULES.homeworkNotDonePerMonth) put(notDone, c.notDone);
-    if (c.incomplete >= FOLLOW_UP_RULES.homeworkIncompletePerMonth) put(incomplete, c.incomplete);
-    if (c.absent >= FOLLOW_UP_RULES.subjectAbsencesPerMonth) put(absences, c.absent);
+    if (c.notDone >= config.homeworkNotDonePerMonth) put(notDone, c.notDone);
+    if (c.incomplete >= config.homeworkIncompletePerMonth) put(incomplete, c.incomplete);
+    if (c.absent >= config.subjectAbsencesPerMonth) put(absences, c.absent);
   });
   notDone.forEach((rows, sid) => add(sid, { kind: 'homework_not_done', label: 'تکلیف انجام‌نشده', detail: listed(rows) }));
   incomplete.forEach((rows, sid) => add(sid, { kind: 'homework_incomplete', label: 'تکلیف ناقص', detail: listed(rows) }));
   absences.forEach((rows, sid) => add(sid, { kind: 'subject_absences', label: 'غیبت در یک درس', detail: listed(rows) }));
   const streakRows = new Map<string, string[]>();
   streaks.forEach((v, key) => {
-    if (v.best >= FOLLOW_UP_RULES.homeworkNotDoneStreak) {
+    if (v.best >= config.homeworkNotDoneStreak) {
       const [sid, , subject] = key.split('|');
       streakRows.set(sid, [...(streakRows.get(sid) || []), `${subject} (${v.best} جلسه پشت‌سرهم)`]);
     }
@@ -230,7 +278,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
   streakRows.forEach((rows, sid) => add(sid, { kind: 'homework_streak', label: 'تکلیف چندجلسه‌ای انجام‌نشده', detail: listed(rows) }));
   const lateRows = new Map<string, string[]>();
   lates.forEach((n, key) => {
-    if (n >= FOLLOW_UP_RULES.classLatesPerMonth) {
+    if (n >= config.classLatesPerMonth) {
       const [sid, mk] = key.split('|');
       lateRows.set(sid, [...(lateRows.get(sid) || []), `${n} بار در ${monthLabel(mk)}`]);
     }
@@ -238,7 +286,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
   lateRows.forEach((rows, sid) => add(sid, { kind: 'class_lates', label: 'تأخیر ورود به کلاس', detail: listed(rows) }));
   const warnRows = new Map<string, string[]>();
   warnings.forEach((n, key) => {
-    if (n >= FOLLOW_UP_RULES.classWarningsPerMonth) {
+    if (n >= config.classWarningsPerMonth) {
       const [sid, mk] = key.split('|');
       warnRows.set(sid, [...(warnRows.get(sid) || []), `${n} بار در ${monthLabel(mk)}`]);
     }

@@ -576,9 +576,53 @@ final class SyncService
         $data->updatedAt = $now;
     }
 
+    /** معیارهای نیازمند پیگیری آموزشی: فقط کلیدهای شناخته‌شده با مقادیر محدود پذیرفته می‌شود */
+    private function normalizeFollowUpConfig(object $data, User $user): void
+    {
+        $kinds = ['low_continuous', 'low_continuous_avg', 'score_decline', 'low_exam', 'low_exam_avg', 'exam_gap',
+            'homework_not_done', 'homework_incomplete', 'homework_streak', 'worksheet_streak',
+            'subject_absences', 'class_lates', 'class_warnings'];
+        $in = isset($data->config) && is_object($data->config) ? $data->config : new stdClass();
+        $enabledIn = isset($in->enabled) && is_object($in->enabled) ? $in->enabled : new stdClass();
+        $enabled = [];
+        foreach ($kinds as $k) {
+            $enabled[$k] = ! isset($enabledIn->{$k}) || (bool) $enabledIn->{$k};
+        }
+        $num = static function (string $key, float $min, float $max, float $default) use ($in): float {
+            $v = isset($in->{$key}) && is_numeric($in->{$key}) ? (float) $in->{$key} : $default;
+
+            return round(max($min, min($max, $v)), 2);
+        };
+        $data->config = [
+            'enabled' => $enabled,
+            'lowScore' => $num('lowScore', 1, 20, 12),
+            'homeworkNotDonePerMonth' => (int) $num('homeworkNotDonePerMonth', 1, 31, 3),
+            'homeworkIncompletePerMonth' => (int) $num('homeworkIncompletePerMonth', 1, 31, 4),
+            'homeworkNotDoneStreak' => (int) $num('homeworkNotDoneStreak', 2, 31, 3),
+            'subjectAbsencesPerMonth' => (int) $num('subjectAbsencesPerMonth', 1, 31, 3),
+            'classLatesPerMonth' => (int) $num('classLatesPerMonth', 1, 31, 3),
+            'classWarningsPerMonth' => (int) $num('classWarningsPerMonth', 1, 31, 2),
+            'dropFromPreviousMonth' => $num('dropFromPreviousMonth', 0.5, 20, 2),
+            'continuousVsExamGap' => $num('continuousVsExamGap', 1, 20, 5),
+            'worksheetStreakWeeks' => (int) $num('worksheetStreakWeeks', 1, 20, 2),
+        ];
+        $data->studentId = '';
+        $data->classId = null;
+        $data->status = 'open';
+        $data->updatedById = (string) $user->id;
+        $data->updatedBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
+    }
+
     /** وضعیت پیگیری آموزشی: یک رکورد برای هر دانش‌آموز؛ کلاس و ثبت‌کننده را سرور تعیین می‌کند */
     private function normalizeAcademicFollowUp(object $data, string $id, User $user): void
     {
+        // تنظیمات «پیشرفته»ی معیارهای نیازمند پیگیری (یک رکورد برای کل مدرسه)
+        if ($id === 'afu-config') {
+            $this->normalizeFollowUpConfig($data, $user);
+
+            return;
+        }
         $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
         $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
         if ($classId === null) {

@@ -62,6 +62,7 @@ import {
   INITIAL_SCHOOL_SETTINGS,
   INITIAL_SCHOOL_GRADES
 } from '../utils/sampleData';
+import { FollowUpConfig, mergeFollowUpConfig } from '../utils/academicFollowUp';
 import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetings';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
 import { delayFromEntryTime } from '../utils/morningAttendance';
@@ -114,6 +115,9 @@ interface SchoolContextType {
   academicFollowUps: AcademicFollowUpRecord[];
   /** تغییر وضعیت / یادداشت پیگیری؛ «باز» بدون یادداشت = حذف رکورد */
   setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string }) => void;
+  /** معیارهای «نیازمند پیگیری آموزشی» (پیش‌فرض یا تنظیم‌شده‌ی معاون آموزش در بخش «پیشرفته») */
+  followUpConfig: FollowUpConfig;
+  saveFollowUpConfig: (config: FollowUpConfig) => void;
   /** لیست خاکستری آموزش (هر دانش‌آموز در هر ماه یک رکورد) */
   greyList: GreyListRecord[];
   /** ارسال دانش‌آموز به لیست خاکستری مربیان برای یک ماه (معاونت آموزش)؛ تصویر وضعیت آموزشی همان لحظه ثابت می‌ماند */
@@ -1798,6 +1802,15 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   };
 
+  const followUpConfig = useMemo(
+    () => mergeFollowUpConfig((academicFollowUps.find((r) => r.id === 'afu-config') as unknown as { config?: Partial<FollowUpConfig> } | undefined)?.config),
+    [academicFollowUps]
+  );
+  const saveFollowUpConfig: SchoolContextType['saveFollowUpConfig'] = (config) => {
+    const record = { id: 'afu-config', studentId: '', classId: '', status: 'open', config, updatedBy: currentUser.name, updatedAt: new Date().toISOString() } as unknown as AcademicFollowUpRecord;
+    setAcademicFollowUps((prev) => (prev.some((r) => r.id === 'afu-config') ? prev.map((r) => (r.id === 'afu-config' ? record : r)) : [...prev, record]));
+  };
+
   const greyId = (studentId: string, month: string) => `gl-${studentId}-${month.replace('/', '-')}`;
 
   const sendToGreyList: SchoolContextType['sendToGreyList'] = (student, snapshot, month) => {
@@ -3076,6 +3089,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setReflectionPoint,
         academicFollowUps,
         setAcademicFollowUp,
+        followUpConfig,
+        saveFollowUpConfig,
         greyList,
         sendToGreyList,
         withdrawFromGreyList,

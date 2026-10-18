@@ -4,7 +4,8 @@ import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
-import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup } from '../utils/academicFollowUp';
+import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
+import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
@@ -124,6 +125,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     comprehensiveExams,
     academicFollowUps,
     setAcademicFollowUp,
+    followUpConfig,
+    saveFollowUpConfig,
     greyList,
     sendToGreyList,
     withdrawFromGreyList,
@@ -177,6 +180,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   const [warningSearch, setWarningSearch] = useState('');
   const [warningGroup, setWarningGroup] = useState<'all' | FollowUpGroup>('all');
   const [showResolved, setShowResolved] = useState(false);
+  const [criteriaOpen, setCriteriaOpen] = useState(false);
 
   // مدال‌های افزودن و ویرایش کلاس، معلم، و ثبت سریع دانش‌آموز
   const [isAddClassModalOpen, setIsAddClassModalOpen] = useState(false);
@@ -398,8 +402,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
   // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
   const followUpsByStudent = useMemo(
-    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions }),
-    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions]
+    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions, config: followUpConfig }),
+    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions, followUpConfig]
   );
   const academicWarningStudents = useMemo(() => {
     const byStudent = new Map(academicFollowUps.map((r) => [r.studentId, r]));
@@ -1217,6 +1221,17 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
                   <button
                     type="button"
+                    onClick={() => setCriteriaOpen(true)}
+                    className="min-h-11 px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="تعیین ملاک‌های نمایش دانش‌آموزان در این لیست"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    <span>پیشرفته</span>
+                    {!isDefaultFollowUpConfig(followUpConfig) && <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">سفارشی</span>}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedClassId(classes[0]?.id || '');
                       setCurrentView('grades');
@@ -1285,6 +1300,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 </label>
               </div>
             </div>
+
+            {criteriaOpen && <FollowUpCriteriaModal config={followUpConfig} onSave={saveFollowUpConfig} onClose={() => setCriteriaOpen(false)} />}
 
             {/* ۳. جدول موارد پیگیری */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
