@@ -40,6 +40,7 @@ import {
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { StudentGrowthChart } from './StudentGrowthChart';
+import { ClassReportCard } from './ClassReportCard';
 
 /** ماه‌هایی که در لیست کلاسی ثبت می‌شوند (بدون پایانی نوبت اول و مستمر نوبت دوم) */
 const ENTRY_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
@@ -111,7 +112,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Selected Month Key for tabbed entry (default: mehrContinuous)
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
-  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics'>('full_matrix');
+  const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics' | 'report_card'>('full_matrix');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [chartStudent, setChartStudent] = useState<Student | null>(null);
@@ -368,7 +369,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <select
+          {viewMode !== 'report_card' && <select
             value={selectedSubjectId}
             onChange={(e) => setSelectedSubjectId(e.target.value)}
             className="h-11 bg-slate-50 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer min-w-48"
@@ -379,13 +380,14 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                 {sub.name}
               </option>
             ))}
-          </select>
+          </select>}
 
           <div className="flex bg-slate-100 p-1 rounded-xl text-sm font-bold">
             {([
               ['single_month', 'ماه به ماه'],
               ['full_matrix', 'کل سال'],
               ['monthly_analytics', 'نمودار رشد'],
+              ['report_card', 'کارنامه تجمیعی'],
             ] as const).map(([mode, label]) => (
               <button
                 key={mode}
@@ -962,7 +964,9 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
       )}
 
       {/* دکمه‌ی ذخیره‌ی ثابت (نزدیک شست در موبایل) */}
-      {viewMode !== 'monthly_analytics' && (
+      {viewMode === 'report_card' && <ClassReportCard classData={classData} onSelectStudent={onSelectStudent} />}
+
+      {viewMode !== 'monthly_analytics' && viewMode !== 'report_card' && (
         <div className="sticky bottom-3 z-20 flex justify-center px-2 pointer-events-none">
           <button
             type="button"
