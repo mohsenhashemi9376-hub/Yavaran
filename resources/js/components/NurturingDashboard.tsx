@@ -808,7 +808,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   return (
     <div className="flex flex-col lg:flex-row items-start gap-6 relative" dir="rtl">
       {/* سایدبار در حالت دسکتاپ (Docked Sidebar) */}
-      <div className="hidden lg:block shrink-0 sticky top-20 z-20">
+      <div className="hidden lg:block shrink-0 sticky top-20 z-20 yv-sidebar-dock">
         <NurturingSidebarNav
           variant="docked"
           isCollapsed={isSidebarCollapsed}

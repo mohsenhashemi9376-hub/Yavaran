@@ -231,7 +231,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       <div className="flex flex-col lg:flex-row items-start gap-6">
         
         {/* RIGHT SIDEBAR NAV (Desktop + Mobile Drawer) */}
-        <div className="hidden md:block w-full lg:w-auto shrink-0">
+        <div className="hidden md:block w-full lg:w-auto shrink-0 lg:sticky lg:top-20 yv-sidebar-dock">
           <TeacherSidebarNav
             activeView={activeView}
             onSelectView={(view) => {

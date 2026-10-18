@@ -332,3 +332,17 @@ button { transition-property: transform, background-color, border-color, color, 
   body.yv-printing .yv-no-print { display: none !important; }
   body.yv-printing { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ===== سایدبار دسکتاپ: با چرخ ماوس فقط خود سایدبار بالا و پایین می‌رود، نه کل صفحه ===== */
+@media (min-width: 1024px) {
+  .yv-sidebar-dock > aside.w-64,
+  .yv-sidebar-dock > aside.w-64 > .h-full {
+    max-height: calc(100dvh - 6rem);
+  }
+  .yv-sidebar-dock > aside.w-64 {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+aside .overflow-y-auto { overscroll-behavior: contain; }
