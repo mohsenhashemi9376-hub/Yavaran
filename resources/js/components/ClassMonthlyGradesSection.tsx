@@ -1,3 +1,5 @@
+import { columnTone, continuousAverage } from '../utils/gradeColumns';
+import { isFinalKey } from '../utils/examReport';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import React, { useState, useEffect, useMemo } from 'react';
 import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
@@ -42,9 +44,9 @@ import { FitTable } from './ui/FitTable';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { ClassReportCard } from './ClassReportCard';
 
-/** ماه‌هایی که در لیست کلاسی ثبت می‌شوند (بدون پایانی نوبت اول و مستمر نوبت دوم) */
-const ENTRY_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
-const ENTRY_TITLE: Partial<Record<MonthlyContinuousKey, string>> = { term1Continuous: 'نوبت اول', term2Final: 'پایانی خرداد' };
+/** ستون‌های ثبت نمره: مستمر هر ماه + پایانی اول و پایانی دوم (همان ستون‌های کارنامه‌ی تفکیکی دروس هر دانش‌آموز) */
+const ENTRY_PERIODS = MONTHLY_EVALUATION_PERIODS;
+const ENTRY_TITLE: Partial<Record<MonthlyContinuousKey, string>> = {};
 
 
 interface ClassMonthlyGradesSectionProps {
@@ -719,7 +721,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                 ماتریس جامع سالانه نمرات مستمر • درس {currentSubject?.name}
               </h4>
               <p className="text-xs text-slate-500 mt-0.5">
-                مشاهده و ویرایش کلیه نمرات مستمر ماه‌ها و نوبت‌ها به صورت یکپارچه
+                مشاهده و ویرایش مستمر هر ماه و نمره‌ی پایانی اول و دوم به صورت یکپارچه
               </p>
             </div>
 
@@ -737,8 +739,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
           {/* موبایل: کارت برای هر دانش‌آموز، بدون اسکرول افقی */}
           <div className="md:hidden divide-y divide-slate-100">
             {classStudents.map((stu, idx) => {
-              const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
-              const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+              const avg = continuousAverage(ENTRY_PERIODS.map((p) => ({ key: p.key, value: parseFloat(draftGrades[stu.id]?.[p.key] || '') })));
               return (
                 <div key={stu.id} className="p-3 space-y-2.5">
                   <div className="flex items-center gap-2">
@@ -794,12 +795,12 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                   <th className="p-2.5 sticky right-10 bg-slate-100 z-10">دانش‌آموز</th>
                   
                   {ENTRY_PERIODS.map((period) => (
-                    <th key={period.key} className={`p-2 text-center ${period.term === 1 ? 'bg-amber-50/80' : 'bg-emerald-50/80'} ${ENTRY_TITLE[period.key] ? 'font-black' : ''}`}>
+                    <th key={period.key} className={`p-2 text-center ${columnTone(period)} ${isFinalKey(period.key) ? 'font-black' : ''}`}>
                       {ENTRY_TITLE[period.key] || period.monthName}
                       {!isGradePeriodOpen(period.key, selectedSubjectId) && <LockedBadge className="block mt-0.5" />}
                     </th>
                   ))}
-                  <th className="p-2 text-center bg-indigo-50 text-indigo-900 font-black">میانگین</th>
+                  <th className="p-2 text-center bg-indigo-50 text-indigo-900 font-black">میانگین مستمر</th>
                   <th className="p-2 text-center">وضعیت</th>
                   <th className="p-2 text-center">نمودار</th>
                 </tr>
@@ -837,8 +838,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                       );
                     })}
                     {(() => {
-                      const nums = ENTRY_PERIODS.map((p) => parseFloat(draftGrades[stu.id]?.[p.key] || '')).filter((n) => !isNaN(n));
-                      const avg = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100 : undefined;
+                      const avg = continuousAverage(ENTRY_PERIODS.map((p) => ({ key: p.key, value: parseFloat(draftGrades[stu.id]?.[p.key] || '') })));
                       return (
                         <>
                           <td className="p-1.5 text-center font-black text-indigo-900 bg-indigo-50/50">{avg !== undefined ? toPersianDigits(avg) : '-'}</td>

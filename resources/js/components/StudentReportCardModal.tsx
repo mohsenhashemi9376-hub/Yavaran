@@ -7,9 +7,8 @@ import { SCORE_BAND_STYLE, scoreBand, scoreLabel } from '../utils/gradePeriods';
 import { getCurrentAcademicYear, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 
-const PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
-const TITLES: Partial<Record<MonthlyContinuousKey, string>> = { term1Continuous: 'نوبت اول (دی)', term2Final: 'پایانی خرداد' };
-const titleOf = (key: MonthlyContinuousKey) => TITLES[key] ?? PERIODS.find((p) => p.key === key)?.label ?? key;
+const PERIODS = MONTHLY_EVALUATION_PERIODS;
+const titleOf = (key: MonthlyContinuousKey) => PERIODS.find((p) => p.key === key)?.label ?? key;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface Props {

@@ -41,7 +41,6 @@ const SUBJECT_COLORS = [
 ];
 
 export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, studentName }) => {
-  const [timelineMode, setTimelineMode] = useState<'monthly' | 'official_4terms'>('monthly');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
   const [chartType, setChartType] = useState<'line' | 'area'>('line');
 
@@ -56,9 +55,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
   }
 
   // Choose labels based on timelineMode
-  const activePeriods = timelineMode === 'monthly'
-    ? MONTHLY_EVALUATION_PERIODS.map(p => ({ key: p.key, label: p.shortLabel, fullLabel: p.label }))
-    : OFFICIAL_4TERM_LABELS.map(p => ({ key: p.key, label: p.label, fullLabel: p.label }));
+  const activePeriods = MONTHLY_EVALUATION_PERIODS.map(p => ({ key: p.key, label: p.shortLabel, fullLabel: p.label }));
 
   // Build chart dataset
   const chartData = activePeriods.map((period) => {
@@ -71,15 +68,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
     const validScores: number[] = [];
 
     grades.forEach((g) => {
-      let val: number | undefined = undefined;
-      if (timelineMode === 'monthly') {
-        val = g[period.key as MonthlyPeriodKey];
-      } else {
-        if (period.key === 'c1') val = g.term1Continuous;
-        if (period.key === 'f1') val = g.term1Final;
-        if (period.key === 'c2') val = g.term2Continuous;
-        if (period.key === 'f2') val = g.term2Final;
-      }
+      const val: number | undefined = g[period.key as MonthlyPeriodKey];
 
       point[g.subjectId] = val !== undefined ? val : null;
       point[`${g.subjectId}_name`] = g.subjectName;
@@ -103,14 +92,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
   const singleSubjectData = activePeriods.map((p) => {
     let val: number | null = null;
     if (selectedSubject) {
-      if (timelineMode === 'monthly') {
-        val = selectedSubject[p.key as MonthlyPeriodKey] ?? null;
-      } else {
-        if (p.key === 'c1') val = selectedSubject.term1Continuous ?? null;
-        if (p.key === 'f1') val = selectedSubject.term1Final ?? null;
-        if (p.key === 'c2') val = selectedSubject.term2Continuous ?? null;
-        if (p.key === 'f2') val = selectedSubject.term2Final ?? null;
-      }
+      val = selectedSubject[p.key as MonthlyPeriodKey] ?? null;
     }
     return {
       period: p.label,
@@ -131,36 +113,12 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            {timelineMode === 'monthly' 
-              ? 'نمودار نمرات مستمر ۸ ماهه (مهر، آبان، آذر، ترم ۱، بهمن، اسفند، فروردین، اردیبهشت)'
-              : 'روند رسمی ۴ نوبته (مستمر اول ← پایانی اول ← مستمر دوم ← پایانی دوم)'}
+            نمودار نمرات: مستمر مهر، آبان، آذر، پایانی اول، مستمر بهمن، اسفند، فروردین، اردیبهشت و پایانی دوم
           </p>
         </div>
 
         {/* Filters & Mode Switcher */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Mode Switcher */}
-          <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
-            <button
-              onClick={() => setTimelineMode('monthly')}
-              className={`px-3 py-1 rounded-md transition cursor-pointer flex items-center gap-1 ${
-                timelineMode === 'monthly' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-              <span>مستمر ماهانه (۸ ماه)</span>
-            </button>
-            <button
-              onClick={() => setTimelineMode('official_4terms')}
-              className={`px-3 py-1 rounded-md transition cursor-pointer flex items-center gap-1 ${
-                timelineMode === 'official_4terms' ? 'bg-white text-indigo-800 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-              <span>۴ نوبته سالانه</span>
-            </button>
-          </div>
-
           {/* Subject Filter */}
           <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
             <Filter className="w-3.5 h-3.5 text-slate-500 mr-1" />
@@ -208,7 +166,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
           <div className="flex items-center gap-2">
             <span className="font-bold text-indigo-900">{selectedAnalysis.subjectName}:</span>
             <span className="text-slate-600">
-              نمره سالانه: <b className="text-slate-900 font-mono">{toPersianDigits(selectedAnalysis.annualScore ?? '-')}</b>
+              میانگین مستمر: <b className="text-slate-900 font-mono">{toPersianDigits(selectedAnalysis.annualScore ?? '-')}</b>
             </span>
           </div>
 
@@ -230,7 +188,7 @@ export const StudentGrowthChart: React.FC<StudentGrowthChartProps> = ({ grades, 
                 )}
                 <span>
                   {selectedAnalysis.growthDelta > 0 ? '+' : ''}
-                  {toPersianDigits(selectedAnalysis.growthDelta)} نمره رشد ترمی
+                  {toPersianDigits(selectedAnalysis.growthDelta)} نمره رشد نسبت به نیمسال قبل
                 </span>
               </span>
             )}

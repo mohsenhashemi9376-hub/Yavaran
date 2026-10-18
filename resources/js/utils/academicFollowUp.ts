@@ -10,12 +10,12 @@ import {
 import { isDeadlinePassed, worksheetKey } from './worksheets';
 import { monthKeyOf } from './attendanceStats';
 import { PERSIAN_MONTHS, toPersianDigits } from './persianDate';
-import { activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
+import { CONTINUOUS_MONTHS, activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
 
 export const FOLLOW_UP_THRESHOLD = 12;
 
 /** مستمرهای ماهانه‌ی دفتر نمرات (بدون پایانی ترم‌ها) */
-const CONTINUOUS_KEYS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+const CONTINUOUS_KEYS = CONTINUOUS_MONTHS;
 
 /** آستانه‌ی قانون‌های پیگیری آموزشی (همه در یک جا) */
 export const FOLLOW_UP_RULES = {

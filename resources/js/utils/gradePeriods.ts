@@ -6,14 +6,14 @@ export const GRADE_PERIOD_NAMES: Record<MonthlyContinuousKey, string> = {
   mehrContinuous: 'مستمر مهر',
   abanContinuous: 'مستمر آبان',
   azarContinuous: 'مستمر آذر',
-  term1Continuous: 'نوبت اول (دی)',
-  term1Final: 'پایانی نوبت اول (دی)',
+  term1Continuous: 'مستمر (قدیمی)',
+  term1Final: 'پایانی اول',
   bahmanContinuous: 'مستمر بهمن',
   esfandContinuous: 'مستمر اسفند',
   farvardinContinuous: 'مستمر فروردین',
   ordibeheshtContinuous: 'مستمر اردیبهشت',
-  term2Continuous: 'مستمر ترم دوم (خرداد)',
-  term2Final: 'پایانی نوبت دوم (خرداد)',
+  term2Continuous: 'مستمر (قدیمی)',
+  term2Final: 'پایانی دوم',
 };
 
 /** فهرست کامل بازه‌ها؛ بازه‌ای که هنوز رکوردی ندارد «غیرفعال» فرض می‌شود */

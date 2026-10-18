@@ -1,3 +1,5 @@
+import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
+import { gradeScoreForMonth } from '../utils/monthlyReport';
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { studentFullName } from '../utils/studentName';
@@ -145,44 +147,30 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       };
     }
 
-    let sumT1 = 0, countT1 = 0;
-    let sumT2 = 0, countT2 = 0;
+    // نمره‌ی هر درس = میانگین نمرات مستمر ماه‌های ثبت‌شده؛ معدل = میانگین دروس
     let highest: { subject: string; score: number } | null = null;
     let lowest: { subject: string; score: number } | null = null;
     let hasFail = false;
+    const scores: number[] = [];
 
     studentGrades.forEach(g => {
       const subject = academicSubjects.find(s => s.id === g.subjectId);
-      const subjectName = subject?.name || 'نامشخص';
-
-      // Check Term 1 final
-      if (typeof g.finalScoreTerm1 === 'number') {
-        sumT1 += g.finalScoreTerm1;
-        countT1++;
-        if (!highest || g.finalScoreTerm1 > highest.score) highest = { subject: subjectName, score: g.finalScoreTerm1 };
-        if (!lowest || g.finalScoreTerm1 < lowest.score) lowest = { subject: subjectName, score: g.finalScoreTerm1 };
-        if (g.finalScoreTerm1 < 10) hasFail = true;
-      }
-
-      // Check Term 2 final
-      if (typeof g.finalScoreTerm2 === 'number') {
-        sumT2 += g.finalScoreTerm2;
-        countT2++;
-        if (!highest || g.finalScoreTerm2 > highest.score) highest = { subject: subjectName, score: g.finalScoreTerm2 };
-        if (!lowest || g.finalScoreTerm2 < lowest.score) lowest = { subject: subjectName, score: g.finalScoreTerm2 };
-        if (g.finalScoreTerm2 < 10) hasFail = true;
-      }
+      const subjectName = subject?.name || g.subjectName || 'نامشخص';
+      const score = gradeScoreForMonth(g, 'all');
+      if (score === undefined) return;
+      scores.push(score);
+      if (!highest || score > highest.score) highest = { subject: subjectName, score };
+      if (!lowest || score < lowest.score) lowest = { subject: subjectName, score };
+      if (score < 10) hasFail = true;
     });
 
-    const gpaT1 = countT1 > 0 ? sumT1 / countT1 : null;
-    const gpaT2 = countT2 > 0 ? sumT2 / countT2 : null;
-    const gpaAnnual = (gpaT1 !== null && gpaT2 !== null) ? (gpaT1 + gpaT2) / 2 : (gpaT2 !== null ? gpaT2 : gpaT1);
+    const gpaAnnual = scores.length ? scores.reduce((x, y) => x + y, 0) / scores.length : null;
 
     return {
       grades: studentGrades,
-      gpaTerm1: gpaT1,
-      gpaTerm2: gpaT2,
-      gpaAnnual: gpaAnnual,
+      gpaTerm1: null,
+      gpaTerm2: null,
+      gpaAnnual,
       highestGrade: highest,
       lowestGrade: lowest,
       hasFailingGrade: hasFail,
@@ -952,96 +940,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
               
               {/* TAB 1: ACADEMIC GRADES (READ-ONLY) */}
               {modalActiveTab === 'grades' && (
-                <div className="space-y-4">
-                  <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-3.5 flex items-center justify-between text-indigo-900">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-indigo-600" />
-                      <span className="font-bold">ریز نمرات نوبت اول و دوم مصوب معاونت آموزش</span>
-                    </div>
-                    <span className="text-[11px] text-indigo-700 bg-white px-2.5 py-1 rounded-lg border border-indigo-200 font-mono font-bold">
-                      معدل سالانه: {getStudentAcademicData(detailModalStudent.id).gpaAnnual !== null ? `${toPersianDigits(getStudentAcademicData(detailModalStudent.id).gpaAnnual!.toFixed(2))} از ۲۰` : 'ثبت نشده'}
-                    </span>
-                  </div>
-
-                  {academicSubjects.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400">درسی تعریف نشده است.</div>
-                  ) : (
-                    <FitTable className="border border-slate-200 rounded-2xl shadow-xs">
-                      <table className="w-full text-right text-xs">
-                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                          <tr>
-                            <th className="py-2.5 px-3">عنوان درس</th>
-                            <th className="py-2.5 px-2.5 text-center">مستمر ۱</th>
-                            <th className="py-2.5 px-2.5 text-center">پایانی ۱</th>
-                            <th className="py-2.5 px-2.5 text-center">مستمر ۲</th>
-                            <th className="py-2.5 px-2.5 text-center">پایانی ۲</th>
-                            <th className="py-2.5 px-3 text-center">نمره سالانه</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {academicSubjects.map(sub => {
-                            const gradeRecord = academicGrades.find(
-                              g => g.studentId === detailModalStudent.id && g.subjectId === sub.id
-                            );
-
-                            const c1 = gradeRecord?.continuousScoreTerm1;
-                            const f1 = gradeRecord?.finalScoreTerm1;
-                            const c2 = gradeRecord?.continuousScoreTerm2;
-                            const f2 = gradeRecord?.finalScoreTerm2;
-
-                            let annualScore: number | null = null;
-                            if (typeof f1 === 'number' && typeof f2 === 'number') {
-                              annualScore = (f1 + f2) / 2;
-                            } else if (typeof f2 === 'number') {
-                              annualScore = f2;
-                            } else if (typeof f1 === 'number') {
-                              annualScore = f1;
-                            }
-
-                            return (
-                              <tr key={sub.id} className="hover:bg-slate-50">
-                                <td className="py-2.5 px-3 font-bold text-slate-800">
-                                  {sub.name}
-                                </td>
-
-                                <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">
-                                  {typeof c1 === 'number' ? toPersianDigits(c1) : '-'}
-                                </td>
-
-                                <td className="py-2.5 px-2.5 text-center font-mono font-bold text-indigo-700">
-                                  {typeof f1 === 'number' ? toPersianDigits(f1) : '-'}
-                                </td>
-
-                                <td className="py-2.5 px-2.5 text-center font-mono font-bold text-slate-700">
-                                  {typeof c2 === 'number' ? toPersianDigits(c2) : '-'}
-                                </td>
-
-                                <td className="py-2.5 px-2.5 text-center font-mono font-bold text-indigo-700">
-                                  {typeof f2 === 'number' ? toPersianDigits(f2) : '-'}
-                                </td>
-
-                                <td className="py-2.5 px-3 text-center">
-                                  {annualScore !== null ? (
-                                    <span className={`font-mono font-black px-2 py-0.5 rounded-md ${
-                                      annualScore >= 18 ? 'bg-emerald-100 text-emerald-800' :
-                                      annualScore >= 14 ? 'bg-blue-100 text-blue-800' :
-                                      annualScore >= 10 ? 'bg-amber-100 text-amber-800' :
-                                      'bg-rose-100 text-rose-800'
-                                    }`}>
-                                      {toPersianDigits(annualScore.toFixed(1))}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400 text-[11px]">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </FitTable>
-                  )}
-                </div>
+                <StudentMonthlyGradesTable grades={academicGrades.filter((g) => g.studentId === detailModalStudent.id)} />
               )}
 
               {/* TAB 2: DISCIPLINE, DELAYS & ABSENCES (READ-ONLY) */}

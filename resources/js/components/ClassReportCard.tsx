@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
+import { CONTINUOUS_MONTHS } from '../utils/examReport';
 import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
@@ -12,10 +13,9 @@ import { ScoreColumnHeader } from './ScoreColumnHeader';
 import { StudentFullReportModal } from './StudentFullReportModal';
 import { StudentReportCardModal } from './StudentReportCardModal';
 
-/** ماه‌های قابل نمایش در کارنامه (بدون پایانی نوبت اول و مستمر نوبت دوم، مثل دفتر نمرات) */
-const REPORT_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
-const PERIOD_TITLE: Partial<Record<MonthlyContinuousKey, string>> = { term1Continuous: 'نوبت اول (دی)', term2Final: 'پایانی خرداد' };
-const periodTitle = (key: MonthlyContinuousKey) => PERIOD_TITLE[key] ?? REPORT_PERIODS.find((p) => p.key === key)?.label ?? key;
+/** ستون‌های کارنامه: همان ستون‌های دفتر نمرات (مستمر هر ماه + پایانی اول و دوم) */
+const REPORT_PERIODS = MONTHLY_EVALUATION_PERIODS;
+const periodTitle = (key: MonthlyContinuousKey) => REPORT_PERIODS.find((p) => p.key === key)?.label ?? key;
 
 const BAND_ORDER: (ScoreBand | undefined)[] = [undefined, 'excellent', 'good', 'weak'];
 const fmt = (n: number | undefined) => (n === undefined ? '—' : toPersianDigits(Math.round(n * 100) / 100));
@@ -58,7 +58,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       const v = g[period];
       return typeof v === 'number' && !Number.isNaN(v) ? v : undefined;
     }
-    return mean(REPORT_PERIODS.map((p) => g[p.key]).filter((v): v is number => typeof v === 'number' && !Number.isNaN(v)));
+    return mean(CONTINUOUS_MONTHS.map((p) => g[p.key]).filter((v): v is number => typeof v === 'number' && !Number.isNaN(v)));
   };
 
   const rows = useMemo(
@@ -132,7 +132,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
               className="w-full h-11 bg-slate-50 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer"
             >
               {REPORT_PERIODS.map((p) => <option key={p.key} value={p.key}>{periodTitle(p.key)}</option>)}
-              <option value="year">میانگین کل سال</option>
+              <option value="year">میانگین مستمر</option>
             </select>
           </label>
         </div>

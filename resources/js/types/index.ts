@@ -401,18 +401,20 @@ export interface GradePeriod {
   deadline?: string; // مهلت ثبت (شمسی)
 }
 
+/**
+ * ستون‌های نمره: مستمر هر ماه (مهر، آبان، آذر؛ بهمن، اسفند، فروردین، اردیبهشت) و دو نمره‌ی پایانی (اول و دوم).
+ * «مستمر ۱ / مستمر ۲ / نوبت» وجود ندارد؛ کلیدهای قدیمی term1Continuous و term2Continuous فقط برای داده‌های قدیمی مانده‌اند و نمایش داده نمی‌شوند.
+ */
 export const MONTHLY_EVALUATION_PERIODS: MonthlyPeriodInfo[] = [
   { key: 'mehrContinuous', monthName: 'مهر', label: 'مستمر مهر', shortLabel: 'مهر', term: 1, order: 1 },
   { key: 'abanContinuous', monthName: 'آبان', label: 'مستمر آبان', shortLabel: 'آبان', term: 1, order: 2 },
   { key: 'azarContinuous', monthName: 'آذر', label: 'مستمر آذر', shortLabel: 'آذر', term: 1, order: 3 },
-  { key: 'term1Continuous', monthName: 'دی', label: 'نوبت اول', shortLabel: 'نوبت اول', term: 1, order: 4 },
-  { key: 'term1Final', monthName: 'دی', label: 'پایانی ترم اول', shortLabel: 'پایانی ۱', term: 1, order: 5 },
-  { key: 'bahmanContinuous', monthName: 'بهمن', label: 'مستمر بهمن', shortLabel: 'بهمن', term: 2, order: 6 },
-  { key: 'esfandContinuous', monthName: 'اسفند', label: 'مستمر اسفند', shortLabel: 'اسفند', term: 2, order: 7 },
-  { key: 'farvardinContinuous', monthName: 'فروردین', label: 'مستمر فروردین', shortLabel: 'فروردین', term: 2, order: 8 },
-  { key: 'ordibeheshtContinuous', monthName: 'اردیبهشت', label: 'مستمر اردیبهشت', shortLabel: 'اردیبهشت', term: 2, order: 9 },
-  { key: 'term2Continuous', monthName: 'خرداد', label: 'مستمر ترم دوم', shortLabel: 'مستمر ۲', term: 2, order: 10 },
-  { key: 'term2Final', monthName: 'خرداد', label: 'پایانی ترم دوم', shortLabel: 'پایانی ۲', term: 2, order: 11 },
+  { key: 'term1Final', monthName: 'پایانی اول', label: 'پایانی اول', shortLabel: 'پایانی اول', term: 1, order: 4 },
+  { key: 'bahmanContinuous', monthName: 'بهمن', label: 'مستمر بهمن', shortLabel: 'بهمن', term: 2, order: 5 },
+  { key: 'esfandContinuous', monthName: 'اسفند', label: 'مستمر اسفند', shortLabel: 'اسفند', term: 2, order: 6 },
+  { key: 'farvardinContinuous', monthName: 'فروردین', label: 'مستمر فروردین', shortLabel: 'فروردین', term: 2, order: 7 },
+  { key: 'ordibeheshtContinuous', monthName: 'اردیبهشت', label: 'مستمر اردیبهشت', shortLabel: 'اردیبهشت', term: 2, order: 8 },
+  { key: 'term2Final', monthName: 'پایانی دوم', label: 'پایانی دوم', shortLabel: 'پایانی دوم', term: 2, order: 9 },
 ];
 
 export interface MorningDelayRecord {

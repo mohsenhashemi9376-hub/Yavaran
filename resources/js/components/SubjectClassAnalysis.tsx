@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { MonthlyContinuousKey } from '../types';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
-import { bandCounts, CONTINUOUS_MONTHS, mean, round2, stdDev } from '../utils/examReport';
+import { bandCounts, CONTINUOUS_MONTHS, SCORE_COLUMNS, mean, round2, stdDev } from '../utils/examReport';
 import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { nextBand, ScoreColumnHeader } from './ScoreColumnHeader';
@@ -82,8 +82,8 @@ export const SubjectClassAnalysis: React.FC = () => {
           <label className="block">
             <span className="block text-[11px] font-bold text-slate-500 mb-1">ماه</span>
             <select value={period} onChange={(e) => { setPeriod(e.target.value as MonthlyContinuousKey | 'year'); setFilters({}); }} className={select}>
-              <option value="year">میانگین کل سال</option>
-              {CONTINUOUS_MONTHS.map((m) => <option key={m.key} value={m.key}>{m.monthName}</option>)}
+              <option value="year">میانگین مستمر</option>
+              {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.monthName}</option>)}
             </select>
           </label>
         </div>

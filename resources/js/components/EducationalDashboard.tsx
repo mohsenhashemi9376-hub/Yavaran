@@ -6,7 +6,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
-import { CONTINUOUS_MONTHS } from '../utils/examReport';
+import { SCORE_COLUMNS } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
@@ -207,122 +207,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     return () => window.removeEventListener('click', handleDocumentClick);
   }, []);
 
-  // حالت پیش‌نویس موقت نمرات
-  const [draftGrades, setDraftGrades] = useState<Record<string, {
-    c1?: string;
-    f1?: string;
-    c2?: string;
-    f2?: string;
-    notes?: string;
-  }>>({});
-
-  // به‌روزرسانی پیش‌نویس نمرات هنگام تغییر کلاس یا درس
-  React.useEffect(() => {
-    if (!selectedClassId || !selectedSubjectId) return;
-
-    const classStudents = students.filter(s => s.classId === selectedClassId);
-    const draft: Record<string, { c1?: string; f1?: string; c2?: string; f2?: string; notes?: string }> = {};
-
-    classStudents.forEach(stu => {
-      const existing = academicGrades.find(
-        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
-      );
-      if (existing) {
-        draft[stu.id] = {
-          c1: existing.term1Continuous !== undefined ? existing.term1Continuous.toString() : '',
-          f1: existing.term1Final !== undefined ? existing.term1Final.toString() : '',
-          c2: existing.term2Continuous !== undefined ? existing.term2Continuous.toString() : '',
-          f2: existing.term2Final !== undefined ? existing.term2Final.toString() : '',
-          notes: existing.notes || '',
-        };
-      } else {
-        draft[stu.id] = { c1: '', f1: '', c2: '', f2: '', notes: '' };
-      }
-    });
-
-    setDraftGrades(draft);
-  }, [selectedClassId, selectedSubjectId, students, academicGrades]);
-
   const currentClass = classes.find(c => c.id === selectedClassId);
   const currentSubject = academicSubjects.find(s => s.id === selectedSubjectId);
   const classStudents = students.filter(s => s.classId === selectedClassId);
-
-  // فیلتر دانش‌آموزان در جدول ثبت نمره
-  const filteredStudents = classStudents.filter(s => {
-    const fullName = `${studentFullName(s)}`.toLowerCase();
-    const code = s.studentCode?.toLowerCase() || '';
-    const matchSearch = !searchQuery || fullName.includes(searchQuery.toLowerCase()) || code.includes(searchQuery);
-    if (!matchSearch) return false;
-
-    const draft = draftGrades[s.id] || {};
-    const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
-    const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
-    const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
-    const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
-    const annual = calculateAnnualScore(c1, f1, c2, f2);
-
-    if (statusFilter === 'excellent') return annual !== undefined && annual >= 17;
-    if (statusFilter === 'normal') return annual !== undefined && annual >= 12 && annual < 17;
-    if (statusFilter === 'weak') return annual !== undefined && annual < 12;
-    if (statusFilter === 'ungraded') return c1 === undefined && f1 === undefined && c2 === undefined && f2 === undefined;
-
-    return true;
-  });
-
-  const handleScoreChange = (
-    studentId: string, 
-    field: 'c1' | 'f1' | 'c2' | 'f2' | 'notes', 
-    rawVal: string
-  ) => {
-    const val = toEnglishDigits(rawVal);
-    if (field !== 'notes' && val !== '') {
-      const num = parseFloat(val);
-      if (isNaN(num) || num < 0 || num > 20) return;
-    }
-
-    setDraftGrades(prev => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        [field]: val,
-      }
-    }));
-  };
-
-  const handleSaveGrades = () => {
-    if (!selectedClassId || !selectedSubjectId || !currentSubject) return;
-
-    const gradesToSave: StudentAcademicGrade[] = classStudents.map(stu => {
-      const draft = draftGrades[stu.id] || {};
-      const c1 = draft.c1 && draft.c1.trim() !== '' ? parseFloat(draft.c1) : undefined;
-      const f1 = draft.f1 && draft.f1.trim() !== '' ? parseFloat(draft.f1) : undefined;
-      const c2 = draft.c2 && draft.c2.trim() !== '' ? parseFloat(draft.c2) : undefined;
-      const f2 = draft.f2 && draft.f2.trim() !== '' ? parseFloat(draft.f2) : undefined;
-
-      const existing = academicGrades.find(
-        g => g.studentId === stu.id && g.subjectId === selectedSubjectId
-      );
-
-      return {
-        id: existing ? existing.id : `grd-${stu.id}-${selectedSubjectId}`,
-        studentId: stu.id,
-        classId: selectedClassId,
-        subjectId: selectedSubjectId,
-        subjectName: currentSubject.name,
-        term1Continuous: c1,
-        term1Final: f1,
-        term2Continuous: c2,
-        term2Final: f2,
-        notes: draft.notes,
-        teacherName: currentSubject.defaultTeacherName,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
-    saveBatchAcademicGrades(gradesToSave);
-    setIsSavedToast(true);
-    setTimeout(() => setIsSavedToast(false), 3000);
-  };
 
   // محاسبات آماری آموزشی کل مدرسه
   let schoolTotalStudents = students.length;
@@ -332,7 +219,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   let needHelpCount = 0;
 
   academicGrades.forEach(g => {
-    const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
+    const ann = gradeScoreForMonth(g, 'all');
     if (ann !== undefined) {
       if (ann >= 10) passedCount++;
       if (ann >= 17) excellentCount++;
@@ -432,41 +319,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   const unsentIds = useMemo(() => new Set(digestEntries.filter((e) => !greyThisMonth.has(e.id)).map((e) => e.id)), [digestEntries, greyThisMonth]);
   const openWarningStudents = useMemo(() => academicWarningStudents.filter((s) => s.followRecord?.status !== 'resolved'), [academicWarningStudents]);
 
-  // خروجی اکسل کارپوشه کلاسی
-  const handleExportClassExcel = () => {
-    if (!currentClass || !currentSubject) return;
-
-    const data = filteredStudents.map((s, idx) => {
-      const draft = draftGrades[s.id] || {};
-      const c1 = draft.c1 ? parseFloat(draft.c1) : undefined;
-      const f1 = draft.f1 ? parseFloat(draft.f1) : undefined;
-      const c2 = draft.c2 ? parseFloat(draft.c2) : undefined;
-      const f2 = draft.f2 ? parseFloat(draft.f2) : undefined;
-      const ann = calculateAnnualScore(c1, f1, c2, f2);
-
-      return {
-        'ردیف': idx + 1,
-        'کد دانش‌آموز': s.studentCode || '',
-        'نام': s.firstName,
-        'نام خانوادگی': s.lastName,
-        'کلاس': currentClass.name,
-        'درس': currentSubject.name,
-        'مستمر نوبت اول': draft.c1 || '',
-        'پایانی نوبت اول': draft.f1 || '',
-        'مستمر نوبت دوم': draft.c2 || '',
-        'پایانی نوبت دوم': draft.f2 || '',
-        'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
-        'وضعیت': ann === undefined ? 'ثبت نشده' : ann >= 10 ? 'قبول' : 'تجدید',
-        'ملاحظات': draft.notes || '',
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'ریز نمرات');
-    XLSX.writeFile(workbook, `ریز_نمرات_${currentSubject.name}_${currentClass.name}_مدرسه_یاوران_ولایت.xlsx`);
-  };
-
   // خروجی اکسل کلی مدرسه
   const handleExportSchoolExcel = () => {
     const data: any[] = [];
@@ -481,8 +333,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             'نام دانش‌آموز': `${studentFullName(stu)}`,
             'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
             'نام درس': sub.name,
-            ...Object.fromEntries(CONTINUOUS_MONTHS.map((m) => [m.monthName, g && typeof g[m.key] === 'number' ? g[m.key] : ''])),
-            'میانگین ماه‌ها': avg !== undefined ? Math.round(avg * 100) / 100 : 'ثبت نشده',
+            ...Object.fromEntries(SCORE_COLUMNS.map((m) => [m.monthName, g && typeof g[m.key] === 'number' ? g[m.key] : ''])),
+            'میانگین مستمر': avg !== undefined ? Math.round(avg * 100) / 100 : 'ثبت نشده',
             'دبیر': sub.defaultTeacherName || sub.teacherName || c.academicAdvisor || '-',
           });
         });
@@ -505,7 +357,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'نام و نام خانوادگی': `${studentFullName(item.student)}`,
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
-      'ماه': reportMonth === 'all' ? 'میانگین همه‌ی ماه‌ها' : (CONTINUOUS_MONTHS.find((m) => m.key === reportMonth)?.monthName ?? ''),
+      'ستون': reportMonth === 'all' ? 'میانگین مستمر' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
       'معدل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
       'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
@@ -1070,8 +922,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   aria-label="ماه کارنامه"
                   className="min-h-[40px] px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
                 >
-                  <option value="all">میانگین همه‌ی ماه‌ها</option>
-                  {CONTINUOUS_MONTHS.map((m) => <option key={m.key} value={m.key}>نمره‌ی {m.monthName}</option>)}
+                  <option value="all">میانگین مستمر</option>
+                  {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.key.endsWith('Final') ? m.monthName : `مستمر ${m.monthName}`}</option>)}
                 </select>
 
                 <div className="relative">

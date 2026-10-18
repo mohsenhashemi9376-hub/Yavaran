@@ -3,7 +3,7 @@ import { CheckCircle2, ClipboardX } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { MonthlyContinuousKey } from '../types';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
-import { CONTINUOUS_MONTHS } from '../utils/examReport';
+import { SCORE_COLUMNS } from '../utils/examReport';
 import { buildGradePeriodList } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 
@@ -17,7 +17,7 @@ export const UngradedSubjectsPanel: React.FC<Props> = ({ onPick }) => {
   const { classes, students, academicSubjects, academicGrades, gradePeriods, courseAssignments, allTeachers } = useSchool();
   const periods = useMemo(() => buildGradePeriodList(gradePeriods), [gradePeriods]);
   const [period, setPeriod] = useState<MonthlyContinuousKey>(
-    () => (CONTINUOUS_MONTHS.find((m) => periods.find((p) => p.code === m.key)?.isActive)?.key ?? 'mehrContinuous')
+    () => (SCORE_COLUMNS.find((m) => periods.find((p) => p.code === m.key)?.isActive)?.key ?? 'mehrContinuous')
   );
   const isActive = Boolean(periods.find((p) => p.code === period)?.isActive);
 
@@ -65,8 +65,8 @@ export const UngradedSubjectsPanel: React.FC<Props> = ({ onPick }) => {
             aria-label="انتخاب ماه"
             className="h-11 bg-slate-50 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer"
           >
-            {CONTINUOUS_MONTHS.map((m) => (
-              <option key={m.key} value={m.key}>{m.monthName}{m.key === 'term1Continuous' ? ' (نوبت اول)' : m.key === 'term2Final' ? ' (پایانی)' : ''}</option>
+            {SCORE_COLUMNS.map((m) => (
+              <option key={m.key} value={m.key}>{m.monthName}</option>
             ))}
           </select>
           <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold border ${isActive ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>

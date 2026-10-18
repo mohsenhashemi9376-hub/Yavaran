@@ -11,13 +11,18 @@ import { compareByLastName } from './morningAttendance';
 
 /** ماه‌های ثبت آزمون جامع (همان ماه‌های دفتر نمرات) */
 /** ماه‌های مستمر دفتر نمرات */
-export const CONTINUOUS_MONTHS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+export const FINAL_KEYS: MonthlyContinuousKey[] = ['term1Final', 'term2Final'];
+export const isFinalKey = (k: string): boolean => (FINAL_KEYS as string[]).includes(k);
+/** همه‌ی ستون‌های نمره به ترتیب: مستمر هر ماه و دو پایانی (monthName = عنوان ستون) */
+export const SCORE_COLUMNS = MONTHLY_EVALUATION_PERIODS;
+/** فقط مستمرهای ماهانه (هفت ماه)؛ میانگین مستمر از همین‌ها حساب می‌شود */
+export const CONTINUOUS_MONTHS = MONTHLY_EVALUATION_PERIODS.filter((p) => !isFinalKey(p.key));
 /** ماه‌هایی که آزمون جامع برگزار می‌شود */
 export const EXAM_MONTH_KEYS: MonthlyContinuousKey[] = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'bahmanContinuous', 'farvardinContinuous', 'ordibeheshtContinuous'];
 export const EXAM_MONTHS = CONTINUOUS_MONTHS.filter((p) => EXAM_MONTH_KEYS.includes(p.key));
 export type ExamMonth = MonthlyContinuousKey | 'legacy' | 'all';
 export const examMonthLabel = (m: ExamMonth): string =>
-  m === 'legacy' ? 'ثبت قبلی (بدون ماه)' : m === 'all' ? 'میانگین همه‌ی آزمون‌ها' : CONTINUOUS_MONTHS.find((x) => x.key === m)?.monthName ?? m;
+  m === 'legacy' ? 'ثبت قبلی (بدون ماه)' : m === 'all' ? 'میانگین همه‌ی آزمون‌ها' : SCORE_COLUMNS.find((x) => x.key === m)?.monthName ?? m;
 
 /** حد «ضعیف» برای فهرست دانش‌آموزان ضعیف */
 export const EXAM_WEAK_BELOW = 12;
