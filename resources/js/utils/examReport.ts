@@ -130,3 +130,16 @@ export function studentExamTimeline(record: ComprehensiveExamRecord | undefined,
     })
     .filter((p) => p.avg !== undefined);
 }
+
+/** انحراف معیار جامعه؛ نشان می‌دهد نمرات چقدر پراکنده‌اند */
+export const stdDev = (xs: number[]): number | undefined => {
+  const m = mean(xs);
+  return m === undefined ? undefined : Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
+};
+
+/** تعداد نمرات در هر گروه: ممتاز (۱۷ به بالا) / متوسط (۱۰ تا ۱۷) / ضعیف (زیر ۱۰) */
+export const bandCounts = (xs: number[]): Record<'excellent' | 'good' | 'weak', number> => ({
+  excellent: xs.filter((v) => v >= 17).length,
+  good: xs.filter((v) => v >= 10 && v < 17).length,
+  weak: xs.filter((v) => v < 10).length,
+});

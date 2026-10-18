@@ -22,6 +22,7 @@ import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { ExamEducationalReport } from './ExamEducationalReport';
+import { SubjectClassAnalysis } from './SubjectClassAnalysis';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -1117,6 +1118,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onViewWarnings={() => setCurrentView('warnings')}
           />
           <ExamEducationalReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          <SubjectClassAnalysis />
           </div>
         )}
 

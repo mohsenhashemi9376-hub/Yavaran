@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Award, FileText, Sigma, TriangleAlert } from 'lucide-react';
+import { Award, ClipboardList, FileText, Sigma, TriangleAlert } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { Student } from '../types';
-import { analyzeClassExam, EXAM_MONTHS, EXAM_WEAK_BELOW, ExamMonth, examMonthLabel, examMonthsWithData, round2 } from '../utils/examReport';
+import { StudentFullReportModal } from './StudentFullReportModal';
+import { analyzeClassExam, bandCounts, stdDev, EXAM_MONTHS, EXAM_WEAK_BELOW, ExamMonth, examMonthLabel, examMonthsWithData, round2 } from '../utils/examReport';
 import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
@@ -27,6 +28,7 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
   const [month, setMonth] = useState<ExamMonth>('all');
   const [filters, setFilters] = useState<Record<string, ScoreBand>>({});
   const [cardStudent, setCardStudent] = useState<Student | null>(null);
+  const [fullStudent, setFullStudent] = useState<Student | null>(null);
 
   const cls = examClasses.find((c) => c.id === classId) ?? examClasses[0];
   const record = comprehensiveExams.find((r) => r.classId === cls?.id);
@@ -146,6 +148,9 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
                         <button type="button" onClick={() => setCardStudent(r.student)} aria-label={`کارنامه آزمون جامع ${studentFullName(r.student)}`} title="کارنامه و نمودار رشد" className="mr-2 w-9 h-9 inline-flex items-center justify-center align-middle rounded-xl bg-slate-50 text-emerald-700 hover:bg-emerald-50 cursor-pointer">
                           <FileText className="w-4 h-4" />
                         </button>
+                        <button type="button" onClick={() => setFullStudent(r.student)} aria-label={`کارنامه جامع ${studentFullName(r.student)}`} title="کارنامه جامع (مستمر، آزمون جامع، حضور، تکلیف و کاربرگ)" className="mr-1 w-9 h-9 inline-flex items-center justify-center align-middle rounded-xl bg-slate-50 text-indigo-700 hover:bg-indigo-50 cursor-pointer">
+                          <ClipboardList className="w-4 h-4" />
+                        </button>
                       </td>
                       {analysis.subjects.map((s) => <td key={s.key} className={`px-2 py-2 text-center font-bold ${cellClass(r.scores[s.key])}`}>{fa(r.scores[s.key])}</td>)}
                       <td className={`px-2 py-2 text-center font-extrabold ${cellClass(r.avg)}`}>{fa(r.avg)}</td>
@@ -159,6 +164,24 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
                     <td className="px-3 py-2.5 sticky right-0 bg-slate-50 z-10 text-xs text-slate-700">معدل هر درس</td>
                     {analysis.subjects.map((s) => <td key={s.key} className={`px-2 py-2.5 text-center ${cellClass(analysis.subjectAverages[s.key])}`}>{fa(analysis.subjectAverages[s.key])}</td>)}
                     <td className={`px-2 py-2.5 text-center ${cellClass(analysis.classAverage)}`}>{fa(analysis.classAverage)}</td>
+                    <td />
+                  </tr>
+                  <tr className="bg-white text-[11px] font-bold text-slate-600 border-t border-slate-100">
+                    <td className="px-3 py-2 sticky right-0 bg-white z-10">پراکندگی (انحراف معیار)</td>
+                    {analysis.subjects.map((s) => <td key={s.key} className="px-2 py-2 text-center">{fa(stdDev(analysis.rows.map((r) => r.scores[s.key]).filter((v): v is number => v !== undefined)))}</td>)}
+                    <td className="px-2 py-2 text-center">{fa(stdDev(analysis.rows.map((r) => r.avg).filter((v): v is number => v !== undefined)))}</td>
+                    <td />
+                  </tr>
+                  <tr className="bg-white text-[10px] font-bold text-slate-600 border-t border-slate-100">
+                    <td className="px-3 py-2 sticky right-0 bg-white z-10">ممتاز • متوسط • ضعیف</td>
+                    {[...analysis.subjects.map((s) => analysis.rows.map((r) => r.scores[s.key])), analysis.rows.map((r) => r.avg)].map((col, i) => {
+                      const b = bandCounts(col.filter((v): v is number => v !== undefined));
+                      return (
+                        <td key={i} className="px-1 py-2 text-center whitespace-nowrap">
+                          <span className="text-emerald-700">{toPersianDigits(b.excellent)}</span> • <span className="text-amber-700">{toPersianDigits(b.good)}</span> • <span className="text-rose-700">{toPersianDigits(b.weak)}</span>
+                        </td>
+                      );
+                    })}
                     <td />
                   </tr>
                 </tfoot>
@@ -190,6 +213,7 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
         </div>
       </div>
 
+      {fullStudent && cls && <StudentFullReportModal student={fullStudent} classData={cls} onClose={() => setFullStudent(null)} />}
       {cardStudent && cls && (
         <StudentExamCardModal record={record} classData={cls} classStudents={classStudents} student={cardStudent} initialMonth={month} onClose={() => setCardStudent(null)} />
       )}
