@@ -131,6 +131,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   dossier: ['view-nurturing-file'],
   coachEvaluations: ['counseling-report'],
   reflection_points: ['counseling-report', 'view-nurturing-file'],
+  grey_list: ['analytics-reports'],
 };
 
 /** آیا کاربر به این بخش (بر اساس شناسه آیتم منو) دسترسی دارد؟ */

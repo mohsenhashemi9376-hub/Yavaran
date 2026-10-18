@@ -25,6 +25,7 @@ import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { ExamEducationalReport } from './ExamEducationalReport';
 import { SubjectClassAnalysis } from './SubjectClassAnalysis';
 import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
+import { GreyListWorkspace } from './GreyListWorkspace';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -886,6 +887,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           />
+        )}
+
+        {currentView === 'grey_list' && (
+          <div className="space-y-3">
+            <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
+            <GreyListWorkspace onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          </div>
         )}
 
         {currentView === 'homework_followup' && (

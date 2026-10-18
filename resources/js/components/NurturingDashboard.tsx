@@ -1,4 +1,5 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
+import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
@@ -1012,6 +1013,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
               {currentView === 'worksheets' && 'کاربرگ هفتگی'}
               {currentView === 'parent_meetings' && 'حضور أولیا در جلسات عمومی'}
               {currentView === 'reflection_points' && 'گزارش نقاط تفکر'}
+              {currentView === 'grey_list' && 'لیست خاکستری آموزش'}
               {currentView === 'audit' && 'گزارش دسترسی‌ها'}
             </span>
           </nav>
@@ -1266,6 +1268,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {currentView === 'homework_followup' && <HomeworkFollowUpReport onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'worksheets' && <WorksheetsWorkspace />}
       {currentView === 'reflection_points' && <ReflectionPointsWorkspace />}
+      {currentView === 'grey_list' && <GreyListWorkspace onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'parent_meetings' && <ParentMeetingsWorkspace onSelectStudent={(s) => { setSelectedDossierStudent(s); setCurrentView('dossier'); }} />}
       {currentView === 'audit' && currentUser.role === 'vice_nurturing' && <NurturingAuditLog />}
 

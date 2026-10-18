@@ -123,6 +123,11 @@ final class DataExporter
             $query->whereIn('class_id', $policy->nurturingClassIds());
         }
 
+        // لیست خاکستری و آزمون جامع: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
+        if (in_array($collection, ['academicFollowUps', 'comprehensiveExams'], true) && $policy->isCoach()) {
+            $query->whereIn('class_id', $policy->nurturingClassIds());
+        }
+
         // نقاط تفکر: مربی فقط رکوردهای کلاس‌های خودش را می‌گیرد
         if ($collection === 'reflectionPoints' && $policy->isCoach()) {
             $query->whereIn('class_id', $policy->nurturingClassIds());

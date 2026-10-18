@@ -102,7 +102,7 @@ final class SyncService
                     $this->normalizeWorksheet($collection, $data, (string) $item->id, $user);
                 }
                 if ($collection === 'academicFollowUps') {
-                    $this->normalizeAcademicFollowUp($data, (string) $item->id, $user);
+                    $this->normalizeAcademicFollowUp($data, (string) $item->id, $user, $oldData, $policy);
                 }
                 if ($collection === 'reflectionPoints') {
                     $this->normalizeReflectionPoint($data, (string) $item->id, $user);
@@ -574,7 +574,7 @@ final class SyncService
     }
 
     /** وضعیت پیگیری آموزشی: یک رکورد برای هر دانش‌آموز؛ کلاس و ثبت‌کننده را سرور تعیین می‌کند */
-    private function normalizeAcademicFollowUp(object $data, string $id, User $user): void
+    private function normalizeAcademicFollowUp(object $data, string $id, User $user, ?object $old, AccessPolicy $policy): void
     {
         $studentId = isset($data->studentId) && is_string($data->studentId) ? $data->studentId : '';
         $classId = $studentId !== '' ? DB::table('students')->where('id', $studentId)->value('class_id') : null;
@@ -589,6 +589,16 @@ final class SyncService
         }
         $data->classId = (string) $classId;
         $data->note = isset($data->note) && is_string($data->note) && trim($data->note) !== '' ? mb_substr(trim($data->note), 0, 500) : null;
+        // مربی و معاون تربیتی وضعیت و یادداشت معاونت آموزش را تغییر نمی‌دهند
+        if (! $policy->managesAcademicFollowUpStatus()) {
+            $data->status = isset($old->status) && is_string($old->status) ? $old->status : 'open';
+            $data->note = isset($old->note) && is_string($old->note) ? $old->note : null;
+        }
+        // لیست خاکستری: علل ضعف (چندانتخابی)، علت دلخواه و اقدام
+        $causes = isset($data->causes) && is_array($data->causes) ? array_values(array_unique(array_filter($data->causes, static fn ($c) => is_string($c) && preg_match('/^[a-z_]{1,40}$/', $c)))) : [];
+        $data->causes = array_slice($causes, 0, 20);
+        $data->causeOther = isset($data->causeOther) && is_string($data->causeOther) && trim($data->causeOther) !== '' ? mb_substr(trim($data->causeOther), 0, 300) : null;
+        $data->action = isset($data->action) && is_string($data->action) && trim($data->action) !== '' ? mb_substr(trim($data->action), 0, 1000) : null;
         $data->updatedById = (string) $user->id;
         $data->updatedBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();

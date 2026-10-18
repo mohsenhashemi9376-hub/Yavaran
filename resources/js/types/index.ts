@@ -299,6 +299,10 @@ export interface AcademicFollowUpRecord {
   classId: string;
   status: AcademicFollowUpStatus;
   note?: string | null;
+  /** لیست خاکستری آموزش: علل ضعف (کلید از GREY_CAUSES)، علت دلخواه و اقدام */
+  causes?: string[];
+  causeOther?: string | null;
+  action?: string | null;
   updatedBy?: string; // توسط سرور تعیین می‌شود
   updatedById?: string;
   updatedAt?: string;

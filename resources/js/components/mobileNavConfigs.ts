@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
   BookOpen, ClipboardList, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
-  BarChart3, UsersRound, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package, Lightbulb,
+  BarChart3, UsersRound, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package, Lightbulb, ListChecks,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
 
@@ -75,6 +75,7 @@ export const educationalMobileNav = (counts: { warnings: number }) => ({
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
+    { id: 'grey_list', label: 'لیست خاکستری', icon: ListChecks },
     { id: 'settings', label: 'تنظیمات', icon: Settings },
   ] as MobileNavItem[],
 });
@@ -93,6 +94,7 @@ export const nurturingMobileNav = (isVice = false) => ({
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'taught_lessons', label: 'درس‌ها و تکالیف', icon: ClipboardList },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },
+    { id: 'grey_list', label: 'لیست خاکستری', icon: ListChecks },
     { id: 'coachEvaluations', label: 'ارزیابی رشد', icon: Star },
     { id: 'coaches', label: 'مربیان', icon: HeartHandshake },
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },

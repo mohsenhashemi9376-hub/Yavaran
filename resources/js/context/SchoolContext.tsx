@@ -111,7 +111,7 @@ interface SchoolContextType {
   /** وضعیت پیگیری آموزشی دانش‌آموزان (فقط مدیر و معاونت آموزش) */
   academicFollowUps: AcademicFollowUpRecord[];
   /** تغییر وضعیت / یادداشت پیگیری؛ «باز» بدون یادداشت = حذف رکورد */
-  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string }) => void;
+  setAcademicFollowUp: (student: Pick<Student, 'id' | 'classId'>, patch: { status?: AcademicFollowUpStatus; note?: string; causes?: string[]; causeOther?: string; action?: string }) => void;
   /** گزارش نقاط تفکر (فقط معاون تربیتی و مربی) */
   reflectionPoints: ReflectionPointRecord[];
   /** ثبت تحویل / عدم تحویل و یادداشت نقاط تفکر برای یک دانش‌آموز در یک هفته؛ بدون تحویل و بدون یادداشت = حذف رکورد */
@@ -1775,8 +1775,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const old = prev.find((r) => r.id === id);
       const status = patch.status ?? old?.status ?? 'open';
       const note = (patch.note !== undefined ? patch.note : old?.note ?? '').trim();
-      if (status === 'open' && !note) return old ? prev.filter((r) => r.id !== id) : prev;
-      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
+      const causes = patch.causes ?? old?.causes ?? [];
+      const causeOther = (patch.causeOther !== undefined ? patch.causeOther : old?.causeOther ?? '').trim();
+      const action = (patch.action !== undefined ? patch.action : old?.action ?? '').trim();
+      if (status === 'open' && !note && causes.length === 0 && !causeOther && !action) return old ? prev.filter((r) => r.id !== id) : prev;
+      const next: AcademicFollowUpRecord = { id, studentId: student.id, classId: student.classId, status, note: note || null, causes, causeOther: causeOther || null, action: action || null, updatedById: currentUser.id, updatedBy: currentUser.name, updatedAt: new Date().toISOString() };
       return old ? prev.map((r) => (r.id === id ? next : r)) : [...prev, next];
     });
   };

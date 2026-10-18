@@ -102,9 +102,10 @@ final class AccessPolicy
             return false;
         }
 
-        // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
+        // نمرات آزمون جامع: مدیر و معاونین دارای مجوز؛ معاون تربیتی و مربی فقط برای «لیست خاکستری آموزش» (فقط خواندنی؛ مربی فقط کلاس‌های خودش)
         if ($collection === 'comprehensiveExams') {
-            return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
+            return ($this->isManager() && $this->user->hasPermission('comprehensive-exam'))
+                || in_array($this->user->role, ['vice_nurturing', 'coach'], true);
         }
 
         // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
@@ -196,8 +197,14 @@ final class AccessPolicy
             || ($this->isCoach() && $this->user->hasPermission('view-parent-meetings'));
     }
 
-    /** پیگیری آموزشی دانش‌آموزان: مدیر، معاون آموزش و معاون اجرایی (نه معاون تربیتی و انضباطی) */
+    /** پیگیری آموزشی و لیست خاکستری: مدیر، معاون آموزش، معاون اجرایی، معاون تربیتی و مربی (نه معاون انضباطی) */
     public function canUseAcademicFollowUps(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal', 'vice_nurturing', 'coach'], true);
+    }
+
+    /** وضعیت و یادداشت پیگیری آموزشی فقط با مدیر و معاونت آموزش؛ مربی و معاون تربیتی فقط علت ضعف و اقدام را می‌نویسند */
+    public function managesAcademicFollowUpStatus(): bool
     {
         return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
     }
@@ -312,7 +319,14 @@ final class AccessPolicy
 
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
-                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
+                $this->deny('لیست خاکستری آموزش برای شما فعال نیست.');
+            }
+            if ($this->isCoach()) {
+                foreach ([$old, $new] as $record) {
+                    if ($record !== null) {
+                        $this->requireStudent($this->prop($record, 'studentId'));
+                    }
+                }
             }
 
             return;
@@ -449,7 +463,10 @@ final class AccessPolicy
 
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
-                $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
+                $this->deny('لیست خاکستری آموزش برای شما فعال نیست.');
+            }
+            if ($this->isCoach()) {
+                $this->requireStudent($this->prop($old, 'studentId'));
             }
 
             return;

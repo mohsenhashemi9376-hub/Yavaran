@@ -2,6 +2,7 @@ import { filterNavGroups } from '../utils/permissions';
 import React, { useState, useMemo } from 'react';
 import { 
   LayoutDashboard,
+  ListChecks,
   Lightbulb,
   Eye, 
   FolderHeart, 
@@ -41,7 +42,8 @@ export type NurturingViewType =
   | 'homework_followup'
   | 'worksheets'
   | 'parent_meetings'
-  | 'reflection_points';
+  | 'reflection_points'
+  | 'grey_list';
 
 export interface NurturingSidebarCounts {
   observations?: number;
@@ -282,6 +284,12 @@ export const NurturingSidebarNav: React.FC<NurturingSidebarNavProps> = ({
           icon: AlertCircle,
           count: totalAttentionNeeded > 0 ? totalAttentionNeeded : undefined,
           isWarning: true,
+        },
+        {
+          id: 'grey_list',
+          label: 'لیست خاکستری آموزش',
+          tooltip: 'دانش‌آموزان نیازمند پیگیری آموزشی با علت ضعف و اقدام',
+          icon: ListChecks,
         },
         {
           id: 'reports',
