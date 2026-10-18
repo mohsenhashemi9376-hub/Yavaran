@@ -322,3 +322,13 @@ button { transition-property: transform, background-color, border-color, color, 
 
 /* اسکرول داخلی مودال/باتم‌شیت به صفحه‌ی پشت نشت نکند */
 .fixed.inset-0 .overflow-y-auto, .fixed.inset-0 .overflow-auto, [aria-modal="true"] .overflow-y-auto { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* ===== چاپ کارنامه‌ی شخصی: فقط برگه‌ی کارنامه چاپ می‌شود ===== */
+@media print {
+  body.yv-printing > *:not(#yv-print-root) { display: none !important; }
+  body.yv-printing #yv-print-root { position: static !important; inset: auto !important; background: #fff !important; backdrop-filter: none !important; overflow: visible !important; }
+  body.yv-printing #yv-print-root > div { display: block !important; padding: 0 !important; }
+  body.yv-printing #yv-print-root > div > div { box-shadow: none !important; max-width: none !important; border-radius: 0 !important; }
+  body.yv-printing .yv-no-print { display: none !important; }
+  body.yv-printing { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

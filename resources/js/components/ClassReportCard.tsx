@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileSpreadsheet, Filter } from 'lucide-react';
+import { FileSpreadsheet, Filter, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
@@ -8,6 +8,7 @@ import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { compareByLastName } from '../utils/morningAttendance';
+import { StudentReportCardModal } from './StudentReportCardModal';
 
 /** ماه‌های قابل نمایش در کارنامه (بدون پایانی نوبت اول و مستمر نوبت دوم، مثل دفتر نمرات) */
 const REPORT_PERIODS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
@@ -34,6 +35,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
   const [classId, setClassId] = useState(classData.id);
   const [period, setPeriod] = useState<MonthlyContinuousKey | 'year'>('mehrContinuous');
   // فیلتر هر ستون: شناسه‌ی درس (یا «avg») ← گروه نمره
+  const [cardStudent, setCardStudent] = useState<Student | null>(null);
   const [filters, setFilters] = useState<Record<string, ScoreBand>>({});
 
   const cls = classChoices.find((c) => c.id === classId) ?? classData;
@@ -187,6 +189,15 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
                       <span className="text-slate-400 text-xs ml-2">{toPersianDigits(i + 1)}</span>
                       {studentFullName(r.st)}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setCardStudent(r.st)}
+                      aria-label={`کارنامه شخصی ${studentFullName(r.st)}`}
+                      title="کارنامه شخصی"
+                      className="mr-2 w-9 h-9 inline-flex items-center justify-center align-middle rounded-xl bg-slate-50 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
                   </td>
                   {subjects.map((s) => (
                     <td key={s.id} className={`px-2 py-2 text-center font-bold ${cellClass(r.scores[s.id])}`}>{fmt(r.scores[s.id])}</td>
@@ -212,6 +223,16 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
             </tfoot>
           </table>
         </div>
+      )}
+
+      {cardStudent && (
+        <StudentReportCardModal
+          student={cardStudent}
+          classData={cls}
+          subjects={subjects}
+          initialPeriod={period === 'year' ? 'mehrContinuous' : period}
+          onClose={() => setCardStudent(null)}
+        />
       )}
     </div>
   );
