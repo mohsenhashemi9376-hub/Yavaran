@@ -121,7 +121,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [warningStudent, setWarningStudent] = useState<Student | null>(null);
   const [warningKind, setWarningKind] = useState<string>(WARNING_KINDS[0].label);
   const [warningNote, setWarningNote] = useState<string>('');
-  const [warningDeduction, setWarningDeduction] = useState<number>(0.5);
+  const [warningDeduction, setWarningDeduction] = useState<number>(0);
 
   // ------------------------------------------------------------------
   // فهرست «درس • کلاس» های قابل ثبت برای کاربر جاری
@@ -437,7 +437,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     const next: AttendanceStatus = current === target ? 'present' : target;
     patchRecord(studentId, {
       status: next,
-      delayMinutes: next === 'late' ? records[studentId]?.delayMinutes || 10 : undefined,
+      delayMinutes: next === 'late' ? records[studentId]?.delayMinutes : undefined,
     });
   };
 
@@ -451,7 +451,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     } else {
       setWarningKind(WARNING_KINDS[0].label);
       setWarningNote('');
-      setWarningDeduction(0.5);
+      setWarningDeduction(0);
     }
   };
 
@@ -852,10 +852,11 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                           <input
                             type="text"
                             inputMode="numeric"
-                            value={toPersianDigits(rec.delayMinutes || 10)}
+                            value={rec.delayMinutes ? toPersianDigits(rec.delayMinutes) : ''}
+                            placeholder="؟"
                             onChange={(e) => {
                               const n = parseInt(toEnglishDigits(e.target.value).replace(/[^0-9]/g, ''), 10);
-                              patchRecord(student.id, { status: 'late', delayMinutes: Math.min(90, Math.max(1, Number.isNaN(n) ? 1 : n)) });
+                              patchRecord(student.id, { status: 'late', delayMinutes: Number.isNaN(n) || n < 1 ? undefined : Math.min(90, n) });
                             }}
                             aria-label="دقیقه تأخیر"
                             className="w-11 text-center text-xs font-bold bg-white/80 text-amber-800 border border-amber-200 rounded-xl py-1.5 outline-none focus:ring-2 focus:ring-amber-200"
