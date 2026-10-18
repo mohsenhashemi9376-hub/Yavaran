@@ -10,10 +10,14 @@ import {
 import { compareByLastName } from './morningAttendance';
 
 /** ماه‌های ثبت آزمون جامع (همان ماه‌های دفتر نمرات) */
-export const EXAM_MONTHS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+/** ماه‌های مستمر دفتر نمرات */
+export const CONTINUOUS_MONTHS = MONTHLY_EVALUATION_PERIODS.filter((p) => !['term1Final', 'term2Continuous'].includes(p.key));
+/** ماه‌هایی که آزمون جامع برگزار می‌شود */
+export const EXAM_MONTH_KEYS: MonthlyContinuousKey[] = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'bahmanContinuous', 'farvardinContinuous', 'ordibeheshtContinuous'];
+export const EXAM_MONTHS = CONTINUOUS_MONTHS.filter((p) => EXAM_MONTH_KEYS.includes(p.key));
 export type ExamMonth = MonthlyContinuousKey | 'legacy' | 'all';
 export const examMonthLabel = (m: ExamMonth): string =>
-  m === 'legacy' ? 'ثبت قبلی (بدون ماه)' : m === 'all' ? 'میانگین همه‌ی آزمون‌ها' : EXAM_MONTHS.find((x) => x.key === m)?.monthName ?? m;
+  m === 'legacy' ? 'ثبت قبلی (بدون ماه)' : m === 'all' ? 'میانگین همه‌ی آزمون‌ها' : CONTINUOUS_MONTHS.find((x) => x.key === m)?.monthName ?? m;
 
 /** حد «ضعیف» برای فهرست دانش‌آموزان ضعیف */
 export const EXAM_WEAK_BELOW = 12;
@@ -45,8 +49,20 @@ export const defaultExamMonth = (record?: ComprehensiveExamRecord): Exclude<Exam
   return months.length ? months[months.length - 1] : 'mehrContinuous';
 };
 
-export const activeExamSubjects = (record?: ComprehensiveExamRecord) =>
-  EXAM_SUBJECTS.filter((s) => (record?.activeSubjects?.length ? record.activeSubjects : EXAM_SUBJECTS.map((x) => x.key)).includes(s.key));
+const allSubjectKeys = EXAM_SUBJECTS.map((x) => x.key);
+
+/** دروس فعال یک ماه؛ بدون ماه (یا «همه»): اجتماع دروس فعالِ ماه‌های دارای نمره */
+export const activeExamSubjects = (record?: ComprehensiveExamRecord, month?: ExamMonth) => {
+  const fallback = record?.activeSubjects?.length ? record.activeSubjects : allSubjectKeys;
+  let keys: ExamSubjectKey[];
+  if (month && month !== 'all' && month !== 'legacy') keys = record?.monthlyActive?.[month] ?? fallback;
+  else if (month === 'all') {
+    const months = examMonthsWithData(record).filter((m) => m !== 'legacy') as MonthlyContinuousKey[];
+    const union = new Set<ExamSubjectKey>(months.flatMap((m) => record?.monthlyActive?.[m] ?? fallback));
+    keys = union.size && !examMonthsWithData(record).includes('legacy') ? Array.from(union) : fallback.concat(Array.from(union));
+  } else keys = fallback;
+  return EXAM_SUBJECTS.filter((s) => keys.includes(s.key));
+};
 
 /** نمره‌ی یک دانش‌آموز در یک درس؛ برای «همه»، میانگین ماه‌هایی که نمره دارد */
 export function examSubjectScore(record: ComprehensiveExamRecord | undefined, studentId: string, subject: ExamSubjectKey, month: ExamMonth): number | undefined {
@@ -76,7 +92,7 @@ export interface ClassExamAnalysis {
 }
 
 export function analyzeClassExam(record: ComprehensiveExamRecord | undefined, classStudents: Student[], month: ExamMonth): ClassExamAnalysis {
-  const subjects = activeExamSubjects(record);
+  const subjects = activeExamSubjects(record, month);
   const rows: ExamRow[] = classStudents.slice().sort(compareByLastName).map((student) => {
     const scores: ExamRow['scores'] = {};
     subjects.forEach((s) => {
@@ -116,10 +132,10 @@ export interface ExamTimelinePoint {
 
 /** روند ماهانه‌ی آزمون جامع یک دانش‌آموز، همراه با میانگین کلاس برای مقایسه */
 export function studentExamTimeline(record: ComprehensiveExamRecord | undefined, classStudents: Student[], studentId: string): ExamTimelinePoint[] {
-  const subjects = activeExamSubjects(record);
   return examMonthsWithData(record)
     .filter((m) => m !== 'legacy')
     .map((month) => {
+      const subjects = activeExamSubjects(record, month);
       const bySubject: ExamTimelinePoint['bySubject'] = {};
       subjects.forEach((s) => {
         const v = examSubjectScore(record, studentId, s.key, month);

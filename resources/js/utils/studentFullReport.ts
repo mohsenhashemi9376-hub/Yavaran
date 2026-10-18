@@ -10,7 +10,7 @@ import {
   WorksheetWeek,
 } from '../types';
 import { buildAttendanceStats } from './attendanceStats';
-import { analyzeClassExam, EXAM_MONTHS, mean, studentExamTimeline } from './examReport';
+import { analyzeClassExam, CONTINUOUS_MONTHS, mean, studentExamTimeline } from './examReport';
 import { isDeadlinePassed, worksheetKey } from './worksheets';
 
 const num = (v: unknown): v is number => typeof v === 'number' && !Number.isNaN(v);
@@ -54,13 +54,13 @@ export function buildStudentFullReport(i: FullReportInput): StudentFullReport {
 
   const own = i.grades.filter((g) => g.studentId === student.id);
   const subjects: FullReportSubjectRow[] = own.map((g) => {
-    const months = EXAM_MONTHS.map((p) => ({ key: p.key, label: p.monthName, score: num(g[p.key]) ? (g[p.key] as number) : undefined }));
+    const months = CONTINUOUS_MONTHS.map((p) => ({ key: p.key, label: p.monthName, score: num(g[p.key]) ? (g[p.key] as number) : undefined }));
     return { subjectId: g.subjectId, subjectName: g.subjectName, months, avg: mean(months.map((m) => m.score).filter(num)) };
   });
   const continuousAvg = mean(subjects.map((s) => s.avg).filter(num));
 
   const timeline = studentExamTimeline(i.exam, i.classStudents, student.id);
-  const monthlyTrend = EXAM_MONTHS.map((p) => {
+  const monthlyTrend = CONTINUOUS_MONTHS.map((p) => {
     const mine = own.map((g) => g[p.key]).filter(num);
     const everyone = i.grades.filter((g) => classIds.has(g.studentId)).map((g) => g[p.key]).filter(num);
     return {

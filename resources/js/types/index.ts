@@ -682,6 +682,8 @@ export interface ComprehensiveExamRecord {
   scores: Record<string, Partial<Record<ExamSubjectKey, number>>>; // studentId -> نمرات
   /** نمرات آزمون جامع هر ماه: کلید ماه ← studentId ← نمرات (برای نمودار رشد) */
   monthly?: Partial<Record<MonthlyContinuousKey, Record<string, Partial<Record<ExamSubjectKey, number>>>>>;
+  /** دروس فعال هر ماه (اگر تعریف نشده باشد، activeSubjects کلاس) */
+  monthlyActive?: Partial<Record<MonthlyContinuousKey, ExamSubjectKey[]>>;
   updatedAt?: string;
 }
 

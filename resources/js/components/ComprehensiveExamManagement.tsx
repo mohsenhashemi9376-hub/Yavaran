@@ -6,7 +6,7 @@ import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -72,7 +72,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   // بارگذاری رکورد ذخیره‌شده هنگام تغییر کلاس
   useEffect(() => {
     const record = comprehensiveExams.find((r) => r.classId === classId);
-    setActive(record?.activeSubjects?.length ? record.activeSubjects : EXAM_SUBJECTS.map((s) => s.key));
+    setActive(activeExamSubjects(record, month).map((s) => s.key));
     const next: Draft = {};
     Object.entries(examScoresOf(record, month)).forEach(([sid, sc]) => {
       next[sid] = {};
@@ -180,7 +180,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     saveComprehensiveExam({
       id: `cexam-${classId}`,
       classId,
-      activeSubjects: active,
+      activeSubjects: month === 'legacy' ? active : base?.activeSubjects?.length ? base.activeSubjects : active,
+      monthlyActive: month === 'legacy' ? base?.monthlyActive : { ...base?.monthlyActive, [month]: active },
       scores: month === 'legacy' ? scores : base?.scores || {},
       monthly: month === 'legacy' ? base?.monthly : { ...base?.monthly, [month]: scores },
     });
@@ -236,22 +237,6 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             ))}
           </select>
 
-          <select
-            value={month}
-            onChange={(e) => changeMonth(e.target.value as Exclude<ExamMonth, 'all'>)}
-            aria-label="ماه آزمون"
-            className="h-11 bg-slate-50 rounded-xl px-4 text-sm font-bold text-slate-800 outline-none border border-transparent focus:border-emerald-500 cursor-pointer min-w-40"
-          >
-            {EXAM_MONTHS.map((m) => (
-              <option key={m.key} value={m.key}>
-                آزمون {m.monthName}{examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes(m.key) ? ' ✓' : ''}
-              </option>
-            ))}
-            {examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes('legacy') && (
-              <option value="legacy">{examMonthLabel('legacy')}</option>
-            )}
-          </select>
-
           <button
             onClick={handleSave}
             disabled={!dirty || hasErrors}
@@ -263,7 +248,42 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
         </div>
 
         <div>
-          <div className="text-xs font-bold text-slate-500 mb-2">دروس آزمون جامع (دروس فعال در جدول و معدل)</div>
+          <div className="text-xs font-bold text-slate-500 mb-2">ماه آزمون (هر ماه جداگانه تعریف و ثبت می‌شود)</div>
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="ماه آزمون جامع">
+            {EXAM_MONTHS.map((m) => {
+              const has = examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes(m.key);
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={month === m.key}
+                  onClick={() => changeMonth(m.key)}
+                  className={`h-11 min-w-[4.5rem] px-4 rounded-2xl text-sm font-extrabold border transition cursor-pointer inline-flex items-center justify-center gap-1 ${
+                    month === m.key ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {m.monthName}
+                  {has && <Check className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })}
+            {examMonthsWithData(comprehensiveExams.find((r) => r.classId === classId)).includes('legacy') && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={month === 'legacy'}
+                onClick={() => changeMonth('legacy')}
+                className={`h-11 px-4 rounded-2xl text-xs font-bold border cursor-pointer ${month === 'legacy' ? 'bg-slate-700 text-white border-slate-700' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+              >
+                {examMonthLabel('legacy')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-bold text-slate-500 mb-2">دروس آزمون {examMonthLabel(month)} (دروس فعال در جدول و معدل همین ماه)</div>
           <div className="flex flex-wrap gap-2">
             {EXAM_SUBJECTS.map((s) => {
               const on = active.includes(s.key);

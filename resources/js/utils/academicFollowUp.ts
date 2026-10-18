@@ -1,6 +1,5 @@
 import {
   ComprehensiveExamRecord,
-  EXAM_SUBJECTS,
   MONTHLY_EVALUATION_PERIODS,
   Student,
   StudentAcademicGrade,
@@ -8,6 +7,7 @@ import {
   WorksheetWeek,
 } from '../types';
 import { isDeadlinePassed, worksheetKey } from './worksheets';
+import { activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
 
 export const FOLLOW_UP_THRESHOLD = 12;
 
@@ -82,14 +82,20 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
     }
     if (worst >= 2) add(st.id, { kind: 'worksheet_streak', label: 'کاربرگ تحویل‌نداده', detail: `${worst} هفته متوالی` });
 
-    // ۴ و ۵: آزمون جامع
+    // ۴ و ۵: آزمون جامع (هر ماه جدا؛ میانگین روی همه‌ی ماه‌های ثبت‌شده)
     const exam = examByClass.get(st.classId);
-    const scores = exam?.scores?.[st.id];
-    if (exam && scores) {
-      const active = EXAM_SUBJECTS.filter((s) => exam.activeSubjects.includes(s.key) && num(scores[s.key]));
-      const low = active.filter((s) => (scores[s.key] as number) < FOLLOW_UP_THRESHOLD).map((s) => s.label);
+    if (exam) {
+      const low: string[] = [];
+      examMonthsWithData(exam).forEach((month) => {
+        const scores = examScoresOf(exam, month)[st.id];
+        if (!scores) return;
+        activeExamSubjects(exam, month).forEach((sub) => {
+          const v = scores[sub.key];
+          if (num(v) && v < FOLLOW_UP_THRESHOLD) low.push(month === 'legacy' ? sub.label : `${sub.label} (${examMonthLabel(month)})`);
+        });
+      });
       if (low.length) add(st.id, { kind: 'low_exam', label: 'آزمون جامع زیر ۱۲', detail: low.join('، ') });
-      const examAvg = mean(active.map((s) => scores[s.key] as number));
+      const examAvg = mean(activeExamSubjects(exam, 'all').map((sub) => examSubjectScore(exam, st.id, sub.key, 'all')).filter(num));
       if (examAvg !== undefined && examAvg < FOLLOW_UP_THRESHOLD) add(st.id, { kind: 'low_exam_avg', label: 'میانگین آزمون جامع زیر ۱۲', detail: String(round2(examAvg)) });
     }
   }
