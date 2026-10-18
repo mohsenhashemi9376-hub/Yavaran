@@ -31,11 +31,14 @@ import { SchoolClass, AttendanceSession, Student, User } from './types';
 import { GraduationCap, Sparkles, CheckCircle2, Shield, Calendar, Users, ShieldAlert, BookOpen } from 'lucide-react';
 import { getTodayShamsi } from './utils/persianDate';
 import { useLuxScope } from './context/ThemeContext';
+import { useWakeLock } from './utils/useWakeLock';
+import { ActiveAttendance, clearActiveAttendance, loadActiveAttendance } from './utils/attendanceDraft';
 
 const MainApp: React.FC = () => {
   const { 
     currentUser, 
     students,
+    sessions,
     isTeacher, 
     isAdmin, 
     isEducationalVice, 
@@ -47,6 +50,9 @@ const MainApp: React.FC = () => {
   } = useSchool();
   
   const todayInfo = getTodayShamsi();
+
+  // صفحه‌ی گوشی تا زمانی که برنامه باز است خاموش نشود
+  useWakeLock(true);
 
   // Active view tab: 'main' (Classes/Attendance), 'discipline' (Disciplinary VP), 'grades' (Educational VP), 'nurture' (Nurturing VP & Coach), 'teacher' (Coach acting as Teacher)
   const [activeTab, setActiveTab] = useState<'main' | 'discipline' | 'grades' | 'nurture' | 'teacher'>('main');
@@ -92,10 +98,15 @@ const MainApp: React.FC = () => {
 
   // Modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
-  const [targetClassIdForAttendance, setTargetClassIdForAttendance] = useState<string | undefined>(undefined);
-  const [targetSubjectForAttendance, setTargetSubjectForAttendance] = useState<string | undefined>(undefined);
-  const [sessionToEdit, setSessionToEdit] = useState<AttendanceSession | null>(null);
+  // اگر پیش از بارگذاری دوباره (مثلاً خاموش‌شدن صفحه) فهرست حضور و غیاب باز بوده، همان فهرست با پیش‌نویسش بازمی‌گردد
+  const [resumeAttendance] = useState<ActiveAttendance | null>(() => loadActiveAttendance(currentUser.id));
+  const [resumeActive, setResumeActive] = useState<boolean>(Boolean(resumeAttendance));
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(Boolean(resumeAttendance));
+  const [targetClassIdForAttendance, setTargetClassIdForAttendance] = useState<string | undefined>(resumeAttendance?.classId);
+  const [targetSubjectForAttendance, setTargetSubjectForAttendance] = useState<string | undefined>(resumeAttendance?.subject);
+  const [sessionToEdit, setSessionToEdit] = useState<AttendanceSession | null>(
+    () => (resumeAttendance?.sessionId ? sessions.find((s) => s.id === resumeAttendance.sessionId) ?? null : null)
+  );
 
   const [classDetailModalOpen, setClassDetailModalOpen] = useState(false);
   const [targetClassForDetail, setTargetClassForDetail] = useState<SchoolClass | null>(null);
@@ -163,6 +174,7 @@ const MainApp: React.FC = () => {
 
   // Modal triggers
   const handleOpenNewAttendance = (classId?: string, subject?: string) => {
+    setResumeActive(false);
     setTargetSubjectForAttendance(subject);
     // پنجره جزئیات کلاس باید بسته شود تا فهرست حضور و غیاب بلافاصله دیده شود
     setClassDetailModalOpen(false);
@@ -173,6 +185,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleEditSession = (session: AttendanceSession) => {
+    setResumeActive(false);
     setSessionToEdit(session);
     setTargetClassIdForAttendance(session.classId);
     setAttendanceModalOpen(true);
@@ -292,11 +305,14 @@ const MainApp: React.FC = () => {
         onClose={() => {
           setAttendanceModalOpen(false);
           setSessionToEdit(null);
+          setResumeActive(false);
+          clearActiveAttendance(currentUser.id);
         }}
         targetClassId={targetClassIdForAttendance}
         targetSubject={targetSubjectForAttendance}
         existingSession={sessionToEdit}
         onSelectStudent={handleOpenStudentProfile}
+        resume={resumeActive ? resumeAttendance : null}
       />
 
       <ClassDetailModal

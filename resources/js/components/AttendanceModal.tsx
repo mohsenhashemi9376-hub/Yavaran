@@ -18,6 +18,13 @@ import { compareByLastName } from '../utils/morningAttendance';
 import { NotebookPen, X, Check, Clock, UserX, ShieldAlert, Trash2, MoreHorizontal, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { previousCourseSession } from '../utils/homework';
+import {
+  ActiveAttendance,
+  clearAttendanceDraft,
+  loadAttendanceDraft,
+  saveActiveAttendance,
+  saveAttendanceDraft,
+} from '../utils/attendanceDraft';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -26,6 +33,8 @@ interface AttendanceModalProps {
   targetSubject?: string;
   existingSession?: AttendanceSession | null;
   onSelectStudent?: (student: Student) => void;
+  /** بازگشت به فهرستی که پیش از خاموش‌شدن صفحه / بارگذاری دوباره باز بوده */
+  resume?: ActiveAttendance | null;
 }
 
 /** یک «درس تخصیص‌یافته به کلاس» (Subject-Class Assignment) — واحد اصلی ثبت حضور و غیاب */
@@ -59,6 +68,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   targetSubject,
   existingSession,
   onSelectStudent,
+  resume,
 }) => {
   const {
     currentUser,
@@ -102,6 +112,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const [records, setRecords] = useState<Record<string, StudentAttendanceRecord>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  /** امضای وضعیت بارگذاری‌شده؛ فقط تغییر نسبت به آن به‌عنوان پیش‌نویس ذخیره می‌شود */
+  const baselineRef = useRef<string | null>(null);
   const topicRef = useRef<HTMLInputElement>(null);
 
   // پاپ‌آپ ثبت اخطار کلاسی
@@ -240,27 +253,48 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     return initial;
   };
 
-  /** بارگذاری یک زنگ مشخص: اگر قبلاً ثبت شده باشد برای ویرایش بازخوانی می‌شود */
+  const formSignature = (topic: string, homework: string, notes: string, recs: Record<string, StudentAttendanceRecord>) =>
+    JSON.stringify([topic, homework, notes, recs]);
+
+  /** بارگذاری یک زنگ مشخص: اگر قبلاً ثبت شده باشد برای ویرایش بازخوانی می‌شود؛ پیش‌نویس ذخیره‌شده بر هر دو مقدم است */
   const loadSlot = (opt: CourseOption | undefined, period: number, forDate: string) => {
     if (!opt) return;
     const existing = findSlotSession(opt, period, forDate);
     setTopicError('');
     setExpandedId(null);
+    let topic = '';
+    let homework = '';
+    let notes = '';
+    let recs = freshRecords(opt.classId);
     if (existing) {
-      setEditingSessionId(existing.id);
-      setLessonTopic(existing.lessonTopic || '');
-      setHomeworkDescription(existing.homeworkDescription || '');
-      setSessionNotes(existing.sessionNotes || '');
-      setShowSessionNotes(Boolean(existing.homeworkDescription || existing.sessionNotes));
-      setRecords({ ...freshRecords(opt.classId), ...(existing.records || {}) });
-    } else {
-      setEditingSessionId(undefined);
-      setLessonTopic('');
-      setHomeworkDescription('');
-      setSessionNotes('');
-      setShowSessionNotes(false);
-      setRecords(freshRecords(opt.classId));
+      topic = existing.lessonTopic || '';
+      homework = existing.homeworkDescription || '';
+      notes = existing.sessionNotes || '';
+      recs = { ...recs, ...(existing.records || {}) };
     }
+    setEditingSessionId(existing?.id);
+    baselineRef.current = formSignature(topic, homework, notes, recs);
+
+    const draft = loadAttendanceDraft(currentUser.id, opt.key, forDate, period);
+    if (draft) {
+      topic = draft.lessonTopic;
+      homework = draft.homeworkDescription;
+      notes = draft.sessionNotes;
+      recs = { ...recs, ...draft.records };
+    }
+    setDraftRestored(Boolean(draft) && formSignature(topic, homework, notes, recs) !== baselineRef.current);
+    setLessonTopic(topic);
+    setHomeworkDescription(homework);
+    setSessionNotes(notes);
+    setShowSessionNotes(Boolean(homework || notes));
+    setRecords(recs);
+  };
+
+  /** دور ریختن پیش‌نویس و بازگشت به وضعیت ثبت‌شده (یا فرم خالی) */
+  const discardDraft = () => {
+    if (!course) return;
+    clearAttendanceDraft(currentUser.id, course.key, date, periodNumber);
+    loadSlot(course, periodNumber, date);
   };
 
   // مقداردهی اولیه هنگام باز شدن
@@ -277,13 +311,16 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
       setCourseKey(opt?.key || '');
       setPeriodNumber(existingSession.periodNumber || 1);
       setDate(existingSession.date);
-      setEditingSessionId(existingSession.id);
-      setLessonTopic(existingSession.lessonTopic || '');
-      setHomeworkDescription(existingSession.homeworkDescription || '');
-      setSessionNotes(existingSession.sessionNotes || '');
-      setShowSessionNotes(Boolean(existingSession.homeworkDescription || existingSession.sessionNotes));
-      setRecords({ ...freshRecords(existingSession.classId), ...(existingSession.records || {}) });
-      setTopicError('');
+      loadSlot(opt, existingSession.periodNumber || 1, existingSession.date);
+      return;
+    }
+
+    const resumed = resume ? courseOptions.find((o) => o.key === resume.courseKey) : undefined;
+    if (resume && resumed) {
+      setCourseKey(resumed.key);
+      setPeriodNumber(resume.period);
+      setDate(resume.date);
+      loadSlot(resumed, resume.period, resume.date);
       return;
     }
 
@@ -298,7 +335,31 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     setDate(todayInfo.formattedDate);
     loadSlot(preferred, 1, todayInfo.formattedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, existingSession?.id, targetClassId, targetSubject]);
+  }, [isOpen, existingSession?.id, targetClassId, targetSubject, resume?.updatedAt]);
+
+  // ذخیره‌ی لحظه‌ای پیش‌نویس: هر تغییر بلافاصله روی دستگاه نوشته می‌شود تا با خاموش‌شدن صفحه از بین نرود
+  useEffect(() => {
+    if (!isOpen || !course || baselineRef.current === null) return;
+    if (formSignature(lessonTopic, homeworkDescription, sessionNotes, records) === baselineRef.current) {
+      clearAttendanceDraft(currentUser.id, course.key, date, periodNumber);
+      return;
+    }
+    saveAttendanceDraft(currentUser.id, course.key, date, periodNumber, { lessonTopic, homeworkDescription, sessionNotes, records });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, course?.key, date, periodNumber, lessonTopic, homeworkDescription, sessionNotes, records]);
+
+  // یادآوری فهرست باز، برای بازگشت به همان فهرست پس از بارگذاری دوباره‌ی برنامه
+  useEffect(() => {
+    if (!isOpen || !course) return;
+    saveActiveAttendance(currentUser.id, {
+      classId: course.classId,
+      subject: course.subjectName,
+      courseKey: course.key,
+      period: periodNumber,
+      date,
+      sessionId: editingSessionId,
+    });
+  }, [isOpen, course?.key, course?.classId, course?.subjectName, periodNumber, date, editingSessionId, currentUser.id]);
 
   const handleCourseChange = (key: string) => {
     const opt = courseOptions.find((o) => o.key === key);
@@ -514,6 +575,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         });
       });
 
+      clearAttendanceDraft(currentUser.id, course.key, date.trim(), periodNumber);
+      baselineRef.current = null;
       onClose();
     } catch {
       showToast('خطا در ذخیره اطلاعات جلسه. لطفاً مجدداً بررسی کنید.', 'error');
@@ -637,6 +700,16 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
               </select>
             </label>
           </div>
+
+          {draftRestored && (
+            <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+              <NotebookPen className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1">پیش‌نویس ذخیره‌شده‌ی شما بازیابی شد؛ هنوز ثبت نهایی نشده است.</span>
+              <button type="button" onClick={discardDraft} className="min-h-[32px] px-2.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 cursor-pointer whitespace-nowrap">
+                پاک‌کردن پیش‌نویس
+              </button>
+            </div>
+          )}
 
           {editingSessionId && !existingSession && (
             <div className="flex items-center gap-2 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
@@ -1012,7 +1085,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         <div className="fixed inset-0 z-60 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 space-y-4 text-center">
             <h3 className="text-base font-extrabold text-slate-900">خروج بدون ذخیره؟</h3>
-            <p className="text-xs text-slate-500">تغییرات این جلسه هنوز ثبت نشده است.</p>
+            <p className="text-xs text-slate-500">تغییرات این جلسه هنوز ثبت نهایی نشده است؛ به‌صورت پیش‌نویس نگه داشته می‌شود و با باز کردن دوباره‌ی همین زنگ برمی‌گردد.</p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -1029,7 +1102,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 }}
                 className="flex-1 h-11 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-2xl text-sm font-bold cursor-pointer"
               >
-                خروج
+                خروج و نگه‌داشتن پیش‌نویس
               </button>
             </div>
           </div>
