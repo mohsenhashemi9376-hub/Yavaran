@@ -27,6 +27,7 @@ import { periodUngradedStats, scorePillClass } from '../utils/gradePeriods';
 import { ComprehensiveExamManagement } from './ComprehensiveExamManagement';
 import { ExamEducationalReport } from './ExamEducationalReport';
 import { SubjectClassAnalysis } from './SubjectClassAnalysis';
+import { TermComprehensiveReport } from './TermComprehensiveReport';
 import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { WeeklyFollowUpDigest } from './WeeklyFollowUpDigest';
@@ -1044,6 +1045,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onViewWarnings={() => setCurrentView('warnings')}
           />
           <ExamEducationalReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
+          <TermComprehensiveReport onSelectStudent={(stu) => onSelectStudent(stu, 'grades')} />
           <SubjectClassAnalysis />
           </div>
         )}
