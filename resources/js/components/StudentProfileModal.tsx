@@ -1,3 +1,5 @@
+import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
+import { monthlyGpa } from '../utils/monthlyReport';
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -563,7 +565,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
 • درصد حضور: ${toPersianDigits(attendanceRate)}٪ (غیبت غیرموجه: ${toPersianDigits(totalAbsentCount)} مورد)
 • مجموع تأخیرات: ${toPersianDigits(totalDelaysCount)} بار
 • نمره انضباط فعلی: ${toPersianDigits(disciplineScore)} از ۲۰
-${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(academicReport.annualGpa)}` : ''}
+${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین نمرات ماهانه: ${toPersianDigits(monthlyGpa(studentAcademicGrades, 'all') as number)}` : ''}
 
 با تشکر - مدیریت مدرسه یاوران ولایت`;
     setSmsText(text);
@@ -1476,114 +1478,11 @@ ${academicReport.annualGpa ? `• معدل سالانه: ${toPersianDigits(acade
                 studentName={`${studentFullName(currentStudent)}`} 
               />
 
-              {/* 4-Period Official Grade Sheet */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-600" />
-                    <h3 className="font-bold text-slate-900 text-sm">
-                      کارنامه تفکیکی دروس (مستمر اول، پایانی اول، مستمر دوم، پایانی دوم)
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500 font-medium">
-                      معدل کل سالانه: <b className="text-indigo-700 font-mono">{toPersianDigits(academicReport.annualGpa ?? '-')}</b>
-                    </span>
-                    {onOpenGradeEntry && studentClass && (
-                      <button
-                        onClick={() => {
-                          onClose();
-                          onOpenGradeEntry(studentClass.id);
-                        }}
-                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer flex items-center gap-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>ثبت و ویرایش نمرات این کلاس</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {academicReport.subjectAnalyses.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-xs space-y-2">
-                    <p>هنوز نمره رسمی برای این دانش‌آموز ثبت نشده است.</p>
-                  </div>
-                ) : (
-                  <FitTable className="border border-slate-200 rounded-xl shadow-2xs">
-                    <table className="w-full text-right text-xs">
-                      <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] sm:text-xs">
-                        <tr>
-                          <th className="p-3 w-10 text-center">ردیف</th>
-                          <th className="p-3 font-bold min-w-[140px]">عنوان درس</th>
-                          <th className="p-2.5 text-center bg-amber-50/70 text-amber-900 font-bold min-w-[75px]">
-                            مستمر ۱
-                          </th>
-                          <th className="p-2.5 text-center bg-amber-100/70 text-amber-950 font-bold min-w-[75px]">
-                            پایانی ۱
-                          </th>
-                          <th className="p-2.5 text-center bg-emerald-50/70 text-emerald-900 font-bold min-w-[75px]">
-                            مستمر ۲
-                          </th>
-                          <th className="p-2.5 text-center bg-emerald-100/70 text-emerald-950 font-bold min-w-[75px]">
-                            پایانی ۲
-                          </th>
-                          <th className="p-2.5 text-center bg-indigo-50 text-indigo-950 font-bold min-w-[85px]">
-                            نمره سالانه
-                          </th>
-                          <th className="p-2.5 text-center min-w-[70px]">وضعیت</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {academicReport.subjectAnalyses.map((sub: any, idx: number) => (
-                          <tr key={sub.subjectId} className="hover:bg-slate-50 transition">
-                            <td className="p-3 text-center text-slate-400 font-bold">
-                              {toPersianDigits(idx + 1)}
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-slate-900">{sub.subjectName}</div>
-                              {sub.teacherName && (
-                                <div className="text-[10px] text-slate-400">استاد: {sub.teacherName}</div>
-                              )}
-                            </td>
-                            <td className="p-2.5 text-center bg-amber-50/30 font-bold font-mono text-slate-800">
-                              {sub.term1Continuous !== undefined ? toPersianDigits(sub.term1Continuous) : '-'}
-                            </td>
-                            <td className="p-2.5 text-center bg-amber-50/60 font-bold font-mono text-slate-800">
-                              {sub.term1Final !== undefined ? toPersianDigits(sub.term1Final) : '-'}
-                            </td>
-                            <td className="p-2.5 text-center bg-emerald-50/30 font-bold font-mono text-slate-800">
-                              {sub.term2Continuous !== undefined ? toPersianDigits(sub.term2Continuous) : '-'}
-                            </td>
-                            <td className="p-2.5 text-center bg-emerald-50/60 font-bold font-mono text-slate-800">
-                              {sub.term2Final !== undefined ? toPersianDigits(sub.term2Final) : '-'}
-                            </td>
-                            <td className="p-2.5 text-center bg-indigo-50/70">
-                              <span className={`font-mono font-bold text-sm ${
-                                sub.annualScore !== undefined
-                                  ? sub.annualScore >= 14 ? 'text-indigo-700' : sub.annualScore >= 10 ? 'text-emerald-700' : 'text-rose-600'
-                                  : 'text-slate-400'
-                              }`}>
-                                {sub.annualScore !== undefined ? toPersianDigits(sub.annualScore) : '-'}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                sub.passStatus === 'passed'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  : sub.passStatus === 'conditional'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : 'bg-rose-50 text-rose-800 border-rose-200'
-                              }`}>
-                                {sub.passStatus === 'passed' ? 'قبول' : sub.passStatus === 'conditional' ? 'تبصره' : 'تجدید'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </FitTable>
-                )}
-              </div>
+              {/* کارنامه تفکیکی دروس: نمره‌ی هر ماه جداگانه */}
+              <StudentMonthlyGradesTable
+                grades={studentAcademicGrades}
+                onEdit={onOpenGradeEntry && studentClass ? () => { onClose(); onOpenGradeEntry(studentClass.id); } : undefined}
+              />
 
             </div>
           )}

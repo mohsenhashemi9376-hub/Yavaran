@@ -5,6 +5,8 @@ import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
+import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
+import { CONTINUOUS_MONTHS } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
@@ -174,6 +176,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // وضعیت‌های بخش کارنامه
   const [reportCardClassId, setReportCardClassId] = useState<string>(classes[0]?.id || 'all');
   const [reportCardSearch, setReportCardSearch] = useState('');
+  const [reportMonth, setReportMonth] = useState<ReportMonth>('all');
 
   // وضعیت‌های بخش هشدارهای آموزشی
   const [warningClassFilter, setWarningClassFilter] = useState<string>('all');
@@ -356,8 +359,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   let schoolGradeSum = 0;
   let schoolGradeCount = 0;
   academicGrades.forEach(g => {
-    if (g.term1Continuous !== undefined) {
-      schoolGradeSum += g.term1Continuous;
+    const v = gradeScoreForMonth(g, 'all');
+    if (v !== undefined) {
+      schoolGradeSum += v;
       schoolGradeCount++;
     }
   });
@@ -373,12 +377,12 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       let totalWeight = 0;
       let weakSubjects: string[] = [];
 
+      // نمره‌ی هر ماه جداگانه: ماه انتخابی، یا میانگین ماه‌های ثبت‌شده
       stuGrades.forEach(g => {
-        const ann = calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final);
-        const coeff = 1;
+        const ann = gradeScoreForMonth(g, reportMonth);
         if (ann !== undefined) {
-          sum += ann * coeff;
-          totalWeight += coeff;
+          sum += ann;
+          totalWeight += 1;
           if (ann < 12) {
             weakSubjects.push(g.subjectName);
           }
@@ -392,12 +396,12 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         className: studentClass?.name || 'نامشخص',
         classId: stu.classId,
         gpa: gpa !== undefined ? Number(gpa.toFixed(2)) : undefined,
-        gradesCount: stuGrades.length,
+        gradesCount: stuGrades.filter((g) => gradeScoreForMonth(g, reportMonth) !== undefined).length,
         weakSubjects,
         hasWarning: gpa !== undefined ? gpa < 12 : false,
       };
     });
-  }, [students, classes, academicGrades]);
+  }, [students, classes, academicGrades, reportMonth]);
 
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
   // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
@@ -471,17 +475,14 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       clsStudents.forEach(stu => {
         academicSubjects.forEach(sub => {
           const g = academicGrades.find(grd => grd.studentId === stu.id && grd.subjectId === sub.id);
-          const ann = g ? calculateAnnualScore(g.term1Continuous, g.term1Final, g.term2Continuous, g.term2Final) : undefined;
+          const avg = g ? gradeScoreForMonth(g, 'all') : undefined;
           data.push({
             'کلاس': c.name,
             'نام دانش‌آموز': `${studentFullName(stu)}`,
             'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
             'نام درس': sub.name,
-            'مستمر ۱': g?.term1Continuous !== undefined ? g.term1Continuous : '',
-            'پایانی ۱': g?.term1Final !== undefined ? g.term1Final : '',
-            'مستمر ۲': g?.term2Continuous !== undefined ? g.term2Continuous : '',
-            'پایانی ۲': g?.term2Final !== undefined ? g.term2Final : '',
-            'نمره سالانه': ann !== undefined ? ann : 'ثبت نشده',
+            ...Object.fromEntries(CONTINUOUS_MONTHS.map((m) => [m.monthName, g && typeof g[m.key] === 'number' ? g[m.key] : ''])),
+            'میانگین ماه‌ها': avg !== undefined ? Math.round(avg * 100) / 100 : 'ثبت نشده',
             'دبیر': sub.defaultTeacherName || sub.teacherName || c.academicAdvisor || '-',
           });
         });
@@ -504,7 +505,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'نام و نام خانوادگی': `${studentFullName(item.student)}`,
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
-      'معدل کل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
+      'ماه': reportMonth === 'all' ? 'میانگین همه‌ی ماه‌ها' : (CONTINUOUS_MONTHS.find((m) => m.key === reportMonth)?.monthName ?? ''),
+      'معدل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
       'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
       'دروس دارای افت': item.weakSubjects.join('، ') || 'ندارد',
@@ -1061,6 +1063,16 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                     </button>
                   ))}
                 </div>
+
+                <select
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value as ReportMonth)}
+                  aria-label="ماه کارنامه"
+                  className="min-h-[40px] px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                >
+                  <option value="all">میانگین همه‌ی ماه‌ها</option>
+                  {CONTINUOUS_MONTHS.map((m) => <option key={m.key} value={m.key}>نمره‌ی {m.monthName}</option>)}
+                </select>
 
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
