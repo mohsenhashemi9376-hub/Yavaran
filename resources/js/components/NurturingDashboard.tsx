@@ -1,13 +1,10 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
-import { MentorGlassCards } from './MentorGlassCards';
+import { MentorHome } from './MentorHome';
 import { StudentDossierList } from './StudentDossierList';
-import { ObservationHomeWidgets } from './ObservationHomeWidgets';
-import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { ClassFilterDropdown } from './ClassFilterDropdown';
-import { MentorMessagesSection } from './MentorMessages';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -82,14 +79,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   Compass,
-  Menu,
   Star,
   BarChart3,
   Activity,
   CheckCircle,
   Settings,
   NotebookPen,
-  Mail,
 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -303,7 +298,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
-    todayClosedReason,
     schoolHolidays,
     security,
     showToast, showConfirm
@@ -347,6 +341,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
   // انتخاب کلاس و دانش‌آموز برای «ثبت مشاهده جدید»
   const [isObsPickerOpen, setIsObsPickerOpen] = useState(false);
+  const [obsInitialTab, setObsInitialTab] = useState<'overview' | 'timeline'>('overview');
+  useEffect(() => { if (currentView !== 'observation') setObsInitialTab('overview'); }, [currentView]);
   const [pickClassId, setPickClassId] = useState('');
   const [pickStudentId, setPickStudentId] = useState('');
   const [obsTitle, setObsTitle] = useState('');
@@ -409,7 +405,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   }, [isCoach, nurturingClasses, classes]);
 
   const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
-  const coachClassIds = useMemo(() => (isCoach ? availableClasses.map((c) => c.id) : undefined), [isCoach, availableClasses]);
 
   // دانش‌آموزان، مشاهدات و ارزیابی‌های مجاز (برای مدیر/معاون: کل مدرسه)
   const students = useMemo(
@@ -910,79 +905,21 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           />
         )}
         {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
-          <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-3xl p-4 shadow-lg border border-emerald-800/40 space-y-3">
-            {/* خط اول: نام و نقش */}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-              <h1 className="text-base font-black leading-7">{userGreeting.greeting} 👋</h1>
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-emerald-200 whitespace-nowrap">
-                <Lock className="w-3 h-3 text-emerald-400" />
-                {userGreeting.roleLabel}
-              </span>
-            </div>
-
-            {/* خط دوم: تاریخ و وضعیت مدرسه */}
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="bg-white/10 px-2.5 py-1 rounded-full text-slate-200 font-medium">{todayInfo.dayOfWeek}، {todayInfo.displayDate}</span>
-              <span className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-slate-100 font-bold">
-                <span className={`w-2 h-2 rounded-full ${todayClosedReason ? 'bg-rose-400' : 'bg-emerald-400'}`} aria-hidden="true" />
-                {todayClosedReason ? `وضعیت: ${todayClosedReason === 'friday' ? 'تعطیل (جمعه)' : 'تعطیل رسمی'}` : 'وضعیت: روز آموزشی'}
-              </span>
-              <button
-                type="button"
-                id="btn-mobile-nurturing-sidebar-toggle"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="lg:hidden mr-auto !min-h-0 h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer"
-                title="باز کردن نوار کناری"
-                aria-label="باز کردن نوار کناری"
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* آمار سریع */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => { setCurrentView('dossier'); setSelectedDossierStudent(null); }}
-                className="bg-white/10 active:bg-white/20 border border-white/15 rounded-2xl px-3 py-2.5 text-center cursor-pointer"
-                title="مشاهده پرونده‌های تربیتی"
-              >
-                <div className="text-xl font-black text-emerald-300 tabular-nums">{toPersianDigits(filteredStudents.length)}</div>
-                <div className="text-[11px] text-slate-300 font-medium">دانش‌آموز تحت پوشش</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setCurrentView('observation'); setSelectedDossierStudent(null); }}
-                className="bg-white/10 active:bg-white/20 border border-white/15 rounded-2xl px-3 py-2.5 text-center cursor-pointer"
-                title="مشاهده مشاهدات رفتاری"
-              >
-                <div className="text-xl font-black text-amber-300 tabular-nums">{toPersianDigits(totalObservationsCount)}</div>
-                <div className="text-[11px] text-slate-300 font-medium">مشاهده ثبت‌شده</div>
-              </button>
-            </div>
-
-            {/* اقدام‌های فوری */}
-            <div className="flex gap-2.5">
-              <button
-                type="button"
-                onClick={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
-                className="flex-1 h-12 rounded-2xl bg-emerald-500 active:bg-emerald-600 hover:bg-emerald-400 text-white text-sm font-extrabold shadow-md inline-flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ثبت مشاهده جدید</span>
-              </button>
-              {isNurturingVice && (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event('yv:new-mentor-message'))}
-                  className="flex-1 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/25 active:bg-white/20 hover:bg-white/15 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>پیام یا مأموریت جدید</span>
-                </button>
-              )}
-            </div>
-          </div>
+          <MentorHome
+            greeting={userGreeting.greeting}
+            roleLabel={userGreeting.roleLabel}
+            dayOfWeek={todayInfo.dayOfWeek}
+            displayDate={todayInfo.displayDate}
+            students={filteredStudents}
+            classes={availableClasses}
+            observations={observations}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
+            onOpenTimeline={() => { setObsInitialTab('timeline'); setSelectedDossierStudent(null); setCurrentView('observation'); }}
+            onOpenHomework={() => setCurrentView('homework_followup')}
+            onOpenAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
+            onOpenGreyList={() => setCurrentView('grey_list')}
+          />
         )}
 
         {/* مسیر صفحه (فشرده) */}
@@ -1044,163 +981,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         )}
 
       {/* ========================================================================= */}
-      {/* OVERVIEW: وضعیت تربیتی (۴ کارت ساده، کارهای سریع، موارد نیازمند توجه) */}
-      {/* ========================================================================= */}
-      {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
-        <div className="space-y-6 animate-in fade-in">
-          <MentorMessagesSection />
-
-          {/* نیازمند توجه فوری (فشرده) */}
-          {attentionNeededStudents.length > 0 && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 space-y-2" aria-label="نیازمند توجه فوری">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <AlertCircle className="w-4.5 h-4.5 text-rose-600 shrink-0" />
-                  <h3 className="font-black text-sm text-slate-900 whitespace-nowrap">نیازمند توجه فوری</h3>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">{toPersianDigits(attentionNeededStudents.length)}</span>
-                </div>
-                <button type="button" onClick={() => setCurrentView('attention')} className="!min-h-0 h-8 text-[11px] font-bold text-rose-700 whitespace-nowrap cursor-pointer">
-                  مشاهده همه ←
-                </button>
-              </div>
-              <ul className="space-y-1.5">
-                {attentionNeededStudents.slice(0, 3).map((student) => {
-                  const lastObs = observations.filter((o) => o.studentId === student.id).slice(-1)[0];
-                  return (
-                    <li key={student.id}>
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedDossierStudent(student); setCurrentView('dossier'); }}
-                        className="w-full text-right bg-white border border-rose-100 border-r-4 border-r-amber-400 rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer active:bg-rose-50"
-                      >
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-xs font-bold text-slate-900 truncate">{studentFullName(student)}</span>
-                          <span className="block text-[11px] text-slate-500 truncate">
-                            {classes.find((c) => c.id === student.classId)?.name || '—'}
-                            {lastObs ? ` · ${lastObs.title || lastObs.content}` : ''}
-                          </span>
-                        </span>
-                        <ChevronLeft className="w-4 h-4 text-slate-300 shrink-0" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {/* ۴ کارت اصلی وضعیت تربیتی */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* کارت ۱: فعالیتهای تربیتی */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('observation')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-emerald-700 transition">فعالیت‌های تربیتی</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(totalObservationsCount)}
-                </div>
-                <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                  مشاهدات رفتاری ثبت‌شده
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center group-hover:scale-105 transition">
-                <HeartHandshake className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۲: وضعیت دانش‌آموزان */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('dossier')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-teal-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-teal-700 transition">وضعیت دانش‌آموزان</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(filteredStudents.length)}
-                </div>
-                <div className="text-[11px] text-teal-700 font-medium mt-0.5">
-                  تحت پوشش مربیان و پرونده‌ها
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center group-hover:scale-105 transition">
-                <Users className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۳: امتیازها */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('coachEvaluations')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-amber-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-amber-700 transition">امتیازها و ارزیابی‌ها</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(coachEvaluations.length)}
-                </div>
-                <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-                  {toPersianDigits(totalEncouragementPoints)} امتیاز تشویقی ثبت‌شده
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition">
-                <Star className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۴: موارد نیازمند توجه */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('attention')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-rose-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-rose-700 transition">موارد نیازمند توجه</span>
-                <div className="text-2xl font-black text-rose-700 mt-1">
-                  {toPersianDigits(attentionNeededStudents.length)}
-                </div>
-                <div className="text-[11px] text-rose-600 font-medium mt-0.5">
-                  نیازمند پیگیری و هدایت
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center group-hover:scale-105 transition">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-            </button>
-          </div>
-
-          {isNurturingVice && (
-            <div className="flex justify-end">
-              <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
-            </div>
-          )}
-          <ObservationHomeWidgets
-            students={students}
-            classes={availableClasses}
-            observations={observations}
-            isVice={currentUser.role === 'vice_nurturing'}
-            onOpenAll={() => setCurrentView('observation')}
-            onOpenStudent={handleOpenStudentObs}
-          />
-
-          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
-
-          <MentorGlassCards
-            observationsCount={observations.length}
-            studentsCount={filteredStudents.length}
-            attentionCount={attentionNeededStudents.length}
-            onObserve={() => { if (filteredStudents.length > 0) handleOpenStudentObs(filteredStudents[0]); else setCurrentView('observation'); }}
-            onTimeline={() => { const stu = attentionNeededStudents[0] || filteredStudents[0]; if (stu) onSelectStudent?.(stu, 'timeline'); }}
-            onHomework={() => setCurrentView('homework_followup')}
-            onAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
-            onGreyList={() => setCurrentView('grey_list')}
-          />
-        </div>
-      )}
-      {/* ========================================================================= */}
       {currentView === 'academic_and_discipline' && (
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
@@ -1217,6 +997,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {currentView === 'observation' && (
         <ObservationInsights
+          initialTab={obsInitialTab}
           allStudents={students}
           scopedStudents={filteredStudents}
           classes={availableClasses}
