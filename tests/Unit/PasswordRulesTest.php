@@ -42,4 +42,11 @@ class PasswordRulesTest extends TestCase
     {
         $this->assertSame(8, PasswordRules::MIN_LENGTH_FORCED);
     }
+
+    public function test_minimum_length_is_eight_for_every_role(): void
+    {
+        foreach (['admin', 'teacher', 'coach', 'vice_nurturing', null] as $role) {
+            $this->assertSame(8, PasswordRules::minLengthFor($role));
+        }
+    }
 }

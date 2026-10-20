@@ -29,7 +29,7 @@ class ProfileController extends Controller
             'current_password' => ['required', 'string', 'max:191'],
             'username' => ['nullable', 'string', 'min:3', 'max:100'],
             'email' => ['nullable', 'email:filter', 'max:150'],
-            'new_password' => ['nullable', 'string', 'min:6', 'max:191'],
+            'new_password' => ['nullable', 'string', 'min:'.PasswordRules::MIN_LENGTH_FORCED, 'max:191'],
             'new_password_confirmation' => ['nullable', 'string', 'max:191'],
             'code' => ['nullable', 'string', 'max:16'],
         ], [
@@ -37,7 +37,7 @@ class ProfileController extends Controller
             'email.email' => 'نشانی ایمیل معتبر نیست.',
             'username.min' => 'نام کاربری باید حداقل ۳ کاراکتر باشد.',
             'username.max' => 'نام کاربری نباید بیش از ۱۰۰ کاراکتر باشد.',
-            'new_password.min' => 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.',
+            'new_password.min' => 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.',
         ]);
 
         $current = trim(Digits::toEnglish($validated['current_password']));
@@ -70,7 +70,7 @@ class ProfileController extends Controller
         }
         if ($newPassword !== '') {
             $min = $forced ? max(PasswordRules::MIN_LENGTH_FORCED, PasswordRules::minLengthFor($user->role)) : PasswordRules::minLengthFor($user->role);
-            if ($min > 6 && mb_strlen($newPassword) < $min) {
+            if (mb_strlen($newPassword) < $min) {
                 throw ValidationException::withMessages(['new_password' => 'رمز عبور جدید باید حداقل '.strtr((string) $min, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹']).' کاراکتر باشد.']);
             }
             if (PasswordRules::isWeak($newPassword, $user->username)) {

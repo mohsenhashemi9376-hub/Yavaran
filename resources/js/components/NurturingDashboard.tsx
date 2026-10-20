@@ -1,6 +1,8 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
+import { MentorGlassCards } from './MentorGlassCards';
+import { StudentDossierList } from './StudentDossierList';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
@@ -76,20 +78,16 @@ import {
   Clock,
   Sparkle,
   Award,
-  BookOpen,
   UserCheck,
   ShieldCheck,
   CheckCircle2,
   Compass,
   Menu,
-  ArrowLeft,
   Star,
   BarChart3,
   Activity,
   CheckCircle,
   Settings,
-  LayoutDashboard,
-  RotateCcw,
   NotebookPen,
   Mail,
 } from 'lucide-react';
@@ -1190,74 +1188,16 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
           <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
 
-          {/* بخش کارهای سریع (Quick Actions) */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-            <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>کارهای سریع</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (filteredStudents.length > 0) {
-                    handleOpenStudentObs(filteredStudents[0]);
-                  }
-                }}
-                className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-emerald-900 group-hover:text-emerald-950">
-                  <Plus className="w-4 h-4 text-emerald-700" />
-                  <span>ثبت فعالیت / مشاهده‌گری</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ثبت بازخورد رفتاری، عاطفی و عملکرد فردی
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenNewCoachEval()}
-                className="p-3.5 rounded-xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-teal-900 group-hover:text-teal-950">
-                  <Award className="w-4 h-4 text-teal-700" />
-                  <span>ثبت امتیاز و ارزیابی رشد</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ارزیابی شاخص‌های شش‌گانه رشد دانش‌آموز
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrentView('dossier')}
-                className="p-3.5 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-purple-900 group-hover:text-purple-950">
-                  <FolderHeart className="w-4 h-4 text-purple-700" />
-                  <span>مشاهده پرونده تربیتی</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ۸ بخش جامع (مشاوره، مزاج، خانواده و...)
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrentView('academic_and_discipline')}
-                className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-indigo-900 group-hover:text-indigo-950">
-                  <BookOpen className="w-4 h-4 text-indigo-700" />
-                  <span>آموزش و انضباط کلاس‌ها</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  نمای یکپارچه کارنامه، غیبت‌ها و نمرات
-                </p>
-              </button>
-            </div>
-          </div>
+          <MentorGlassCards
+            observationsCount={observations.length}
+            studentsCount={filteredStudents.length}
+            attentionCount={attentionNeededStudents.length}
+            onObserve={() => { if (filteredStudents.length > 0) handleOpenStudentObs(filteredStudents[0]); else setCurrentView('observation'); }}
+            onTimeline={() => { const stu = attentionNeededStudents[0] || filteredStudents[0]; if (stu) onSelectStudent?.(stu, 'timeline'); }}
+            onHomework={() => setCurrentView('homework_followup')}
+            onAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
+            onGreyList={() => setCurrentView('grey_list')}
+          />
         </div>
       )}
       {/* ========================================================================= */}
@@ -1413,227 +1353,29 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* SECTION 2: «پرونده تربیتی دانش‌آموزان» (Clean, Purposeful, Fast Access) */}
       {/* ========================================================================= */}
       {currentView === 'dossier' && !selectedDossierStudent && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          
-          {/* Header: Compact, purposeful, and uncluttered */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-              {/* Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                <button
-                  type="button"
-                  onClick={() => setCurrentView(null)}
-                  className="hover:text-emerald-700 transition cursor-pointer flex items-center gap-1"
-                >
-                  <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>داشبورد</span>
-                </button>
-                <ChevronLeft className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-900 font-black">پرونده تربیتی دانش‌آموزان</span>
-              </div>
-
-              {/* Actions: Mobile Menu Toggle & Return to Dashboard */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  id="btn-mobile-sidebar-toggle-dossier"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="lg:hidden px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                  title="منوی ناوبری"
-                >
-                  <Menu className="w-3.5 h-3.5" />
-                  <span>منو</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrentView(null)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1 cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>بازگشت به داشبورد</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Title & Subtitle with student count */}
-            <div className="pt-3">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-lg md:text-xl font-black text-slate-900">
-                  پرونده تربیتی دانش‌آموزان
-                </h1>
-                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                  {toPersianDigits(filteredStudents.length)} دانش‌آموز
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                دانش‌آموز را انتخاب کنید تا پرونده تربیتی او را ببینید.
-              </p>
-            </div>
-          </div>
-
-          {/* Search & Class Filter Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-3 md:p-4 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                id="dossier-search-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجوی نام دانش‌آموز..."
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-10 pl-9 py-2.5 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full transition cursor-pointer"
-                  title="پاک کردن جستجو"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Class Filter Dropdown */}
-            <div className="flex items-center gap-2 shrink-0">
-              <label htmlFor="dossier-class-filter" className="text-xs font-bold text-slate-600 shrink-0">
-                کلاس:
-              </label>
-              <select
-                id="dossier-class-filter"
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                className="text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition cursor-pointer text-slate-800"
-              >
-                {!(isCoach && availableClasses.length === 1) && (
-                  <option value="all">همه کلاس‌ها ({toPersianDigits(students.length)})</option>
-                )}
-                {availableClasses.map((cls) => {
-                  const count = students.filter((s) => s.classId === cls.id).length;
-                  return (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.name} ({toPersianDigits(count)})
-                    </option>
-                  );
-                })}
-              </select>
-
-              {/* Reset Filters button if any filter is active */}
-              {(searchTerm.trim() !== '' || (selectedClassId !== 'all' && !(isCoach && availableClasses.length === 1))) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedClassId(isCoach && availableClasses.length === 1 ? availableClasses[0].id : 'all');
-                  }}
-                  className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
-                  title="پاک کردن فیلترها"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">پاک کردن فیلترها</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Student Cards Grid */}
-          {filteredStudents.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
-              {filteredStudents.map((student) => {
-                const dossier = nurturingDossiers[student.id];
-                const sectionsFilledCount = dossier ? (
-                  (dossier.thinkingPoints.length > 0 ? 1 : 0) +
-                  (dossier.privateSessions.length > 0 ? 1 : 0) +
-                  (dossier.parentInterviews.length > 0 ? 1 : 0) +
-                  (dossier.temperament.dominantType || dossier.temperament.entries.length > 0 ? 1 : 0) +
-                  (dossier.growthPath.length > 0 ? 1 : 0) +
-                  (dossier.lifestyle.length > 0 ? 1 : 0) +
-                  (dossier.interviews.length > 0 ? 1 : 0) +
-                  (dossier.nurturingSummary.overallSummary || dossier.nurturingSummary.entries.length > 0 ? 1 : 0)
-                ) : 0;
-
-                const isComplete = sectionsFilledCount === 8;
-
-                return (
-                  <div
-                    key={student.id}
-                    id={`dossier-card-${student.id}`}
-                    onClick={() => setSelectedDossierStudent(student)}
-                    className="bg-white rounded-2xl border border-slate-200 hover:border-purple-400 hover:bg-slate-50/60 p-4 shadow-2xs hover:shadow-xs transition-all duration-150 cursor-pointer flex flex-col justify-between gap-3 group"
-                  >
-                    {/* Student Name & Class */}
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-purple-700 transition">
-                        {studentFullName(student)}
-                      </h3>
-                      <div className="text-xs text-slate-500 mt-1 font-medium">
-                        {getStudentClassName(student.classId)}
-                      </div>
-                    </div>
-
-                    {/* Dossier Completion Status */}
-                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">تکمیل پرونده:</span>
-                      {isComplete ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          کامل
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          ناقص
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* Empty State */
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
-                <Search className="w-6 h-6" />
-              </div>
-              {selectedClassId !== 'all' && students.filter((s) => s.classId === selectedClassId).length === 0 ? (
-                <>
-                  <h3 className="text-sm font-bold text-slate-800">
-                    دانش‌آموزی در این کلاس ثبت نشده است.
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedClassId('all')}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-                  >
-                    <span>نمایش همه کلاس‌ها</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-sm font-bold text-slate-800">
-                    دانش‌آموزی پیدا نشد
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    نام دیگری را جستجو کنید یا کلاس دیگری را انتخاب کنید.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setSelectedClassId('all');
-                    }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 transition cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>پاک کردن فیلترها</span>
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <StudentDossierList
+          students={filteredStudents}
+          classOptions={availableClasses.map((cls) => ({ id: cls.id, name: cls.name, count: students.filter((s) => s.classId === cls.id).length }))}
+          totalCount={selectedClassId === 'all' ? students.length : students.filter((s) => s.classId === selectedClassId).length}
+          selectedClassId={selectedClassId}
+          lockClass={isCoach && availableClasses.length === 1}
+          searchTerm={searchTerm}
+          onSearch={setSearchTerm}
+          onClassChange={setSelectedClassId}
+          onBack={() => setCurrentView(null)}
+          onOpenMenu={() => setIsMobileSidebarOpen(true)}
+          onOpen={setSelectedDossierStudent}
+          isComplete={(student) => {
+            const d = nurturingDossiers[student.id];
+            return !!d
+              && d.thinkingPoints.length > 0 && d.privateSessions.length > 0 && d.parentInterviews.length > 0
+              && !!(d.temperament.dominantType || d.temperament.entries.length > 0)
+              && d.growthPath.length > 0 && d.lifestyle.length > 0 && d.interviews.length > 0
+              && !!(d.nurturingSummary.overallSummary || d.nurturingSummary.entries.length > 0);
+          }}
+          className={getStudentClassName}
+          observationCount={(id) => observations.filter((o) => o.studentId === id).length}
+        />
       )}
 
       {/* ========================================================================= */}

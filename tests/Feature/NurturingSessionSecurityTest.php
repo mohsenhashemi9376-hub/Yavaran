@@ -138,7 +138,7 @@ class NurturingSessionSecurityTest extends TestCase
 
     // ---------- رمز عبور ----------
 
-    public function test_short_password_forces_change_for_coach_but_not_teacher(): void
+    public function test_short_password_forces_change_for_every_role(): void
     {
         $coach = $this->makeUser('coach', ['password' => \Illuminate\Support\Facades\Hash::make('Abc-123')]); // ۷ کاراکتر
         $teacher = $this->makeUser('teacher', ['password' => \Illuminate\Support\Facades\Hash::make('Abc-123')]);
@@ -148,10 +148,10 @@ class NurturingSessionSecurityTest extends TestCase
         $this->assertSame(1, (int) DB::table('users')->where('id', $coach->id)->value('must_change_password'));
 
         $this->postJson('/api/auth/login', ['username' => $teacher->username, 'password' => 'Abc-123'])->assertOk();
-        $this->assertSame(0, (int) DB::table('users')->where('id', $teacher->id)->value('must_change_password'));
+        $this->assertSame(1, (int) DB::table('users')->where('id', $teacher->id)->value('must_change_password'));
     }
 
-    public function test_profile_rejects_new_password_shorter_than_eight_for_nurturing_roles(): void
+    public function test_profile_rejects_new_password_shorter_than_eight_for_every_role(): void
     {
         $coach = $this->makeUser('coach');
         $teacher = $this->makeUser('teacher');
@@ -165,6 +165,9 @@ class NurturingSessionSecurityTest extends TestCase
 
         $this->actingAs($teacher)->postJson('/api/profile', [
             'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-12', 'new_password_confirmation' => 'Abc-12',
+        ])->assertStatus(422)->assertJsonValidationErrors('new_password');
+        $this->actingAs($teacher)->postJson('/api/profile', [
+            'current_password' => 'Str0ng-Pass!', 'new_password' => 'Abc-1234', 'new_password_confirmation' => 'Abc-1234',
         ])->assertOk();
     }
 }

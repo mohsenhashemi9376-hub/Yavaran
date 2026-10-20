@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Award, ChevronDown, ChevronLeft, FileSpreadsheet, HelpCircle, Printer, Search } from 'lucide-react';
+import { Award, ChevronDown, ChevronLeft, FileSpreadsheet, HelpCircle, Printer, Save, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { Modal } from './ui';
 import { Student, StudentAttendanceRecord } from '../types';
@@ -60,6 +60,34 @@ const shortClass = (name: string) => name.replace(/^شهید\s+/, '');
 const key = (d: string): string => toEnglishDigits(d || '').split('/').map((p, i) => (i === 0 ? p : p.padStart(2, '0'))).join('/');
 
 type Incident = { date: string; kind: 'delay' | 'absence' | 'classAbsence' | 'note'; minutes?: number; excused?: boolean };
+
+/** معیارهای پیشرفته‌ی «ممتاز»؛ معاون انضباطی تعیین می‌کند. پیش‌فرض (همه صفر) یعنی «بدون هیچ مورد» */
+export interface ExcellenceCriteria {
+  /** ماه‌های انتخابی (شماره‌ی ماه شمسی)؛ خالی = همان بازه‌ی بالا */
+  months: number[];
+  maxDelays: number;
+  maxExcusedAbsences: number;
+  maxUnexcusedAbsences: number;
+  maxClassAbsences: number;
+  maxNotes: number;
+}
+
+export const DEFAULT_CRITERIA: ExcellenceCriteria = { months: [], maxDelays: 0, maxExcusedAbsences: 0, maxUnexcusedAbsences: 0, maxClassAbsences: 0, maxNotes: 0 };
+
+const CRITERIA_FIELDS: { key: Exclude<keyof ExcellenceCriteria, 'months'>; label: string }[] = [
+  { key: 'maxDelays', label: 'حداکثر تأخیر' },
+  { key: 'maxExcusedAbsences', label: 'حداکثر غیبت موجه' },
+  { key: 'maxUnexcusedAbsences', label: 'حداکثر غیبت غیرموجه' },
+  { key: 'maxClassAbsences', label: 'حداکثر غیبت کلاسی' },
+  { key: 'maxNotes', label: 'حداکثر مورد انضباطی' },
+];
+
+const PRESETS_KEY = 'yavaran.disciplineExcellence.presets';
+interface CriteriaPreset { name: string; criteria: ExcellenceCriteria }
+const loadPresets = (): CriteriaPreset[] => {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]'); } catch { return []; }
+};
+const storePresets = (list: CriteriaPreset[]) => { try { localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); } catch { /* حافظه در دسترس نیست */ } };
 
 interface Verdict {
   student: Student;
@@ -139,11 +167,19 @@ function useVerdicts(scopeClassIds?: string[]) {
   }, [students, classes, sessions, morningAttendance, morningDelays, schoolAbsences, scopeClassIds]);
 }
 
-export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?: string[]) {
+export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?: string[], criteria: ExcellenceCriteria = DEFAULT_CRITERIA) {
   const { verdicts, classes, scoped } = useVerdicts(scopeClassIds);
   return useMemo(() => {
-    const { from, to } = periodRange(period);
-    const inWin = (d: string) => d >= from && d <= to;
+    const ranges = criteria.months.length ? criteria.months.map((m) => periodRange(`m${m}`)) : [periodRange(period)];
+    const inWin = (d: string) => ranges.some(({ from, to }) => d >= from && d <= to);
+    const within = (inc: Incident[]) => {
+      const n = (f: (i: Incident) => boolean) => inc.filter(f).length;
+      return n((i) => i.kind === 'delay') <= criteria.maxDelays
+        && n((i) => i.kind === 'absence' && !!i.excused) <= criteria.maxExcusedAbsences
+        && n((i) => i.kind === 'absence' && !i.excused) <= criteria.maxUnexcusedAbsences
+        && n((i) => i.kind === 'classAbsence') <= criteria.maxClassAbsences
+        && n((i) => i.kind === 'note') <= criteria.maxNotes;
+    };
     const describe = (inc: Incident[]) => {
       const n = (k: Incident['kind']) => inc.filter((i) => i.kind === k).length;
       return [
@@ -158,7 +194,7 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
     const others: { student: Student; reason: string }[] = [];
     verdicts.forEach(({ student, incidents }) => {
       const inc = incidents.filter((i) => inWin(i.date));
-      if (inc.length === 0) { excellent.push(student); return; }
+      if (within(inc)) { excellent.push(student); return; }
       // هر مورد انضباطی ثبت‌شده، غیبت کلاسی یا غیبت غیرموجه یعنی «غیرممتاز»
       // تقریباً ممتاز: فقط تأخیرهایی که همگی تا ۰۷:۱۰ بوده‌اند (هر تعداد)، یا فقط یک غیبت موجه
       if (inc.every((i) => i.kind === 'delay' && (i.minutes || 0) <= MINOR_DELAY_MINUTES)) {
@@ -192,7 +228,7 @@ export function useDisciplineExcellence(period: ExcellencePeriod, scopeClassIds?
       return { label: PERSIAN_MONTHS[month - 1], n };
     });
     return { excellent, near, others, byClass, total: scoped.length, trend };
-  }, [verdicts, classes, scoped, period, scopeClassIds]);
+  }, [verdicts, classes, scoped, period, scopeClassIds, criteria]);
 }
 
 const PeriodSelect: React.FC<{ value: ExcellencePeriod; onChange: (p: ExcellencePeriod) => void; compact?: boolean }> = ({ value, onChange, compact }) => (
@@ -220,7 +256,11 @@ const PeriodSelect: React.FC<{ value: ExcellencePeriod; onChange: (p: Excellence
 export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student) => void; classIds?: string[] }> = ({ onSelectStudent, classIds }) => {
   const { isAdmin, isDisciplinaryVice, isNurturingVice, isCoach, classes: allClasses } = useSchool();
   const [period, setPeriod] = useState<ExcellencePeriod>('d30');
-  const { excellent, near, others, byClass, total, trend } = useDisciplineExcellence(period, classIds);
+  const [crit, setCrit] = useState<ExcellenceCriteria>(DEFAULT_CRITERIA);
+  const { excellent, near, others, byClass, total, trend } = useDisciplineExcellence(period, classIds, crit);
+  const [advOpen, setAdvOpen] = useState(false);
+  const [presets, setPresets] = useState<CriteriaPreset[]>(loadPresets);
+  const [presetName, setPresetName] = useState('');
   const [open, setOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [trendOpen, setTrendOpen] = useState(false);
@@ -228,6 +268,18 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
   if (!(isAdmin || isDisciplinaryVice || isNurturingVice || (isCoach && classIds))) return null;
+
+  const monthLabelOf = (m: number) => elapsedMonths().find((x) => x.month === m)?.label || '';
+  const winLabel = crit.months.length ? crit.months.map(monthLabelOf).join('، ') : periodLabel(period);
+  const advActive = crit.months.length > 0 || CRITERIA_FIELDS.some((f) => crit[f.key] !== 0);
+  const toggleMonth = (m: number) => setCrit((c) => ({ ...c, months: c.months.includes(m) ? c.months.filter((x) => x !== m) : [...c.months, m] }));
+  const savePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const next = [...presets.filter((p) => p.name !== name), { name, criteria: crit }];
+    setPresets(next); storePresets(next); setPresetName('');
+  };
+  const removePreset = (name: string) => { const next = presets.filter((p) => p.name !== name); setPresets(next); storePresets(next); };
 
   const className = (id: string) => allClasses.find((c) => c.id === id)?.name || '—';
   const percent = total ? Math.round((excellent.length / total) * 100) : 0;
@@ -249,7 +301,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
     XLSX.utils.book_append_sheet(wb, ws, tab === 'excellent' ? 'ممتازین انضباطی' : tab === 'near' ? 'تقریباً ممتاز' : 'غیرممتاز');
     XLSX.writeFile(wb, `ممتازین_انضباطی_${getTodayShamsi().formattedDate.replace(/\//g, '-')}.xlsx`);
   };
-  const print = (list: Student[]) => printCertificates(list.map((s) => ({ name: studentFullName(s), className: className(s.classId) })), periodLabel(period));
+  const print = (list: Student[]) => printCertificates(list.map((s) => ({ name: studentFullName(s), className: className(s.classId) })), winLabel);
 
   return (
     <>
@@ -281,7 +333,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
 
         {helpOpen && (
           <p className="mt-2 text-[11px] leading-5 text-amber-900 bg-amber-100/60 rounded-xl px-3 py-1.5">
-            بدون هیچ غیبت، تأخیر یا مورد انضباطی در {periodLabel(period)} (حضور از اول مهر حساب می‌شود)
+            {advActive ? `بر اساس معیارهای پیشرفته‌ی تعیین‌شده در ${winLabel}` : `بدون هیچ غیبت، تأخیر یا مورد انضباطی در ${winLabel} (حضور از اول مهر حساب می‌شود)`}
           </p>
         )}
 
@@ -341,7 +393,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
         </div>
       </section>
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${periodLabel(period)} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
+      <Modal isOpen={open} onClose={() => setOpen(false)} title="ممتازین انضباطی" subtitle={`${winLabel} · ${toPersianDigits(shownExcellent.length)} ممتاز، ${toPersianDigits(shownNear.length)} تقریباً ممتاز`} icon={<Award className="w-5 h-5" />} size="xl">
         <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold" role="tablist">
           {([['excellent', `ممتاز (${toPersianDigits(shownExcellent.length)})`], ['near', `تقریباً ممتاز (${toPersianDigits(shownNear.length)})`], ['others', `غیرممتاز + دلیل (${toPersianDigits(shownOthers.length)})`]] as const).map(([k, l]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3.5 py-1.5 rounded-lg cursor-pointer ${tab === k ? 'bg-white shadow-xs text-amber-800' : 'text-slate-500'}`}>{l}</button>
@@ -367,6 +419,50 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
           </button>
         </div>
 
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40">
+          <button type="button" onClick={() => setAdvOpen((v) => !v)} aria-expanded={advOpen} className="!min-h-0 w-full h-11 px-3 flex items-center justify-between text-xs font-bold text-slate-700 cursor-pointer">
+            <span className="inline-flex items-center gap-2"><SlidersHorizontal className="w-4 h-4 text-amber-600" /> فیلتر پیشرفته (تعیین معیار ممتاز){advActive && <span className="px-2 py-0.5 rounded-full bg-amber-600 text-white text-[10px]">فعال</span>}</span>
+            <ChevronDown className={`w-4 h-4 text-amber-600 transition-transform ${advOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {advOpen && (
+            <div className="px-3 pb-3 space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-500">ماه‌های مبنا (در صورت انتخاب، جایگزین بازه‌ی بالا می‌شود)</span>
+                  {crit.months.length > 0 && <button type="button" onClick={() => setCrit((c) => ({ ...c, months: [] }))} className="!min-h-0 text-[11px] font-bold text-slate-400 cursor-pointer">پاک کردن</button>}
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {elapsedMonths().map((m) => (
+                    <button key={m.month} type="button" disabled={isFutureMonth(m)} onClick={() => toggleMonth(m.month)}
+                      className={`shrink-0 !min-h-0 h-8 px-3 rounded-full text-xs font-bold border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${crit.months.includes(m.month) ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}>{m.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {CRITERIA_FIELDS.map((f) => (
+                  <label key={f.key} className="block">
+                    <span className="block text-[11px] font-bold text-slate-500 mb-1 whitespace-nowrap">{f.label}</span>
+                    <input type="number" min={0} value={crit[f.key]} onChange={(e) => setCrit((c) => ({ ...c, [f.key]: Math.max(0, Number(e.target.value) || 0) }))} className="w-full h-10 text-xs bg-white rounded-xl px-3 outline-none border border-slate-200 focus:ring-4 focus:ring-amber-100" />
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-amber-200/60">
+                {presets.map((p) => (
+                  <span key={p.name} className="inline-flex items-center rounded-full bg-white border border-amber-200 text-xs font-bold text-amber-800 overflow-hidden">
+                    <button type="button" onClick={() => setCrit(p.criteria)} className="!min-h-0 px-3 h-8 cursor-pointer hover:bg-amber-50">{p.name}</button>
+                    <button type="button" onClick={() => removePreset(p.name)} aria-label={`حذف ${p.name}`} className="!min-h-0 px-2 h-8 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+                <div className="flex items-center gap-2 mr-auto">
+                  <input value={presetName} onChange={(e) => setPresetName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && savePreset()} placeholder="نام فیلتر…" className="w-32 h-9 text-xs bg-white rounded-lg px-2.5 outline-none border border-slate-200" />
+                  <button type="button" onClick={savePreset} disabled={!presetName.trim()} className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"><Save className="w-3.5 h-3.5" /> ذخیره</button>
+                  <button type="button" onClick={() => setCrit(DEFAULT_CRITERIA)} className="h-9 px-3 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 cursor-pointer">بازنشانی</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {(tab === 'excellent' ? shownExcellent.length : tab === 'near' ? shownNear.length : shownOthers.length) === 0 ? (
           <p className="text-center text-sm text-slate-400 py-10">موردی یافت نشد.</p>
         ) : (
@@ -390,7 +486,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
           </ul>
         )}
         <p className="text-[10px] text-slate-400 leading-5">
-          معیار ممتاز: در {periodLabel(period)} هیچ غیبت (موجه/غیرموجه، روزانه/کلاسی)، تأخیر یا سابقه‌ی انضباطی نداشته باشد. آغاز حضور همه‌ی دانش‌آموزان اول مهر است.
+          معیار ممتاز: {advActive ? `در ${winLabel} از سقف‌های تعیین‌شده‌ی «فیلتر پیشرفته» فراتر نرود.` : `در ${winLabel} هیچ غیبت (موجه/غیرموجه، روزانه/کلاسی)، تأخیر یا سابقه‌ی انضباطی نداشته باشد.`} آغاز حضور همه‌ی دانش‌آموزان اول مهر است.
           تقریباً ممتاز: بدون مورد انضباطی و غیبت غیرموجه، و هیچ‌گاه بعد از {MINOR_DELAY_TIME} وارد نشده باشد (تأخیرهای تا {MINOR_DELAY_TIME}) یا فقط یک غیبت موجه داشته باشد.
         </p>
       </Modal>

@@ -207,6 +207,8 @@ final class SyncService
             }
 
             $plain = Str::password(10, symbols: false);
+        } elseif (mb_strlen($plain) < PasswordRules::MIN_LENGTH_FORCED) {
+            abort(422, PasswordRules::tooShortMessage());
         }
 
         $plain = mb_substr($plain, 0, 191);

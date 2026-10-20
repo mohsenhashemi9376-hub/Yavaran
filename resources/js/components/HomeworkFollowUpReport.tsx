@@ -118,14 +118,14 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
 
   const rows = useMemo(() => {
     return baseRows
-      .filter((r) => (filter === 'not_done' ? r.notDone > 0 : filter === 'incomplete' ? r.incomplete > 0 : filter === 'students' ? r.notDone > 0 : true))
+      .filter((r) => (filter === 'not_done' ? r.notDone > 0 : filter === 'incomplete' ? r.incomplete > 0 : filter === 'students' ? r.notDone + r.incomplete > 0 : true))
       .map((r) => (filter === 'all' || filter === 'students' ? r : { ...r, details: r.details.filter((d) => d.outcome === filter) }))
       .sort((a, b) => b.notDone - a.notDone || b.incomplete - a.incomplete || studentFullName(a.student).localeCompare(studentFullName(b.student), 'fa'));
   }, [baseRows, filter]);
 
   const totalNotDone = baseRows.reduce((s, r) => s + r.notDone, 0);
   const totalIncomplete = baseRows.reduce((s, r) => s + r.incomplete, 0);
-  const withNotDone = baseRows.filter((r) => r.notDone > 0).length;
+  const involved = baseRows.length;
   const pct = (r: Row) => (r.total ? Math.round(((r.notDone + r.incomplete) / r.total) * 100) : 0);
 
   const exportExcel = () => {
@@ -151,83 +151,84 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     XLSX.writeFile(wb, 'Homework_FollowUp.xlsx');
   };
 
-  const selectCls = 'w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium cursor-pointer';
+  const selectCls = 'h-11 w-full px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer';
+
+  /** باکس‌های شاخص (KPI): عدد درشت + برچسب ریز در خط زیرین */
+  const kpis: { key: 'not_done' | 'incomplete' | 'students'; value: number; label: string; box: string; num: string; ring: string }[] = [
+    { key: 'not_done', value: totalNotDone, label: 'تکلیف انجام‌نشده', box: 'bg-rose-50 border-rose-100 hover:bg-rose-100/60', num: 'text-rose-700', ring: 'ring-rose-400' },
+    { key: 'incomplete', value: totalIncomplete, label: 'تکلیف ناقص', box: 'bg-amber-50 border-amber-100 hover:bg-amber-100/60', num: 'text-amber-700', ring: 'ring-amber-400' },
+    { key: 'students', value: involved, label: 'دانش‌آموز درگیر', box: 'bg-slate-50 border-slate-200 hover:bg-emerald-50/70', num: 'text-emerald-800', ring: 'ring-emerald-400' },
+  ];
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <ClipboardList className="w-5 h-5 text-amber-700" />
-          <h2 className="text-base font-black text-slate-900 flex-1">پیگیری تکالیف دانش‌آموزان</h2>
-          <button
-            type="button"
-            onClick={exportExcel}
-            disabled={rows.length === 0}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>خروجی اکسل</span>
-          </button>
-        </div>
+    <div className="space-y-3" dir="rtl">
+      {/* عنوان + خروجی */}
+      <div className="flex items-center gap-2">
+        <ClipboardList className="w-5 h-5 shrink-0 text-amber-700" />
+        <h2 className="flex-1 min-w-0 text-base font-black text-slate-900">پیگیری تکالیف دانش‌آموزان</h2>
+        <button
+          type="button"
+          onClick={exportExcel}
+          disabled={rows.length === 0}
+          className="!min-h-0 h-9 px-3 shrink-0 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>اکسل</span>
+        </button>
+      </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <select value={classId} onChange={(e) => { setClassId(e.target.value); setSubject(''); }} className={selectCls}>
-            <option value="">همه کلاس‌ها</option>
-            {nurturingSessionClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select value={subject} onChange={(e) => setSubject(e.target.value)} className={selectCls}>
-            <option value="">همه دروس</option>
-            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={selectCls}>
-            <option value={0}>همه ماه‌ها</option>
-            {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+      {/* ۳ شاخص در یک سطر */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {kpis.map((k) => (
+          <button
+            key={k.key}
+            type="button"
+            aria-pressed={filter === k.key}
+            onClick={() => setFilter(filter === k.key ? 'all' : k.key)}
+            className={`rounded-2xl border px-1.5 py-3 cursor-pointer transition ${k.box} ${filter === k.key ? `ring-2 ${k.ring} shadow-sm` : ''}`}
+          >
+            <div className={`text-2xl font-black leading-none ${k.num}`}>{toPersianDigits(k.value)}</div>
+            <div className="mt-1.5 text-[10px] font-medium text-slate-600 whitespace-nowrap">{k.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* جستجو (راست) + ماه (چپ) */}
+      <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="جستجوی نام دانش‌آموز"
-              className="w-full pr-8 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              className="h-11 w-full pr-9 pl-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 [&::-webkit-search-cancel-button]:hidden"
             />
           </div>
+          <div className="relative w-[8.5rem] shrink-0">
+            <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="ماه" className={`${selectCls} appearance-none pl-8`}>
+              <option value={0}>همه ماه‌ها</option>
+              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <button
-            type="button"
-            aria-pressed={filter === 'not_done'}
-            onClick={() => setFilter(filter === 'not_done' ? 'all' : 'not_done')}
-            className={`rounded-xl bg-rose-50 border border-rose-100 p-2.5 cursor-pointer transition ${filter === 'not_done' ? 'ring-2 ring-rose-400 shadow-sm' : 'hover:bg-rose-100/60'}`}
-          >
-            <div className="text-lg font-black text-rose-700">{toPersianDigits(totalNotDone)}</div>
-            <div className="text-[10px] text-rose-700">تکلیف انجام‌نشده</div>
-          </button>
-          <button
-            type="button"
-            aria-pressed={filter === 'incomplete'}
-            onClick={() => setFilter(filter === 'incomplete' ? 'all' : 'incomplete')}
-            className={`rounded-xl bg-amber-50 border border-amber-100 p-2.5 cursor-pointer transition ${filter === 'incomplete' ? 'ring-2 ring-amber-400 shadow-sm' : 'hover:bg-amber-100/60'}`}
-          >
-            <div className="text-lg font-black text-amber-700">{toPersianDigits(totalIncomplete)}</div>
-            <div className="text-[10px] text-amber-700">تکلیف ناقص</div>
-          </button>
-          <button
-            type="button"
-            aria-pressed={filter === 'students'}
-            onClick={() => setFilter(filter === 'students' ? 'all' : 'students')}
-            className={`rounded-xl bg-slate-50 border border-slate-200 p-2.5 cursor-pointer transition ${filter === 'students' ? 'ring-2 ring-slate-400 shadow-sm' : 'hover:bg-slate-100'}`}
-          >
-            <div className="text-lg font-black text-slate-800">{toPersianDigits(withNotDone)}</div>
-            <div className="text-[10px] text-slate-600">دانش‌آموز با انجام‌نشده</div>
-          </button>
+        <div className="grid grid-cols-2 gap-2">
+          <select value={classId} onChange={(e) => { setClassId(e.target.value); setSubject(''); }} aria-label="کلاس" className={selectCls}>
+            <option value="">همه کلاس‌ها</option>
+            {nurturingSessionClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="درس" className={selectCls}>
+            <option value="">همه دروس</option>
+            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        {rows.length === 0 ? (
-          (() => {
+      {rows.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {(() => {
             const narrowed = Boolean(classId || subject || month || search.trim() || filter !== 'all');
             if (narrowed) {
               return (
@@ -245,75 +246,80 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
                 hint="وضعیت تکلیف هنگام ثبت حضور و غیاب جلسه‌ی بعد توسط استاد ثبت می‌شود و فقط برای درس‌هایی که جلسه‌ی قبلشان تکلیف داشته، معنا دارد."
               />
             );
-          })()
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {rows.map((r, i) => {
-              const open = openId === r.student.id;
-              return (
-                <li key={r.student.id}>
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <span className="text-[11px] text-slate-400 w-6 text-center">{toPersianDigits(i + 1)}</span>
+          })()}
+        </div>
+      ) : (
+        <ul className="space-y-2.5">
+          {rows.map((r, i) => {
+            const open = openId === r.student.id;
+            return (
+              <li key={r.student.id} className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                <div className="flex flex-col gap-2.5 p-3.5">
+                  {/* سطر بالا: ردیف، نام، کلاس، فلش */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">{toPersianDigits(i + 1)}</span>
                     <button
                       type="button"
                       onClick={() => onSelectStudent?.(r.student)}
-                      className="flex-1 min-w-0 text-right cursor-pointer"
+                      className="!min-h-0 min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-right cursor-pointer"
                     >
-                      <div className="font-bold text-sm text-slate-900 truncate">{studentFullName(r.student)}</div>
-                      <div className="text-[11px] text-slate-500">{r.className}</div>
+                      <span className="whitespace-nowrap font-bold text-sm text-slate-900">{studentFullName(r.student)}</span>
+                      <span className="whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                        {r.className.startsWith('کلاس') ? r.className : `کلاس ${r.className}`}
+                      </span>
                     </button>
-                    {r.notDone > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 whitespace-nowrap">
-                        {toPersianDigits(r.notDone)} انجام‌نشده
-                      </span>
-                    )}
-                    {r.streak >= 2 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white whitespace-nowrap">
-                        {toPersianDigits(r.streak)} جلسه پیاپی
-                      </span>
-                    )}
-                    {r.incomplete > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
-                        {toPersianDigits(r.incomplete)} ناقص
-                      </span>
-                    )}
-                    <span className="text-[11px] text-slate-500 hidden sm:inline w-20 text-left">
-                      {toPersianDigits(pct(r))}٪ از {toPersianDigits(r.total)}
-                    </span>
                     <button
                       type="button"
                       onClick={() => setOpenId(open ? null : r.student.id)}
                       aria-label="جزئیات"
-                      className="p-1 text-slate-500 cursor-pointer"
+                      aria-expanded={open}
+                      className="!min-h-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 cursor-pointer"
                     >
                       <ChevronDown className={`w-4 h-4 transition ${open ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
-                  {open && (
-                    <div className="bg-slate-50 px-4 py-3 space-y-1.5">
-                      {r.details.length === 0 ? (
-                        <div className="text-xs text-slate-400">مورد انجام‌نشده یا ناقصی ثبت نشده است.</div>
-                      ) : (
-                        r.details.map((d) => (
-                          <div key={`${d.sessionId}`} className="flex items-center gap-2 text-xs flex-wrap">
-                            <span className="font-mono text-slate-700" title="تاریخ جلسه‌ای که تکلیف در آن داده شد">{toPersianDigits(d.date)}</span>
-                            <span className="text-[10px] text-slate-400">(وضعیت در جلسه {toPersianDigits(d.recordedDate)} ثبت شد)</span>
-                            <span className="text-slate-500">{d.subject}</span>
-                            <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${d.outcome === 'not_done' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+
+                  {/* سطر پایین: بج‌های هشدار */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.streak >= 2 && (
+                      <span className="whitespace-nowrap rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white">🚨 {toPersianDigits(r.streak)} جلسه پیاپی</span>
+                    )}
+                    {r.notDone > 0 && (
+                      <span className="whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700">{toPersianDigits(r.notDone)} تکلیف انجام‌نشده</span>
+                    )}
+                    {r.incomplete > 0 && (
+                      <span className="whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">{toPersianDigits(r.incomplete)} تکلیف ناقص</span>
+                    )}
+                    <span className="whitespace-nowrap rounded-full bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">{toPersianDigits(pct(r))}٪ از {toPersianDigits(r.total)}</span>
+                  </div>
+                </div>
+
+                {open && (
+                  <div className="border-t border-slate-100 bg-slate-50 px-3.5 py-3 space-y-2">
+                    {r.details.length === 0 ? (
+                      <div className="text-xs text-slate-400">مورد انجام‌نشده یا ناقصی ثبت نشده است.</div>
+                    ) : (
+                      r.details.map((d) => (
+                        <div key={d.sessionId} className="rounded-xl bg-white border border-slate-200 p-2.5 text-xs space-y-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-mono text-slate-700 whitespace-nowrap" title="تاریخ جلسه‌ای که تکلیف در آن داده شد">{toPersianDigits(d.date)}</span>
+                            <span className="text-slate-500 whitespace-nowrap">{d.subject}</span>
+                            <span className={`mr-auto px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap ${d.outcome === 'not_done' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                               {OUTCOME_LABEL[d.outcome]}
                             </span>
-                            <span className="text-slate-600 truncate">{d.homework || 'تکلیفی توضیح داده نشده'}</span>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                          <p className="text-slate-600 leading-5">{d.homework || 'تکلیفی توضیح داده نشده'}</p>
+                          <p className="text-[10px] text-slate-400">وضعیت در جلسه {toPersianDigits(d.recordedDate)} ثبت شد</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 };
