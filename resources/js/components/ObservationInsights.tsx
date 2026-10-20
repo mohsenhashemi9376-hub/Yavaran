@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
-  Activity, AlertTriangle, ArrowLeft, BarChart3, Clock, Download, Eye, Flame, LayoutGrid, ListFilter, MapPin,
-  FileText, Plus, Rows3, Search, Tag as TagIcon, Users, X, Rows2,
+  Activity, AlertTriangle, ArrowLeft, BarChart3, Clock, Download, Eye, Flame, LayoutGrid, MapPin,
+  ChevronDown, FileText, FolderOpen, Plus, Search, Users, X,
 } from 'lucide-react';
 import { SchoolClass, Student, StudentObservation, ObservationCategory } from '../types';
 import { toPersianDigits, tehranNow, shamsiStringToDate } from '../utils/persianDate';
@@ -165,14 +165,16 @@ export interface ObservationInsightsProps {
   staleInfo: Map<string, number | null>;
   isVice: boolean;
   onRecord: (student: Student) => void;
-  /** فهرست کارتی دانش‌آموزان (تب سوم) */
-  studentsGrid: React.ReactNode;
+  /** ثبت مشاهده‌ی جدید (باز کردن انتخاب دانش‌آموز) */
+  onNewObservation?: () => void;
+  /** فیلتر کلاس (برای مربی/معاونی که چند کلاس دارد) */
+  classFilter?: { options: { id: string; name: string; count: number }[]; value: string; onChange: (id: string) => void; lockAll?: boolean };
   /** تب اولیه (پیش‌فرض: نمای کلی) */
   initialTab?: Tab;
 }
 
 export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
-  allStudents, scopedStudents, classes, observations, staleInfo, isVice, onRecord, studentsGrid, initialTab = 'overview',
+  allStudents, scopedStudents, classes, observations, staleInfo, isVice, onRecord, onNewObservation, classFilter, initialTab = 'overview',
 }) => {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [period, setPeriod] = useState<Period>('30');
@@ -180,17 +182,12 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
   const [author, setAuthor] = useState<'all' | 'coach' | 'vice'>('all');
   const [tag, setTag] = useState('');
   const [q, setQ] = useState('');
-  const [dense, setDense] = useState(() => {
-    try { return localStorage.getItem('yv-obs-dense') === '1'; } catch { return false; }
-  });
   const [limit, setLimit] = useState(30);
-  const [groupBy, setGroupBy] = useState<'time' | 'student'>('time');
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const groupBy: 'time' | 'student' = tab === 'students' ? 'student' : 'time';
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [panelStudentId, setPanelStudentId] = useState<string | null>(null);
 
-  useEffect(() => {
-    try { localStorage.setItem('yv-obs-dense', dense ? '1' : '0'); } catch { /* ignore */ }
-  }, [dense]);
   useEffect(() => setLimit(30), [period, cat, author, tag, q, scopedStudents]);
 
   const now = tehranNow().getTime();
@@ -351,36 +348,124 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
     </div>
   );
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'overview', label: 'نمای کلی', icon: <BarChart3 className="w-4 h-4" /> },
-    { key: 'timeline', label: 'خط زمانی', icon: <Rows3 className="w-4 h-4" /> },
-    { key: 'students', label: 'دانش‌آموزان', icon: <Users className="w-4 h-4" /> },
-  ];
+  const catChips = [{ key: 'all' as const, short: 'همه', count: inPeriod.length }, ...catCounts.filter((c) => c.key !== 'other' || c.count > 0).map((c) => ({ key: c.key as ObservationCategory | 'all', short: c.short, count: c.count }))];
+  const filtersActive = cat !== 'all' || author !== 'all' || q.trim() !== '' || period !== '30';
+  const clearFilters = () => { setCat('all'); setTag(''); setQ(''); setAuthor('all'); setPeriod('30'); };
+  const toggleFolder = (id: string) => setOpenFolders((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const selectCls = 'h-9 shrink-0 appearance-none rounded-full border border-slate-200 bg-white pr-3 pl-7 text-xs font-bold text-slate-700 outline-none focus:border-emerald-600 cursor-pointer';
 
   /* ───────────── رندر ───────────── */
   return (
-    <div className="space-y-4">
-      {/* تب‌ها و بازه */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex p-1 bg-white border border-slate-200 rounded-2xl shadow-xs" role="tablist">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                tab === t.key ? 'bg-gradient-to-l from-emerald-600 to-teal-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {t.icon}
-              {t.label}
+    <div className="space-y-3">
+      {/* نوار جستجوی جامع + ابزارها */}
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); if (tab === 'overview') setTab('timeline'); }}
+            placeholder="جستجوی دانش‌آموز، عنوان، شرح یا برچسب…"
+            aria-label="جستجوی جامع"
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pr-10 pl-9 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#00875A] focus:bg-white focus:ring-2 focus:ring-emerald-600/20 [&::-webkit-search-cancel-button]:hidden"
+          />
+          {q && (
+            <button type="button" onClick={() => setQ('')} aria-label="پاک کردن جستجو" className="!min-h-0 absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-slate-400 hover:text-slate-600 cursor-pointer">
+              <X className="h-4 w-4" />
             </button>
-          ))}
+          )}
         </div>
-        {tab !== 'students' && PeriodChips}
+        <button
+          type="button"
+          onClick={() => setTab(tab === 'overview' ? 'timeline' : 'overview')}
+          aria-pressed={tab === 'overview'}
+          title="نمای کلی و آمار"
+          aria-label="نمای کلی و آمار"
+          className={`!min-h-0 grid h-12 w-12 shrink-0 place-items-center rounded-2xl border cursor-pointer transition ${tab === 'overview' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+        >
+          <BarChart3 className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={exportExcel}
+          disabled={filtered.length === 0}
+          title="خروجی اکسل"
+          aria-label="خروجی اکسل"
+          className="!min-h-0 grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 cursor-pointer"
+        >
+          <Download className="h-5 w-5" />
+        </button>
       </div>
+
+      {/* سگمنت دوزبانه */}
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 text-xs font-bold" role="tablist" aria-label="نحوه‌ی نمایش">
+        {([['timeline', '⏱️ خط زمانی رویدادها'], ['students', '👥 به تفکیک دانش‌آموز']] as const).map(([k, l]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`!min-h-0 h-10 rounded-full whitespace-nowrap cursor-pointer transition ${tab === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ریل فیلتر تک‌خطی */}
+      {tab === 'overview' ? (
+        <div className="flex justify-end">{PeriodChips}</div>
+      ) : (
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <label className="relative shrink-0">
+            <span className="sr-only">بازه زمانی</span>
+            <select value={period} onChange={(e) => setPeriod(e.target.value as Period)} className={selectCls}>
+              {periods.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          </label>
+          {classFilter && classFilter.options.length > 1 && (
+            <label className="relative shrink-0">
+              <span className="sr-only">کلاس</span>
+              <select value={classFilter.value} onChange={(e) => classFilter.onChange(e.target.value)} className={selectCls}>
+                {!classFilter.lockAll && <option value="all">همه کلاس‌ها</option>}
+                {classFilter.options.map((c) => <option key={c.id} value={c.id}>{c.name} ({fa(c.count)})</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            </label>
+          )}
+          {isVice && (
+            <label className="relative shrink-0">
+              <span className="sr-only">ثبت‌کننده</span>
+              <select value={author} onChange={(e) => setAuthor(e.target.value as 'all' | 'coach' | 'vice')} className={selectCls}>
+                <option value="all">همه ثبت‌کنندگان</option>
+                <option value="coach">ثبت مربی</option>
+                <option value="vice">ثبت معاون</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            </label>
+          )}
+          <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+          {catChips.map((c) => {
+            const meta = c.key === 'all' ? null : catOf(c.key);
+            const on = cat === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setCat(c.key === 'all' || cat === c.key ? 'all' : (c.key as ObservationCategory))}
+                aria-pressed={on}
+                className="!min-h-0 h-9 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-xs font-bold cursor-pointer transition"
+                style={on ? { background: meta?.hex || '#0f172a', color: '#fff', borderColor: meta?.hex || '#0f172a' } : { background: meta?.soft || '#fff', color: meta?.hex || '#475569', borderColor: meta ? `${meta.hex}44` : '#e2e8f0' }}
+              >
+                {c.short} ({fa(c.count)})
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ───────── نمای کلی ───────── */}
       {tab === 'overview' && (
@@ -527,124 +612,63 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
       )}
 
       {/* ───────── خط زمانی ───────── */}
-      {tab === 'timeline' && (
+      {(tab === 'timeline' || tab === 'students') && (
         <div className="space-y-3 animate-in fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="جستجو در عنوان، شرح، نام دانش‌آموز و برچسب…"
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              {isVice && (
-                <select
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value as 'all' | 'coach' | 'vice')}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
-                  aria-label="فیلتر ثبت‌کننده"
-                >
-                  <option value="all">همه ثبت‌کنندگان</option>
-                  <option value="coach">ثبت‌شده توسط مربی</option>
-                  <option value="vice">ثبت‌شده توسط معاون</option>
-                </select>
-              )}
-              <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold" role="group" aria-label="گروه‌بندی">
-                {([['time', 'بر اساس زمان'], ['student', 'بر اساس دانش‌آموز']] as const).map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setGroupBy(k)} className={`px-3 py-1.5 rounded-lg cursor-pointer ${groupBy === k ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500'}`}>{l}</button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setDense((d) => !d)}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"
-                title="تغییر تراکم نمایش"
-              >
-                {dense ? <Rows3 className="w-4 h-4" /> : <Rows2 className="w-4 h-4" />}
-                {dense ? 'راحت' : 'فشرده'}
-              </button>
-              <button
-                type="button"
-                onClick={exportExcel}
-                disabled={filtered.length === 0}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-2.5 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 cursor-pointer"
-              >
-                <Download className="w-4 h-4" /> خروجی اکسل
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <ListFilter className="w-4 h-4 text-slate-400" />
-              <button
-                type="button"
-                onClick={() => setCat('all')}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${cat === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              >
-                همه ({fa(inPeriod.length)})
-              </button>
-              {catCounts.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setCat(cat === c.key ? 'all' : c.key)}
-                  className="px-3 py-1 rounded-full text-[11px] font-bold border cursor-pointer transition"
-                  style={cat === c.key ? { background: c.hex, color: '#fff', borderColor: c.hex } : { background: c.soft, color: c.hex, borderColor: `${c.hex}44` }}
-                >
-                  {c.short} ({fa(c.count)})
-                </button>
-              ))}
-            </div>
-
-            {allTags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <TagIcon className="w-4 h-4 text-slate-400" />
-                {allTags.map(([t, n]) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTag(tag === t ? '' : t)}
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] border cursor-pointer ${tag === t ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
-                  >
-                    #{t} <span className="opacity-60">{fa(n)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="text-[11px] text-slate-500 px-1">{fa(filtered.length)} مشاهده یافت شد</div>
 
           {filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center space-y-2">
-              <Eye className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-700">مشاهده‌ای با این فیلترها پیدا نشد</p>
-              <p className="text-xs text-slate-500">بازه زمانی را گسترده‌تر کنید یا فیلترها را بردارید.</p>
-              <button
-                type="button"
-                onClick={() => { setCat('all'); setTag(''); setQ(''); setAuthor('all'); setPeriod('all'); }}
-                className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
-              >
-                پاک‌کردن همه فیلترها
-              </button>
+            <div className="rounded-3xl border border-white/70 bg-white/80 px-6 py-12 text-center shadow-sm ring-1 ring-slate-200/70 backdrop-blur">
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-white/80 bg-gradient-to-br from-emerald-50 to-white text-emerald-600 shadow-sm ring-1 ring-emerald-100">
+                <Eye className="h-7 w-7" />
+              </span>
+              {inScope.length === 0 ? (
+                <>
+                  <h3 className="mt-4 text-base font-black text-slate-900">هنوز مشاهده‌ای ثبت نشده است</h3>
+                  <p className="mt-1 text-xs leading-6 text-slate-500">اولین مشاهده‌ی رفتاری را ثبت کنید تا در خط زمانی نمایش داده شود.</p>
+                  {onNewObservation && (
+                    <button type="button" onClick={onNewObservation} className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#00875A] px-6 text-sm font-extrabold text-white shadow-md shadow-emerald-700/25 hover:bg-emerald-800 active:scale-[.99] cursor-pointer">
+                      ➕ ثبت اولین مشاهده‌گری
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h3 className="mt-4 text-base font-black text-slate-900">مشاهده‌ای با این فیلترها پیدا نشد</h3>
+                  <p className="mt-1 text-xs leading-6 text-slate-500">بازه‌ی زمانی را گسترده‌تر کنید یا فیلترها را بردارید.</p>
+                  <button type="button" onClick={() => { clearFilters(); setPeriod('all'); }} className="mt-5 inline-flex h-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-5 text-sm font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer">
+                    پاک‌کردن فیلترها
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-5">
               {groups.map((g) => (
                 <section key={g.label} className="space-y-2">
-                  <h4 className="flex items-center gap-2 text-xs font-black text-slate-500">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    {g.label}
-                    <span className="flex-1 h-px bg-slate-200" />
-                    <span className="font-mono">{fa(g.items.length)}</span>
-                    {g.studentId && (
-                      <button type="button" onClick={() => exportWord(g.studentId!)} className="!min-h-0 inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700 hover:bg-sky-100 cursor-pointer">
-                        <FileText className="w-3.5 h-3.5" /> خروجی Word
+                  {groupBy === 'student' && g.studentId ? (
+                    <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 pr-3 shadow-xs">
+                      <button type="button" onClick={() => toggleFolder(g.studentId!)} aria-expanded={openFolders.has(g.studentId)} className="!min-h-0 flex min-w-0 flex-1 items-center gap-2.5 text-right cursor-pointer">
+                        <FolderOpen className="h-5 w-5 shrink-0 text-emerald-600" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-black text-slate-900">{g.label}</span>
+                          <span className="block truncate text-[11px] text-slate-500">{(() => { const st = studentById.get(g.studentId!); return st ? classNameOf(st.classId) : ''; })()} · {fa(g.items.length)} مشاهده</span>
+                        </span>
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${openFolders.has(g.studentId) ? 'rotate-180' : ''}`} />
                       </button>
-                    )}
-                  </h4>
+                      {onNewObservation && (
+                        <button type="button" onClick={() => { const st = studentById.get(g.studentId!); if (st) onRecord(st); }} title="ثبت مشاهده برای این دانش‌آموز" aria-label="ثبت مشاهده" className="!min-h-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-emerald-700 hover:bg-emerald-50 cursor-pointer"><Plus className="h-4 w-4" /></button>
+                      )}
+                      <button type="button" onClick={() => exportWord(g.studentId!)} title="خروجی Word" aria-label="خروجی Word" className="!min-h-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sky-700 hover:bg-sky-50 cursor-pointer"><FileText className="h-4 w-4" /></button>
+                    </div>
+                  ) : (
+                    <h4 className="flex items-center gap-2 text-xs font-black text-slate-500">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {g.label}
+                      <span className="h-px flex-1 bg-slate-200" />
+                      <span className="font-mono">{fa(g.items.length)}</span>
+                    </h4>
+                  )}
+                  {(groupBy === 'time' || (g.studentId && openFolders.has(g.studentId))) && (
                   <div className="relative pr-4 space-y-2 before:absolute before:right-[3px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
                     {g.items.map((o) => {
                       const s = studentById.get(o.studentId);
@@ -658,7 +682,7 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                         >
                           <span className="absolute right-[-17px] top-4 w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: c.hex }} />
                           <span className="absolute inset-y-0 right-0 w-1" style={{ background: c.hex }} />
-                          <div className={`pr-4 pl-3 ${dense ? 'py-2' : 'py-3'} space-y-1.5`}>
+                          <div className="pr-4 pl-3 py-3 space-y-1.5">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: c.soft, color: c.hex }}>{c.short}</span>
                               <button
@@ -675,12 +699,12 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                               </span>
                             </div>
                             <h5 className="text-[13px] font-bold text-slate-800"><Highlight text={o.title} q={q} /></h5>
-                            {!dense && (
+                            {(
                               <p className={`text-xs text-slate-600 leading-6 ${open ? '' : 'line-clamp-2'}`}>
                                 <Highlight text={o.content} q={q} />
                               </p>
                             )}
-                            {!dense && long && (
+                            {long && (
                               <button
                                 type="button"
                                 onClick={() => setExpanded((p) => { const n = new Set(p); if (n.has(o.id)) n.delete(o.id); else n.add(o.id); return n; })}
@@ -705,6 +729,7 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                       );
                     })}
                   </div>
+                  )}
                 </section>
               ))}
               {groupTotal > limit && (
@@ -722,8 +747,6 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
           )}
         </div>
       )}
-
-      {tab === 'students' && <div className="animate-in fade-in">{studentsGrid}</div>}
 
       {/* ───────── پنل کشویی دانش‌آموز ───────── */}
       {panelStudent && (() => {
