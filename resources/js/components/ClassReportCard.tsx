@@ -5,7 +5,7 @@ import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { CONTINUOUS_MONTHS } from '../utils/examReport';
-import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
+import { SCORE_BAND_STYLE, ScoreBand, isPeriodOpenForSubject, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { compareByLastName } from '../utils/morningAttendance';
@@ -27,7 +27,7 @@ interface ClassReportCardProps {
 }
 
 export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onSelectStudent }) => {
-  const { accessibleClasses, classes, students, academicSubjects, academicGrades, isTeacher, isAdmin, isEducationalVice, canTeachClassAndSubject, currentUser } = useSchool();
+  const { accessibleClasses, classes, students, academicSubjects, academicGrades, isTeacher, isAdmin, isEducationalVice, canTeachClassAndSubject, currentUser, gradePeriods } = useSchool();
 
   const classChoices = useMemo(() => {
     const pool = (accessibleClasses.length ? accessibleClasses : classes).filter((c) => !c.isWorkshop);
@@ -43,12 +43,25 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
 
   const cls = classChoices.find((c) => c.id === classId) ?? classData;
   const restrict = !isAdmin && !isEducationalVice && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
-  const subjects = useMemo(
+  const scopedSubjects = useMemo(
     () => academicSubjects.filter((s) => subjectAppliesToClass(s, cls) && (!restrict || canTeachClassAndSubject(cls.id, s.id))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [academicSubjects, cls, restrict, currentUser.teachingAssignments]
   );
   const classStudents = useMemo(() => students.filter((s) => s.classId === cls.id).slice().sort(compareByLastName), [students, cls.id]);
+
+  /** دروسی که ثبت نمره‌شان برای این ماه (یا هر ماهی در «کل سال») باز نشده و نمره‌ای هم ندارند، نمایش داده نمی‌شوند */
+  const subjects = useMemo(() => {
+    const classStudentIds = new Set(classStudents.map((s) => s.id));
+    return scopedSubjects.filter((sub) => {
+      const open = period === 'year'
+        ? gradePeriods.some((p) => isPeriodOpenForSubject(p, sub.id))
+        : isPeriodOpenForSubject(gradePeriods.find((p) => p.code === period), sub.id);
+      if (open) return true;
+      const keys = period === 'year' ? CONTINUOUS_MONTHS.map((m) => m.key) : [period];
+      return academicGrades.some((g) => g.subjectId === sub.id && classStudentIds.has(g.studentId) && keys.some((k) => typeof g[k] === 'number' && !Number.isNaN(g[k] as number)));
+    });
+  }, [scopedSubjects, classStudents, gradePeriods, academicGrades, period]);
 
   /** نمره‌ی یک دانش‌آموز در یک درس: ماه انتخابی، یا میانگین تمام ماه‌های ثبت‌شده */
   const scoreOf = (studentId: string, subjectId: string): number | undefined => {

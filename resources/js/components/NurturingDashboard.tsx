@@ -1,6 +1,7 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
+import { MentorGlassCards } from './MentorGlassCards';
 import { ObservationHomeWidgets } from './ObservationHomeWidgets';
 import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
@@ -1189,6 +1190,16 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
           <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
 
+          <MentorGlassCards
+            observationsCount={observations.length}
+            studentsCount={filteredStudents.length}
+            attentionCount={attentionNeededStudents.length}
+            onObserve={() => { if (filteredStudents.length > 0) handleOpenStudentObs(filteredStudents[0]); else setCurrentView('observation'); }}
+            onTimeline={() => { const stu = attentionNeededStudents[0] || filteredStudents[0]; if (stu) onSelectStudent?.(stu, 'timeline'); }}
+            onHomework={() => setCurrentView('homework_followup')}
+            onAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
+            onGreyList={() => setCurrentView('grey_list')}
+          />
         </div>
       )}
       {/* ========================================================================= */}

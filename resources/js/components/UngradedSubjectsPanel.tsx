@@ -4,7 +4,7 @@ import { useSchool } from '../context/SchoolContext';
 import { MonthlyContinuousKey } from '../types';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { SCORE_COLUMNS } from '../utils/examReport';
-import { buildGradePeriodList } from '../utils/gradePeriods';
+import { buildGradePeriodList, isPeriodOpenForSubject } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 
 interface Props {
@@ -28,7 +28,10 @@ export const UngradedSubjectsPanel: React.FC<Props> = ({ onPick }) => {
       items: { classId: string; className: string; expected: number; recorded: number; teacher?: string }[];
     }[] = [];
     let complete = 0;
+    const periodRec = periods.find((p) => p.code === period);
     academicSubjects.forEach((sub) => {
+      // دروسی که ثبت نمره‌ی این ماه برایشان باز نشده، در این فهرست نمی‌آیند
+      if (!isPeriodOpenForSubject(periodRec, sub.id)) return;
       const items = classes
         .filter((c) => !c.isWorkshop && subjectAppliesToClass(sub, c))
         .map((c) => {
@@ -44,7 +47,7 @@ export const UngradedSubjectsPanel: React.FC<Props> = ({ onPick }) => {
       if (missing.length) rows.push({ subjectId: sub.id, subjectName: sub.name, items: missing });
     });
     return { missingRows: rows, completeCount: complete };
-  }, [classes, students, academicSubjects, academicGrades, courseAssignments, allTeachers, period]);
+  }, [classes, students, academicSubjects, academicGrades, courseAssignments, allTeachers, period, periods]);
 
   const totalMissingClasses = missingRows.reduce((n, r) => n + r.items.length, 0);
 

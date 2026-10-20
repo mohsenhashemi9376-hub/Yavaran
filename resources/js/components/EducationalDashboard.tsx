@@ -84,7 +84,6 @@ import {
   School,
   LayoutDashboard,
   Menu,
-  PhoneCall,
   Calendar,
   AlertTriangle,
   X,
@@ -95,7 +94,7 @@ import * as XLSX from 'xlsx';
 import { MobileBottomNav } from './MobileBottomNav';
 import { educationalMobileNav, HOME } from './mobileNavConfigs';
 import { studentFullName } from '../utils/studentName';
-import { FitTable } from './ui/FitTable';
+import { AcademicFollowUpTable } from './AcademicFollowUpTable';
 
 interface EducationalDashboardProps {
   onSelectStudent: (student: Student, initialTab?: 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'timeline') => void;
@@ -1170,148 +1169,24 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             {criteriaOpen && <FollowUpCriteriaModal config={followUpConfig} onSave={saveFollowUpConfig} onClose={() => setCriteriaOpen(false)} />}
 
             {/* ۳. جدول موارد پیگیری */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <FitTable className="">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-600 font-bold bg-slate-50/70">
-                      <th className="p-3 w-12 text-center">ردیف</th>
-                      <th className="p-3">دانش‌آموز</th>
-                      <th className="p-3">کلاس</th>
-                      <th className="p-3 text-center">معدل کل</th>
-                      <th className="p-3">علت پیگیری</th>
-                      <th className="p-3">وضعیت پیگیری</th>
-                      <th className="p-3">لیست خاکستری</th>
-                      <th className="p-3">شماره ولی</th>
-                      <th className="p-3 text-left">اقدام فوری</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {academicWarningStudents
-                      .filter(item => {
-                        if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
-                        if (!showResolved && item.followRecord?.status === 'resolved') return false;
-                        if (warningGroup !== 'all' && !item.followUps.some((f) => f.group === warningGroup)) return false;
-                        if (!warningSearch) return true;
-                        const q = warningSearch.trim().toLowerCase();
-                        const name = `${studentFullName(item.student)}`.toLowerCase();
-                        return name.includes(q) || item.student.parentPhone.includes(q);
-                      })
-                      .map((item, idx) => (
-                        <tr key={item.student.id} className="hover:bg-slate-50/70 transition">
-                          <td className="p-3 text-center text-slate-400 font-mono">
-                            {toPersianDigits(idx + 1)}
-                          </td>
-                          <td className="p-3 font-bold text-slate-900">
-                            <button
-                              type="button"
-                              onClick={() => onSelectStudent(item.student, 'grades')}
-                              className="hover:text-teal-800 hover:underline transition cursor-pointer"
-                            >
-                              {studentFullName(item.student)}
-                            </button>
-                            <span
-                              className={`mr-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                                item.priority >= 4 ? 'bg-rose-50 text-rose-700 border-rose-200' : item.priority === 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-                              }`}
-                            >
-                              {item.priority >= 4 ? 'فوری' : item.priority === 3 ? 'مهم' : 'توجه'} • {toPersianDigits(item.priority)} مورد
-                            </span>
-                          </td>
-                          <td className="p-3 text-slate-600">
-                            کلاس {item.className}
-                          </td>
-                          <td className="p-3 text-center">
-                            <span className={`inline-block font-mono font-black text-sm px-3 py-1 rounded-xl whitespace-nowrap ${scorePillClass(item.gpa ?? null)}`}>
-                              {item.gpa !== undefined ? toPersianDigits(item.gpa) : '—'}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex flex-col gap-1">
-                              {item.followUps.map((f, i) => (
-                                <span key={`${f.kind}-${i}`} className="inline-flex items-start gap-1 text-rose-700 font-semibold leading-5">
-                                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                                  <span>{f.label}: <span className="font-medium text-slate-700">{toPersianDigits(f.detail)}</span></span>
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-3 min-w-44">
-                            <select
-                              value={item.followRecord?.status ?? 'open'}
-                              onChange={(e) => setAcademicFollowUp(item.student, { status: e.target.value as AcademicFollowUpStatus })}
-                              aria-label={`وضعیت پیگیری ${studentFullName(item.student)}`}
-                              className="w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs font-bold text-slate-800 outline-none cursor-pointer"
-                            >
-                              <option value="open">پیگیری نشده</option>
-                              <option value="in_progress">در حال بررسی</option>
-                              <option value="called_parent">تماس با ولی گرفته شد</option>
-                              <option value="resolved">حل شد</option>
-                            </select>
-                            <input
-                              key={item.followRecord?.note ?? ''}
-                              type="text"
-                              defaultValue={item.followRecord?.note ?? ''}
-                              onBlur={(e) => e.target.value.trim() !== (item.followRecord?.note ?? '') && setAcademicFollowUp(item.student, { note: e.target.value })}
-                              placeholder="یادداشت پیگیری..."
-                              maxLength={500}
-                              aria-label={`یادداشت پیگیری ${studentFullName(item.student)}`}
-                              className="mt-1.5 w-full min-h-[40px] bg-slate-50 border border-slate-200 rounded-xl px-2 text-xs outline-none focus:border-emerald-500"
-                            />
-                            {item.followRecord?.updatedBy && <div className="mt-1 text-[10px] text-slate-400">{item.followRecord.updatedBy}</div>}
-                          </td>
-                          <td className="p-3 min-w-40">
-                            {(() => {
-                              const sent = greyThisMonth.get(item.student.id);
-                              return sent ? (
-                                <div className="space-y-1">
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-extrabold">✓ در لیست خاکستری مربی</span>
-                                  <button type="button" onClick={() => withdrawFromGreyList(sent.id)} className="block text-[11px] font-bold text-rose-600 cursor-pointer">برگرداندن</button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    sendToGreyList(item.student, buildGreySnapshot(academicGrades.filter((g) => g.studentId === item.student.id), item.followUps), greyMonth);
-                                    showToast(`«${studentFullName(item.student)}» به لیست خاکستری مربی فرستاده شد.`, 'success');
-                                  }}
-                                  className="min-h-[44px] px-3 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-800 text-[11px] font-extrabold cursor-pointer whitespace-nowrap"
-                                >
-                                  ارسال به لیست خاکستری
-                                </button>
-                              );
-                            })()}
-                          </td>
-                          <td className="p-3 font-mono text-slate-600">
-                            {item.student.parentPhone}
-                          </td>
-                          <td className="p-3 text-left">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {item.student.parentPhone && (
-                                <a
-                                  href={`tel:${item.student.parentPhone}`}
-                                  className="p-1.5 text-slate-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition border border-slate-200"
-                                  title="تماس با ولی"
-                                >
-                                  <PhoneCall className="w-3.5 h-3.5" />
-                                </a>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => onSelectStudent(item.student, 'grades')}
-                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-                              >
-                                <FileText className="w-3 h-3" />
-                                <span>کارنامه</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </FitTable>
-            </div>
+            <AcademicFollowUpTable
+              items={academicWarningStudents.filter((item) => {
+                if (warningClassFilter !== 'all' && item.classId !== warningClassFilter) return false;
+                if (!showResolved && item.followRecord?.status === 'resolved') return false;
+                if (warningGroup !== 'all' && !item.followUps.some((f) => f.group === warningGroup)) return false;
+                if (!warningSearch) return true;
+                const q = warningSearch.trim().toLowerCase();
+                return `${studentFullName(item.student)}`.toLowerCase().includes(q) || (item.student.parentPhone || '').includes(q);
+              })}
+              onOpenReportCard={(stu) => onSelectStudent(stu, 'grades')}
+              onSetFollowUp={setAcademicFollowUp}
+              greySentId={(stu) => greyThisMonth.get(stu.id)?.id}
+              onSendGrey={(item) => {
+                sendToGreyList(item.student, buildGreySnapshot(academicGrades.filter((g) => g.studentId === item.student.id), item.followUps), greyMonth);
+                showToast(`«${studentFullName(item.student)}» به لیست خاکستری مربی فرستاده شد.`, 'success');
+              }}
+              onWithdrawGrey={withdrawFromGreyList}
+            />
 
           </div>
         )}
