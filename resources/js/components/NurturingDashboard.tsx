@@ -76,7 +76,6 @@ import {
   Clock,
   Sparkle,
   Award,
-  BookOpen,
   UserCheck,
   ShieldCheck,
   CheckCircle2,
@@ -1190,74 +1189,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
           <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
 
-          {/* بخش کارهای سریع (Quick Actions) */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-            <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>کارهای سریع</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (filteredStudents.length > 0) {
-                    handleOpenStudentObs(filteredStudents[0]);
-                  }
-                }}
-                className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-emerald-900 group-hover:text-emerald-950">
-                  <Plus className="w-4 h-4 text-emerald-700" />
-                  <span>ثبت فعالیت / مشاهده‌گری</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ثبت بازخورد رفتاری، عاطفی و عملکرد فردی
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenNewCoachEval()}
-                className="p-3.5 rounded-xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-teal-900 group-hover:text-teal-950">
-                  <Award className="w-4 h-4 text-teal-700" />
-                  <span>ثبت امتیاز و ارزیابی رشد</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ارزیابی شاخص‌های شش‌گانه رشد دانش‌آموز
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrentView('dossier')}
-                className="p-3.5 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-purple-900 group-hover:text-purple-950">
-                  <FolderHeart className="w-4 h-4 text-purple-700" />
-                  <span>مشاهده پرونده تربیتی</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  ۸ بخش جامع (مشاوره، مزاج، خانواده و...)
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrentView('academic_and_discipline')}
-                className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/70 text-right transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-2 font-bold text-xs text-indigo-900 group-hover:text-indigo-950">
-                  <BookOpen className="w-4 h-4 text-indigo-700" />
-                  <span>آموزش و انضباط کلاس‌ها</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  نمای یکپارچه کارنامه، غیبت‌ها و نمرات
-                </p>
-              </button>
-            </div>
-          </div>
         </div>
       )}
       {/* ========================================================================= */}
