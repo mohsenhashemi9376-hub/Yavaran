@@ -913,6 +913,9 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
             students={filteredStudents}
             classes={availableClasses}
             observations={observations}
+            attentionCount={attentionNeededStudents.length}
+            onSelectDisciplineStudent={(stu) => onSelectStudent?.(stu, 'discipline')}
+            onOpenAttention={() => setCurrentView('attention')}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
             onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
             onOpenTimeline={() => { setObsInitialTab('timeline'); setSelectedDossierStudent(null); setCurrentView('observation'); }}
