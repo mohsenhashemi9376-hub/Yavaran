@@ -229,6 +229,7 @@ const MainApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Vazirmatn',sans-serif]">
       {/* Top Header */}
+<ErrorBoundary fallbackTitle="بارگذاری نوار بالا با مشکل مواجه شد">
       <Header
         onOpenNewClassModal={() => setAddClassModalOpen(true)}
         onOpenNewTeacherModal={() => setAddTeacherModalOpen(true)}
@@ -238,6 +239,7 @@ const MainApp: React.FC = () => {
         currentActiveTab={effectiveTab}
         onSelectTab={setActiveTab}
       />
+      </ErrorBoundary>
 
       {/* Main Content Area */}
       <main key={viewDate ?? 'today'} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
@@ -294,7 +296,8 @@ const MainApp: React.FC = () => {
         </ErrorBoundary>
       </main>
 
-      {/* Modals */}
+      {/* Modals: خطا در یک پنجره‌ی بازشو نباید کل صفحه را سفید کند */}
+      <ErrorBoundary fallbackTitle="بارگذاری این پنجره با مشکل مواجه شد">
       <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
@@ -429,6 +432,8 @@ const MainApp: React.FC = () => {
         }}
         coach={coachToEdit}
       />
+
+      </ErrorBoundary>
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 mt-8 md:mt-12 py-6 mb-20 md:mb-0 text-center text-xs text-slate-500">

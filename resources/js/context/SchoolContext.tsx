@@ -10,6 +10,7 @@ import {
   StudentAcademicGrade, 
   DisciplinaryNote, 
   DisciplinaryStatus, 
+  TeachingAssignment,
   MorningDelayRecord,
   MorningAttendanceRecord,
   TeacherActivity,
@@ -374,6 +375,36 @@ interface SchoolContextType {
 const STORAGE_KEY = 'school_attendance_system_v1';
 
 // کاربر موقت پیش از ورود (برای جلوگیری از خطای رندر)
+/** آرایه‌ی امن: مقدار null/undefined/نادرست از سرور به آرایه‌ی خالی تبدیل می‌شود تا هیچ بخشی از برنامه کرش نکند */
+const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+
+/** فیلدهای فهرستی کاربر (کلاس‌ها و انتساب‌های تدریس) همیشه آرایه‌ی معتبر باشند؛ داده‌ی ناقص قدیمی/همگام‌شده کل صفحه را سفید نکند */
+const normalizeUser = (u: User): User => ({
+  ...u,
+  assignedClassIds: arr<string>(u.assignedClassIds),
+  ...(u.teachingClassIds !== undefined ? { teachingClassIds: arr<string>(u.teachingClassIds) } : {}),
+  ...(u.teachingAssignments !== undefined
+    ? {
+        teachingAssignments: arr<TeachingAssignment>(u.teachingAssignments)
+          .filter((ta) => ta && typeof ta === 'object')
+          .map((ta) => ({ ...ta, subjectName: ta.subjectName ?? '', classIds: arr<string>(ta.classIds) })),
+      }
+    : {}),
+});
+
+const normalizeClass = (c: SchoolClass): SchoolClass =>
+  Array.isArray(c.teacherIds) && (c.coachIds === undefined || Array.isArray(c.coachIds))
+    ? c
+    : { ...c, teacherIds: arr<string>(c.teacherIds), ...(c.coachIds !== undefined ? { coachIds: arr<string>(c.coachIds) } : {}) };
+
+/** رکوردهای حضور و غیاب خالی (null) یا ساختار نادرست حذف می‌شوند */
+const normalizeSession = (s: AttendanceSession): AttendanceSession => {
+  const r = s.records as unknown;
+  if (r && typeof r === 'object' && !Array.isArray(r) && !Object.values(r as object).some((v) => !v)) return s;
+  const entries = r && typeof r === 'object' && !Array.isArray(r) ? Object.entries(r as Record<string, unknown>).filter(([, v]) => v) : [];
+  return { ...s, records: Object.fromEntries(entries) as AttendanceSession['records'] };
+};
+
 const GUEST_USER: User = {
   id: 'guest',
   username: '',
@@ -434,7 +465,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // جمعه‌ها و روزهای تعطیل اعلام‌شده روز درسی نیستند: حضور و غیاب آن روزها در هیچ محاسبه‌ای نمی‌آید
   // (state خام فقط برای همگام‌سازی با سرور نگه داشته می‌شود)
   const isClosedDay = useCallback((date: string) => closedReasonOf(date, schoolHolidays) !== null, [schoolHolidays]);
-  const sessions = useMemo(() => rawSessions.filter((r) => !isClosedDay(r.date)), [rawSessions, isClosedDay]);
+  const sessions = useMemo(() => rawSessions.filter((r) => !isClosedDay(r.date)).map(normalizeSession), [rawSessions, isClosedDay]);
   const morningDelays = useMemo(() => rawMorningDelays.filter((r) => !isClosedDay(r.date)), [rawMorningDelays, isClosedDay]);
   const morningAttendance = useMemo(() => rawMorningAttendance.filter((r) => !isClosedDay(r.date)), [rawMorningAttendance, isClosedDay]);
   const schoolAbsences = useMemo(() => rawSchoolAbsences.filter((r) => !isClosedDay(r.date)), [rawSchoolAbsences, isClosedDay]);
@@ -486,7 +517,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const allUsers = useMemo<User[]>(
     () =>
-      rawUsers.map((u) => {
+      rawUsers.map(normalizeUser).map((u) => {
         const mine = effectiveCourses.filter((c) => c.teacherId === u.id);
         const bySubject = new Map<string, { subjectId: string; subjectName: string; classIds: string[] }>();
         mine.forEach((c) => {
@@ -534,7 +565,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       rawClasses.map((raw) => {
         // فقط نام خالص کلاس (بدون عبارت داخل پرانتز)
         const cleaned = (raw.name || '').replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').replace(/\s+/g, ' ').trim();
-        const c = cleaned && cleaned !== raw.name ? { ...raw, name: cleaned } : raw;
+        const c = normalizeClass(cleaned && cleaned !== raw.name ? { ...raw, name: cleaned } : raw);
         const extra = effectiveCourses.filter((e) => e.classId === c.id).map((e) => e.teacherId);
         if (extra.length === 0) return c;
         return { ...c, teacherIds: Array.from(new Set([...(c.teacherIds || []), ...extra])) };
