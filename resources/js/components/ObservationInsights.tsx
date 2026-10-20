@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Activity, AlertTriangle, ArrowLeft, BarChart3, Clock, Download, Eye, Flame, LayoutGrid, ListFilter, MapPin,
-  Plus, Rows3, Search, Tag as TagIcon, Users, X, Rows2,
+  FileText, Plus, Rows3, Search, Tag as TagIcon, Users, X, Rows2,
 } from 'lucide-react';
 import { SchoolClass, Student, StudentObservation, ObservationCategory } from '../types';
 import { toPersianDigits, tehranNow, shamsiStringToDate } from '../utils/persianDate';
 import { normalizeShamsi } from '../utils/schoolCalendar';
 import { studentFullName } from '../utils/studentName';
+import { exportStudentObservationsWord } from '../utils/observationWord';
 
 /* ───────────────────────── ثابت‌ها ───────────────────────── */
 
@@ -181,6 +182,7 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
     try { return localStorage.getItem('yv-obs-dense') === '1'; } catch { return false; }
   });
   const [limit, setLimit] = useState(30);
+  const [groupBy, setGroupBy] = useState<'time' | 'student'>('time');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [panelStudentId, setPanelStudentId] = useState<string | null>(null);
 
@@ -262,14 +264,37 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
   }, [inPeriod, cat, author, tag, q, studentById]);
 
   const groups = useMemo(() => {
-    const m = new Map<number, { label: string; items: Obs[] }>();
+    if (groupBy === 'student') {
+      const m = new Map<string, { label: string; studentId: string; items: Obs[] }>();
+      filtered.forEach((o) => {
+        if (!m.has(o.studentId)) m.set(o.studentId, { label: studentFullName(studentById.get(o.studentId)), studentId: o.studentId, items: [] });
+        m.get(o.studentId)!.items.push(o);
+      });
+      return [...m.values()].sort((x, y) => x.label.localeCompare(y.label, 'fa')).slice(0, limit);
+    }
+    const m = new Map<number, { label: string; studentId?: string; items: Obs[] }>();
     filtered.slice(0, limit).forEach((o) => {
       const b = bucketOf(o._day);
       if (!m.has(b.key)) m.set(b.key, { label: b.label, items: [] });
       m.get(b.key)!.items.push(o);
     });
     return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-  }, [filtered, limit]);
+  }, [filtered, limit, groupBy, studentById]);
+  const groupTotal = groupBy === 'student' ? new Set(filtered.map((o) => o.studentId)).size : filtered.length;
+
+  /** خروجی Word از «همه» مشاهدات ثبت‌شده‌ی یک دانش‌آموز */
+  const exportWord = (studentId: string) => {
+    const s = studentById.get(studentId);
+    if (!s) return;
+    exportStudentObservationsWord({
+      studentName: studentFullName(s),
+      className: classNameOf(s.classId),
+      items: all.filter((o) => o.studentId === studentId).map((o) => ({
+        date: o.date, time: o.time, categoryLabel: catOf(o.category).label, title: o.title, content: o.content,
+        location: o.location, tags: o.tags, recordedBy: o.recordedBy, authorLabel: o.authorRole === 'coach' ? 'مربی' : 'معاون',
+      })),
+    });
+  };
 
   const exportExcel = () => {
     const rows = filtered.map((o) => {
@@ -360,20 +385,31 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
         <div className="space-y-4 animate-in fade-in">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'مشاهدات ثبت‌شده', value: fa(inPeriod.length), sub: period === 'all' ? 'کل سوابق' : `در ${fa(period)} روز اخیر`, icon: <Eye className="w-5 h-5" />, tone: 'from-emerald-50 to-white border-emerald-200 text-emerald-800' },
+              { label: 'مشاهدات ثبت‌شده', value: fa(inPeriod.length), sub: period === 'all' ? 'کل سوابق' : `در ${fa(period)} روز اخیر`, icon: <Eye className="w-5 h-5" />, tone: 'from-emerald-50 to-white border-emerald-200 text-emerald-800', onClick: () => { setCat('all'); setTag(''); setQ(''); setAuthor('all'); setTab('timeline'); } },
               { label: 'پوشش دانش‌آموزان', value: `${fa(coveredCount)} از ${fa(scopedStudents.length)}`, sub: `${fa(scopedStudents.length ? Math.round((coveredCount / scopedStudents.length) * 100) : 0)}٪ دانش‌آموزان`, icon: <Users className="w-5 h-5" />, tone: 'from-sky-50 to-white border-sky-200 text-sky-800' },
               { label: 'میانگین برای هر نفر', value: fa(scopedStudents.length ? (inPeriod.length / scopedStudents.length).toFixed(1) : 0), sub: 'مشاهده به‌ازای دانش‌آموز', icon: <Activity className="w-5 h-5" />, tone: 'from-violet-50 to-white border-violet-200 text-violet-800' },
               { label: 'نیازمند پیگیری', value: fa(attention.length), sub: 'دانش‌آموز', icon: <Flame className="w-5 h-5" />, tone: 'from-amber-50 to-white border-amber-200 text-amber-800' },
-            ].map((k) => (
-              <div key={k.label} className={`rounded-2xl border bg-gradient-to-br ${k.tone} p-4 shadow-xs`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold opacity-80">{k.label}</span>
-                  <span className="opacity-70">{k.icon}</span>
-                </div>
-                <div className="mt-1 text-xl sm:text-2xl font-black text-slate-900">{k.value}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">{k.sub}</div>
-              </div>
-            ))}
+            ].map((k: { label: string; value: string; sub: string; icon: React.ReactNode; tone: string; onClick?: () => void }) => {
+              const body = (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold opacity-80">{k.label}</span>
+                    <span className="opacity-70">{k.icon}</span>
+                  </div>
+                  <div className="mt-1 text-xl sm:text-2xl font-black text-slate-900">{k.value}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                    <span>{k.sub}</span>
+                    {k.onClick && <span className="font-bold text-emerald-700">مشاهده ←</span>}
+                  </div>
+                </>
+              );
+              const cls = `rounded-2xl border bg-gradient-to-br ${k.tone} p-4 shadow-xs`;
+              return k.onClick ? (
+                <button key={k.label} type="button" onClick={k.onClick} className={`${cls} text-right cursor-pointer transition hover:shadow-md active:scale-[.98]`}>{body}</button>
+              ) : (
+                <div key={k.label} className={cls}>{body}</div>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -514,6 +550,11 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                   <option value="vice">ثبت‌شده توسط معاون</option>
                 </select>
               )}
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold" role="group" aria-label="گروه‌بندی">
+                {([['time', 'بر اساس زمان'], ['student', 'بر اساس دانش‌آموز']] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setGroupBy(k)} className={`px-3 py-1.5 rounded-lg cursor-pointer ${groupBy === k ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500'}`}>{l}</button>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() => setDense((d) => !d)}
@@ -596,6 +637,11 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                     {g.label}
                     <span className="flex-1 h-px bg-slate-200" />
                     <span className="font-mono">{fa(g.items.length)}</span>
+                    {g.studentId && (
+                      <button type="button" onClick={() => exportWord(g.studentId!)} className="!min-h-0 inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700 hover:bg-sky-100 cursor-pointer">
+                        <FileText className="w-3.5 h-3.5" /> خروجی Word
+                      </button>
+                    )}
                   </h4>
                   <div className="relative pr-4 space-y-2 before:absolute before:right-[3px] before:top-1 before:bottom-1 before:w-px before:bg-slate-200">
                     {g.items.map((o) => {
@@ -659,14 +705,14 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                   </div>
                 </section>
               ))}
-              {filtered.length > limit && (
+              {groupTotal > limit && (
                 <div className="text-center">
                   <button
                     type="button"
                     onClick={() => setLimit((l) => l + 30)}
                     className="text-xs font-bold px-5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
                   >
-                    نمایش بیشتر ({fa(filtered.length - limit)} مورد دیگر)
+                    نمایش بیشتر ({fa(groupTotal - limit)} {groupBy === 'student' ? 'دانش‌آموز' : 'مورد'} دیگر)
                   </button>
                 </div>
               )}
@@ -752,7 +798,15 @@ export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
                   </>
                 )}
               </div>
-              <footer className="p-4 border-t border-slate-100 bg-slate-50">
+              <footer className="p-4 border-t border-slate-100 bg-slate-50 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => exportWord(panelStudent.id)}
+                  disabled={mine.length === 0}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sky-200 bg-white text-sky-700 text-sm font-bold hover:bg-sky-50 disabled:opacity-40 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" /> خروجی Word از مشاهدات ({fa(mine.length)})
+                </button>
                 <button
                   type="button"
                   onClick={() => { const s = panelStudent; setPanelStudentId(null); onRecord(s); }}
