@@ -1,6 +1,7 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
+import { StudentObservationModal } from './StudentObservationModal';
 import { MentorHome } from './MentorHome';
 import { StudentDossierList } from './StudentDossierList';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
@@ -59,7 +60,6 @@ import {
   Plus, 
   Calendar, 
   Tag, 
-  MapPin, 
   Edit3, 
   Trash2, 
   X, 
@@ -84,7 +84,6 @@ import {
   Activity,
   CheckCircle,
   Settings,
-  NotebookPen,
 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -620,7 +619,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
     const catObj = OBSERVATION_CATEGORIES.find((c) => c.key === obsCategory);
     const tags = obsTagsInput
-      .split(',')
+      .split(/[,،]/)
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
@@ -1310,304 +1309,40 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* MODAL 1: OBSERVATION FORM & LOGS FOR A STUDENT */}
       {/* ========================================================================= */}
       {isObsModalOpen && selectedStudentForObs && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">
-                    مشاهده‌گری رفتاری: {studentFullName(selectedStudentForObs)}
-                  </h3>
-                  <p className="text-xs text-emerald-300">
-                    {getStudentClassName(selectedStudentForObs.classId)} | ثبت یادداشت‌های تربیتی
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsObsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-6">
-              
-              {/* Form to add or edit observation */}
-              <form onSubmit={handleSaveObservation} className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4.5 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4 text-emerald-600" />
-                    <span>{editingObsId ? 'ویرایش مشاهده' : 'ثبت مشاهده جدید'}</span>
-                  </span>
-                  {editingObsId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingObsId(null);
-                        setObsTitle('');
-                        setObsContent('');
-                        setObsTagsInput('');
-                      }}
-                      className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
-                    >
-                      انصراف از ویرایش
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      عنوان یا محور مشاهده <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={obsTitle}
-                      onChange={(e) => setObsTitle(e.target.value)}
-                      placeholder="مثال: تعامل با همکلاسی‌ها در زنگ تفریح"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      دسته‌بندی مشاهده
-                    </label>
-                    <select
-                      value={obsCategory}
-                      onChange={(e) => setObsCategory(e.target.value as ObservationCategory)}
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      {OBSERVATION_CATEGORIES.map((cat) => (
-                        <option key={cat.key} value={cat.key}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">تاریخ</label>
-                    <input
-                      type="text"
-                      value={obsDate}
-                      onChange={(e) => {
-                        setObsDate(e.target.value);
-                        setObsDateManual(true);
-                      }}
-                      placeholder="1404/08/20"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">ساعت</label>
-                    <input
-                      type="text"
-                      value={obsTime}
-                      onChange={(e) => {
-                        setObsTime(e.target.value);
-                        setObsDateManual(true);
-                      }}
-                      placeholder="10:15"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">مکان مشاهده</label>
-                    <input
-                      type="text"
-                      value={obsLocation}
-                      onChange={(e) => setObsLocation(e.target.value)}
-                      placeholder="کلاس، حیاط، نمازخانه..."
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 text-[11px] -mt-1">
-                  <span className={obsDateManual ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
-                    {obsDateManual ? 'تاریخ و ساعت: دستی' : 'تاریخ و ساعت: خودکار از ساعت سامانه'}
-                  </span>
-                  {(obsDateManual || !editingObsId) && (
-                    <button
-                      type="button"
-                      onClick={resetObsDateTimeToNow}
-                      className="text-teal-700 hover:underline font-bold cursor-pointer"
-                    >
-                      اکنون (بازگشت به خودکار)
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    متن مشروح مشاهده‌گری <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={obsContent}
-                    onChange={(e) => setObsContent(e.target.value)}
-                    placeholder="رفتار، گفتار، واکنش هیجانی و جزئیات مشاهده شده را بنویسید..."
-                    className="w-full text-xs bg-white border border-slate-300 rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    برچسب‌های کلیدی (با کاما جدا کنید)
-                  </label>
-                  <input
-                    type="text"
-                    value={obsTagsInput}
-                    onChange={(e) => setObsTagsInput(e.target.value)}
-                    placeholder="همدلی، مسئولیت‌پذیری، اضطراب، تمرکز..."
-                    className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-1.5 outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{editingObsId ? 'ذخیره تغییرات' : 'ثبت مشاهده'}</span>
-                  </button>
-                </div>
-              </form>
-
-              {/* Observation History Logs */}
-              {nurturingLocked ? (
-                <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
-                  <div className="font-black mb-1">سوابق مشاهده‌گری نمایش داده نمی‌شود</div>
-                  {security.reauthRequired
-                    ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
-                    : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
-                </div>
-              ) : (
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                  <span>سوابق و مشاهدات قبلی این دانش‌آموز:</span>
-                  <span className="text-slate-400 font-normal">
-                    {toPersianDigits(observations.filter((o) => o.studentId === selectedStudentForObs.id).length)} مورد
-                  </span>
-                </h4>
-
-                <div className="space-y-2.5">
-                  {observations.filter((o) => o.studentId === selectedStudentForObs.id).length === 0 ? (
-                    <EmptyState
-                      icon={NotebookPen}
-                      title="هنوز مشاهده‌ای ثبت نشده است"
-                      description="اولین مشاهده‌ی رفتاری این دانش‌آموز را از بالای همین پنجره ثبت کنید."
-                    />
-                  ) : (
-                    observations
-                      .filter((o) => o.studentId === selectedStudentForObs.id)
-                      .map((obs) => {
-                        const catObj = OBSERVATION_CATEGORIES.find((c) => c.key === obs.category);
-                        return (
-                          <div
-                            key={obs.id}
-                            className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2 hover:border-emerald-300 transition"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-slate-900 text-xs">{obs.title}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${catObj?.color || 'bg-slate-100 text-slate-800'}`}>
-                                  {catObj?.label || 'عمومی'}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                {obs.authorRole === 'coach' && currentUser.role === 'vice_nurturing' && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 whitespace-nowrap">
-                                    ثبت‌شده توسط مربی
-                                  </span>
-                                )}
-                                {(obs.authorId === currentUser.id || (!obs.authorId && currentUser.role === 'vice_nurturing')) && (<>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditObservation(obs)}
-                                  className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 cursor-pointer"
-                                  title="ویرایش"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    showConfirm({
-                                      title: 'حذف شود؟',
-                                      message: 'آیا از حذف این مشاهده اطمینان دارید؟',
-                                      confirmLabel: 'بله، حذف شود',
-                                      cancelLabel: 'انصراف',
-                                      isDangerous: true,
-                                      onConfirm: () => {
-                                      deleteStudentObservation(obs.id);
-                                    
-                                      },
-                                    });
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 cursor-pointer"
-                                  title="حذف"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                                </>)}
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-slate-700 leading-relaxed">
-                              {obs.content}
-                            </p>
-
-                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="w-3 h-3 text-slate-400" />
-                                  <span dir="ltr">{obs.date}</span>
-                                </span>
-                                {obs.time && <span dir="ltr">ساعت {obs.time}</span>}
-                                {obs.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-slate-400" />
-                                    <span>{obs.location}</span>
-                                  </span>
-                                )}
-                              </div>
-                              <span>ثبت: {obs.recordedBy}</span>
-                            </div>
-
-                            {obs.tags && obs.tags.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap pt-1">
-                                {obs.tags.map((t, idx) => (
-                                  <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                                    #{t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                  )}
-                </div>
-              </div>
-              )}
-
-            </div>
-          </div>
-        </div>
+        <StudentObservationModal
+          studentName={studentFullName(selectedStudentForObs)}
+          className={getStudentClassName(selectedStudentForObs.classId)}
+          categories={OBSERVATION_CATEGORIES}
+          history={observations.filter((o) => o.studentId === selectedStudentForObs.id)}
+          locked={nurturingLocked}
+          lockedMessage={security.reauthRequired
+            ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
+            : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
+          canModify={(o) => o.authorId === currentUser.id || (!o.authorId && currentUser.role === 'vice_nurturing')}
+          showCoachBadge={currentUser.role === 'vice_nurturing'}
+          title={obsTitle} onTitle={setObsTitle}
+          category={obsCategory} onCategory={setObsCategory}
+          content={obsContent} onContent={setObsContent}
+          date={obsDate} onDate={setObsDate}
+          time={obsTime} onTime={setObsTime}
+          dateManual={obsDateManual} onDateManual={setObsDateManual}
+          location={obsLocation} onLocation={setObsLocation}
+          tags={obsTagsInput} onTags={setObsTagsInput}
+          editingId={editingObsId}
+          onResetDateTime={resetObsDateTimeToNow}
+          onCancelEdit={() => { setEditingObsId(null); setObsTitle(''); setObsContent(''); setObsTagsInput(''); resetObsDateTimeToNow(); }}
+          onSubmit={handleSaveObservation}
+          onEdit={handleEditObservation}
+          onDelete={(obs) => showConfirm({
+            title: 'حذف شود؟',
+            message: 'آیا از حذف این مشاهده اطمینان دارید؟',
+            confirmLabel: 'بله، حذف شود',
+            cancelLabel: 'انصراف',
+            isDangerous: true,
+            onConfirm: () => { deleteStudentObservation(obs.id); },
+          })}
+          onClose={() => setIsObsModalOpen(false)}
+        />
       )}
 
       {/* ========================================================================= */}
