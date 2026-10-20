@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { toPersianDigits } from '../utils/persianDate';
+import { passwordLengthError } from '../utils/passwordRules';
 
 interface CoachFormModalProps {
   isOpen: boolean;
@@ -120,6 +121,8 @@ export const CoachFormModal: React.FC<CoachFormModalProps> = ({
 
     if (!isEditMode && !password.trim()) {
       newErrors.password = 'لطفاً رمز عبور را وارد نمایید.';
+    } else if (passwordLengthError(password)) {
+      newErrors.password = passwordLengthError(password);
     }
 
     // Duplicate check

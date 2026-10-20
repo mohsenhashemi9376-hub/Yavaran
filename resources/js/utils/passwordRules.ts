@@ -1,10 +1,13 @@
 import { toPersianDigits } from './persianDate';
 
-/** مربی و معاون تربیتی به داده‌های محرمانه دسترسی دارند؛ حداقل طول رمز آن‌ها ۸ است (هماهنگ با سرور) */
-export const minPasswordLength = (role: string | undefined, forced = false): number => {
-  if (role === 'coach' || role === 'vice_nurturing') return 8;
-  return forced ? 8 : 6;
-};
+/** حداقل طول رمز عبور برای همه‌ی نقش‌ها ۸ کاراکتر است (هماهنگ با سرور) */
+export const MIN_PASSWORD_LENGTH = 8;
 
-export const passwordTooShortMessage = (min: number): string =>
+export const minPasswordLength = (_role?: string, _forced = false): number => MIN_PASSWORD_LENGTH;
+
+export const passwordTooShortMessage = (min: number = MIN_PASSWORD_LENGTH): string =>
   `رمز عبور جدید باید حداقل ${toPersianDigits(min)} کاراکتر باشد.`;
+
+/** رمز واردشده (در صورت پر بودن) باید حداقل ۸ کاراکتر باشد؛ در غیر این صورت پیام خطا برمی‌گردد */
+export const passwordLengthError = (password: string): string | undefined =>
+  password.trim() !== '' && password.trim().length < MIN_PASSWORD_LENGTH ? passwordTooShortMessage() : undefined;

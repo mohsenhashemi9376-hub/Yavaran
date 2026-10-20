@@ -1,6 +1,7 @@
 import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import { PermissionsMatrixEditor } from './PermissionsMatrixEditor';
 import { effectivePermissions, defaultPermissionsFor } from '../utils/permissions';
+import { passwordLengthError } from '../utils/passwordRules';
 import React, { useState, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
@@ -398,7 +399,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     setUserFormData({
       name: '',
       username: '',
-      password: '123',
+      password: '',
       role: 'teacher',
       phone: '',
       roleTitle: 'دبیر',
@@ -432,6 +433,7 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
     if (!userFormData.name.trim()) errors.name = 'لطفاً نام و نام خانوادگی را وارد کنید.';
     if (!userFormData.username.trim()) errors.username = 'لطفاً نام کاربری را وارد کنید.';
     if (!editingUser && !userFormData.password.trim()) errors.password = 'لطفاً کلمه عبور را وارد کنید.';
+    else if (passwordLengthError(userFormData.password)) errors.password = passwordLengthError(userFormData.password);
 
     // Check duplicate username if adding or changing
     const duplicate = allUsers.find(

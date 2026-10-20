@@ -3,6 +3,7 @@ import { useSchool } from '../context/SchoolContext';
 import { User } from '../types';
 import { X, Check, Eye, EyeOff, Trash2, AlertCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
+import { passwordLengthError } from '../utils/passwordRules';
 
 const fieldClass =
   'w-full text-base bg-slate-50 rounded-2xl px-4 py-3 text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition';
@@ -81,6 +82,8 @@ export const TeacherFormModal: React.FC<TeacherFormModalProps> = ({
 
     if (!isEditMode && !password.trim()) {
       newErrors.password = 'لطفاً رمز عبور را وارد نمایید.';
+    } else if (passwordLengthError(password)) {
+      newErrors.password = passwordLengthError(password);
     }
 
     // Check for duplicate teacher (same name or same username)
