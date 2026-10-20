@@ -1,13 +1,11 @@
 import { ReflectionPointsWorkspace } from './ReflectionPointsWorkspace';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { ObservationInsights } from './ObservationInsights';
-import { MentorGlassCards } from './MentorGlassCards';
+import { StudentObservationModal } from './StudentObservationModal';
+import { MentorHome } from './MentorHome';
 import { StudentDossierList } from './StudentDossierList';
-import { ObservationHomeWidgets } from './ObservationHomeWidgets';
-import { DisciplineExcellenceCard } from './DisciplineExcellence';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { ClassFilterDropdown } from './ClassFilterDropdown';
-import { MentorMessagesSection } from './MentorMessages';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
 import { TodayAbsenteesChip } from './TodayAbsenteesChip';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -62,7 +60,6 @@ import {
   Plus, 
   Calendar, 
   Tag, 
-  MapPin, 
   Edit3, 
   Trash2, 
   X, 
@@ -82,14 +79,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   Compass,
-  Menu,
   Star,
   BarChart3,
   Activity,
   CheckCircle,
   Settings,
-  NotebookPen,
-  Mail,
 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { MobileBottomNav } from './MobileBottomNav';
@@ -303,7 +297,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
     allCoaches,
     allUsers,
     nurturingLocked,
-    todayClosedReason,
     schoolHolidays,
     security,
     showToast, showConfirm
@@ -347,6 +340,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
   // انتخاب کلاس و دانش‌آموز برای «ثبت مشاهده جدید»
   const [isObsPickerOpen, setIsObsPickerOpen] = useState(false);
+  const [obsInitialTab, setObsInitialTab] = useState<'overview' | 'timeline'>('timeline');
+  useEffect(() => { if (currentView !== 'observation') setObsInitialTab('timeline'); else setSearchTerm(''); }, [currentView]);
   const [pickClassId, setPickClassId] = useState('');
   const [pickStudentId, setPickStudentId] = useState('');
   const [obsTitle, setObsTitle] = useState('');
@@ -409,7 +404,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   }, [isCoach, nurturingClasses, classes]);
 
   const allowedClassIds = useMemo(() => new Set(availableClasses.map((c) => c.id)), [availableClasses]);
-  const coachClassIds = useMemo(() => (isCoach ? availableClasses.map((c) => c.id) : undefined), [isCoach, availableClasses]);
 
   // دانش‌آموزان، مشاهدات و ارزیابی‌های مجاز (برای مدیر/معاون: کل مدرسه)
   const students = useMemo(
@@ -625,7 +619,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
 
     const catObj = OBSERVATION_CATEGORIES.find((c) => c.key === obsCategory);
     const tags = obsTagsInput
-      .split(',')
+      .split(/[,،]/)
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
@@ -910,79 +904,24 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           />
         )}
         {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
-          <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-3xl p-4 shadow-lg border border-emerald-800/40 space-y-3">
-            {/* خط اول: نام و نقش */}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-              <h1 className="text-base font-black leading-7">{userGreeting.greeting} 👋</h1>
-              <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-emerald-200 whitespace-nowrap">
-                <Lock className="w-3 h-3 text-emerald-400" />
-                {userGreeting.roleLabel}
-              </span>
-            </div>
-
-            {/* خط دوم: تاریخ و وضعیت مدرسه */}
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="bg-white/10 px-2.5 py-1 rounded-full text-slate-200 font-medium">{todayInfo.dayOfWeek}، {todayInfo.displayDate}</span>
-              <span className="inline-flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full text-slate-100 font-bold">
-                <span className={`w-2 h-2 rounded-full ${todayClosedReason ? 'bg-rose-400' : 'bg-emerald-400'}`} aria-hidden="true" />
-                {todayClosedReason ? `وضعیت: ${todayClosedReason === 'friday' ? 'تعطیل (جمعه)' : 'تعطیل رسمی'}` : 'وضعیت: روز آموزشی'}
-              </span>
-              <button
-                type="button"
-                id="btn-mobile-nurturing-sidebar-toggle"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="lg:hidden mr-auto !min-h-0 h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer"
-                title="باز کردن نوار کناری"
-                aria-label="باز کردن نوار کناری"
-              >
-                <Menu className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* آمار سریع */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => { setCurrentView('dossier'); setSelectedDossierStudent(null); }}
-                className="bg-white/10 active:bg-white/20 border border-white/15 rounded-2xl px-3 py-2.5 text-center cursor-pointer"
-                title="مشاهده پرونده‌های تربیتی"
-              >
-                <div className="text-xl font-black text-emerald-300 tabular-nums">{toPersianDigits(filteredStudents.length)}</div>
-                <div className="text-[11px] text-slate-300 font-medium">دانش‌آموز تحت پوشش</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setCurrentView('observation'); setSelectedDossierStudent(null); }}
-                className="bg-white/10 active:bg-white/20 border border-white/15 rounded-2xl px-3 py-2.5 text-center cursor-pointer"
-                title="مشاهده مشاهدات رفتاری"
-              >
-                <div className="text-xl font-black text-amber-300 tabular-nums">{toPersianDigits(totalObservationsCount)}</div>
-                <div className="text-[11px] text-slate-300 font-medium">مشاهده ثبت‌شده</div>
-              </button>
-            </div>
-
-            {/* اقدام‌های فوری */}
-            <div className="flex gap-2.5">
-              <button
-                type="button"
-                onClick={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
-                className="flex-1 h-12 rounded-2xl bg-emerald-500 active:bg-emerald-600 hover:bg-emerald-400 text-white text-sm font-extrabold shadow-md inline-flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ثبت مشاهده جدید</span>
-              </button>
-              {isNurturingVice && (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event('yv:new-mentor-message'))}
-                  className="flex-1 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/25 active:bg-white/20 hover:bg-white/15 text-white text-sm font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Mail className="w-4 h-4" />
-                  <span>پیام یا مأموریت جدید</span>
-                </button>
-              )}
-            </div>
-          </div>
+          <MentorHome
+            greeting={userGreeting.greeting}
+            roleLabel={userGreeting.roleLabel}
+            dayOfWeek={todayInfo.dayOfWeek}
+            displayDate={todayInfo.displayDate}
+            students={filteredStudents}
+            classes={availableClasses}
+            observations={observations}
+            attentionCount={attentionNeededStudents.length}
+            onSelectDisciplineStudent={(stu) => onSelectStudent?.(stu, 'discipline')}
+            onOpenAttention={() => setCurrentView('attention')}
+            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+            onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
+            onOpenTimeline={() => { setObsInitialTab('timeline'); setSelectedDossierStudent(null); setCurrentView('observation'); }}
+            onOpenHomework={() => setCurrentView('homework_followup')}
+            onOpenAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
+            onOpenGreyList={() => setCurrentView('grey_list')}
+          />
         )}
 
         {/* مسیر صفحه (فشرده) */}
@@ -1018,7 +957,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         )}
 
         {/* جستجو + فیلتر کلاس در یک سطر (مشاهده‌گری و ارزیابی رشد) */}
-        {(currentView === 'observation' || currentView === 'coachEvaluations') && (
+        {currentView === 'coachEvaluations' && (
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1044,163 +983,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         )}
 
       {/* ========================================================================= */}
-      {/* OVERVIEW: وضعیت تربیتی (۴ کارت ساده، کارهای سریع، موارد نیازمند توجه) */}
-      {/* ========================================================================= */}
-      {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
-        <div className="space-y-6 animate-in fade-in">
-          <MentorMessagesSection />
-
-          {/* نیازمند توجه فوری (فشرده) */}
-          {attentionNeededStudents.length > 0 && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 space-y-2" aria-label="نیازمند توجه فوری">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <AlertCircle className="w-4.5 h-4.5 text-rose-600 shrink-0" />
-                  <h3 className="font-black text-sm text-slate-900 whitespace-nowrap">نیازمند توجه فوری</h3>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">{toPersianDigits(attentionNeededStudents.length)}</span>
-                </div>
-                <button type="button" onClick={() => setCurrentView('attention')} className="!min-h-0 h-8 text-[11px] font-bold text-rose-700 whitespace-nowrap cursor-pointer">
-                  مشاهده همه ←
-                </button>
-              </div>
-              <ul className="space-y-1.5">
-                {attentionNeededStudents.slice(0, 3).map((student) => {
-                  const lastObs = observations.filter((o) => o.studentId === student.id).slice(-1)[0];
-                  return (
-                    <li key={student.id}>
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedDossierStudent(student); setCurrentView('dossier'); }}
-                        className="w-full text-right bg-white border border-rose-100 border-r-4 border-r-amber-400 rounded-xl px-3 py-2 flex items-center gap-2 cursor-pointer active:bg-rose-50"
-                      >
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-xs font-bold text-slate-900 truncate">{studentFullName(student)}</span>
-                          <span className="block text-[11px] text-slate-500 truncate">
-                            {classes.find((c) => c.id === student.classId)?.name || '—'}
-                            {lastObs ? ` · ${lastObs.title || lastObs.content}` : ''}
-                          </span>
-                        </span>
-                        <ChevronLeft className="w-4 h-4 text-slate-300 shrink-0" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {/* ۴ کارت اصلی وضعیت تربیتی */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* کارت ۱: فعالیتهای تربیتی */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('observation')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-emerald-700 transition">فعالیت‌های تربیتی</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(totalObservationsCount)}
-                </div>
-                <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                  مشاهدات رفتاری ثبت‌شده
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center group-hover:scale-105 transition">
-                <HeartHandshake className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۲: وضعیت دانش‌آموزان */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('dossier')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-teal-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-teal-700 transition">وضعیت دانش‌آموزان</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(filteredStudents.length)}
-                </div>
-                <div className="text-[11px] text-teal-700 font-medium mt-0.5">
-                  تحت پوشش مربیان و پرونده‌ها
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center group-hover:scale-105 transition">
-                <Users className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۳: امتیازها */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('coachEvaluations')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-amber-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-amber-700 transition">امتیازها و ارزیابی‌ها</span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
-                  {toPersianDigits(coachEvaluations.length)}
-                </div>
-                <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-                  {toPersianDigits(totalEncouragementPoints)} امتیاز تشویقی ثبت‌شده
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition">
-                <Star className="w-6 h-6" />
-              </div>
-            </button>
-
-            {/* کارت ۴: موارد نیازمند توجه */}
-            <button
-              type="button"
-              onClick={() => setCurrentView('attention')}
-              className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-rose-500/50 shadow-xs hover:shadow-md transition text-right flex items-center justify-between group cursor-pointer"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-500 group-hover:text-rose-700 transition">موارد نیازمند توجه</span>
-                <div className="text-2xl font-black text-rose-700 mt-1">
-                  {toPersianDigits(attentionNeededStudents.length)}
-                </div>
-                <div className="text-[11px] text-rose-600 font-medium mt-0.5">
-                  نیازمند پیگیری و هدایت
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center group-hover:scale-105 transition">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-            </button>
-          </div>
-
-          {isNurturingVice && (
-            <div className="flex justify-end">
-              <ReferralsHistoryButton label="ارجاع‌های دریافتی از معاون انضباطی" />
-            </div>
-          )}
-          <ObservationHomeWidgets
-            students={students}
-            classes={availableClasses}
-            observations={observations}
-            isVice={currentUser.role === 'vice_nurturing'}
-            onOpenAll={() => setCurrentView('observation')}
-            onOpenStudent={handleOpenStudentObs}
-          />
-
-          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} classIds={coachClassIds} />
-
-          <MentorGlassCards
-            observationsCount={observations.length}
-            studentsCount={filteredStudents.length}
-            attentionCount={attentionNeededStudents.length}
-            onObserve={() => { if (filteredStudents.length > 0) handleOpenStudentObs(filteredStudents[0]); else setCurrentView('observation'); }}
-            onTimeline={() => { const stu = attentionNeededStudents[0] || filteredStudents[0]; if (stu) onSelectStudent?.(stu, 'timeline'); }}
-            onHomework={() => setCurrentView('homework_followup')}
-            onAcademicDiscipline={() => setCurrentView('academic_and_discipline')}
-            onGreyList={() => setCurrentView('grey_list')}
-          />
-        </div>
-      )}
-      {/* ========================================================================= */}
       {currentView === 'academic_and_discipline' && (
         <CoachAcademicDisciplineView onOpenClassDetail={onOpenClassDetail} />
       )}
@@ -1217,6 +999,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* ========================================================================= */}
       {currentView === 'observation' && (
         <ObservationInsights
+          initialTab={obsInitialTab}
           allStudents={students}
           scopedStudents={filteredStudents}
           classes={availableClasses}
@@ -1224,128 +1007,13 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           staleInfo={new Map(staleObsStudents.map((e) => [e.student.id, e.daysSince]))}
           isVice={currentUser.role === 'vice_nurturing'}
           onRecord={handleOpenStudentObs}
-          studentsGrid={
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Eye className="w-5 h-5 text-emerald-600" />
-                <span>فهرست دانش‌آموزان جهت مشاهده‌گری و ثبت یادداشت‌های رفتاری</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                روی نام هر دانش‌آموز کلیک کنید تا کادر ثبت مشاهدات و سوابق رفتاری باز شود.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              نمایش {toPersianDigits(filteredStudents.length)} دانش‌آموز
-            </span>
-          </div>
-
-          {staleObsStudents.length > 0 && (
-            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex-1 min-w-0 text-xs text-amber-900 leading-6">
-                <b>هشدار:</b> برای {toPersianDigits(staleObsStudents.length)} دانش‌آموز در ۲ هفته‌ی گذشته مشاهده‌گری ثبت نشده است
-                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((e) => studentFullName(e.student)).join('، ')})`}.
-              </div>
-              <button
-                type="button"
-                onClick={() => setOnlyStaleObs((v) => !v)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
-              >
-                {onlyStaleObs ? 'نمایش همه دانش‌آموزان' : 'فقط همین دانش‌آموزان را نشان بده'}
-              </button>
-            </div>
-          )}
-
-          {filteredStudents.length === 0 && (
-            <EmptyState
-              title="دانش‌آموزی برای نمایش وجود ندارد"
-              hint="کلاس یا جستجوی انتخاب‌شده دانش‌آموزی ندارد یا هنوز کلاسی به شما اختصاص داده نشده است. فیلتر کلاس را بررسی کنید."
-            />
-          )}
-          {onlyStaleObs && staleObsStudents.length === 0 && filteredStudents.length > 0 && (
-            <EmptyState
-              title="همه‌ی دانش‌آموزان مشاهده‌گری اخیر دارند"
-              hint="برای هیچ دانش‌آموزی بیش از ۲ هفته‌ی درسی مشاهده‌گری ثبت‌نشده باقی نمانده است."
-              actionLabel="نمایش همه دانش‌آموزان"
-              onAction={() => setOnlyStaleObs(false)}
-            />
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {(onlyStaleObs ? staleObsStudents.map((e) => e.student) : filteredStudents).map((student) => {
-              const studentObs = observations.filter((o) => o.studentId === student.id);
-              const latestObs = studentObs[0];
-
-              return (
-                <div
-                  key={student.id}
-                  onClick={() => handleOpenStudentObs(student)}
-                  className="bg-white rounded-2xl border border-slate-200 hover:border-emerald-500/70 p-4.5 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-50 border border-emerald-200 flex items-center justify-center text-emerald-800 font-black text-sm group-hover:scale-105 transition">
-                        {student.firstName[0]}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition">
-                          {studentFullName(student)}
-                        </h3>
-                        <div className="text-[11px] text-slate-500">
-                          {getStudentClassName(student.classId)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                      studentObs.length > 0
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-slate-50 text-slate-400 border-slate-200'
-                    }`}>
-                      {studentObs.length > 0 ? `${toPersianDigits(studentObs.length)} مشاهده` : 'بدون مشاهده'}
-                    </span>
-                    {staleObsIds.has(student.id) && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap">
-                        {(() => {
-                          const days = staleObsInfo.get(student.id)?.daysSince;
-                          return days == null ? 'هرگز مشاهده نشده' : `${toPersianDigits(days)} روز بدون مشاهده`;
-                        })()}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Latest Observation snippet */}
-                  <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600 min-h-[58px] flex flex-col justify-center">
-                    {latestObs ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                          <span>آخرین: {latestObs.title}</span>
-                          <span dir="ltr">{latestObs.date}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-700 line-clamp-1">
-                          {latestObs.content}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-slate-400 italic text-center">
-                        هنوز مشاهده‌ای ثبت نشده است (کلیک برای یادداشت)
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-600 group-hover:text-emerald-700">
-                    <span className="flex items-center gap-1">
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>ثبت و مشاهده یادداشت‌ها</span>
-                    </span>
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-          }
+          onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
+          classFilter={{
+            options: availableClasses.map((cls) => ({ id: cls.id, name: cls.name, count: students.filter((s) => s.classId === cls.id).length })),
+            value: selectedClassId,
+            onChange: setSelectedClassId,
+            lockAll: isCoach && availableClasses.length === 1,
+          }}
         />
       )}
 
@@ -1526,304 +1194,40 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* MODAL 1: OBSERVATION FORM & LOGS FOR A STUDENT */}
       {/* ========================================================================= */}
       {isObsModalOpen && selectedStudentForObs && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">
-                    مشاهده‌گری رفتاری: {studentFullName(selectedStudentForObs)}
-                  </h3>
-                  <p className="text-xs text-emerald-300">
-                    {getStudentClassName(selectedStudentForObs.classId)} | ثبت یادداشت‌های تربیتی
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsObsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-6">
-              
-              {/* Form to add or edit observation */}
-              <form onSubmit={handleSaveObservation} className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-4.5 space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4 text-emerald-600" />
-                    <span>{editingObsId ? 'ویرایش مشاهده' : 'ثبت مشاهده جدید'}</span>
-                  </span>
-                  {editingObsId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingObsId(null);
-                        setObsTitle('');
-                        setObsContent('');
-                        setObsTagsInput('');
-                      }}
-                      className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
-                    >
-                      انصراف از ویرایش
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      عنوان یا محور مشاهده <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={obsTitle}
-                      onChange={(e) => setObsTitle(e.target.value)}
-                      placeholder="مثال: تعامل با همکلاسی‌ها در زنگ تفریح"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      دسته‌بندی مشاهده
-                    </label>
-                    <select
-                      value={obsCategory}
-                      onChange={(e) => setObsCategory(e.target.value as ObservationCategory)}
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      {OBSERVATION_CATEGORIES.map((cat) => (
-                        <option key={cat.key} value={cat.key}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">تاریخ</label>
-                    <input
-                      type="text"
-                      value={obsDate}
-                      onChange={(e) => {
-                        setObsDate(e.target.value);
-                        setObsDateManual(true);
-                      }}
-                      placeholder="1404/08/20"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">ساعت</label>
-                    <input
-                      type="text"
-                      value={obsTime}
-                      onChange={(e) => {
-                        setObsTime(e.target.value);
-                        setObsDateManual(true);
-                      }}
-                      placeholder="10:15"
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">مکان مشاهده</label>
-                    <input
-                      type="text"
-                      value={obsLocation}
-                      onChange={(e) => setObsLocation(e.target.value)}
-                      placeholder="کلاس، حیاط، نمازخانه..."
-                      className="w-full text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 text-[11px] -mt-1">
-                  <span className={obsDateManual ? 'text-amber-700 font-bold' : 'text-emerald-700 font-bold'}>
-                    {obsDateManual ? 'تاریخ و ساعت: دستی' : 'تاریخ و ساعت: خودکار از ساعت سامانه'}
-                  </span>
-                  {(obsDateManual || !editingObsId) && (
-                    <button
-                      type="button"
-                      onClick={resetObsDateTimeToNow}
-                      className="text-teal-700 hover:underline font-bold cursor-pointer"
-                    >
-                      اکنون (بازگشت به خودکار)
-                    </button>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    متن مشروح مشاهده‌گری <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={obsContent}
-                    onChange={(e) => setObsContent(e.target.value)}
-                    placeholder="رفتار، گفتار، واکنش هیجانی و جزئیات مشاهده شده را بنویسید..."
-                    className="w-full text-xs bg-white border border-slate-300 rounded-xl p-3 outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    برچسب‌های کلیدی (با کاما جدا کنید)
-                  </label>
-                  <input
-                    type="text"
-                    value={obsTagsInput}
-                    onChange={(e) => setObsTagsInput(e.target.value)}
-                    placeholder="همدلی، مسئولیت‌پذیری، اضطراب، تمرکز..."
-                    className="w-full text-xs bg-white border border-slate-300 rounded-xl px-3 py-1.5 outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>{editingObsId ? 'ذخیره تغییرات' : 'ثبت مشاهده'}</span>
-                  </button>
-                </div>
-              </form>
-
-              {/* Observation History Logs */}
-              {nurturingLocked ? (
-                <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">
-                  <div className="font-black mb-1">سوابق مشاهده‌گری نمایش داده نمی‌شود</div>
-                  {security.reauthRequired
-                    ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
-                    : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
-                </div>
-              ) : (
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                  <span>سوابق و مشاهدات قبلی این دانش‌آموز:</span>
-                  <span className="text-slate-400 font-normal">
-                    {toPersianDigits(observations.filter((o) => o.studentId === selectedStudentForObs.id).length)} مورد
-                  </span>
-                </h4>
-
-                <div className="space-y-2.5">
-                  {observations.filter((o) => o.studentId === selectedStudentForObs.id).length === 0 ? (
-                    <EmptyState
-                      icon={NotebookPen}
-                      title="هنوز مشاهده‌ای ثبت نشده است"
-                      description="اولین مشاهده‌ی رفتاری این دانش‌آموز را از بالای همین پنجره ثبت کنید."
-                    />
-                  ) : (
-                    observations
-                      .filter((o) => o.studentId === selectedStudentForObs.id)
-                      .map((obs) => {
-                        const catObj = OBSERVATION_CATEGORIES.find((c) => c.key === obs.category);
-                        return (
-                          <div
-                            key={obs.id}
-                            className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2 hover:border-emerald-300 transition"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-slate-900 text-xs">{obs.title}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${catObj?.color || 'bg-slate-100 text-slate-800'}`}>
-                                  {catObj?.label || 'عمومی'}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                {obs.authorRole === 'coach' && currentUser.role === 'vice_nurturing' && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 whitespace-nowrap">
-                                    ثبت‌شده توسط مربی
-                                  </span>
-                                )}
-                                {(obs.authorId === currentUser.id || (!obs.authorId && currentUser.role === 'vice_nurturing')) && (<>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditObservation(obs)}
-                                  className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 cursor-pointer"
-                                  title="ویرایش"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    showConfirm({
-                                      title: 'حذف شود؟',
-                                      message: 'آیا از حذف این مشاهده اطمینان دارید؟',
-                                      confirmLabel: 'بله، حذف شود',
-                                      cancelLabel: 'انصراف',
-                                      isDangerous: true,
-                                      onConfirm: () => {
-                                      deleteStudentObservation(obs.id);
-                                    
-                                      },
-                                    });
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 cursor-pointer"
-                                  title="حذف"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                                </>)}
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-slate-700 leading-relaxed">
-                              {obs.content}
-                            </p>
-
-                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="w-3 h-3 text-slate-400" />
-                                  <span dir="ltr">{obs.date}</span>
-                                </span>
-                                {obs.time && <span dir="ltr">ساعت {obs.time}</span>}
-                                {obs.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-slate-400" />
-                                    <span>{obs.location}</span>
-                                  </span>
-                                )}
-                              </div>
-                              <span>ثبت: {obs.recordedBy}</span>
-                            </div>
-
-                            {obs.tags && obs.tags.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap pt-1">
-                                {obs.tags.map((t, idx) => (
-                                  <span key={idx} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
-                                    #{t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                  )}
-                </div>
-              </div>
-              )}
-
-            </div>
-          </div>
-        </div>
+        <StudentObservationModal
+          studentName={studentFullName(selectedStudentForObs)}
+          className={getStudentClassName(selectedStudentForObs.classId)}
+          categories={OBSERVATION_CATEGORIES}
+          history={observations.filter((o) => o.studentId === selectedStudentForObs.id)}
+          locked={nurturingLocked}
+          lockedMessage={security.reauthRequired
+            ? 'به دلیل بی‌فعالیتی، برای نمایش سوابق رمز عبور خود را در بالای صفحه دوباره وارد کنید.'
+            : 'شما می‌توانید مشاهده‌گری جدید ثبت کنید، اما تا زمانی که ورود دومرحله‌ای حساب شما فعال نشده، هیچ سابقه‌ای (حتی مشاهده‌گری‌های خودتان) نمایش داده نمی‌شود.'}
+          canModify={(o) => o.authorId === currentUser.id || (!o.authorId && currentUser.role === 'vice_nurturing')}
+          showCoachBadge={currentUser.role === 'vice_nurturing'}
+          title={obsTitle} onTitle={setObsTitle}
+          category={obsCategory} onCategory={setObsCategory}
+          content={obsContent} onContent={setObsContent}
+          date={obsDate} onDate={setObsDate}
+          time={obsTime} onTime={setObsTime}
+          dateManual={obsDateManual} onDateManual={setObsDateManual}
+          location={obsLocation} onLocation={setObsLocation}
+          tags={obsTagsInput} onTags={setObsTagsInput}
+          editingId={editingObsId}
+          onResetDateTime={resetObsDateTimeToNow}
+          onCancelEdit={() => { setEditingObsId(null); setObsTitle(''); setObsContent(''); setObsTagsInput(''); resetObsDateTimeToNow(); }}
+          onSubmit={handleSaveObservation}
+          onEdit={handleEditObservation}
+          onDelete={(obs) => showConfirm({
+            title: 'حذف شود؟',
+            message: 'آیا از حذف این مشاهده اطمینان دارید؟',
+            confirmLabel: 'بله، حذف شود',
+            cancelLabel: 'انصراف',
+            isDangerous: true,
+            onConfirm: () => { deleteStudentObservation(obs.id); },
+          })}
+          onClose={() => setIsObsModalOpen(false)}
+        />
       )}
 
       {/* ========================================================================= */}
