@@ -26,7 +26,7 @@ export const catOf = (k: string) => CAT[k] || CAT.other;
 const CONCERN_CATS: ObservationCategory[] = ['emotional', 'family'];
 
 type Period = '7' | '30' | 'all';
-type Tab = 'overview' | 'timeline' | 'students';
+export type Tab = 'overview' | 'timeline' | 'students';
 
 const DAY = 86400000;
 const fa = toPersianDigits;
@@ -167,12 +167,14 @@ export interface ObservationInsightsProps {
   onRecord: (student: Student) => void;
   /** فهرست کارتی دانش‌آموزان (تب سوم) */
   studentsGrid: React.ReactNode;
+  /** تب اولیه (پیش‌فرض: نمای کلی) */
+  initialTab?: Tab;
 }
 
 export const ObservationInsights: React.FC<ObservationInsightsProps> = ({
-  allStudents, scopedStudents, classes, observations, staleInfo, isVice, onRecord, studentsGrid,
+  allStudents, scopedStudents, classes, observations, staleInfo, isVice, onRecord, studentsGrid, initialTab = 'overview',
 }) => {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [period, setPeriod] = useState<Period>('30');
   const [cat, setCat] = useState<ObservationCategory | 'all'>('all');
   const [author, setAuthor] = useState<'all' | 'coach' | 'vice'>('all');
