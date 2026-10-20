@@ -340,8 +340,8 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
   const [isObsModalOpen, setIsObsModalOpen] = useState(false);
   // انتخاب کلاس و دانش‌آموز برای «ثبت مشاهده جدید»
   const [isObsPickerOpen, setIsObsPickerOpen] = useState(false);
-  const [obsInitialTab, setObsInitialTab] = useState<'overview' | 'timeline'>('overview');
-  useEffect(() => { if (currentView !== 'observation') setObsInitialTab('overview'); }, [currentView]);
+  const [obsInitialTab, setObsInitialTab] = useState<'overview' | 'timeline'>('timeline');
+  useEffect(() => { if (currentView !== 'observation') setObsInitialTab('timeline'); else setSearchTerm(''); }, [currentView]);
   const [pickClassId, setPickClassId] = useState('');
   const [pickStudentId, setPickStudentId] = useState('');
   const [obsTitle, setObsTitle] = useState('');
@@ -957,7 +957,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         )}
 
         {/* جستجو + فیلتر کلاس در یک سطر (مشاهده‌گری و ارزیابی رشد) */}
-        {(currentView === 'observation' || currentView === 'coachEvaluations') && (
+        {currentView === 'coachEvaluations' && (
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1007,128 +1007,13 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
           staleInfo={new Map(staleObsStudents.map((e) => [e.student.id, e.daysSince]))}
           isVice={currentUser.role === 'vice_nurturing'}
           onRecord={handleOpenStudentObs}
-          studentsGrid={
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Eye className="w-5 h-5 text-emerald-600" />
-                <span>فهرست دانش‌آموزان جهت مشاهده‌گری و ثبت یادداشت‌های رفتاری</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                روی نام هر دانش‌آموز کلیک کنید تا کادر ثبت مشاهدات و سوابق رفتاری باز شود.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              نمایش {toPersianDigits(filteredStudents.length)} دانش‌آموز
-            </span>
-          </div>
-
-          {staleObsStudents.length > 0 && (
-            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex-1 min-w-0 text-xs text-amber-900 leading-6">
-                <b>هشدار:</b> برای {toPersianDigits(staleObsStudents.length)} دانش‌آموز در ۲ هفته‌ی گذشته مشاهده‌گری ثبت نشده است
-                {staleObsStudents.length <= 4 && ` (${staleObsStudents.map((e) => studentFullName(e.student)).join('، ')})`}.
-              </div>
-              <button
-                type="button"
-                onClick={() => setOnlyStaleObs((v) => !v)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 cursor-pointer whitespace-nowrap"
-              >
-                {onlyStaleObs ? 'نمایش همه دانش‌آموزان' : 'فقط همین دانش‌آموزان را نشان بده'}
-              </button>
-            </div>
-          )}
-
-          {filteredStudents.length === 0 && (
-            <EmptyState
-              title="دانش‌آموزی برای نمایش وجود ندارد"
-              hint="کلاس یا جستجوی انتخاب‌شده دانش‌آموزی ندارد یا هنوز کلاسی به شما اختصاص داده نشده است. فیلتر کلاس را بررسی کنید."
-            />
-          )}
-          {onlyStaleObs && staleObsStudents.length === 0 && filteredStudents.length > 0 && (
-            <EmptyState
-              title="همه‌ی دانش‌آموزان مشاهده‌گری اخیر دارند"
-              hint="برای هیچ دانش‌آموزی بیش از ۲ هفته‌ی درسی مشاهده‌گری ثبت‌نشده باقی نمانده است."
-              actionLabel="نمایش همه دانش‌آموزان"
-              onAction={() => setOnlyStaleObs(false)}
-            />
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {(onlyStaleObs ? staleObsStudents.map((e) => e.student) : filteredStudents).map((student) => {
-              const studentObs = observations.filter((o) => o.studentId === student.id);
-              const latestObs = studentObs[0];
-
-              return (
-                <div
-                  key={student.id}
-                  onClick={() => handleOpenStudentObs(student)}
-                  className="bg-white rounded-2xl border border-slate-200 hover:border-emerald-500/70 p-4.5 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-50 border border-emerald-200 flex items-center justify-center text-emerald-800 font-black text-sm group-hover:scale-105 transition">
-                        {student.firstName[0]}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition">
-                          {studentFullName(student)}
-                        </h3>
-                        <div className="text-[11px] text-slate-500">
-                          {getStudentClassName(student.classId)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                      studentObs.length > 0
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-slate-50 text-slate-400 border-slate-200'
-                    }`}>
-                      {studentObs.length > 0 ? `${toPersianDigits(studentObs.length)} مشاهده` : 'بدون مشاهده'}
-                    </span>
-                    {staleObsIds.has(student.id) && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-300 whitespace-nowrap">
-                        {(() => {
-                          const days = staleObsInfo.get(student.id)?.daysSince;
-                          return days == null ? 'هرگز مشاهده نشده' : `${toPersianDigits(days)} روز بدون مشاهده`;
-                        })()}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Latest Observation snippet */}
-                  <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600 min-h-[58px] flex flex-col justify-center">
-                    {latestObs ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                          <span>آخرین: {latestObs.title}</span>
-                          <span dir="ltr">{latestObs.date}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-700 line-clamp-1">
-                          {latestObs.content}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-slate-400 italic text-center">
-                        هنوز مشاهده‌ای ثبت نشده است (کلیک برای یادداشت)
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-600 group-hover:text-emerald-700">
-                    <span className="flex items-center gap-1">
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>ثبت و مشاهده یادداشت‌ها</span>
-                    </span>
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-          }
+          onNewObservation={() => { setPickClassId(availableClasses.length === 1 ? availableClasses[0].id : ''); setPickStudentId(''); setIsObsPickerOpen(true); }}
+          classFilter={{
+            options: availableClasses.map((cls) => ({ id: cls.id, name: cls.name, count: students.filter((s) => s.classId === cls.id).length })),
+            value: selectedClassId,
+            onChange: setSelectedClassId,
+            lockAll: isCoach && availableClasses.length === 1,
+          }}
         />
       )}
 
