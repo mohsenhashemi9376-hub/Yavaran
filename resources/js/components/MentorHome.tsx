@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
-import { Calendar, ClipboardList, Eye, GraduationCap, Menu, Plus, Rows3, UserX } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AlertTriangle, Award, Calendar, ClipboardList, GraduationCap, Menu, Plus, Rows3, UserX } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, StudentObservation } from '../types';
 import { homeworkOutcome } from '../utils/classroomActivity';
 import { getRealTodayShamsiString, tehranNow, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { MentorMessagesSection } from './MentorMessages';
+import { DisciplineExcellenceCard, useDisciplineExcellence } from './DisciplineExcellence';
 import { Tile } from './NurturingViceHome';
+import { Modal } from './ui/Modal';
 import { daysAgo } from './ObservationInsights';
 
 const fa = toPersianDigits;
@@ -19,20 +21,28 @@ export interface MentorHomeProps {
   students: Student[];
   classes: SchoolClass[];
   observations: StudentObservation[];
+  /** تعداد دانش‌آموزان نیازمند توجه فوری */
+  attentionCount: number;
   onOpenSidebar: () => void;
   onNewObservation: () => void;
   onOpenTimeline: () => void;
   onOpenHomework: () => void;
   onOpenAcademicDiscipline: () => void;
   onOpenGreyList: () => void;
+  onOpenAttention: () => void;
+  onSelectDisciplineStudent: (student: Student) => void;
 }
 
 /** پیشخوان مربی: هدر ساده + کاشی‌های شیشه‌ای رنگی (هم‌سبک پنل معاون تربیتی و معاون آموزشی) */
 export const MentorHome: React.FC<MentorHomeProps> = ({
-  greeting, roleLabel, dayOfWeek, displayDate, students, classes, observations,
+  greeting, roleLabel, dayOfWeek, displayDate, students, classes, observations, attentionCount,
   onOpenSidebar, onNewObservation, onOpenTimeline, onOpenHomework, onOpenAcademicDiscipline, onOpenGreyList,
+  onOpenAttention, onSelectDisciplineStudent,
 }) => {
   const { sessions, greyList } = useSchool();
+  const [excellenceOpen, setExcellenceOpen] = useState(false);
+  const classIds = useMemo(() => classes.map((c) => c.id), [classes]);
+  const { excellent } = useDisciplineExcellence('d30', classIds);
 
   const m = useMemo(() => {
     const now = tehranNow().getTime();
@@ -96,8 +106,14 @@ export const MentorHome: React.FC<MentorHomeProps> = ({
         <Tile tone="sky" label="خط زمانی" value={fa(m.week)} hint="مشاهدات ۷ روز اخیر" icon={<Rows3 className="w-4 h-4" />} onClick={onOpenTimeline} />
         <Tile tone="amber" label="پیگیری تکالیف" value={fa(m.homework)} hint="انجام‌نشده در ۳۰ روز" icon={<ClipboardList className="w-4 h-4" />} onClick={onOpenHomework} />
         <Tile tone="violet" label="آموزش و انضباط" value={fa(classes.length)} hint="مشاهده کلاس‌ها" icon={<GraduationCap className="w-4 h-4" />} onClick={onOpenAcademicDiscipline} />
+        <Tile tone="amber" label="ممتازین انضباطی" value={fa(excellent.length)} hint="مشاهده ممتازین" icon={<Award className="w-4 h-4" />} onClick={() => setExcellenceOpen(true)} />
+        <Tile tone="rose" label="نیازمند توجه" value={fa(attentionCount)} hint="مشاهده دانش‌آموزان" icon={<AlertTriangle className="w-4 h-4" />} onClick={onOpenAttention} />
         <Tile tone="slate" label="لیست خاکستری" value={fa(m.grey)} hint="این ماه" icon={<UserX className="w-4 h-4" />} onClick={onOpenGreyList} />
       </div>
+
+      <Modal isOpen={excellenceOpen} onClose={() => setExcellenceOpen(false)} title="ممتازین انضباطی" size="xl">
+        <DisciplineExcellenceCard classIds={classIds} onSelectStudent={(s) => { setExcellenceOpen(false); onSelectDisciplineStudent(s); }} />
+      </Modal>
     </div>
   );
 };
