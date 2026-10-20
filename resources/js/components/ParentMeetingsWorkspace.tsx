@@ -1,4 +1,4 @@
-import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
+import { Modal } from './ui';
 import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
@@ -9,8 +9,7 @@ import {
   ChevronLeft,
   CircleSlash,
   Eye,
-  Lock,
-  LockOpen,
+  Info,
   FileSpreadsheet,
   Menu,
   MessageSquareText,
@@ -22,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ParentMeetingNo, ParentMeetingRecord, Student } from '../types';
-import { getDayOfWeekFromShamsi, getRealTodayShamsiString, toPersianDigits } from '../utils/persianDate';
+import { PERSIAN_MONTHS, getDayOfWeekFromShamsi, getRealTodayShamsiString, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 import { hasPermission } from '../utils/permissions';
 import {
@@ -30,7 +29,6 @@ import {
   PARENT_MEETING_LABELS,
   PARENT_MEETING_NUMBERS,
   ParentAttendanceState,
-  MEETING_STATUS_LABELS,
   MeetingStatus,
   attendanceState,
   currentAcademicStartYear,
@@ -38,6 +36,13 @@ import {
   studentParentSummary,
   summarizeMeeting,
 } from '../utils/parentMeetings';
+
+/** فصل و بازه‌ی تقریبی برگزاری هر جلسه (جلسه‌ی اول پاییز، دوم زمستان، سوم بهار) */
+const MEETING_SEASON: Record<ParentMeetingNo, { name: string; approx: (startYear: number) => string }> = {
+  1: { name: 'پاییز', approx: (y) => `آبان تا آذر ${toPersianDigits(y)}` },
+  2: { name: 'زمستان', approx: (y) => `بهمن تا اسفند ${toPersianDigits(y)}` },
+  3: { name: 'بهار', approx: (y) => `فروردین تا اردیبهشت ${toPersianDigits(y + 1)}` },
+};
 
 type RowFilter = 'all' | 'unrecorded' | 'attended' | 'none' | 'risk' | 'noted';
 
@@ -110,6 +115,8 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
   const canManageMeetings = currentUser.role === 'admin' || currentUser.role === 'vice_principal';
 
   const today = getRealTodayShamsiString();
+  const [ty, tm, td] = toEnglishDigits(today).split('/').map(Number);
+  const todayLabel = `${getDayOfWeekFromShamsi(today)} ${toPersianDigits(td)} ${PERSIAN_MONTHS[tm - 1]} ${toPersianDigits(ty)}`;
   const yearStart = currentAcademicStartYear();
   const yearKey = String(yearStart);
 
@@ -129,6 +136,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
   const [search, setSearch] = useState('');
   const [noteOpen, setNoteOpen] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const activeClassId = classId || realClasses[0]?.id || '';
 
@@ -310,132 +318,172 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
 
   return (
     <div className="space-y-5" dir="rtl">
-      {/* سربرگ */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
-        <WorkspaceTitleBar
-          title="حضور أولیا"
-          icon={UsersRound}
-          section="امور روزانه"
-          badge={canRecord ? undefined : canNote ? 'مشاهده و یادداشت' : 'مشاهده'}
-          subtitle={
-            <>
-              جلسات عمومی أولیا · سال تحصیلی {toPersianDigits(`${yearStart}-${yearStart + 1}`)} · سه جلسه در سال.
-              {canRecord
-                ? ' جلسه باید باز باشد تا حضور ثبت شود (مدیر و معاون اجرایی جلسه را باز و بسته می‌کنند). حضور پدر و مادر هر دانش‌آموز جداگانه ثبت می‌شود و تاریخ ثبت خودکار (امروز) درج می‌گردد.'
-                : ' آمار حضور پدر و مادر را می‌بینید' + (canNote ? ' و می‌توانید برای هر دانش‌آموز یادداشت بنویسید' : '') + '؛ ثبت حضور با مدیر، معاون انضباطی و مربی است.'}
-            </>
-          }
-          onBack={onBack}
-          onOpenSidebar={onOpenSidebar}
-          actions={
-            <>
-              {canEdit && (
-                <span className="h-9 px-3 rounded-xl bg-teal-50 border border-teal-100 text-teal-800 text-xs font-bold inline-flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    تاریخ ثبت: {getDayOfWeekFromShamsi(today)} <span className="font-mono">{toPersianDigits(today)}</span>
-                  </span>
-                </span>
-              )}
-              <HeaderAction icon={FileSpreadsheet} iconClassName="text-emerald-700" label="خروجی اکسل" onClick={exportExcel} disabled={schoolStudents.length === 0} />
-            </>
-          }
-        />
-
-        {/* انتخاب جلسه */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5" role="tablist" aria-label="جلسه‌ی عمومی أولیا">
-          {meetingOverview.map(({ no, summary }) => {
-            const active = no === meetingNo;
-            return (
-              <button
-                key={no}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setMeetingNo(no)}
-                className={`text-right p-4 rounded-xl border transition cursor-pointer ${
-                  active ? 'border-teal-500 ring-2 ring-teal-100 bg-white' : 'border-slate-200/80 bg-slate-50/70 hover:border-teal-300'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`text-sm font-black ${active ? 'text-teal-800' : 'text-slate-800'}`}>{PARENT_MEETING_LABELS[no]}</span>
-                  <span className="text-lg font-black text-slate-900">{toPersianDigits(summary.rate)}٪</span>
-                </div>
-                <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                  statusOf(no) === 'open' ? 'bg-emerald-100 text-emerald-800' : statusOf(no) === 'held' ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {statusOf(no) === 'open' ? <LockOpen className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                  {MEETING_STATUS_LABELS[statusOf(no)]}
-                </span>
-                <div className="h-1.5 rounded-full bg-slate-200 mt-2.5 overflow-hidden">
-                  <div className="h-full bg-gradient-to-l from-teal-500 to-emerald-500 transition-all" style={{ width: `${summary.rate}%` }} />
-                </div>
-                <div className="text-[11px] text-slate-500 mt-2">
-                  {summary.recorded === 0
-                    ? 'هنوز ثبت نشده'
-                    : `${toPersianDigits(summary.recorded)} از ${toPersianDigits(summary.total)} ثبت شده · ${toPersianDigits(summary.attended)} حاضر`}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          className={`mt-4 rounded-2xl border px-4 py-3 flex items-center gap-3 flex-wrap ${
-            status === 'open' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : status === 'held' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-amber-50/70 border-amber-200 text-amber-900'
-          }`}
-        >
-          {status === 'open' ? <LockOpen className="w-5 h-5 shrink-0" /> : <Lock className="w-5 h-5 shrink-0" />}
-          <p className="text-xs font-bold leading-6 flex-1 min-w-[12rem]">
-            {status === 'open' && `${PARENT_MEETING_LABELS[meetingNo]} باز است و حضور و غیاب پدر و مادر ثبت می‌شود.`}
-            {status === 'held' && `${PARENT_MEETING_LABELS[meetingNo]} برگزار و بسته شده است؛ حضور و غیاب دیگر ثبت یا ویرایش نمی‌شود.`}
-            {status === 'pending' && `${PARENT_MEETING_LABELS[meetingNo]} هنوز توسط مدیر یا معاون اجرایی باز نشده است؛ تا آن زمان حضوری ثبت نمی‌شود.`}
-          </p>
-          {canManageMeetings && (
-            <button
-              type="button"
-              onClick={toggleMeeting}
-              className={`h-10 px-4 rounded-xl text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer text-white ${
-                status === 'open' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-700 hover:bg-teal-800'
-              }`}
-            >
-              {status === 'open' ? <Lock className="w-4 h-4" /> : <LockOpen className="w-4 h-4" />}
-              {status === 'open' ? 'بستن جلسه (برگزار شد)' : status === 'held' ? 'باز کردن دوباره' : 'باز کردن جلسه'}
+      {/* نوار ابزار فشرده */}
+      <div className="sticky top-0 z-20 -mx-1 flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-2.5 py-1.5 shadow-xs backdrop-blur-xl">
+        {onOpenSidebar && (
+          <button type="button" onClick={onOpenSidebar} aria-label="باز کردن نوار کناری" className="!min-h-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-600 hover:bg-slate-100 lg:hidden cursor-pointer">
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-center gap-1.5 text-sm font-black leading-tight text-slate-900">
+            <UsersRound className="h-4 w-4 shrink-0 text-emerald-700" />
+            <span className="truncate">حضور اولیا در جلسات عمومی</span>
+            <button type="button" onClick={() => setHelpOpen(true)} aria-label="راهنمای صفحه" className="!min-h-0 grid h-7 w-7 shrink-0 place-items-center rounded-full text-emerald-700 hover:bg-emerald-50 cursor-pointer">
+              <Info className="h-4 w-4" />
             </button>
-          )}
+          </h1>
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span className="truncate">{todayLabel}</span>
+          </p>
         </div>
-
-        <div className="flex items-center gap-x-5 gap-y-1.5 flex-wrap mt-4 text-xs text-slate-600">
-          {stats.map((s) => (
-            <span key={s.label} className="inline-flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
-              <span className="font-bold text-slate-500">{s.label}:</span>
-              <span className="font-black text-slate-900">{toPersianDigits(s.value)}</span>
-            </span>
-          ))}
-        </div>
-
-        {riskIds.size > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearch('');
-              setFilter('risk');
-            }}
-            className="mt-4 w-full sm:w-auto text-right px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold inline-flex items-center gap-2 cursor-pointer hover:bg-amber-100 transition"
-          >
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              {toPersianDigits(riskIds.size)} دانش‌آموز در هیچ‌یک از جلسه‌های ثبت‌شده، ولی‌شان حاضر نبوده است — مشاهده فهرست
-            </span>
+        <button
+          type="button"
+          onClick={exportExcel}
+          disabled={schoolStudents.length === 0}
+          className="!min-h-0 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-white/70 bg-white/70 px-3 text-xs font-bold text-emerald-800 shadow-xs ring-1 ring-slate-200/70 backdrop-blur hover:bg-emerald-50 disabled:opacity-40 cursor-pointer"
+        >
+          <FileSpreadsheet className="h-4 w-4" /> اکسل
+        </button>
+        {onBack && (
+          <button type="button" onClick={onBack} aria-label="بازگشت به داشبورد" className="!min-h-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">
+            <ChevronLeft className="h-4 w-4" />
           </button>
         )}
       </div>
 
+      <Modal isOpen={helpOpen} onClose={() => setHelpOpen(false)} title="راهنمای حضور اولیا" subtitle={`سال تحصیلی ${toPersianDigits(`${yearStart}-${yearStart + 1}`)}`} icon={<Info className="w-5 h-5" />} size="md">
+        <p className="text-sm leading-7 text-slate-700">
+          جلسات عمومی اولیا · سه جلسه در سال (پاییز، زمستان، بهار).
+          {canRecord
+            ? ' جلسه باید باز باشد تا حضور ثبت شود (مدیر و معاون اجرایی جلسه را باز و بسته می‌کنند). حضور پدر و مادر هر دانش‌آموز جداگانه ثبت می‌شود و تاریخ ثبت خودکار (امروز) درج می‌گردد.'
+            : ' آمار حضور پدر و مادر را می‌بینید' + (canNote ? ' و می‌توانید برای هر دانش‌آموز یادداشت بنویسید' : '') + '؛ ثبت حضور با مدیر، معاون انضباطی و مربی است.'}
+        </p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+          {stats.map((st) => (
+            <span key={st.label} className="inline-flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${st.dot}`} />
+              <span className="font-bold text-slate-500">{st.label}:</span>
+              <span className="font-black text-slate-900">{toPersianDigits(st.value)}</span>
+            </span>
+          ))}
+        </div>
+      </Modal>
+
+      {/* کارت‌های جلسه */}
+      <div className="space-y-3" role="tablist" aria-label="جلسه‌ی عمومی اولیا">
+        {meetingOverview.map(({ no, summary }) => {
+          const st = statusOf(no);
+          const selected = no === meetingNo;
+          const season = MEETING_SEASON[no];
+          const title = `${PARENT_MEETING_LABELS[no]} (فصل ${season.name})`;
+          const fathers = summary.both + summary.father;
+          const mothers = summary.both + summary.mother;
+
+          if (st !== 'open') {
+            const held = st === 'held';
+            return (
+              <div
+                key={no}
+                role="tab"
+                tabIndex={0}
+                aria-selected={selected}
+                onClick={() => setMeetingNo(no)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setMeetingNo(no)}
+                className={`rounded-2xl border p-3.5 cursor-pointer transition ${held ? 'bg-slate-50 border-slate-200' : 'bg-slate-100/70 border-slate-200'} ${selected ? 'ring-2 ring-slate-300' : ''}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-slate-700">{title}</span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500">
+                    {held ? '✔ برگزار شد' : '🔒 قفل / هنوز باز نشده'}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                  <span>{held ? `${toPersianDigits(summary.attended)} حاضر از ${toPersianDigits(summary.total)} دانش‌آموز · ${toPersianDigits(summary.rate)}٪` : `تاریخ تقریبی برگزاری: ${season.approx(yearStart)}`}</span>
+                  {canManageMeetings && selected && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleMeeting(); }} className="!min-h-0 h-8 shrink-0 whitespace-nowrap rounded-lg bg-emerald-700 px-3 text-[11px] font-extrabold text-white hover:bg-emerald-800 cursor-pointer">
+                      {held ? 'باز کردن دوباره' : 'باز کردن جلسه'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={no}
+              role="tab"
+              tabIndex={0}
+              aria-selected={selected}
+              onClick={() => setMeetingNo(no)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setMeetingNo(no)}
+              className={`rounded-3xl border bg-white/90 p-4 shadow-sm backdrop-blur cursor-pointer transition ${selected ? 'border-emerald-500/60 ring-2 ring-emerald-500/20' : 'border-emerald-500/25'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-base font-black text-emerald-800">{title}</h2>
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  باز / در حال ثبت
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <span className="text-3xl font-black leading-none text-emerald-700">{toPersianDigits(summary.rate)}٪</span>
+                <span className="text-[11px] text-slate-500">
+                  {summary.recorded === 0 ? 'هنوز ثبت نشده' : `${toPersianDigits(summary.attended)} حاضر از ${toPersianDigits(summary.total)} دانش‌آموز`}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200/80" role="progressbar" aria-valuenow={summary.rate} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-full rounded-full bg-gradient-to-l from-emerald-500 to-teal-400 transition-all" style={{ width: `${summary.rate}%` }} />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="whitespace-nowrap rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-800">👨 {toPersianDigits(fathers)} پدر</span>
+                <span className="whitespace-nowrap rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-800">👩 {toPersianDigits(mothers)} مادر</span>
+                {summary.total - summary.recorded > 0 && (
+                  <span className="whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-500">{toPersianDigits(summary.total - summary.recorded)} ثبت‌نشده</span>
+                )}
+              </div>
+
+              <div className="mt-3.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setMeetingNo(no); document.getElementById('parent-attendance-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                  className="!min-h-0 h-12 flex-1 rounded-2xl bg-emerald-700 text-sm font-extrabold text-white shadow-sm shadow-emerald-700/25 hover:bg-emerald-800 active:scale-[.99] cursor-pointer"
+                >
+                  {canRecord ? '➕ ثبت و مدیریت حضور اولیا' : 'مشاهده فهرست حضور'}
+                </button>
+                {canManageMeetings && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setMeetingNo(no); toggleMeeting(); }} className="!min-h-0 h-12 shrink-0 whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-extrabold text-rose-700 hover:bg-rose-100 cursor-pointer">
+                    بستن جلسه
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {riskIds.size > 0 && (
+        <button
+          type="button"
+          onClick={() => { setSearch(''); setFilter('risk'); }}
+          className="w-full text-right px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold inline-flex items-center gap-2 cursor-pointer hover:bg-amber-100 transition"
+        >
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>{toPersianDigits(riskIds.size)} دانش‌آموز در هیچ‌یک از جلسه‌های ثبت‌شده، ولی‌شان حاضر نبوده است — مشاهده فهرست</span>
+        </button>
+      )}
+
       {realClasses.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 py-16 text-center text-slate-500 text-sm font-bold">کلاسی برای نمایش وجود ندارد.</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div id="parent-attendance-list" className="scroll-mt-16 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100 space-y-4">
             {/* کلاس‌ها */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="کلاس">
