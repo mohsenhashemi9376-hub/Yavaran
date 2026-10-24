@@ -121,4 +121,28 @@ class SchoolCalendarTest extends TestCase
         $this->sync($admin, 'schoolHolidays', [$this->holiday('امروز')])->assertStatus(422);
         $this->assertDatabaseCount('school_holidays', 0);
     }
+
+    public function test_only_admin_and_disciplinary_vice_set_the_daily_entry_time(): void
+    {
+        $id = 'ent-1405-07-14';
+        $row = ['id' => $id, 'data' => ['id' => $id, 'date' => self::TUESDAY, 'time' => '07:30']];
+
+        $this->sync($this->makeUser('vice_disciplinary', ['name' => 'معاون']), 'entryTimes', [$row])->assertOk();
+        $this->assertDatabaseHas('school_entry_times', ['entry_date' => self::TUESDAY]);
+        $stored = json_decode((string) DB::table('school_entry_times')->value('data'), true);
+        $this->assertSame('07:30', $stored['time']);
+        $this->assertSame('معاون', $stored['setBy']);
+
+        $this->sync($this->makeUser('teacher'), 'entryTimes', [$row])->assertStatus(403);
+        $this->sync($this->makeUser('admin'), 'entryTimes', [], [$id])->assertOk();
+        $this->assertDatabaseCount('school_entry_times', 0);
+    }
+
+    public function test_invalid_entry_time_is_rejected(): void
+    {
+        $admin = $this->makeUser('admin');
+        $this->sync($admin, 'entryTimes', [['id' => 'ent-1405-07-14', 'data' => ['id' => 'ent-1405-07-14', 'date' => self::TUESDAY, 'time' => '25:99']]])->assertStatus(422);
+        $this->sync($admin, 'entryTimes', [['id' => 'ent-x', 'data' => ['id' => 'ent-x', 'date' => self::TUESDAY, 'time' => '07:30']]])->assertStatus(422);
+        $this->assertDatabaseCount('school_entry_times', 0);
+    }
 }

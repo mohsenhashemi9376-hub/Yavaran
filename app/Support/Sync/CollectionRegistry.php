@@ -34,6 +34,7 @@ final class CollectionRegistry
         'worksheets' => 'worksheet_records',
         'worksheetWeeks' => 'worksheet_weeks',
         'schoolHolidays' => 'school_holidays',
+        'entryTimes' => 'school_entry_times',
         'parentMeetings' => 'parent_meetings',
         'parentMeetingStates' => 'parent_meeting_states',
         'reflectionPoints' => 'reflection_points',
@@ -97,6 +98,21 @@ final class CollectionRegistry
                 \Illuminate\Support\Facades\Schema::create('school_holidays', function ($t): void {
                     $t->string('id', 100)->primary();
                     $t->string('holiday_date', 20)->unique();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'school_entry_times') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('school_entry_times', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('entry_date', 20)->unique();
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
@@ -543,6 +559,9 @@ final class CollectionRegistry
             ],
             'schoolHolidays' => [
                 'holiday_date' => self::str($d, 'date', 20) ?? '',
+            ],
+            'entryTimes' => [
+                'entry_date' => self::str($d, 'date', 20) ?? '',
             ],
             'parentMeetings' => [
                 'student_id' => self::str($d, 'studentId', 100) ?? '',

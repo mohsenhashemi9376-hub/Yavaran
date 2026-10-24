@@ -305,6 +305,19 @@ CREATE TABLE IF NOT EXISTS `school_holidays` (
   KEY `school_holidays_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ساعت ورود تعیین‌شده‌ی روزهای مدرسه (ورود پس از آن تأخیر است)
+CREATE TABLE IF NOT EXISTS `school_entry_times` (
+  `id` varchar(100) NOT NULL,
+  `entry_date` varchar(20) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `school_entry_times_entry_date_unique` (`entry_date`),
+  KEY `school_entry_times_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- حضور اولیا در جلسات عمومی اولیاء (سه جلسه در سال)
 CREATE TABLE IF NOT EXISTS `parent_meetings` (
   `id` varchar(150) NOT NULL,

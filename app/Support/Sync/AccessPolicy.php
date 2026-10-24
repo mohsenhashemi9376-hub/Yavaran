@@ -165,6 +165,7 @@ final class AccessPolicy
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
         'schoolHolidays' => 'discipline',
+        'entryTimes' => 'discipline',
         'worksheets' => 'manage-worksheets',
         'worksheetWeeks' => 'manage-worksheets',
         'bellPeriods' => 'manage-curriculum',
@@ -386,7 +387,7 @@ final class AccessPolicy
             return;
         }
 
-        if ($collection === 'schoolHolidays') {
+        if ($collection === 'schoolHolidays' || $collection === 'entryTimes') {
             $this->requireHolidayManager();
 
             return;
@@ -520,7 +521,7 @@ final class AccessPolicy
             return;
         }
 
-        if ($collection === 'schoolHolidays') {
+        if ($collection === 'schoolHolidays' || $collection === 'entryTimes') {
             $this->requireHolidayManager();
 
             return;
@@ -1027,7 +1028,7 @@ final class AccessPolicy
     private function requireHolidayManager(): void
     {
         if (! in_array($this->user->role, ['admin', 'vice_disciplinary'], true)) {
-            $this->deny('اعلام تعطیلی فقط با مدیر سامانه و معاون انضباطی است.');
+            $this->deny('اعلام تعطیلی و تعیین ساعت ورود فقط با مدیر سامانه و معاون انضباطی است.');
         }
     }
 

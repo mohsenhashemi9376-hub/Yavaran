@@ -29,6 +29,7 @@ import {
   WorksheetWeek,
   WorksheetStatus,
   SchoolHoliday,
+  EntryTimeRecord,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -66,7 +67,7 @@ import {
 import { FollowUpConfig, mergeFollowUpConfig } from '../utils/academicFollowUp';
 import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetings';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
-import { delayFromEntryTime } from '../utils/morningAttendance';
+import { DEFAULT_ENTRY_TIME, delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
 import { buildGradePeriodList, isPeriodOpenForSubject, openSubjectIdsOf } from '../utils/gradePeriods';
 import { buildWorkshopList, workshopAsClass, workshopSubjectName } from '../utils/workshops';
@@ -150,6 +151,11 @@ interface SchoolContextType {
   /** ثبت دیرهنگام: اجازه‌ی ثبت و ویرایش برای روز گذشته‌ی انتخاب‌شده */
   lateEntry: boolean;
   changeLateEntry: (on: boolean) => void;
+  /** ساعت ورود تعیین‌شده برای هر روز (پیش‌فرض ۰۷:۰۰)؛ ورود پس از آن تأخیر است */
+  entryTimes: EntryTimeRecord[];
+  entryTimeFor: (date: string) => string;
+  /** time = null: بازگشت به ساعت پیش‌فرض */
+  setEntryTime: (date: string, time: string | null) => void;
   addSchoolHoliday: (date: string, title?: string | null) => void;
   removeSchoolHoliday: (date: string) => void;
   /** علامت‌گذاری کاربرگ هفتگی: status=null یعنی «تحویل نداده» (حذف رکورد) */
@@ -461,6 +467,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rawMorningAttendance, setMorningAttendance] = useState<MorningAttendanceRecord[]>([]);
   const [rawSchoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
   const [schoolHolidays, setSchoolHolidays] = useState<SchoolHoliday[]>([]);
+  const [entryTimes, setEntryTimes] = useState<EntryTimeRecord[]>([]);
+  const entryTimeFor = useCallback(
+    (date: string) => entryTimes.find((e) => e.id === `ent-${normalizeShamsi(date).replace(/\//g, '-')}`)?.time || DEFAULT_ENTRY_TIME,
+    [entryTimes]
+  );
 
   // جمعه‌ها و روزهای تعطیل اعلام‌شده روز درسی نیستند: حضور و غیاب آن روزها در هیچ محاسبه‌ای نمی‌آید
   // (state خام فقط برای همگام‌سازی با سرور نگه داشته می‌شود)
@@ -652,6 +663,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextAcademicFollowUps = (d.academicFollowUps || []) as unknown as AcademicFollowUpRecord[];
     const nextGreyList = (d.greyList || []) as unknown as GreyListRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
+    const nextEntryTimes = (d.entryTimes || []) as unknown as EntryTimeRecord[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
@@ -686,6 +698,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       greyList: nextGreyList as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
+      entryTimes: nextEntryTimes as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
@@ -719,6 +732,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setGreyList(nextGreyList);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
+    setEntryTimes(nextEntryTimes);
     setWorksheetWeeks(nextWorksheetWeeks);
     setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
@@ -768,6 +782,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setGreyList([]);
     setWorksheets([]);
     setSchoolHolidays([]);
+    setEntryTimes([]);
     setWorksheetWeeks([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
@@ -886,6 +901,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('morningAttendance', rawMorningAttendance as unknown as SyncRow[]); }, [rawMorningAttendance, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAbsences', rawSchoolAbsences as unknown as SyncRow[]); }, [rawSchoolAbsences, syncEngine]);
   useEffect(() => { syncEngine.push('schoolHolidays', schoolHolidays as unknown as SyncRow[]); }, [schoolHolidays, syncEngine]);
+  useEffect(() => { syncEngine.push('entryTimes', entryTimes as unknown as SyncRow[]); }, [entryTimes, syncEngine]);
   useEffect(() => { syncEngine.push('observations', observations as unknown as SyncRow[]); }, [observations, syncEngine]);
   useEffect(() => { syncEngine.push('nurturingDossiers', dossiersToRows(nurturingDossiers)); }, [nurturingDossiers, syncEngine]);
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
@@ -1564,7 +1580,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }),
         status: 'present',
         entryTime,
-        delayMinutes: delayFromEntryTime(entryTime),
+        delayMinutes: delayFromEntryTime(entryTime, entryTimeFor(today.formattedDate)),
         delayManuallyAdjusted: false,
         isAcknowledged: false,
         acknowledgedAt: undefined,
@@ -1593,7 +1609,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setMorningAttendance((prev) =>
       prev.map((r) =>
         r.id === recordId && r.status === 'present'
-          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
+          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm, entryTimeFor(r.date)), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
           : r
       )
     );
@@ -2625,6 +2641,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ]);
   };
 
+  const setEntryTime = (date: string, time: string | null) => {
+    const normalized = normalizeShamsi(date);
+    const id = `ent-${normalized.replace(/\//g, '-')}`;
+    const clean = time && /^([01]?\d|2[0-3]):[0-5]\d$/.test(time) ? time.padStart(5, '0') : null;
+    setEntryTimes((prev) => [
+      ...prev.filter((e) => e.id !== id),
+      ...(clean && clean !== DEFAULT_ENTRY_TIME
+        ? [{ id, date: normalized, time: clean, setById: currentUser.id, setBy: currentUser.name, updatedAt: new Date().toISOString() }]
+        : []),
+    ]);
+    // ورودی‌های ثبت‌شده‌ی همان روز با ساعت ورود جدید دوباره سنجیده می‌شوند (به‌جز تأخیرهای دستی)
+    const reference = clean || DEFAULT_ENTRY_TIME;
+    setMorningAttendance((prev) =>
+      prev.map((r) =>
+        normalizeShamsi(r.date) === normalized && r.status === 'present' && r.entryTime && !r.delayManuallyAdjusted
+          ? { ...r, delayMinutes: delayFromEntryTime(r.entryTime, reference), updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
+  };
+
   const removeSchoolHoliday = (date: string) => {
     const id = `hol-${normalizeShamsi(date).replace(/\//g, '-')}`;
     setSchoolHolidays((prev) => prev.filter((h) => h.id !== id));
@@ -3135,6 +3172,9 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         worksheets,
         worksheetWeeks,
         schoolHolidays,
+        entryTimes,
+        entryTimeFor,
+        setEntryTime,
         isClosedDay,
         closedReasonOf: (date: string) => closedReasonOf(date, schoolHolidays),
         todayClosedReason: closedReasonOf(getTodayShamsi().formattedDate, schoolHolidays),

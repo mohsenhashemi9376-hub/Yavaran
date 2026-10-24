@@ -29,6 +29,7 @@ export type CollectionKey =
   | 'worksheets'
   | 'worksheetWeeks'
   | 'schoolHolidays'
+  | 'entryTimes'
   | 'parentMeetings'
   | 'parentMeetingStates'
   | 'reflectionPoints'
@@ -62,6 +63,7 @@ export const COLLECTION_KEYS: CollectionKey[] = [
   'worksheets',
   'worksheetWeeks',
   'schoolHolidays',
+  'entryTimes',
   'parentMeetings',
   'parentMeetingStates',
   'reflectionPoints',

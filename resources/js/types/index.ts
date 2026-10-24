@@ -509,6 +509,16 @@ export interface SchoolHoliday {
   updatedAt?: string;
 }
 
+/** ساعت ورود تعیین‌شده‌ی یک روز توسط مدیر یا معاون انضباطی؛ ورود پس از آن در همان روز تأخیر است (بدون ثبت: ۰۷:۰۰) */
+export interface EntryTimeRecord {
+  id: string; // ent-{تاریخ با خط تیره}
+  date: string; // "1405/07/20"
+  time: string; // "07:30"
+  setBy?: string;
+  setById?: string;
+  updatedAt?: string;
+}
+
 /** کاربرگ هفتگی: «تحویل نداده» حالت پیش‌فرض است و رکوردی ندارد؛ فقط تحویل‌دهندگان ثبت می‌شوند */
 export type WorksheetStatus = 'complete' | 'partial' | 'absent';
 

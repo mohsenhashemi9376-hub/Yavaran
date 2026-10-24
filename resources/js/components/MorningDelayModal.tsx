@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { delayFromEntryTime } from '../utils/morningAttendance';
+import { clockToMinutes, delayFromEntryTime, DEFAULT_ENTRY_TIME, minutesToClockString } from '../utils/morningAttendance';
+import { EntryTimeControl } from './EntryTimeControl';
 import { getEntryClock, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
@@ -27,11 +28,9 @@ const normalizeText = (value: string) =>
     .trim()
     .toLowerCase();
 
-/** ساعت ورود معادل «X دقیقه بعد از ۰۷:۰۰» */
-const minutesToClock = (minutes: number): string => {
-  const t = 7 * 60 + Math.max(0, Math.round(minutes || 0));
-  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-};
+/** ساعت ورود معادل «X دقیقه بعد از ساعت ورود همان روز» (پیش‌فرض ۰۷:۰۰) */
+const minutesToClock = (minutes: number, reference: string = DEFAULT_ENTRY_TIME): string =>
+  minutesToClockString((clockToMinutes(reference) ?? 7 * 60) + Math.max(0, Math.round(minutes || 0)));
 
 export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
   isOpen,
@@ -45,6 +44,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     classes, 
     currentUser, 
     morningDelays,
+    entryTimeFor,
     addMorningDelay, 
     updateMorningDelay,
     showToast
@@ -101,17 +101,17 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId(editRecord.studentId);
         setDate(toEnglishDigits(editRecord.date));
         setDelayMinutesInput(String(editRecord.delayMinutes || 15));
-        setArrivalInput(editRecord.arrivalTime || minutesToClock(editRecord.delayMinutes || 15));
+        setArrivalInput(editRecord.arrivalTime || minutesToClock(editRecord.delayMinutes || 15, entryTimeFor(editRecord.date)));
         setReason(editRecord.reason || '');
         setIsExcused(editRecord.isExcused ?? false);
-        setShowDetails(Boolean(editRecord.reason) || Boolean(editRecord.isExcused));
+        setShowDetails(Boolean(editRecord.reason));
         setStudentSearchQuery('');
       } else if (initialStudent) {
         // Opened with preselected student (e.g. from Student Profile)
         setSelectedStudentId(initialStudent.id);
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
-        setArrivalInput(minutesToClock(15));
+        setArrivalInput(minutesToClock(15, entryTimeFor(todayInfo.formattedDate)));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -120,7 +120,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
-        setArrivalInput(minutesToClock(15));
+        setArrivalInput(minutesToClock(15, entryTimeFor(todayInfo.formattedDate)));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -129,7 +129,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
         setSelectedStudentId('');
         setDate(todayInfo.formattedDate);
         setDelayMinutesInput('15');
-        setArrivalInput(minutesToClock(15));
+        setArrivalInput(minutesToClock(15, entryTimeFor(todayInfo.formattedDate)));
         setReason('');
         setIsExcused(false);
         setStudentSearchQuery('');
@@ -156,6 +156,8 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
       .slice(0, 8);
   }, [students, studentSearchQuery]);
 
+  /** ساعت ورود تعیین‌شده برای تاریخ انتخاب‌شده */
+  const referenceTime = entryTimeFor(toEnglishDigits(date.trim()));
   const parsedMinutes = Number(toEnglishDigits(delayMinutesInput.trim()));
   const isDelayValid = !isNaN(parsedMinutes) && parsedMinutes > 0;
   const isQuickValue = QUICK_MINUTE_OPTIONS.includes(parsedMinutes);
@@ -236,7 +238,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const dayOfWeek = getDayOfWeekFromShamsi(cleanDate);
     const studentDisplayName = studentFullName(selectedStudent);
 
-    const arrivalTime = /^\d{1,2}:\d{2}$/.test(arrivalInput) ? arrivalInput.padStart(5, '0') : minutesToClock(parsedMinutes);
+    const arrivalTime = /^\d{1,2}:\d{2}$/.test(arrivalInput) ? arrivalInput.padStart(5, '0') : minutesToClock(parsedMinutes, referenceTime);
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
@@ -394,15 +396,18 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                 onChange={(e) => {
                   const v = e.target.value;
                   setArrivalInput(v);
-                  const m = delayFromEntryTime(v);
+                  const m = delayFromEntryTime(v, referenceTime);
                   if (v && m > 0) setDelayMinutesInput(String(m));
                   setErrorMessage(null);
                 }}
                 className="h-12 w-36 text-center text-lg font-extrabold bg-slate-50 rounded-2xl text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition cursor-pointer"
               />
-              <span className="text-xs text-slate-500 leading-5">ساعتی که دانش‌آموز به مدرسه رسیده است؛ تأخیر نسبت به ۰۷:۰۰ خودکار محاسبه می‌شود.</span>
+              <span className="text-xs text-slate-500 leading-5">ساعتی که دانش‌آموز به مدرسه رسیده است؛ تأخیر نسبت به ساعت ورود این روز ({toPersianDigits(referenceTime)}) خودکار محاسبه می‌شود.</span>
             </div>
           </div>
+
+          {/* ساعت ورود همان روز (قابل تنظیم برای معاون انضباطی) */}
+          <EntryTimeControl date={toEnglishDigits(date.trim())} />
 
           {/* مدت تأخیر */}
           <div className="space-y-2">
@@ -416,7 +421,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                     key={mins}
                     onClick={() => {
                       setDelayMinutesInput(String(mins));
-                      setArrivalInput(minutesToClock(mins));
+                      setArrivalInput(minutesToClock(mins, referenceTime));
                       setErrorMessage(null);
                     }}
                     className={`h-14 rounded-2xl text-xl font-extrabold transition cursor-pointer ${
@@ -440,7 +445,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
                 onChange={(e) => {
                   const clean = toEnglishDigits(e.target.value).replace(/[^0-9]/g, '');
                   setDelayMinutesInput(clean);
-                  if (Number(clean) > 0) setArrivalInput(minutesToClock(Number(clean)));
+                  if (Number(clean) > 0) setArrivalInput(minutesToClock(Number(clean), referenceTime));
                   setErrorMessage(null);
                 }}
                 placeholder="مثلاً ۲۵"
@@ -477,28 +482,39 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
             )}
           </div>
 
-          {/* توضیحات و موجه بودن (در صورت نیاز) */}
-          {showDetails ? (
-            <div className="space-y-3 animate-in fade-in">
-              <textarea
-                id="delay-reason-textarea"
-                rows={2}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="توضیحات (اختیاری)"
-                className="w-full text-sm bg-slate-50 rounded-2xl p-3 text-slate-800 outline-none border border-transparent focus:border-emerald-500 focus:bg-white transition resize-none"
-              />
-              <label className="flex items-center gap-3 text-sm font-bold text-slate-700 cursor-pointer select-none">
-                <input
-                  id="delay-excused-checkbox"
-                  type="checkbox"
-                  checked={isExcused}
-                  onChange={(e) => setIsExcused(e.target.checked)}
-                  className="w-5 h-5 accent-emerald-600 rounded cursor-pointer"
-                />
-                تأخیر موجه است
-              </label>
+          {/* موجه / غیرموجه */}
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-slate-700">وضعیت تأخیر</label>
+            <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="موجه یا غیرموجه">
+              {([
+                [false, 'غیرموجه', 'bg-rose-600 text-white shadow-md shadow-rose-600/25'],
+                [true, 'موجه', 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'],
+              ] as const).map(([value, label, activeCls]) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={isExcused === value}
+                  onClick={() => setIsExcused(value)}
+                  className={`h-12 rounded-2xl text-base font-extrabold transition cursor-pointer ${isExcused === value ? activeCls : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            <p className="text-[11px] text-slate-500 leading-5">تأخیر موجه در شمارش دفعات و کسر نمره‌ی انضباط نمی‌آید.</p>
+          </div>
+
+          {/* توضیحات (در صورت نیاز) */}
+          {showDetails ? (
+            <textarea
+              id="delay-reason-textarea"
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={isExcused ? 'علت موجه بودن (اختیاری)' : 'توضیحات (اختیاری)'}
+              className="w-full text-sm bg-slate-50 rounded-2xl p-3 text-slate-800 outline-none border border-transparent focus:border-emerald-500 focus:bg-white transition resize-none animate-in fade-in"
+            />
           ) : (
             <button
               type="button"
@@ -506,7 +522,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
               className="flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-emerald-700 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              توضیحات / تأخیر موجه
+              توضیحات
             </button>
           )}
 

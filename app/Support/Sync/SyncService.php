@@ -94,6 +94,9 @@ final class SyncService
                 if ($collection === 'schoolHolidays') {
                     $this->normalizeHoliday($data, (string) $item->id, $user);
                 }
+                if ($collection === 'entryTimes') {
+                    $this->normalizeEntryTime($data, (string) $item->id, $user);
+                }
                 if (in_array($collection, self::DATED_ATTENDANCE, true)) {
                     $this->requireSchoolDay($data);
                 }
@@ -301,6 +304,27 @@ final class SyncService
         $data->setBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
         \App\Support\SchoolCalendar::reset();
+    }
+
+    /** ساعت ورود تعیین‌شده‌ی یک روز (ورود پس از آن تأخیر است)؛ شناسه ent-{تاریخ با خط تیره} */
+    private function normalizeEntryTime(object $data, string $id, User $user): void
+    {
+        $date = isset($data->date) && is_string($data->date) ? \App\Support\SchoolCalendar::normalize($data->date) : '';
+        if (! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $date) || \App\Support\Jalali::shamsiToDate($date) === null) {
+            abort(422, 'تاریخ ساعت ورود نامعتبر است.');
+        }
+        if ($id !== 'ent-'.str_replace('/', '-', $date)) {
+            abort(422, 'شناسه‌ی ساعت ورود نامعتبر است.');
+        }
+        $time = isset($data->time) && is_string($data->time) ? $data->time : '';
+        if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
+            abort(422, 'ساعت ورود نامعتبر است.');
+        }
+        $data->date = $date;
+        $data->time = $time;
+        $data->setById = (string) $user->id;
+        $data->setBy = (string) $user->name;
+        $data->updatedAt = now()->toIso8601String();
     }
 
     /**
