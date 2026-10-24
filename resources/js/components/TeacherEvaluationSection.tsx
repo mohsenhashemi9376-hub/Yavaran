@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { 
@@ -116,6 +116,37 @@ const CRITERIA_SHORT = [
   { key: 'parentAndSchoolCommunication', label: 'ارتباط با اولیا' },
 ] as const;
 
+const SEGMENT_LABEL: Record<QualitativeRating, string> = {
+  excellent: 'عالی',
+  very_good: 'خیلی خوب',
+  good: 'خوب',
+  needs_improvement: 'نیازمند ارتقا',
+};
+const SEGMENT_ACTIVE: Record<QualitativeRating, string> = {
+  excellent: 'bg-emerald-600 text-white shadow-sm',
+  very_good: 'bg-blue-600 text-white shadow-sm',
+  good: 'bg-amber-500 text-white shadow-sm',
+  needs_improvement: 'bg-rose-600 text-white shadow-sm',
+};
+
+/** نوار پیوسته‌ی ۴ سطحی امتیازدهی کیفی (Segmented Control) */
+const RatingSegments: React.FC<{ value: QualitativeRating; onChange: (r: QualitativeRating) => void }> = ({ value, onChange }) => (
+  <div className="grid grid-cols-4 gap-0.5 p-1 rounded-xl bg-slate-200/70" role="radiogroup">
+    {(Object.keys(SEGMENT_LABEL) as QualitativeRating[]).map((k) => (
+      <button
+        key={k}
+        type="button"
+        role="radio"
+        aria-checked={value === k}
+        onClick={() => onChange(k)}
+        className={`min-h-11 px-1 rounded-lg text-[11px] sm:text-xs font-bold leading-tight transition cursor-pointer ${value === k ? SEGMENT_ACTIVE[k] : 'text-slate-600 hover:bg-white/60'}`}
+      >
+        {SEGMENT_LABEL[k]}
+      </button>
+    ))}
+  </div>
+);
+
 interface TeacherEvaluationSectionProps {
   /** نمایش فقط یکی از زیربخش‌ها */
   mode?: 'evaluations' | 'announcements' | 'both';
@@ -170,6 +201,11 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
     parentAndSchoolCommunication: '',
   });
 
+  // سرفصل‌های قابل ویرایش (آخرین عنوان‌های ثبت‌شده توسط معاون، یا عنوان‌های استاندارد)
+  const [evalFormTitles, setEvalFormTitles] = useState<Record<string, string>>({});
+  const [criteriaEditMode, setCriteriaEditMode] = useState(false);
+  const [openFeedback, setOpenFeedback] = useState<Record<string, boolean>>({});
+
   const [evalFormOverallRating, setEvalFormOverallRating] = useState<QualitativeRating>('very_good');
   const [evalFormStrengths, setEvalFormStrengths] = useState<string>('');
   const [evalFormImprovements, setEvalFormImprovements] = useState<string>('');
@@ -182,6 +218,16 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
   const [announcementPriority, setAnnouncementPriority] = useState<'normal' | 'important' | 'urgent'>('normal');
 
   const todayInfo = getTodayShamsi();
+
+  /** عنوان‌های ثبت‌شده در جدیدترین ارزیابی که سرفصل‌هایش ویرایش شده؛ در غیر این صورت عنوان‌های استاندارد */
+  const savedTitles = useMemo<Record<string, string>>(() => {
+    const latest = [...safeTeacherEvaluations]
+      .filter((e) => e.criteria?.criteriaTitles && Object.keys(e.criteria.criteriaTitles).length > 0)
+      .sort((a, b) => ((a.updatedAt || '') < (b.updatedAt || '') ? 1 : -1))[0];
+    return latest?.criteria.criteriaTitles || {};
+  }, [safeTeacherEvaluations]);
+  const titleOf = (key: string, titles: Record<string, string> = evalFormTitles) =>
+    (titles[key] || '').trim() || CRITERIA_DEFINITIONS.find((c) => c.key === key)?.title || key;
 
   // Helper to extract qualitative rating from evaluation item
   const getCriterionRating = (val: any): QualitativeRating => {
@@ -286,6 +332,9 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
       setEvalFormImprovements('');
       setEvalFormGeneralNotes('');
     }
+    setEvalFormTitles({ ...savedTitles });
+    setCriteriaEditMode(false);
+    setOpenFeedback({});
     setIsEvaluationModalOpen(true);
   };
 
@@ -313,6 +362,9 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
         continuousAssessment: { rating: evalFormRatings.continuousAssessment, comment: evalFormComments.continuousAssessment },
         parentAndSchoolCommunication: { rating: evalFormRatings.parentAndSchoolCommunication, comment: evalFormComments.parentAndSchoolCommunication },
         criteriaComments: evalFormComments,
+        criteriaTitles: Object.fromEntries(
+          CRITERIA_DEFINITIONS.map((c) => [c.key, titleOf(c.key)]).filter(([k, t]) => t !== CRITERIA_DEFINITIONS.find((c) => c.key === k)?.title)
+        ),
       },
       overallRating: evalFormOverallRating,
       overallScore: avgScore,
@@ -712,217 +764,196 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
         </div>
       )}
 
-      {/* Modal 1: Qualitative Evaluation Form Modal */}
+      {/* Modal 1: فرم ارزیابی کیفی (باتم‌شیت در موبایل) */}
       {isEvaluationModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-['Vazirmatn',sans-serif]">
-            
-            <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Award className="w-6 h-6 text-amber-300" />
-                <div>
-                  <h3 className="text-base font-bold">
-                    فرم ارزیابی کیفی عملکرد و مهارت‌های تدریس دبیر
-                  </h3>
-                  <p className="text-xs text-blue-200">سنجش توصیفی ۵ شاخص همراه با ثبت توضیحات و بازخورد اختصاصی</p>
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setIsEvaluationModalOpen(false); }}
+        >
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[94vh] font-['Vazirmatn',sans-serif]" dir="rtl">
+            <div className="sm:hidden pt-2 flex justify-center bg-emerald-900"><span className="w-10 h-1 rounded-full bg-white/30" /></div>
+            <div className="bg-gradient-to-r from-emerald-900 to-slate-900 text-white px-4 py-4 sm:p-5 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Award className="w-6 h-6 text-amber-300 shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold">فرم ارزیابی کیفی عملکرد تدریس دبیر</h3>
+                  <p className="text-[11px] text-emerald-100/80 mt-0.5">سنجش توصیفی ۵ شاخص با امکان ثبت بازخورد اختصاصی</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsEvaluationModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                aria-label="بستن"
+                className="w-11 h-11 shrink-0 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveEvaluationSubmit} className="p-6 space-y-5 max-h-[82vh] overflow-y-auto text-xs">
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">انتخاب دبیر محترم:</label>
-                  <select
-                    value={evalFormTeacherId}
-                    onChange={(e) => setEvalFormTeacherId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.subject || 'عمومی'})
-                      </option>
-                    ))}
-                  </select>
+            <form onSubmit={handleSaveEvaluationSubmit} className="flex flex-col min-h-0 flex-1 text-xs">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">انتخاب دبیر محترم:</label>
+                    <select
+                      value={evalFormTeacherId}
+                      onChange={(e) => setEvalFormTeacherId(e.target.value)}
+                      className="w-full h-11 bg-slate-50 border border-slate-300 rounded-xl px-3 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                    >
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name} ({t.subject || 'عمومی'})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">دوره ارزیابی کیفی:</label>
+                    <select
+                      value={evalFormTerm}
+                      onChange={(e) => setEvalFormTerm(e.target.value as 'term1' | 'term2' | 'annual')}
+                      className="w-full h-11 bg-slate-50 border border-slate-300 rounded-xl px-3 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                    >
+                      <option value="term1">نوبت اول (نیمسال اول)</option>
+                      <option value="term2">نوبت دوم (نیمسال دوم)</option>
+                      <option value="annual">ارزیابی جامع سالانه</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">دوره ارزیابی کیفی:</label>
-                  <select
-                    value={evalFormTerm}
-                    onChange={(e) => setEvalFormTerm(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="term1">نوبت اول (نیمسال اول)</option>
-                    <option value="term2">نوبت دوم (نیمسال دوم)</option>
-                    <option value="annual">ارزیابی جامع سالانه</option>
-                  </select>
-                </div>
-              </div>
+                {/* شاخص‌ها */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <h4 className="font-black text-slate-900 text-xs flex items-center gap-1.5">
+                      <Star className="w-4 h-4 text-amber-500" />
+                      <span>شاخص‌های ارزیابی</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setCriteriaEditMode((v) => !v)}
+                      aria-pressed={criteriaEditMode}
+                      className={`h-9 px-3 rounded-xl border text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer transition ${criteriaEditMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {criteriaEditMode ? <><Check className="w-3.5 h-3.5" /> پایان ویرایش</> : <><Edit3 className="w-3.5 h-3.5" /> ویرایش سرفصل‌ها</>}
+                    </button>
+                  </div>
+                  {criteriaEditMode && (
+                    <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 leading-5">
+                      عنوان هر شاخص را مستقیماً تغییر دهید؛ عنوان‌ها همراه با ارزیابی ذخیره می‌شوند و در ارزیابی‌های بعدی هم پیش‌فرض خواهند بود.
+                    </p>
+                  )}
 
-              {/* 5 Qualitative Criteria with Description Textareas */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                  <h4 className="font-black text-slate-900 text-xs flex items-center gap-1.5">
-                    <Star className="w-4 h-4 text-amber-500" />
-                    <span>شاخص‌های پنج‌گانه ارزیابی کیفی همراه با توضیحات:</span>
-                  </h4>
-                  <span className="text-[11px] text-slate-500">انتخاب یکی از ۴ سطح کیفی + ثبت بازخورد</span>
-                </div>
-
-                {CRITERIA_DEFINITIONS.map((crit, idx) => {
-                  const currentRating = evalFormRatings[crit.key] || 'very_good';
-                  const currentComment = evalFormComments[crit.key] || '';
-
-                  return (
-                    <div key={crit.key} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800 text-xs">{crit.title}</span>
-                          <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg border ${QUALITATIVE_RATING_MAP[currentRating].badgeClass}`}>
-                            سطح: {QUALITATIVE_RATING_MAP[currentRating].label}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{crit.description}</p>
-                      </div>
-
-                      {/* 4 Qualitative Radio Buttons / Chips */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {(Object.keys(QUALITATIVE_RATING_MAP) as QualitativeRating[]).map((ratingKey) => {
-                          const ratingCfg = QUALITATIVE_RATING_MAP[ratingKey];
-                          const isSelected = currentRating === ratingKey;
-
-                          return (
-                            <button
-                              key={ratingKey}
-                              type="button"
-                              onClick={() => {
-                                setEvalFormRatings(prev => ({ ...prev, [crit.key]: ratingKey }));
-                              }}
-                              className={`py-2 px-2.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                                isSelected
-                                  ? `${ratingCfg.badgeClass} ring-2 ring-blue-500/40 shadow-xs`
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                              <span>{ratingCfg.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Criterion Specific Description */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                          توضیحات و بازخورد اختصاصی معاونت برای این شاخص:
-                        </label>
-                        <input
-                          type="text"
-                          value={currentComment}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEvalFormComments(prev => ({ ...prev, [crit.key]: val }));
-                          }}
-                          placeholder={`نکات تفصیلی، شواهد و بازخورد مربوط به ${crit.title.split('.')[1]}...`}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Overall Qualitative Rating */}
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl space-y-2.5">
-                <label className="block font-bold text-blue-900 text-xs">
-                  سطح ارزیابی و رتبه‌بندی کیفی کل دبیر:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(Object.keys(QUALITATIVE_RATING_MAP) as QualitativeRating[]).map((ratingKey) => {
-                    const ratingCfg = QUALITATIVE_RATING_MAP[ratingKey];
-                    const isSelected = evalFormOverallRating === ratingKey;
+                  {CRITERIA_DEFINITIONS.map((crit) => {
+                    const currentRating = evalFormRatings[crit.key] || 'very_good';
+                    const currentComment = evalFormComments[crit.key] || '';
+                    const feedbackOpen = openFeedback[crit.key] ?? Boolean(currentComment);
 
                     return (
-                      <button
-                        key={ratingKey}
-                        type="button"
-                        onClick={() => setEvalFormOverallRating(ratingKey)}
-                        className={`py-2.5 px-3 rounded-xl border font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          isSelected
-                            ? `${ratingCfg.badgeClass} ring-2 ring-blue-600 shadow-xs`
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-white/80'
-                        }`}
-                      >
-                        {isSelected && <Check className="w-4 h-4 shrink-0" />}
-                        <span>{ratingCfg.label}</span>
-                      </button>
+                      <div key={crit.key} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            {criteriaEditMode ? (
+                              <input
+                                type="text"
+                                value={evalFormTitles[crit.key] ?? crit.title}
+                                onChange={(e) => setEvalFormTitles((prev) => ({ ...prev, [crit.key]: e.target.value }))}
+                                aria-label="عنوان شاخص"
+                                className="flex-1 min-w-0 h-10 bg-white border border-emerald-300 rounded-xl px-3 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-600"
+                              />
+                            ) : (
+                              <span className="font-bold text-slate-800 text-xs leading-6">{titleOf(crit.key)}</span>
+                            )}
+                            {criteriaEditMode && (evalFormTitles[crit.key] ?? '') !== '' && (evalFormTitles[crit.key] !== crit.title) && (
+                              <button type="button" onClick={() => setEvalFormTitles((prev) => { const n = { ...prev }; delete n[crit.key]; return n; })} className="h-10 px-2 shrink-0 text-[11px] font-bold text-slate-500 cursor-pointer">بازنشانی</button>
+                            )}
+                          </div>
+                          {!criteriaEditMode && <p className="text-[11px] text-slate-500 mt-0.5">{crit.description}</p>}
+                        </div>
+
+                        {/* نوار پیوسته‌ی ۴ سطحی */}
+                        <RatingSegments value={currentRating} onChange={(r) => setEvalFormRatings((prev) => ({ ...prev, [crit.key]: r }))} />
+
+                        {feedbackOpen ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              autoFocus={!currentComment}
+                              value={currentComment}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setEvalFormComments((prev) => ({ ...prev, [crit.key]: val }));
+                              }}
+                              placeholder="بازخورد اختصاصی برای این شاخص…"
+                              aria-label="بازخورد شاخص"
+                              className="flex-1 min-w-0 h-11 bg-white border border-slate-300 rounded-xl px-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => { setEvalFormComments((prev) => ({ ...prev, [crit.key]: '' })); setOpenFeedback((prev) => ({ ...prev, [crit.key]: false })); }}
+                              aria-label="حذف بازخورد"
+                              className="w-11 h-11 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"
+                            >✕</button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setOpenFeedback((prev) => ({ ...prev, [crit.key]: true }))}
+                            className="h-9 px-3 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-500 hover:border-emerald-400 hover:text-emerald-700 inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> افزودن بازخورد
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
+
+                {/* رتبه‌ی کلی */}
+                <div className="bg-emerald-50/60 border border-emerald-200 p-3.5 rounded-2xl space-y-2.5">
+                  <label className="block font-bold text-emerald-900 text-xs">سطح ارزیابی و رتبه‌بندی کیفی کل دبیر:</label>
+                  <RatingSegments value={evalFormOverallRating} onChange={setEvalFormOverallRating} />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">نقاط قوت و برجستگی‌های تدریس دبیر:</label>
+                  <textarea
+                    value={evalFormStrengths}
+                    onChange={(e) => setEvalFormStrengths(e.target.value)}
+                    placeholder="مثال: تسلط عالی بر مباحث، ایجاد انگیزه و نظم قوی در کلاس…"
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">محورها و توصیه‌های ارتقای کیفیت تدریس:</label>
+                  <textarea
+                    value={evalFormImprovements}
+                    onChange={(e) => setEvalFormImprovements(e.target.value)}
+                    placeholder="مثال: تسریع در ثبت نمرات مستمر، برگزاری جلسات رفع اشکال…"
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">یادداشت و رهنمودهای جامع معاونت آموزشی:</label>
+                  <textarea
+                    value={evalFormGeneralNotes}
+                    onChange={(e) => setEvalFormGeneralNotes(e.target.value)}
+                    placeholder="نکات تکمیلی، تقدیر رسمی یا برنامه‌ریزی جهت کارگاه‌های توانمندسازی…"
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                  />
+                </div>
               </div>
 
-              {/* Strengths */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">نقاط قوت و برجستگی‌های تدریس دبیر:</label>
-                <textarea
-                  value={evalFormStrengths}
-                  onChange={(e) => setEvalFormStrengths(e.target.value)}
-                  placeholder="مثال: تسلط عالی بر مباحث کنکوری و کتاب درسی، ایجاد انگیزه و نظم قوی در کلاس، هماهنگی کامل با برنامه آموزشی..."
-                  rows={2}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Improvements */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">محورها و توصیه‌های ارتقای کیفیت تدریس:</label>
-                <textarea
-                  value={evalFormImprovements}
-                  onChange={(e) => setEvalFormImprovements(e.target.value)}
-                  placeholder="مثال: تسریع در ثبت نمرات مستمر ماهانه در سامانه، برگزاری جلسات رفع اشکال برای دانش‌آموزان نیازمند توجه..."
-                  rows={2}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* General Notes */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">یادداشت و رهنمودهای جامع معاونت آموزشی:</label>
-                <textarea
-                  value={evalFormGeneralNotes}
-                  onChange={(e) => setEvalFormGeneralNotes(e.target.value)}
-                  placeholder="نکات تکمیلی، تقدیر رسمی یا برنامه‌ریزی جهت کارگاه‌های توانمندسازی..."
-                  rows={2}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsEvaluationModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition cursor-pointer"
-                >
+              {/* فوتر چسبان */}
+              <div className="shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-md p-3 sm:px-6 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex items-center gap-2.5">
+                <button type="button" onClick={() => setIsEvaluationModalOpen(false)} className="h-12 px-5 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition cursor-pointer">
                   انصراف
                 </button>
-
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-md shadow-blue-600/20 cursor-pointer flex items-center gap-2"
-                >
+                <button type="submit" className="h-12 flex-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-sm font-extrabold transition shadow-md shadow-emerald-600/20 cursor-pointer flex items-center justify-center gap-2">
                   <Award className="w-4 h-4" />
-                  <span>ذخیره و ثبت رسمی ارزیابی کیفی دبیر</span>
+                  <span>ثبت نهایی ارزیابی</span>
                 </button>
               </div>
-
             </form>
           </div>
         </div>
@@ -980,7 +1011,7 @@ export const TeacherEvaluationSection: React.FC<TeacherEvaluationSectionProps> =
                   return (
                     <div key={crit.key} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800">{crit.title}</span>
+                        <span className="font-bold text-slate-800">{titleOf(crit.key, inspectTeacherEvaluation.criteria.criteriaTitles || {})}</span>
                         <span className={`px-2.5 py-0.5 rounded-lg border text-[11px] font-bold ${ratingCfg.badgeClass}`}>
                           {ratingCfg.label}
                         </span>

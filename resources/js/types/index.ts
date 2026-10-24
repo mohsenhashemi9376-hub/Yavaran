@@ -664,6 +664,7 @@ export interface TeacherEvaluationCriteria {
   continuousAssessment?: QualitativeRating | number | TeacherEvaluationCriterionDetail; // ارزشیابی مستمر و ثبت به موقع نمرات
   parentAndSchoolCommunication?: QualitativeRating | number | TeacherEvaluationCriterionDetail; // ارتباط موثر با اولیا و معاونت
   criteriaComments?: Record<string, string>; // توضیحات اختصاصی برای هر یک از شاخص‌ها
+  criteriaTitles?: Record<string, string>; // عنوان‌های ویرایش‌شده‌ی سرفصل‌ها در زمان ثبت (پیش‌فرض: عنوان استاندارد)
   // Legacy compatibility fields
   punctuality?: QualitativeRating | number;
   creativity?: QualitativeRating | number;
