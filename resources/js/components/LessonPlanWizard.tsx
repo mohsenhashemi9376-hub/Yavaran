@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
 import { LessonPlan, SchoolClass } from '../types';
 import { GUIDE_SUBJECTS, TEACHING_METHODS } from '../utils/teachingMethods';
-import { METHOD_CRITERIA, TECHNIQUE_OPTIONS, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
+import { BLOOM_VERBS, CLASS_MINUTES, DIFFERENTIATION, HOOK_IDEAS, REFLECTION_CHALLENGES, METHOD_CRITERIA, TECHNIQUE_OPTIONS, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 
@@ -126,19 +126,36 @@ const MethodAssistant: React.FC<{ value: string[]; onChange: (v: string[]) => vo
   );
 };
 
-/** فهرست پویای اهداف (افزودن و حذف ردیف) */
-const ObjectiveList: React.FC<{ label: string; tone: string; value: string[]; onChange: (v: string[]) => void }> = ({ label, tone, value, onChange }) => (
-  <div className={`rounded-2xl border p-3 space-y-2 ${tone}`}>
-    <div className="text-xs font-black text-slate-800">{label}</div>
-    {value.map((v, i) => (
-      <div key={i} className="flex items-center gap-2">
-        <input value={v} onChange={(e) => onChange(value.map((x, n) => (n === i ? e.target.value : x)))} placeholder="مثلاً: متربی بتواند … را توضیح دهد" className={`${input} bg-white`} />
-        {value.length > 1 && <button type="button" onClick={() => onChange(value.filter((_, n) => n !== i))} aria-label="حذف هدف" className="w-10 h-10 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
+/** فهرست پویای اهداف + دستیار هرم بلوم (با لمس هر فعل، به همان ردیف اضافه می‌شود) */
+const ObjectiveList: React.FC<{ label: string; tone: string; verbs: string[]; value: string[]; onChange: (v: string[]) => void }> = ({ label, tone, verbs, value, onChange }) => {
+  const [focus, setFocus] = useState(value.length - 1);
+  const addVerb = (verb: string) => {
+    const i = Math.min(Math.max(focus, 0), value.length - 1);
+    const cur = value[i] || '';
+    if (cur.includes(verb)) return;
+    onChange(value.map((x, n) => (n === i ? (cur.trim() ? `${cur.trim()} ${verb}` : verb) : x)));
+  };
+  return (
+    <div className={`rounded-2xl border p-3 space-y-2 ${tone}`}>
+      <div className="text-xs font-black text-slate-800">{label}</div>
+      {value.map((v, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input value={v} onFocus={() => setFocus(i)} onChange={(e) => onChange(value.map((x, n) => (n === i ? e.target.value : x)))} placeholder="مثلاً: متربی بتواند … را توضیح دهد" className={`${input} bg-white ${focus === i ? 'ring-2 ring-emerald-300' : ''}`} />
+          {value.length > 1 && <button type="button" onClick={() => { onChange(value.filter((_, n) => n !== i)); setFocus(0); }} aria-label="حذف هدف" className="w-10 h-10 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
+        </div>
+      ))}
+      <div>
+        <div className="text-[10px] font-bold text-slate-500 mb-1">فعل‌های پیشنهادی (لمس کنید تا به هدف انتخاب‌شده اضافه شود):</div>
+        <div className="flex flex-wrap gap-1.5">
+          {verbs.map((verb) => (
+            <button key={verb} type="button" onClick={() => addVerb(verb)} className="min-h-9 px-2.5 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 cursor-pointer">+ {verb}</button>
+          ))}
+        </div>
       </div>
-    ))}
-    <button type="button" onClick={() => onChange([...value, ''])} className="h-9 px-3 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-600 inline-flex items-center gap-1 cursor-pointer"><Plus className="w-3.5 h-3.5" /> افزودن هدف</button>
-  </div>
-);
+      <button type="button" onClick={() => { onChange([...value, '']); setFocus(value.length); }} className="h-9 px-3 rounded-lg border border-dashed border-slate-300 text-[11px] font-bold text-slate-600 inline-flex items-center gap-1 cursor-pointer"><Plus className="w-3.5 h-3.5" /> افزودن هدف</button>
+    </div>
+  );
+};
 
 interface Props {
   initial: LessonPlan;
@@ -196,6 +213,26 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
       objectives: { psychomotor: plan.objectives.psychomotor.filter((x) => x.trim()), affective: plan.objectives.affective.filter((x) => x.trim()), cognitive: plan.objectives.cognitive.filter((x) => x.trim()) },
       scenario: plan.scenario.filter((s) => s.description.trim() || s.teacherActivity.trim() || s.studentActivity.trim() || s.minutes.trim()),
     });
+  };
+
+  /** ایده‌ی تصادفی شروع کلاس (بدون تکرار پیاپی) در فیلد «فعالیت معلم» گام اول */
+  const [lastHook, setLastHook] = useState(-1);
+  const rollHook = (id: string) => {
+    let n = Math.floor(Math.random() * HOOK_IDEAS.length);
+    if (n === lastHook) n = (n + 1) % HOOK_IDEAS.length;
+    setLastHook(n);
+    setStepRow(id, { teacherActivity: HOOK_IDEAS[n] });
+  };
+
+  const [diffOpen, setDiffOpen] = useState(false);
+  const addToDifferences = (text: string) => {
+    const cur = plan.checklist.differences;
+    if (cur.includes(text)) return;
+    set('checklist', { ...plan.checklist, differences: cur.trim() ? `${cur.trim()}\n• ${text}` : `• ${text}` });
+  };
+  const toggleChallenge = (tag: string) => {
+    const cur = plan.reflection;
+    set('reflection', cur.includes(tag) ? cur.replace(new RegExp(`\\n?[ \\t]*${tag}[.،]?`), '').trim() : `${cur.trim() ? `${cur.trim()}\n` : ''}${tag}.`);
   };
 
   const setStepRow = (id: string, patch: Partial<LessonPlan['scenario'][number]>) => set('scenario', plan.scenario.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -263,23 +300,43 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
                 <div className="text-xs font-black text-slate-900">اهداف جلسه — پس از پایان درس از متربیان انتظار می‌رود:</div>
-                <ObjectiveList label="روانی-حرکتی" tone="border-amber-200 bg-amber-50/50" value={plan.objectives.psychomotor} onChange={(v) => set('objectives', { ...plan.objectives, psychomotor: v })} />
-                <ObjectiveList label="عاطفی" tone="border-rose-200 bg-rose-50/50" value={plan.objectives.affective} onChange={(v) => set('objectives', { ...plan.objectives, affective: v })} />
-                <ObjectiveList label="شناختی" tone="border-sky-200 bg-sky-50/50" value={plan.objectives.cognitive} onChange={(v) => set('objectives', { ...plan.objectives, cognitive: v })} />
+                <ObjectiveList label="مهارتی (روانی-حرکتی)" tone="border-amber-200 bg-amber-50/50" verbs={BLOOM_VERBS.psychomotor} value={plan.objectives.psychomotor} onChange={(v) => set('objectives', { ...plan.objectives, psychomotor: v })} />
+                <ObjectiveList label="عاطفی" tone="border-rose-200 bg-rose-50/50" verbs={BLOOM_VERBS.affective} value={plan.objectives.affective} onChange={(v) => set('objectives', { ...plan.objectives, affective: v })} />
+                <ObjectiveList label="شناختی" tone="border-sky-200 bg-sky-50/50" verbs={BLOOM_VERBS.cognitive} value={plan.objectives.cognitive} onChange={(v) => set('objectives', { ...plan.objectives, cognitive: v })} />
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-900">مراحل تدریس</h3>
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">جمع زمان: {toPersianDigits(minutes)} دقیقه</span>
+              <h3 className="text-sm font-black text-slate-900">مراحل تدریس</h3>
+              {/* ماشین‌حساب زمان: جمع زمان گام‌ها در برابر ۷۵ دقیقه‌ی کلاس */}
+              <div className={`rounded-2xl border p-3 space-y-1.5 ${minutes > CLASS_MINUTES ? 'border-rose-200 bg-rose-50' : 'border-emerald-200 bg-emerald-50/60'}`} aria-live="polite">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className={minutes > CLASS_MINUTES ? 'text-rose-700' : 'text-emerald-800'}>زمان برنامه‌ریزی‌شده</span>
+                  <span className={`tabular-nums ${minutes > CLASS_MINUTES ? 'text-rose-700' : 'text-emerald-800'}`}>{toPersianDigits(minutes)} از {toPersianDigits(CLASS_MINUTES)} دقیقه</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-white/80 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={CLASS_MINUTES} aria-valuenow={Math.min(minutes, CLASS_MINUTES)}>
+                  <div className={`h-full rounded-full transition-all ${minutes > CLASS_MINUTES ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (minutes / CLASS_MINUTES) * 100)}%` }} />
+                </div>
+                {minutes > CLASS_MINUTES ? (
+                  <div className="text-xs font-extrabold text-rose-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> ⚠️ زمان‌بندی از وقت کلاس بیشتر شد! ({toPersianDigits(minutes - CLASS_MINUTES)} دقیقه اضافه)</div>
+                ) : (
+                  <div className="text-[11px] text-slate-500">{toPersianDigits(CLASS_MINUTES - minutes)} دقیقه‌ی آزاد باقی مانده است.</div>
+                )}
               </div>
               {plan.scenario.map((s, i) => (
                 <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5">
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center justify-center">{toPersianDigits(i + 1)}</span>
+                    {i === 0 && (
+                      <>
+                        <span className="text-xs font-extrabold text-slate-800">ایجاد انگیزه</span>
+                        <button type="button" onClick={() => rollHook(s.id)} title="ایده‌ی تصادفی برای شروع کلاس" aria-label="ایده‌ی تصادفی برای شروع کلاس" className="h-9 px-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold inline-flex items-center gap-1 cursor-pointer hover:bg-amber-100">
+                          <Dices className="w-4 h-4" /> 🎲 ایده
+                        </button>
+                      </>
+                    )}
                     <input value={toPersianDigits(s.minutes)} onChange={(e) => setStepRow(s.id, { minutes: toEnglishDigits(e.target.value).replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="زمان (دقیقه)" aria-label="زمان" className={`${input} w-32`} />
                     {plan.scenario.length > 1 && <button type="button" onClick={() => set('scenario', plan.scenario.filter((x) => x.id !== s.id))} aria-label="حذف مرحله" className="mr-auto w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
                   </div>
@@ -308,13 +365,55 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
                   ['motivation', 'انگیزه‌بخشی'], ['prior', 'اتصال به یادگیری قبلی'], ['alignment', 'تطبیق برنامه با اهداف'], ['summary', 'جمع‌بندی'],
                   ['differences', 'توجه به اختلاف سطح'], ['engagement', 'درگیری دانش‌آموزان'], ['homework', 'تمرین در منزل'],
                 ] as const).map(([k, label]) => (
-                  <Field key={k} label={label}><textarea rows={2} value={plan.checklist[k]} onChange={(e) => set('checklist', { ...plan.checklist, [k]: e.target.value })} className={area} /></Field>
+                  <React.Fragment key={k}>
+                    {k === 'differences' && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50">
+                        <button type="button" onClick={() => setDiffOpen((v) => !v)} aria-expanded={diffOpen} className="w-full h-12 px-3.5 flex items-center justify-between text-xs font-extrabold text-slate-800 cursor-pointer">
+                          <span className="inline-flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-amber-500" /> پیشنهادگر اختلاف سطح</span>
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${diffOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {diffOpen && (
+                          <div className="px-3.5 pb-3.5 space-y-3">
+                            {([['دانش‌آموزان سریع', DIFFERENTIATION.fast, 'border-sky-200 text-sky-800 bg-sky-50'], ['دانش‌آموزان نیازمند تلاش', DIFFERENTIATION.needs, 'border-amber-200 text-amber-800 bg-amber-50']] as const).map(([title, tags, tone]) => (
+                              <div key={title}>
+                                <div className="text-[11px] font-bold text-slate-500 mb-1.5">{title}</div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {tags.map((t) => (
+                                    <button key={t} type="button" onClick={() => addToDifferences(t)} className={`min-h-9 px-2.5 rounded-full border text-[11px] font-bold cursor-pointer ${plan.checklist.differences.includes(t) ? 'bg-emerald-600 border-emerald-600 text-white' : tone}`}>
+                                      {plan.checklist.differences.includes(t) ? '✓ ' : '+ '}{t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <Field label={label}><textarea rows={2} value={plan.checklist[k]} onChange={(e) => set('checklist', { ...plan.checklist, [k]: e.target.value })} className={area} /></Field>
+                  </React.Fragment>
                 ))}
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-4">
                 <Field label="تجربه‌نگاری" hint="پس از تدریس بنویسید چه چیزی خوب پیش رفت و چه چیزی را بهتر می‌توان انجام داد.">
                   <textarea rows={5} value={plan.reflection} onChange={(e) => set('reflection', e.target.value)} className={area} />
                 </Field>
+                <div className="mt-2.5 space-y-2">
+                  <div className="text-[11px] font-bold text-slate-500">چالش‌های پرتکرار (لمس کنید تا به متن اضافه شود):</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {REFLECTION_CHALLENGES.map((c) => {
+                      const on = plan.reflection.includes(c.tag);
+                      return (
+                        <button key={c.tag} type="button" aria-pressed={on} onClick={() => toggleChallenge(c.tag)} className={`min-h-9 px-2.5 rounded-full border text-[11px] font-bold cursor-pointer ${on ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{on ? '✓ ' : '+ '}{c.tag}</button>
+                      );
+                    })}
+                  </div>
+                  {REFLECTION_CHALLENGES.filter((c) => plan.reflection.includes(c.tag)).map((c) => (
+                    <div key={c.tag} className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-6 text-emerald-900 animate-in fade-in">
+                      <b>💡 پیشنهاد برای جلسه‌ی بعد ({c.tag}): </b>{c.advice}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
