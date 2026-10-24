@@ -1,31 +1,15 @@
 import { ViewDateBar } from './components/ViewDateBar';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { lazyModal } from './utils/lazyModal';
 import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { Header } from './components/Header';
-import { TeacherDashboard } from './components/TeacherDashboard';
-import { AdminDashboard } from './components/AdminDashboard';
-import { DisciplinaryDashboard } from './components/DisciplinaryDashboard';
-import { EducationalDashboard } from './components/EducationalDashboard';
-import { NurturingDashboard } from './components/NurturingDashboard';
 import { ConfidentialGuard } from './components/ConfidentialGuard';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
 import { BrandSplash } from './components/BrandSplash';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChange } from './components/ForcePasswordChange';
-import { AttendanceModal } from './components/AttendanceModal';
-import { ClassDetailModal } from './components/ClassDetailModal';
-import { MonthlySummaryModal } from './components/MonthlySummaryModal';
-import { StudentProfileModal } from './components/StudentProfileModal';
-import { AcademicGradesModal } from './components/AcademicGradesModal';
-import { AddClassModal } from './components/AddClassModal';
-import { AddTeacherModal } from './components/AddTeacherModal';
-import { GlobalSearchModal } from './components/GlobalSearchModal';
-import { TeacherProfileModal } from './components/TeacherProfileModal';
-import { CoachProfileModal } from './components/CoachProfileModal';
-import { EditTeacherModal } from './components/EditTeacherModal';
-import { EditCoachModal } from './components/EditCoachModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SchoolClass, AttendanceSession, Student, User } from './types';
 import { GraduationCap, Sparkles, CheckCircle2, Shield, Calendar, Users, ShieldAlert, BookOpen } from 'lucide-react';
@@ -33,6 +17,25 @@ import { getTodayShamsi } from './utils/persianDate';
 import { useLuxScope } from './context/ThemeContext';
 import { useWakeLock } from './utils/useWakeLock';
 import { ActiveAttendance, clearActiveAttendance, loadActiveAttendance } from './utils/attendanceDraft';
+
+// بارگذاری تنبل: فقط داشبورد نقش کاربر و پنجره‌هایی که باز می‌شوند دریافت می‌شوند
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard').then((m) => ({ default: m.TeacherDashboard })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const DisciplinaryDashboard = lazy(() => import('./components/DisciplinaryDashboard').then((m) => ({ default: m.DisciplinaryDashboard })));
+const EducationalDashboard = lazy(() => import('./components/EducationalDashboard').then((m) => ({ default: m.EducationalDashboard })));
+const NurturingDashboard = lazy(() => import('./components/NurturingDashboard').then((m) => ({ default: m.NurturingDashboard })));
+const AttendanceModal = lazyModal(() => import('./components/AttendanceModal').then((m) => ({ default: m.AttendanceModal })));
+const ClassDetailModal = lazyModal(() => import('./components/ClassDetailModal').then((m) => ({ default: m.ClassDetailModal })));
+const MonthlySummaryModal = lazyModal(() => import('./components/MonthlySummaryModal').then((m) => ({ default: m.MonthlySummaryModal })));
+const StudentProfileModal = lazyModal(() => import('./components/StudentProfileModal').then((m) => ({ default: m.StudentProfileModal })));
+const AcademicGradesModal = lazyModal(() => import('./components/AcademicGradesModal').then((m) => ({ default: m.AcademicGradesModal })));
+const AddClassModal = lazyModal(() => import('./components/AddClassModal').then((m) => ({ default: m.AddClassModal })));
+const AddTeacherModal = lazyModal(() => import('./components/AddTeacherModal').then((m) => ({ default: m.AddTeacherModal })));
+const GlobalSearchModal = lazyModal(() => import('./components/GlobalSearchModal').then((m) => ({ default: m.GlobalSearchModal })));
+const TeacherProfileModal = lazyModal(() => import('./components/TeacherProfileModal').then((m) => ({ default: m.TeacherProfileModal })));
+const CoachProfileModal = lazyModal(() => import('./components/CoachProfileModal').then((m) => ({ default: m.CoachProfileModal })));
+const EditTeacherModal = lazyModal(() => import('./components/EditTeacherModal').then((m) => ({ default: m.EditTeacherModal })));
+const EditCoachModal = lazyModal(() => import('./components/EditCoachModal').then((m) => ({ default: m.EditCoachModal })));
 
 const MainApp: React.FC = () => {
   const { 
@@ -58,6 +61,13 @@ const MainApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'main' | 'discipline' | 'grades' | 'nurture' | 'teacher'>('main');
   const prevUserIdRef = useRef<string>('');
   useScrollTop(activeTab);
+  const TAB_KEY = 'yv-active-tab';
+  const savedTab = (): typeof activeTab | null => {
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(TAB_KEY) || 'null') as { u: string; t: typeof activeTab } | null;
+      return raw && raw.u === currentUser.id ? raw.t : null;
+    } catch { return null; }
+  };
 
   // گارد دسترسی: مدیر مدرسه هیچ دسترسی‌ای به بخش معاونت تربیتی ندارد
   // جابه‌جایی بین پنل معاونت‌ها فقط برای مدیر مدرسه؛ سایرین فقط پنل مسئولیت خود (و پنل آموزشی در صورت داشتن درس)
@@ -79,7 +89,11 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     if (prevUserIdRef.current !== currentUser.id) {
       prevUserIdRef.current = currentUser.id;
-      if (isTeacher) {
+      const saved = savedTab();
+      if (saved) {
+        // بازگشت به همان بخشی که کاربر پیش از بسته‌شدن برنامه در آن بود (اعتبار آن با allowedTabs سنجیده می‌شود)
+        setActiveTab(saved);
+      } else if (isTeacher) {
         setActiveTab('main');
       } else if (isCoach && currentUser.isAlsoTeacher) {
         // Multi-role coach: default to nurture panel on account switch
@@ -95,6 +109,11 @@ const MainApp: React.FC = () => {
       }
     }
   }, [currentUser.id, currentUser.role, isTeacher, isNurturingVice, isCoach, isDisciplinaryVice, isEducationalVice, isAdmin]);
+
+  useEffect(() => {
+    if (!currentUser.id) return;
+    try { window.localStorage.setItem(TAB_KEY, JSON.stringify({ u: currentUser.id, t: activeTab })); } catch { /* ignore */ }
+  }, [activeTab, currentUser.id]);
 
   // Modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -247,6 +266,7 @@ const MainApp: React.FC = () => {
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           <ConfidentialGuard />
           <SyncStatusBadge />
+          <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-slate-400">در حال بارگذاری…</div>}>
           {/* Render Tab Views with strict role isolation */}
           {isTeacher || (currentUser.isAlsoTeacher && effectiveTab === 'teacher') ? (
             <TeacherDashboard
@@ -293,6 +313,7 @@ const MainApp: React.FC = () => {
               onOpenGlobalSearch={() => setGlobalSearchModalOpen(true)}
             />
           )}
+          </Suspense>
         </ErrorBoundary>
       </main>
 
