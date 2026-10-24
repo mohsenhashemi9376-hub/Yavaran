@@ -19,6 +19,8 @@ export interface DisciplinaryNote {
   warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
   subject?: string; // درس مربوط به اخطار کلاسی
   sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)
+  editedBy?: string; // آخرین ویرایش‌کننده (معاون انضباطی)
+  editedAt?: string;
 }
 
 export interface ClassDisciplinaryWarning {

@@ -69,6 +69,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     isTeacher,
     isAdmin,
     isEducationalVice,
+    isCoach,
     canTeachClassAndSubject,
     isGradePeriodOpen,
     sessions, showConfirm
@@ -94,7 +95,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // دروس منحصراً مربوط به پایه‌ی کلاس انتخاب‌شده
   // دبیر فقط درس‌های خودش را می‌بیند؛ مدیر و معاون آموزش به همه‌ی دروس دسترسی دارند
-  const restrictToOwnSubjects = !isAdmin && !isEducationalVice && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
+  const restrictToOwnSubjects = !isAdmin && !isEducationalVice && !isCoach && (isTeacher || (currentUser.teachingAssignments || []).length > 0);
   const classSubjects = useMemo(
     () =>
       academicSubjects.filter(

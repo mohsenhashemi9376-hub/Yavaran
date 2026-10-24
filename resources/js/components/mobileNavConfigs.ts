@@ -104,7 +104,7 @@ export const nurturingMobileNav = (isVice = false) => ({
   ] as MobileNavItem[],
 });
 
-export const teacherMobileNav = () => ({
+export const teacherMobileNav = (hasExam = false) => ({
   primary: [
     { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
     { id: 'attendance', label: 'حضور و غیاب', icon: UserCheck },
@@ -113,6 +113,7 @@ export const teacherMobileNav = () => ({
   ] as MobileNavItem[],
   more: [
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
+    ...(hasExam ? [{ id: 'exam', label: 'آزمون جامع', icon: Award }] : []),
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'activities', label: 'فعالیت خارج مدرسه', icon: Clock },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },

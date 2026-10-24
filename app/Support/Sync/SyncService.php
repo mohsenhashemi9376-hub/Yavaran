@@ -120,6 +120,11 @@ final class SyncService
                     $this->normalizeParentMeetingState($data, (string) $item->id, $oldData, $user, $policy);
                 }
 
+                if ($collection === 'comprehensiveExams' && $policy->isTeacher()) {
+                    $data = $policy->mergeTeacherExam($data, $oldData);
+                    $data->id = $item->id;
+                }
+
                 $policy->authorizeUpsert($collection, $oldData, $data);
 
                 if ($collection === 'observations' && empty($data->authorId)) {

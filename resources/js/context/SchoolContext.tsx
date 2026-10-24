@@ -272,6 +272,8 @@ interface SchoolContextType {
   resolveDelayDeduction: (studentId: string, approve: boolean) => void;
   updateStudentDiscipline: (studentId: string, score: number, status?: DisciplinaryStatus) => void;
   deleteDisciplinaryNote: (studentId: string, noteId: string) => void;
+  /** ویرایش مورد انضباطی ثبت‌شده (فقط مدیر و معاون انضباطی)؛ نمره‌ی انضباط با اختلاف کسر جدید و قدیم تنظیم می‌شود */
+  updateDisciplinaryNote: (studentId: string, noteId: string, patch: Partial<Pick<DisciplinaryNote, 'title' | 'description' | 'date' | 'type' | 'scoreDeduction'>>) => boolean;
 
   // Morning & School Entrance Delays (ثبت و مدیریت تاخیرهای ورود به مدرسه)
   addMorningDelay: (delay: Omit<MorningDelayRecord, 'id' | 'createdAt'>) => string;
@@ -1184,6 +1186,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const canTeachClassAndSubject = (classId: string, subjectNameOrId?: string): boolean => {
     if (isAdmin || isEducationalVice) return true;
     if (workshops.some((w) => w.id === classId && w.teacherId === currentUser.id)) return true;
+    // مربی: برای کلاس‌های تحت پوشش خودش نمره‌ی همه‌ی دروس را می‌بیند و ویرایش می‌کند
+    if (isCoach) return nurturingClasses.some((c) => c.id === classId);
     if (isTeacher) {
       const teachesClass = currentUser.assignedClassIds.includes(classId) || classes.find((c) => c.id === classId)?.teacherIds.includes(currentUser.id);
       if (!teachesClass) return false;
@@ -1535,6 +1539,35 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
     );
     showToast('نمره و وضعیت انضباطی بروزرسانی شد.');
+  };
+
+  const updateDisciplinaryNote = (studentId: string, noteId: string, patch: Partial<Pick<DisciplinaryNote, 'title' | 'description' | 'date' | 'type' | 'scoreDeduction'>>): boolean => {
+    if (!(isAdmin || isDisciplinaryVice)) {
+      showToast('فقط مدیر و معاون انضباطی می‌تواند مورد انضباطی را ویرایش کند.', 'error');
+      return false;
+    }
+    const target = students.find((s) => s.id === studentId)?.disciplinaryNotes?.find((n) => n.id === noteId);
+    if (!target) return false;
+    if (target.source === 'auto_delay' || target.source === 'approved_delay' || target.source === 'delay_dismissed') {
+      showToast('کسر نمره‌ی تأخیر خودکار است و از این بخش قابل ویرایش نیست.', 'info');
+      return false;
+    }
+    const nextDeduction = patch.scoreDeduction !== undefined ? Math.max(0, Math.min(20, Number(patch.scoreDeduction) || 0)) : target.scoreDeduction || 0;
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const delta = (target.scoreDeduction || 0) - nextDeduction;
+        return {
+          ...s,
+          disciplineScore: Math.max(0, Math.min(20, (s.disciplineScore ?? 20) + delta)),
+          disciplinaryNotes: (s.disciplinaryNotes || []).map((n) =>
+            n.id === noteId ? { ...n, ...patch, scoreDeduction: nextDeduction, editedBy: currentUser.name, editedAt: new Date().toISOString() } : n
+          ),
+        };
+      })
+    );
+    showToast('مورد انضباطی ویرایش شد.');
+    return true;
   };
 
   const deleteDisciplinaryNote = (studentId: string, noteId: string) => {
@@ -3190,6 +3223,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         resolveDelayDeduction,
         updateStudentDiscipline,
         deleteDisciplinaryNote,
+        updateDisciplinaryNote,
         addMorningDelay,
         updateMorningDelay,
         deleteMorningDelay,

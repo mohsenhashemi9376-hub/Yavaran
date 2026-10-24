@@ -88,7 +88,7 @@ final class Permissions
                 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets', 'view-parent-meetings',
             ],
             'coach' => [
-                'view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students',
+                'manage-grades', 'view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students',
                 'analytics-reports', 'manage-worksheets', 'view-worksheets', 'view-parent-meetings',
             ],
             'teacher' => [
