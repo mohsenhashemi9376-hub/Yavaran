@@ -142,6 +142,11 @@ final class DataExporter
             $query->where('teacher_id', $user->id);
         }
 
+        // طرح درس: معاونت پیش‌نویس‌ها را نمی‌بیند
+        if ($collection === 'lessonPlans' && ! $policy->isTeacher()) {
+            $query->where('status', '!=', 'draft');
+        }
+
         // دسترسی محدود (Scoped Access): مربی فقط دانش‌آموزان کلاس‌های خود را دریافت می‌کند
         if ($collection === 'students' && ! $policy->isManager() && $policy->isCoach()) {
             $own = $policy->accessibleClassIds();
@@ -312,12 +317,25 @@ final class DataExporter
 
                 return $rows;
 
+            case 'comprehensiveExams':
+                $rows = [];
+                foreach ($query->whereIn('class_id', $classIds)->pluck('data') as $json) {
+                    $d = is_string($json) ? json_decode($json, true) : null;
+                    $filtered = is_array($d) ? $policy->filterExamRecordForTeacher($d) : null;
+                    if ($filtered !== null) {
+                        $rows[] = json_encode($filtered, SyncService::JSON_FLAGS);
+                    }
+                }
+
+                return $rows;
+
             case 'courseAssignments':
                 return $query->where('user_id', $user->id)->pluck('data')
                     ->filter(static fn ($json) => is_string($json) && $json !== '')->values()->all();
 
             case 'teacherEvaluations':
             case 'teacherActivities':
+            case 'lessonPlans':
                 $query->where('teacher_id', $user->id);
                 break;
         }

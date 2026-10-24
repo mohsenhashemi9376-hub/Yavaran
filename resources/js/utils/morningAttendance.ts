@@ -4,11 +4,26 @@ import { toPersianDigits } from './persianDate';
 /** ساعت مرجع ورود: ۰۷:۰۰ صبح (دقیقه از نیمه‌شب) */
 export const MORNING_REFERENCE_MINUTES = 7 * 60;
 
-/** محاسبه دقیقه تأخیر از ساعت ورود "HH:MM" نسبت به ۰۷:۰۰ */
-export function delayFromEntryTime(entryTime?: string): number {
-  const m = (entryTime || '').match(/^(\d{1,2}):(\d{2})/);
-  if (!m) return 0;
-  return Math.max(0, Number(m[1]) * 60 + Number(m[2]) - MORNING_REFERENCE_MINUTES);
+/** ساعت ورود پیش‌فرض مدرسه؛ معاون انضباطی می‌تواند برای هر روز آن را تغییر دهد */
+export const DEFAULT_ENTRY_TIME = '07:00';
+
+/** "HH:MM" ← دقیقه از نیمه‌شب (نامعتبر: null) */
+export function clockToMinutes(clock?: string): number | null {
+  const m = (clock || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** دقیقه از نیمه‌شب ← "HH:MM" */
+export function minutesToClockString(total: number): string {
+  const t = Math.max(0, Math.round(total || 0));
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
+/** محاسبه دقیقه تأخیر از ساعت ورود "HH:MM" نسبت به ساعت ورود همان روز (پیش‌فرض ۰۷:۰۰) */
+export function delayFromEntryTime(entryTime?: string, referenceTime: string = DEFAULT_ENTRY_TIME): number {
+  const at = clockToMinutes(entryTime);
+  if (at === null) return 0;
+  return Math.max(0, at - (clockToMinutes(referenceTime) ?? MORNING_REFERENCE_MINUTES));
 }
 
 /** «X ساعت و Y دقیقه تأخیر» — فقط ساعت، فقط دقیقه یا ترکیبی؛ suffix مثلاً «صبحگاه» */

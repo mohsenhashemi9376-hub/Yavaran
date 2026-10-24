@@ -16,6 +16,7 @@ import {
   Package,
   UsersRound,
   Clock,
+  CalendarRange,
   X, 
   ChevronLeft,
   ChevronRight
@@ -37,6 +38,7 @@ export type FullScreenView =
   | 'warnings' 
   | 'reports'
   | 'activities'
+  | 'terms'
   | 'settings';
 
 export interface AdminSidebarCounts {
@@ -261,6 +263,14 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
       id: 'system_settings',
       title: 'تنظیمات',
       items: [
+        {
+          id: 'terms',
+          label: 'سال تحصیلی و انتقال',
+          subtitle: 'ایجاد دوره‌ی جدید و انتقال دانش‌آموزان',
+          tooltip: 'سال تحصیلی و انتقال دانش‌آموزان',
+          icon: CalendarRange,
+          allowedRoles: ['admin'],
+        },
         {
           id: 'settings',
           label: 'تنظیمات و اطلاعات پایه',

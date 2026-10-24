@@ -10,6 +10,7 @@ import {
   Menu, 
   FileSpreadsheet, 
   Trash2, 
+  Pencil,
   Eye, 
   AlertTriangle, 
   FileText,
@@ -18,6 +19,8 @@ import {
 import * as XLSX from 'xlsx';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { useSchool } from '../context/SchoolContext';
+import { EditDisciplineNoteModal } from './EditDisciplineNoteModal';
 
 interface FlatDisciplineItem {
   noteId: string;
@@ -67,6 +70,9 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const { isAdmin, isDisciplinaryVice } = useSchool();
+  const canEdit = isAdmin || isDisciplinaryVice;
+  const [editing, setEditing] = useState<{ student: Student; note: DisciplinaryNote } | null>(null);
 
   const handleOpenAdd = onOpenAddDiscipline || onOpenAddNote;
   const handleDeleteNote = onDeleteDisciplinaryNote || onDeleteNote;
@@ -348,6 +354,21 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
                             <span>پرونده</span>
                           </button>
 
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const n = (item.student.disciplinaryNotes || []).find((x) => x.id === item.noteId);
+                                if (n) setEditing({ student: item.student, note: n });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                              title="ویرایش این مورد"
+                              aria-label="ویرایش این مورد"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           {handleDeleteNote && (
                             <button
                               type="button"
@@ -382,6 +403,7 @@ export const AdminDisciplineWorkspace: React.FC<AdminDisciplineWorkspaceProps> =
         </div>
       </div>
 
+      <EditDisciplineNoteModal student={editing?.student ?? null} note={editing?.note ?? null} onClose={() => setEditing(null)} />
     </div>
   );
 };

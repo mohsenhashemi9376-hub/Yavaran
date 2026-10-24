@@ -27,7 +27,9 @@ export type TeacherViewType =
   | 'report_cards'
   | 'reports'
   | 'evaluations'
-  | 'activities';
+  | 'activities'
+  | 'exam'
+  | 'lesson_plans';
 
 interface TeacherSidebarNavProps {
   activeView: TeacherViewType;
@@ -35,6 +37,8 @@ interface TeacherSidebarNavProps {
   currentUser: User;
   teachingClasses: SchoolClass[];
   teachingSubjects: string[];
+  /** آیا دبیر درس آزمون جامع (فارسی، ریاضی، علوم، عربی، انگلیسی) دارد؟ */
+  hasExam?: boolean;
   totalSessionsCount: number;
   totalStudentsCount: number;
   isCollapsed?: boolean;
@@ -49,6 +53,7 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
   currentUser,
   teachingClasses,
   teachingSubjects,
+  hasExam = false,
   totalSessionsCount,
   totalStudentsCount,
   isCollapsed = false,
@@ -96,6 +101,11 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
           badgeColor: 'bg-teal-100 text-teal-800',
         },
         {
+          id: 'lesson_plans',
+          label: 'طرح درس روزانه',
+          icon: BookOpen,
+        },
+        {
           id: 'grades',
           label: 'ثبت نمره',
           icon: Award,
@@ -105,6 +115,7 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
           label: 'کارنامه و نمرات',
           icon: FileText,
         },
+        ...(hasExam ? [{ id: 'exam' as TeacherViewType, label: 'آزمون جامع', icon: Award }] : []),
       ],
     },
     {

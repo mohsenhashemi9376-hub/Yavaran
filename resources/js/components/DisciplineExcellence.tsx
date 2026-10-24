@@ -307,7 +307,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
     <>
       <section className="rounded-3xl border border-amber-200/90 bg-amber-50/70 backdrop-blur-xl shadow-sm px-4 pt-4 pb-2 sm:px-5" aria-label="ممتازین انضباطی">
         {/* هدر: عنوان (راست) + بازه و مشاهده همه (چپ) */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-9 h-9 shrink-0 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center" aria-hidden="true">
               <Award className="w-5 h-5" />
@@ -338,8 +338,8 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
         )}
 
         {/* ردیف میانی: آمار کلی (راست) + گرید ۲×۲ کلاس‌ها (چپ) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-3">
-          <div className="rounded-2xl bg-white/70 backdrop-blur border border-amber-100 px-4 py-3 flex flex-col justify-center">
+        <div className="grid grid-cols-2 gap-2.5 py-3">
+          <div className="rounded-2xl bg-white/70 backdrop-blur border border-amber-100 px-3 sm:px-4 py-3 flex flex-col justify-center">
             <div className="text-4xl leading-none font-black text-amber-700 tabular-nums">
               {toPersianDigits(excellent.length)}<span className="text-sm font-bold text-slate-500 mr-1.5">نفر</span>
             </div>
@@ -349,10 +349,10 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
             </div>
           </div>
           {byClass.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
               {byClass.map(({ cls, count, size }) => (
                 <button key={cls.id} type="button" onClick={() => { setClassId(cls.id); setTab('excellent'); setOpen(true); }}
-                  className="min-h-11 px-2 py-2 rounded-2xl bg-white/70 backdrop-blur border border-amber-100 text-xs font-bold text-slate-700 text-center truncate cursor-pointer hover:bg-white">
+                  className="min-h-11 px-1 py-2 rounded-xl bg-white/70 backdrop-blur border border-amber-100 text-[11px] sm:text-xs font-bold text-slate-700 text-center truncate cursor-pointer hover:bg-white">
                   {shortClass(cls.name)}: {toPersianDigits(count)}/{toPersianDigits(size)}
                 </button>
               ))}

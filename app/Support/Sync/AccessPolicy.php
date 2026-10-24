@@ -103,8 +103,15 @@ final class AccessPolicy
         }
 
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
+        // طرح درس: دبیر (فقط طرح‌های خودش، در DataExporter) و بررسی‌کنندگان؛ پیش‌نویس‌ها برای معاونت نمایش داده نمی‌شود
+        if ($collection === 'lessonPlans') {
+            return $this->isTeacher() || $this->isLessonPlanReviewer();
+        }
+
+        // دبیران فارسی، ریاضی، علوم، عربی و انگلیسی فقط نمرات درس خودشان را می‌بینند (فیلتر در DataExporter)
         if ($collection === 'comprehensiveExams') {
-            return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
+            return ($this->isManager() && $this->user->hasPermission('comprehensive-exam'))
+                || ($this->isTeacher() && $this->teacherExamKeys() !== []);
         }
 
         // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
@@ -165,6 +172,7 @@ final class AccessPolicy
         'workshops' => 'manage-curriculum',
         'loanItems' => 'manage-loans',
         'schoolHolidays' => 'discipline',
+        'entryTimes' => 'discipline',
         'worksheets' => 'manage-worksheets',
         'worksheetWeeks' => 'manage-worksheets',
         'bellPeriods' => 'manage-curriculum',
@@ -179,6 +187,11 @@ final class AccessPolicy
     {
         $key = self::WRITE_PERMISSION[$collection] ?? null;
         if ($key === null || $this->user->hasPermission($key)) {
+            return;
+        }
+
+        // دبیر آزمون جامع: فقط ثبت نمره‌ی درس خودش (جزئیات در authorizeUpsert و ادغام امن در mergeTeacherExam)
+        if ($collection === 'comprehensiveExams' && $this->isTeacher() && $this->teacherExamKeys() !== []) {
             return;
         }
 
@@ -386,7 +399,7 @@ final class AccessPolicy
             return;
         }
 
-        if ($collection === 'schoolHolidays') {
+        if ($collection === 'schoolHolidays' || $collection === 'entryTimes') {
             $this->requireHolidayManager();
 
             return;
@@ -410,7 +423,26 @@ final class AccessPolicy
             $this->deny();
         }
 
+        if ($collection === 'lessonPlans') {
+            $this->authorizeLessonPlan($old, $new, false);
+
+            return;
+        }
+
         if ($this->isManager()) {
+            return;
+        }
+
+        if ($collection === 'comprehensiveExams') {
+            $classId = $this->prop($new, 'classId');
+            if (! $this->isTeacher() || $classId === null) {
+                $this->deny();
+            }
+            $this->requireClass($classId);
+            if ($this->teacherExamKeysForClass($classId) === []) {
+                $this->deny('شما فقط مجاز به ثبت نمره‌ی آزمون جامع درس خودتان هستید.');
+            }
+
             return;
         }
 
@@ -453,6 +485,16 @@ final class AccessPolicy
             $this->deny('موارد انضباطی برای دبیر قابل ثبت یا مشاهده نیست.');
         }
 
+        // مربی: نمره‌ی همه‌ی دروسِ کلاس‌های تحت پوشش خودش را ثبت و ویرایش می‌کند (بدون محدودیت به درس خاص)
+        if ($collection === 'academicGrades' && $this->isCoach()) {
+            if ($old !== null) {
+                $this->requireNurturingClass($this->prop($old, 'classId'));
+            }
+            $this->requireNurturingClass($this->prop($new, 'classId'));
+
+            return;
+        }
+
         if (in_array($collection, self::CLASS_SCOPED, true)) {
             if ($old !== null) {
                 $this->requireClass($this->prop($old, 'classId'));
@@ -488,6 +530,12 @@ final class AccessPolicy
     {
         $this->requireWritePermission($collection, $old);
 
+        if ($collection === 'lessonPlans') {
+            $this->authorizeLessonPlan($old, null, true);
+
+            return;
+        }
+
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
                 $this->deny('پیگیری آموزشی فقط برای مدیر و معاونت آموزش است.');
@@ -520,7 +568,7 @@ final class AccessPolicy
             return;
         }
 
-        if ($collection === 'schoolHolidays') {
+        if ($collection === 'schoolHolidays' || $collection === 'entryTimes') {
             $this->requireHolidayManager();
 
             return;
@@ -1027,7 +1075,7 @@ final class AccessPolicy
     private function requireHolidayManager(): void
     {
         if (! in_array($this->user->role, ['admin', 'vice_disciplinary'], true)) {
-            $this->deny('اعلام تعطیلی فقط با مدیر سامانه و معاون انضباطی است.');
+            $this->deny('اعلام تعطیلی و تعیین ساعت ورود فقط با مدیر سامانه و معاون انضباطی است.');
         }
     }
 
@@ -1070,6 +1118,242 @@ final class AccessPolicy
     private function requireClass(?string $classId): void
     {
         if ($classId === null || $classId === '' || ! in_array($classId, $this->accessibleClassIds(), true)) {
+            $this->deny('شما به اطلاعات این کلاس دسترسی ندارید.');
+        }
+    }
+
+    /** ماه‌های آزمون جامع (همان ماه‌های دفتر نمرات) */
+    public const EXAM_MONTH_KEYS = ['mehrContinuous', 'abanContinuous', 'azarContinuous', 'bahmanContinuous', 'farvardinContinuous', 'ordibeheshtContinuous'];
+
+    /** واژه‌های نام درس ← کلید درس آزمون جامع */
+    private const EXAM_KEY_WORDS = [
+        'persian' => ['فارسی', 'ادبیات'],
+        'math' => ['ریاضی'],
+        'science' => ['علوم'],
+        'arabic' => ['عربی'],
+        'english' => ['انگلیسی'],
+    ];
+
+    /** @var array<string, array<int, string>>|null کلاس ← کلیدهای آزمون جامعی که دبیر در آن کلاس تدریس می‌کند */
+    private ?array $examKeysByClass = null;
+
+    /** @var array<string, array<int, string>>|null کلید آزمون ← شناسه‌ی درس‌های دفتر نمره‌ی دبیر */
+    private ?array $examSubjectIds = null;
+
+    public static function examKeyOfSubjectName(string $name): ?string
+    {
+        foreach (self::EXAM_KEY_WORDS as $key => $words) {
+            foreach ($words as $w) {
+                if (str_contains($name, $w) && ! ($key === 'science' && str_contains($name, 'اجتماعی'))) {
+                    return $key;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function loadTeacherExamKeys(): void
+    {
+        if ($this->examKeysByClass !== null) {
+            return;
+        }
+        $this->examKeysByClass = [];
+        $this->examSubjectIds = [];
+        if (! $this->isTeacher()) {
+            return;
+        }
+        $subjectNames = CollectionRegistry::tableExists('academic_subjects') ? DB::table('academic_subjects')->pluck('name', 'id')->all() : [];
+        foreach (array_keys($this->teachingCourses()['id']) as $pair) {
+            [$classId, $subjectId] = array_pad(explode('|', (string) $pair, 2), 2, '');
+            $key = self::examKeyOfSubjectName((string) ($subjectNames[$subjectId] ?? ''));
+            if ($key === null) {
+                continue;
+            }
+            $this->examKeysByClass[$classId][$key] = $key;
+            $this->examSubjectIds[$key][$subjectId] = $subjectId;
+        }
+        foreach ($this->examKeysByClass as $c => $keys) {
+            $this->examKeysByClass[$c] = array_values($keys);
+        }
+        foreach ($this->examSubjectIds as $k => $ids) {
+            $this->examSubjectIds[$k] = array_values($ids);
+        }
+    }
+
+    /** @return array<int, string> همه‌ی کلیدهای آزمون جامعی که دبیر تدریس می‌کند */
+    public function teacherExamKeys(): array
+    {
+        $this->loadTeacherExamKeys();
+
+        return array_values(array_unique(array_merge([], ...array_values($this->examKeysByClass ?? []))));
+    }
+
+    /** @return array<int, string> */
+    public function teacherExamKeysForClass(string $classId): array
+    {
+        $this->loadTeacherExamKeys();
+
+        return $this->examKeysByClass[$classId] ?? [];
+    }
+
+    /** آیا ثبت نمره‌ی این ماه برای دست‌کم یکی از درس‌های آزمونیِ دبیر باز است؟ (باز بودن را معاونت آموزش تعیین می‌کند) */
+    private function examMonthOpenFor(string $month, array $keys): bool
+    {
+        if (! in_array($month, self::EXAM_MONTH_KEYS, true) || ! CollectionRegistry::tableExists('grade_periods')) {
+            return false;
+        }
+        $row = DB::table('grade_periods')->where('code', $month)->first(['is_active', 'data']);
+        if ($row === null || ! (bool) $row->is_active) {
+            return false;
+        }
+        $d = json_decode((string) $row->data, false);
+        $ids = is_object($d) && isset($d->openSubjectIds) && is_array($d->openSubjectIds) ? $d->openSubjectIds : null;
+        if ($ids === null) {
+            return true;
+        }
+        $this->loadTeacherExamKeys();
+        foreach ($keys as $k) {
+            if (array_intersect($this->examSubjectIds[$k] ?? [], $ids) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * ادغام امن ثبت نمره‌ی آزمون جامع توسط دبیر: فقط خانه‌های «درس خودش» در «ماه‌های بازشده» برای
+     * دانش‌آموزان همان کلاس از داده‌ی ارسالی گرفته می‌شود و بقیه‌ی رکورد (نمره‌ی سایر دروس، دروس فعال) از رکورد قبلی می‌ماند.
+     */
+    public function mergeTeacherExam(object $new, ?object $old): object
+    {
+        $classId = $this->prop($new, 'classId') ?? '';
+        $keys = $this->teacherExamKeysForClass($classId);
+        $this->requireClass($classId);
+        if ($keys === []) {
+            $this->deny('شما فقط مجاز به ثبت نمره‌ی آزمون جامع درس خودتان هستید.');
+        }
+
+        $base = $old !== null ? json_decode(json_encode($old), true) : [
+            'id' => 'cexam-'.$classId,
+            'classId' => $classId,
+            'activeSubjects' => array_keys(self::EXAM_KEY_WORDS),
+            'scores' => (object) [],
+            'monthly' => (object) [],
+        ];
+        $base['id'] = 'cexam-'.$classId;
+        $base['classId'] = $classId;
+        $base['monthly'] = is_array($base['monthly'] ?? null) ? $base['monthly'] : [];
+
+        $studentIds = array_flip(DB::table('students')->where('class_id', $classId)->pluck('id')->all());
+        $incoming = json_decode(json_encode($new->monthly ?? new \stdClass()), true);
+        $incoming = is_array($incoming) ? $incoming : [];
+
+        foreach ($incoming as $month => $perStudent) {
+            if (! is_array($perStudent) || ! $this->examMonthOpenFor((string) $month, $keys)) {
+                continue;
+            }
+            $active = $base['monthlyActive'][$month] ?? ($base['activeSubjects'] ?? array_keys(self::EXAM_KEY_WORDS));
+            foreach ($perStudent as $sid => $cells) {
+                if (! isset($studentIds[$sid]) || ! is_array($cells)) {
+                    continue;
+                }
+                foreach ($keys as $k) {
+                    if (! in_array($k, $active, true)) {
+                        continue;
+                    }
+                    if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= 20) {
+                        $base['monthly'][$month][$sid][$k] = round((float) $cells[$k], 2);
+                    } elseif (! array_key_exists($k, $cells) && isset($base['monthly'][$month][$sid][$k])) {
+                        unset($base['monthly'][$month][$sid][$k]);
+                    }
+                }
+            }
+        }
+        $base['updatedAt'] = now()->toIso8601String();
+
+        return json_decode(json_encode($base), false);
+    }
+
+    /** نسخه‌ی رکورد آزمون جامع برای دبیر: فقط درس(های) خودش */
+    public function filterExamRecordForTeacher(array $record): ?array
+    {
+        $classId = (string) ($record['classId'] ?? '');
+        $keys = $this->teacherExamKeysForClass($classId);
+        if ($keys === []) {
+            return null;
+        }
+        $allow = array_flip($keys);
+        $cut = static function ($perStudent) use ($allow) {
+            $out = [];
+            foreach ((array) $perStudent as $sid => $cells) {
+                $kept = array_intersect_key((array) $cells, $allow);
+                if ($kept !== []) {
+                    $out[$sid] = $kept;
+                }
+            }
+
+            return (object) $out;
+        };
+        $record['scores'] = $cut($record['scores'] ?? []);
+        $monthly = [];
+        foreach ((array) ($record['monthly'] ?? []) as $m => $per) {
+            $monthly[$m] = $cut($per);
+        }
+        $record['monthly'] = (object) $monthly;
+        $record['activeSubjects'] = array_values(array_intersect((array) ($record['activeSubjects'] ?? []), $keys));
+        if (isset($record['monthlyActive'])) {
+            $ma = [];
+            foreach ((array) $record['monthlyActive'] as $m => $list) {
+                $ma[$m] = array_values(array_intersect((array) $list, $keys));
+            }
+            $record['monthlyActive'] = (object) $ma;
+        }
+
+        return $record;
+    }
+
+    /** فقط معاون آموزشی طرح درس اساتید را بررسی، بازخورد و تأیید می‌کند */
+    public function isLessonPlanReviewer(): bool
+    {
+        return $this->user->role === 'vice_educational';
+    }
+
+    /**
+     * طرح درس: دبیر فقط طرح خودش را (برای کلاس‌های خودش) ثبت، ویرایش و (تا پیش از تأیید) حذف می‌کند؛
+     * بررسی‌کننده فقط طرح‌های موجود (غیر پیش‌نویس) را بازخورد می‌دهد/تأیید می‌کند و هرگز نمی‌تواند طرح بسازد یا حذف کند.
+     */
+    private function authorizeLessonPlan(?object $old, ?object $new, bool $deleting): void
+    {
+        if ($this->isTeacher()) {
+            if ($old !== null) {
+                $this->requireOwner($this->prop($old, 'teacherId'));
+                if ($deleting && $this->prop($old, 'status') === 'approved') {
+                    $this->deny('طرح درس تأییدشده قابل حذف نیست.');
+                }
+            }
+            if ($new !== null) {
+                $this->requireOwner($this->prop($new, 'teacherId'));
+                $classId = $this->prop($new, 'classId');
+                if ($classId !== null && $classId !== '') {
+                    $this->requireClass($classId);
+                }
+            }
+
+            return;
+        }
+
+        if ($this->isLessonPlanReviewer() && ! $deleting && $old !== null && $this->prop($old, 'status') !== 'draft') {
+            return;
+        }
+
+        $this->deny('شما مجاز به این عملیات روی طرح درس نیستید.');
+    }
+
+    private function requireNurturingClass(?string $classId): void
+    {
+        if ($classId === null || $classId === '' || ! in_array($classId, $this->nurturingClassIds(), true)) {
             $this->deny('شما به اطلاعات این کلاس دسترسی ندارید.');
         }
     }

@@ -17,7 +17,7 @@ export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
 
   const alerts = useMemo(() => computeWorksheetAlerts(students, classes, worksheets, worksheetWeeks), [students, classes, worksheets, worksheetWeeks]);
   const currentWeek = worksheetWeeks.find((w) => w.weekStart === weekStartOf());
-  const hasIssues = alerts.weeks.length > 0;
+  const hasIssues = !!alerts.current;
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3.5" id="worksheet-alerts-card">
@@ -51,11 +51,13 @@ export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
       {!hasIssues ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs font-bold text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{worksheetWeeks.some((w) => w.deadline) ? 'در هفته‌های دارای مهلت گذشته، موردی تحویل‌نشده نیست.' : 'هنوز هفته‌ای با مهلت گذشته وجود ندارد.'}</span>
+          <span>{worksheetWeeks.some((w) => w.deadline) ? 'در آخرین هفته‌ی دارای مهلت گذشته، موردی تحویل‌نشده نیست.' : 'هنوز هفته‌ای با مهلت گذشته وجود ندارد.'}</span>
         </div>
-      ) : (
+      ) : null}
+
+      {alerts.current && (
         <div className="space-y-2">
-          {alerts.weeks.slice(0, 3).map((w) => {
+          {[alerts.current].map((w) => {
             const missing = w.classes.reduce((n, c) => n + c.missing.length, 0);
             const partial = w.classes.reduce((n, c) => n + c.partial.length, 0);
             const untouched = w.classes.filter((c) => c.untouched).length;
@@ -85,6 +87,12 @@ export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
           <button type="button" onClick={onOpen} className="text-[11px] font-bold text-teal-800 hover:underline cursor-pointer">
             فهرست کامل دانش‌آموزان در «باز کردن کاربرگ»
           </button>
+        </div>
+      )}
+
+      {alerts.history.length > 0 && (
+        <div className="text-[11px] text-slate-500">
+          سابقه‌ی {toPersianDigits(alerts.history.length)} هفته‌ی قبل (بدون هشدار) در «باز کردن کاربرگ» قابل مشاهده است.
         </div>
       )}
     </div>

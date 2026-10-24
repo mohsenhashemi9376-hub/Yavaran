@@ -43,6 +43,8 @@ import {
 import { MobileBottomNav } from './MobileBottomNav';
 import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
+import { TeacherLessonPlans } from './TeacherLessonPlans';
+import { TeacherExamSection, examKeyOfSubjectName } from './TeacherExamSection';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 
@@ -177,6 +179,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     ];
   }, [currentUser, teacherClasses, workshopAssignments]);
 
+  // آزمون جامع: فقط دبیران فارسی، ریاضی، علوم، عربی و انگلیسی
+  const hasExam = React.useMemo(() => subjectGroups.some((g) => !!examKeyOfSubjectName(g.subjectName) && g.classes.some((c) => !c.isWorkshop)), [subjectGroups]);
+
   // هر کارت = یک درس در یک کلاس
   const courseCards = React.useMemo(
     () =>
@@ -243,6 +248,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             currentUser={currentUser}
             teachingClasses={teacherClasses}
             teachingSubjects={subjectGroups.map(g => g.subjectName)}
+            hasExam={hasExam}
             totalSessionsCount={teacherSessions.length}
             totalStudentsCount={totalStudentsTaught}
             isCollapsed={isSidebarCollapsed}
@@ -252,7 +258,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
         {/* نوار ناوبری پایین (فقط موبایل) */}
         {(() => {
-          const nav = teacherMobileNav();
+          const nav = teacherMobileNav(hasExam);
           return (
             <MobileBottomNav
               items={nav.primary}
@@ -893,6 +899,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               )}
             </div>
           )}
+
+          {/* VIEW: طرح درس روزانه */}
+          {activeView === 'lesson_plans' && (
+            <TeacherLessonPlans classes={teacherClasses.filter((c) => !c.isWorkshop)} subjectNames={Array.from(new Set(subjectGroups.map((g) => g.subjectName)))} />
+          )}
+
+          {/* VIEW: آزمون جامع (فقط درس خود دبیر) */}
+          {activeView === 'exam' && hasExam && <TeacherExamSection groups={subjectGroups} />}
 
           {/* VIEW 6: REPORT CARDS (کارنامه) */}
           {activeView === 'report_cards' && (

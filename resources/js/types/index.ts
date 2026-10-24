@@ -19,6 +19,8 @@ export interface DisciplinaryNote {
   warningKind?: string; // نوع تذکر: عدم انجام تکلیف، بی‌انضباطی کلاسی، ...
   subject?: string; // درس مربوط به اخطار کلاسی
   sessionRef?: string; // شناسه جلسه کلاسی (جلوگیری از ثبت تکراری)
+  editedBy?: string; // آخرین ویرایش‌کننده (معاون انضباطی)
+  editedAt?: string;
 }
 
 export interface ClassDisciplinaryWarning {
@@ -88,6 +90,9 @@ export interface Student {
   disciplinaryScore?: number; // alias for disciplineScore
   disciplinaryStatus?: DisciplinaryStatus; // وضعیت انضباطی
   disciplinaryNotes?: DisciplinaryNote[]; // لیست سوابق و یادداشت‌های انضباطی
+  /** اگر دانش‌آموز با «انتقال به دوره‌ی جدید» ساخته شده، شناسه‌ی پرونده‌ی دوره‌ی مبدأ */
+  rolledOverFromId?: string;
+  rolledOverAt?: string;
   /** زمان ثبت دانش‌آموز؛ فقط خواندنی و از سرور (برای مربی و معاون تربیتی) */
   createdAt?: string;
 }
@@ -509,6 +514,70 @@ export interface SchoolHoliday {
   updatedAt?: string;
 }
 
+/** ردیف «مراحل تدریس» در طرح درس: شرح مرحله، زمان، فعالیت معلم و فعالیت دانش‌آموزان */
+export interface LessonScenarioStep {
+  id: string;
+  description: string;
+  minutes: string;
+  teacherActivity: string;
+  studentActivity: string;
+}
+
+/** بازخورد و تأیید معاونت آموزش (فقط سرور آن را تعیین می‌کند) */
+export interface LessonPlanReview {
+  approved: boolean;
+  feedback: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  reviewedAt?: string;
+}
+
+/** طرح درس روزانه‌ی استاد (مطابق فرم سنتی طرح‌درس‌نویسی مدرسه) */
+export interface LessonPlan {
+  id: string;
+  teacherId: string;
+  teacherName?: string;
+  classId: string;
+  date: string; // "1405/08/05"
+  academicYear?: string;
+  /** پیش‌نویس؛ ارسال‌شده برای معاونت؛ تأییدشده */
+  status: 'draft' | 'submitted' | 'approved';
+  // ۱. مشخصات کلی
+  subject: string; // نام درس
+  mainTopic: string; // سرفصل کلی
+  subTopic: string; // ریز سرفصل
+  source: string; // منبع
+  grade: string; // پایه
+  className: string;
+  studentCount: string;
+  scope: string; // محدوده‌ی تدریس
+  // ۲. روش‌ها و اهداف
+  methodCriteria: string[]; // ملاک‌های انتخاب روش: موضوع، مخاطب، امکانات، روش تربیتی
+  methods: string[];
+  techniques: string[];
+  tools: string[];
+  objectives: { psychomotor: string[]; affective: string[]; cognitive: string[] };
+  // ۳. سناریوی تدریس
+  scenario: LessonScenarioStep[];
+  // ۴. ارزیابی و تجربه‌نگاری
+  evaluation: { initial: string; process: string; final: string };
+  checklist: { motivation: string; prior: string; alignment: string; summary: string; differences: string; engagement: string; homework: string };
+  reflection: string;
+  review?: LessonPlanReview | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** ساعت ورود تعیین‌شده‌ی یک روز توسط مدیر یا معاون انضباطی؛ ورود پس از آن در همان روز تأخیر است (بدون ثبت: ۰۷:۰۰) */
+export interface EntryTimeRecord {
+  id: string; // ent-{تاریخ با خط تیره}
+  date: string; // "1405/07/20"
+  time: string; // "07:30"
+  setBy?: string;
+  setById?: string;
+  updatedAt?: string;
+}
+
 /** کاربرگ هفتگی: «تحویل نداده» حالت پیش‌فرض است و رکوردی ندارد؛ فقط تحویل‌دهندگان ثبت می‌شوند */
 export type WorksheetStatus = 'complete' | 'partial' | 'absent';
 
@@ -654,6 +723,7 @@ export interface TeacherEvaluationCriteria {
   continuousAssessment?: QualitativeRating | number | TeacherEvaluationCriterionDetail; // ارزشیابی مستمر و ثبت به موقع نمرات
   parentAndSchoolCommunication?: QualitativeRating | number | TeacherEvaluationCriterionDetail; // ارتباط موثر با اولیا و معاونت
   criteriaComments?: Record<string, string>; // توضیحات اختصاصی برای هر یک از شاخص‌ها
+  criteriaTitles?: Record<string, string>; // عنوان‌های ویرایش‌شده‌ی سرفصل‌ها در زمان ثبت (پیش‌فرض: عنوان استاندارد)
   // Legacy compatibility fields
   punctuality?: QualitativeRating | number;
   creativity?: QualitativeRating | number;
@@ -687,6 +757,15 @@ export interface TeacherEvaluation {
 // School Settings & Base Information (تنظیمات و اطلاعات پایه سامانه)
 // ----------------------------------------------------
 
+/** دوره‌ی تحصیلی: از مهر تا خرداد، مثل «۱۴۰۶-۱۴۰۷» */
+export interface AcademicTerm {
+  id: string; // term-{سال شروع}
+  name: string; // "۱۴۰۶-۱۴۰۷"
+  startDate: string; // "1406/07/01"
+  endDate: string; // "1407/03/31"
+  createdAt?: string;
+}
+
 export interface SchoolSettings {
   schoolName: string; // نام مدرسه
   phone: string; // شماره تماس
@@ -694,6 +773,8 @@ export interface SchoolSettings {
   academicYear: string; // سال تحصیلی جاری: "۱۴۰۴-۱۴۰۵"
   schoolCode?: string; // کد مدرسه / مرکز
   principalName?: string; // نام مدیر
+  /** دوره‌های تحصیلی تعریف‌شده توسط مدیر (سال جاری همیشه در فهرست دوره‌ها نمایش داده می‌شود) */
+  academicTerms?: AcademicTerm[];
   logoUrl?: string; // نشان یا لوگوی مدرسه
 }
 

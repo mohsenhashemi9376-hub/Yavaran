@@ -86,7 +86,7 @@ export function defaultPermissionsFor(role: UserRole | string): string[] {
     case 'vice_nurturing':
       return ['view-attendance-history', 'discipline', 'counseling-report', 'view-nurturing-file', 'view-students', 'view-guardians', 'analytics-reports', 'view-worksheets', 'view-parent-meetings'];
     case 'coach':
-      return ['view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports', 'manage-worksheets', 'view-worksheets', 'view-parent-meetings'];
+      return ['manage-grades', 'view-attendance-history', 'counseling-report', 'view-nurturing-file', 'view-students', 'analytics-reports', 'manage-worksheets', 'view-worksheets', 'view-parent-meetings'];
     case 'teacher':
       return TEACHER_DEFAULTS;
     default:
@@ -122,6 +122,7 @@ export const NAV_ITEM_PERMISSIONS: Record<string, string[]> = {
   reports: ['analytics-reports'],
   homework_followup: ['analytics-reports'],
   settings: ['school-settings'],
+  terms: ['school-settings'],
   announcements: ['manage-announcements'],
   teacher_evaluation: ['evaluate-teachers'],
   worksheets: ['manage-worksheets', 'view-worksheets'],

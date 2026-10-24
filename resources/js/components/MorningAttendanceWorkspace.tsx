@@ -17,6 +17,7 @@ import { ParentPhoneButton } from './ParentPhoneButton';
 import { closedReasonMessage } from '../utils/schoolCalendar';
 import { SchoolHolidaysPanel } from './SchoolHolidaysPanel';
 import { FitTable } from './ui/FitTable';
+import { EntryTimeControl } from './EntryTimeControl';
 
 export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
 
@@ -438,7 +439,7 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
           icon={Sunrise}
           section="امور روزانه"
           badge={`${today.dayOfWeek} ${toPersianDigits(today.formattedDate)}`}
-          subtitle="همه‌ی دانش‌آموزان در شروع صبحگاه «غایب» هستند؛ با یک لمس روی کارت، حضور ثبت می‌شود. ساعت مرجع ورود ۰۷:۰۰ است."
+          subtitle="همه‌ی دانش‌آموزان در شروع صبحگاه «غایب» هستند؛ با یک لمس روی کارت، حضور ثبت می‌شود. ورود پس از ساعت ورود همان روز تأخیر است."
           onBack={onBack}
           onOpenSidebar={onOpenSidebar}
           actions={
@@ -455,6 +456,8 @@ export const MorningAttendanceWorkspace: React.FC<MorningAttendanceWorkspaceProp
         />
 
         {canDeclareHoliday && holidayPanelOpen && <SchoolHolidaysPanel />}
+
+        <EntryTimeControl date={today.formattedDate} />
 
         {/* ۵ کادر فیلتر پاستلی */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5" role="tablist" aria-label="فیلتر کلاس">

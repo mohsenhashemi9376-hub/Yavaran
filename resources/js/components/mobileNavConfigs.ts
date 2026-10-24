@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CheckCircle2, ShieldAlert, Users, GraduationCap, UserCheck, HeartHandshake,
   BookOpen, ClipboardList, FileSpreadsheet, AlertTriangle, Settings, Award, FileText, Eye, FolderOpen,
-  BarChart3, UsersRound, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package, Lightbulb, ListChecks,
+  BarChart3, CalendarRange, UsersRound, MessageSquare, Megaphone, School, ClipboardCheck, Star, Clock, Package, Lightbulb, ListChecks,
 } from 'lucide-react';
 import type { MobileNavItem } from './MobileBottomNav';
 
@@ -31,6 +31,7 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
       ? [{ id: 'parent_meetings', label: 'حضور أولیا', icon: UsersRound }] : []),
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
     { id: 'reports', label: 'گزارش‌ها', icon: FileSpreadsheet },
+    ...(isAdmin ? [{ id: 'terms', label: 'سال تحصیلی', icon: CalendarRange }] : []),
     { id: 'settings', label: 'تنظیمات', icon: Settings },
   ];
   return { primary, more };
@@ -56,7 +57,7 @@ export const executiveMobileNav = (counts: { warnings: number; loans?: number })
   ] as MobileNavItem[],
 });
 
-export const educationalMobileNav = (counts: { warnings: number }) => ({
+export const educationalMobileNav = (counts: { warnings: number }, canReviewLessonPlans = false) => ({
   primary: [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
     { id: 'classes', label: 'کلاس‌ها', icon: GraduationCap },
@@ -72,6 +73,7 @@ export const educationalMobileNav = (counts: { warnings: number }) => ({
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'announcements', label: 'بخشنامه‌ها', icon: Megaphone },
     { id: 'teacher_evaluation', label: 'ارزیابی اساتید', icon: UserCheck },
+    ...(canReviewLessonPlans ? [{ id: 'lesson_plans', label: 'طرح درس اساتید', icon: ClipboardCheck }] : []),
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },
@@ -103,7 +105,7 @@ export const nurturingMobileNav = (isVice = false) => ({
   ] as MobileNavItem[],
 });
 
-export const teacherMobileNav = () => ({
+export const teacherMobileNav = (hasExam = false) => ({
   primary: [
     { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
     { id: 'attendance', label: 'حضور و غیاب', icon: UserCheck },
@@ -111,7 +113,9 @@ export const teacherMobileNav = () => ({
     { id: 'subjects', label: 'دروس من', icon: BookOpen },
   ] as MobileNavItem[],
   more: [
+    { id: 'lesson_plans', label: 'طرح درس', icon: FileText },
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
+    ...(hasExam ? [{ id: 'exam', label: 'آزمون جامع', icon: Award }] : []),
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'activities', label: 'فعالیت خارج مدرسه', icon: Clock },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },

@@ -34,6 +34,8 @@ final class CollectionRegistry
         'worksheets' => 'worksheet_records',
         'worksheetWeeks' => 'worksheet_weeks',
         'schoolHolidays' => 'school_holidays',
+        'entryTimes' => 'school_entry_times',
+        'lessonPlans' => 'lesson_plans',
         'parentMeetings' => 'parent_meetings',
         'parentMeetingStates' => 'parent_meeting_states',
         'reflectionPoints' => 'reflection_points',
@@ -97,6 +99,39 @@ final class CollectionRegistry
                 \Illuminate\Support\Facades\Schema::create('school_holidays', function ($t): void {
                     $t->string('id', 100)->primary();
                     $t->string('holiday_date', 20)->unique();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'lesson_plans') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('lesson_plans', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('teacher_id', 100)->index();
+                    $t->string('class_id', 100)->nullable()->index();
+                    $t->string('plan_date', 20)->index();
+                    $t->string('status', 20)->default('draft')->index();
+                    $t->integer('sort_order')->default(0)->index();
+                    $t->longText('data');
+                    $t->timestamps();
+                });
+            } catch (\Throwable) {
+            }
+            unset(self::$schemaCache["t:$table"]);
+
+            return self::tableExists($table);
+        }
+        if ($table === 'school_entry_times') {
+            try {
+                \Illuminate\Support\Facades\Schema::create('school_entry_times', function ($t): void {
+                    $t->string('id', 100)->primary();
+                    $t->string('entry_date', 20)->unique();
                     $t->integer('sort_order')->default(0)->index();
                     $t->longText('data');
                     $t->timestamps();
@@ -543,6 +578,15 @@ final class CollectionRegistry
             ],
             'schoolHolidays' => [
                 'holiday_date' => self::str($d, 'date', 20) ?? '',
+            ],
+            'entryTimes' => [
+                'entry_date' => self::str($d, 'date', 20) ?? '',
+            ],
+            'lessonPlans' => [
+                'teacher_id' => self::str($d, 'teacherId', 100) ?? '',
+                'class_id' => self::str($d, 'classId', 100),
+                'plan_date' => self::str($d, 'date', 20) ?? '',
+                'status' => in_array($d->status ?? null, ['draft', 'submitted', 'approved'], true) ? $d->status : 'draft',
             ],
             'parentMeetings' => [
                 'student_id' => self::str($d, 'studentId', 100) ?? '',

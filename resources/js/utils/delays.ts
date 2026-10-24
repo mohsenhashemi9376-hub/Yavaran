@@ -15,6 +15,7 @@ export interface StudentDelaySummary {
 /**
  * مجموع تأخیر یک دانش‌آموز از همه‌ی منابع: دفتر تأخیر، حضور صبحگاهِ تأخیردار و تأخیر زنگ‌های کلاسی.
  * اگر برای یک روز هم دفتر تأخیر و هم حضور صبحگاه ثبت شده باشد، فقط دفتر تأخیر شمرده می‌شود.
+ * تأخیر «موجه» شمرده نمی‌شود (نه در دفعات و نه در دقایق کسر نمره).
  */
 export function summarizeStudentDelays(
   student: { id: string; classId?: string },
@@ -30,6 +31,7 @@ export function summarizeStudentDelays(
   const logged = (sources.morningDelays || []).filter((d) => d.studentId === student.id);
   const loggedDates = new Set(logged.map((d) => d.date));
   logged.forEach((d) => {
+    if (d.isExcused) return; // تأخیر موجه در دفعات و کسر نمره نمی‌آید
     count++;
     minutes += d.delayMinutes || 0;
   });

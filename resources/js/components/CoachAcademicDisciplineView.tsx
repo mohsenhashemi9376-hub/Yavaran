@@ -28,6 +28,7 @@ import {
   Layers,
   Sparkles,
   UserX,
+  Users,
   CalendarDays,
   BellRing
 } from 'lucide-react';
@@ -382,11 +383,68 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     XLSX.writeFile(workbook, `گزارش_آموزش_و_انضباط_کلاس_مربی_${todayInfo.formattedDate.replace(/\//g, '-')}.xlsx`);
   };
 
+
+  // نوار چسبان موبایل درست زیر هدر چسبان برنامه قرار می‌گیرد
+  const [stickyTop, setStickyTop] = useState(0);
+  useEffect(() => {
+    const measure = () => setStickyTop(document.querySelector<HTMLElement>('.yv-header')?.offsetHeight || 0);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  const mobileFilters: { key: typeof filterType; label: string; icon?: React.ComponentType<{ className?: string }>; active: string; idle: string }[] = [
+    { key: 'all', label: `همه (${toPersianDigits(targetStudents.length)})`, active: 'bg-indigo-600 text-white border-indigo-600', idle: 'bg-white text-slate-700 border-slate-200' },
+    { key: 'needs_attention', label: `نیازمند پیگیری (${toPersianDigits(aggregateStats.attentionCount)})`, icon: AlertTriangle, active: 'bg-rose-600 text-white border-rose-600', idle: 'bg-rose-50 text-rose-800 border-rose-200' },
+    { key: 'absent', label: `دارای غیبت (${toPersianDigits(aggregateStats.absentStudents)})`, icon: UserX, active: 'bg-orange-600 text-white border-orange-600', idle: 'bg-orange-50 text-orange-800 border-orange-200' },
+    { key: 'delayed', label: `دارای تأخیر (${toPersianDigits(aggregateStats.delayedStudents)})`, icon: Clock, active: 'bg-amber-600 text-white border-amber-600', idle: 'bg-amber-50 text-amber-800 border-amber-200' },
+    { key: 'top_academic', label: 'ممتاز (۱۸+)', icon: Award, active: 'bg-emerald-600 text-white border-emerald-600', idle: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  ];
+
   return (
     <div className="space-y-5 font-['Vazirmatn',sans-serif]">
       
+      {/* موبایل: کارت آماری فشرده */}
+      <div className="md:hidden bg-slate-900 text-white rounded-2xl p-3 shadow-sm border border-slate-800 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-emerald-300 shrink-0" />
+          <h2 className="flex-1 min-w-0 text-sm font-black truncate">
+            {selectedClassId === 'all' ? 'همه کلاس‌های مربی' : `کلاس ${nurturingClasses.find((c) => c.id === selectedClassId)?.name || ''}`}
+          </h2>
+          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-white/10 text-amber-200">
+            <Lock className="w-3 h-3" /> فقط مشاهده
+          </span>
+          <button type="button" onClick={() => window.print()} aria-label="چاپ" title="چاپ" className="w-10 h-10 shrink-0 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
+            <Printer className="w-4 h-4 text-sky-300" />
+          </button>
+          <button type="button" onClick={handleExportExcel} aria-label="خروجی اکسل" title="خروجی اکسل" className="w-10 h-10 shrink-0 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+          </button>
+        </div>
+        <div className="flex items-baseline justify-between gap-2 px-1">
+          <span className="text-[11px] text-slate-300">میانگین معدل کلاس</span>
+          <span className="text-2xl font-black text-emerald-300 tabular-nums">
+            {aggregateStats.avgGpa !== '-' ? toPersianDigits(aggregateStats.avgGpa) : 'ثبت نشده'}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {([
+            [Users, 'دانش‌آموز', aggregateStats.totalStudents, 'text-white'],
+            [AlertTriangle, 'پیگیری', aggregateStats.attentionCount, 'text-rose-300'],
+            [UserX, 'غیبت', aggregateStats.totalAbs, 'text-orange-300'],
+            [Clock, 'تأخیر', aggregateStats.totalDelaysCount, 'text-amber-300'],
+          ] as const).map(([Icon, label, value, tone]) => (
+            <div key={label} className="bg-white/10 rounded-xl py-2 px-1 text-center">
+              <Icon className={`w-3.5 h-3.5 mx-auto ${tone}`} />
+              <div className={`text-base font-black tabular-nums leading-tight mt-0.5 ${tone}`}>{toPersianDigits(value)}</div>
+              <div className="text-[10px] text-slate-300 leading-tight">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-indigo-900/40">
+      <div className="hidden md:block bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-indigo-900/40">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
@@ -444,7 +502,58 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       </div>
 
       {/* Control Bar: Class Selector, Search, Filter Buttons */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* موبایل: نوار چسبان شیشه‌ای (جستجو + کلاس در یک خط، فیلترها در نوار افقی) */}
+      <div
+        className="md:hidden sticky z-20 -mx-4 px-4 py-2 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 space-y-2"
+        style={{ top: stickyTop }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="جستجوی دانش‌آموز…"
+              aria-label="جستجوی دانش‌آموز"
+              className="w-full h-11 bg-white border border-slate-200 rounded-xl pr-9 pl-8 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm('')} aria-label="پاک کردن جستجو" className="absolute left-1.5 top-1/2 -translate-y-1/2 w-8 h-8 text-slate-400 text-xs cursor-pointer">✕</button>
+            )}
+          </div>
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            aria-label="کلاس"
+            className="h-11 max-w-[42%] bg-white border border-slate-200 rounded-xl px-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {nurturingClasses.length > 1 && <option value="all">همه کلاس‌ها</option>}
+            {nurturingClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 pb-0.5 text-xs font-bold" role="tablist" aria-label="فیلتر دانش‌آموزان">
+          {mobileFilters.map((f) => {
+            const Icon = f.icon;
+            const active = filterType === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilterType(f.key)}
+                className={`h-10 px-3 shrink-0 rounded-full border inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition ${active ? f.active : f.idle}`}
+              >
+                {Icon && <Icon className="w-3.5 h-3.5" />}
+                <span>{f.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden md:flex bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
           
           {/* Class Selector */}
@@ -557,6 +666,67 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
           <p>دانش‌آموزی با شرایط جستجوی فعلی یافت نشد.</p>
         </div>
       ) : (
+        <>
+        {/* موبایل: کارت فشرده‌ی دانش‌آموز */}
+        <div className="md:hidden space-y-2.5">
+          {filteredStudents.map((student, idx) => {
+            const studentClass = classes.find((c) => c.id === student.classId);
+            const acad = getStudentAcademicData(student.id);
+            const disc = getStudentDisciplineData(student);
+            const gpa = acad.gpaAnnual;
+            const gpaCls = gpa === null ? '' : gpa >= 18 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : gpa >= 12 ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-rose-50 text-rose-800 border-rose-200';
+            const chip = 'inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border text-[11px] font-extrabold whitespace-nowrap';
+            return (
+              <article key={student.id} className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 text-center text-[11px] font-bold text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${avatarGradient(student.id)} text-white flex items-center justify-center font-black text-xs shrink-0 ring-2 ring-white`}>
+                    {getStudentFullName(student).charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900 text-sm truncate">{getStudentFullName(student)}</div>
+                    {selectedClassId === 'all' && <div className="text-[10px] text-slate-400 truncate">{studentClass?.name || '-'}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setDetailModalStudent(student); setModalActiveTab('grades'); }}
+                    aria-label={`پرونده ${getStudentFullName(student)}`}
+                    className="h-10 px-3 shrink-0 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4 text-indigo-600" />
+                    پرونده
+                  </button>
+                </div>
+                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                  {gpa !== null && <span className={`${chip} ${gpaCls}`}>معدل {toPersianDigits(gpa.toFixed(2))}</span>}
+                  {disc.totalAbsences > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'absence' })} className={`${chip} bg-rose-50 text-rose-700 border-rose-200 cursor-pointer`}>
+                      <UserX className="w-3 h-3" />
+                      غیبت {toPersianDigits(disc.totalAbsences)} روز{disc.excusedAbsences > 0 ? ` (${toPersianDigits(disc.excusedAbsences)} موجه)` : ''}
+                    </button>
+                  )}
+                  {disc.delays.length > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'delay' })} className={`${chip} bg-amber-50 text-amber-800 border-amber-200 cursor-pointer`}>
+                      <Clock className="w-3 h-3" />
+                      تأخیر {toPersianDigits(disc.delays.length)} بار · {toPersianDigits(disc.totalDelayMinutes)} د
+                    </button>
+                  )}
+                  {disc.notesCount > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'note' })} className={`${chip} bg-violet-50 text-violet-800 border-violet-200 cursor-pointer`}>
+                      <BellRing className="w-3 h-3" />
+                      تذکر {toPersianDigits(disc.notesCount)}
+                    </button>
+                  )}
+                  {gpa === null && disc.totalAbsences === 0 && disc.delays.length === 0 && disc.notesCount === 0 && (
+                    <span className="text-[11px] text-slate-400">بدون مورد ثبت‌شده</span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block">
         <FitTable className="bg-white rounded-2xl border border-slate-200 shadow-xs">
           <table className="w-full table-fixed text-right text-xs">
             <thead className="bg-gradient-to-l from-indigo-50 via-slate-50 to-sky-50 text-slate-700 border-b border-slate-200 font-extrabold">
@@ -710,6 +880,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             </tbody>
           </table>
         </FitTable>
+        </div>
+        </>
       )}
 
       {/* ریز اطلاعات هر ستون (غیبت / تأخیر / تذکر) در کادر وسط صفحه */}
@@ -864,79 +1036,66 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         );
       })()}
 
-      {/* Read-Only Modal: Full Academic & Disciplinary Detail */}
+      {/* Read-Only Modal: Full Academic & Disciplinary Detail (باتم‌شیت در موبایل) */}
       {detailModalStudent && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-['Vazirmatn',sans-serif]">
-            
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setDetailModalStudent(null); }}
+        >
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-['Vazirmatn',sans-serif] max-h-[92vh] flex flex-col" dir="rtl">
+            <div className="sm:hidden pt-2 flex justify-center bg-slate-900 shrink-0"><span className="w-10 h-1 rounded-full bg-white/30" /></div>
+
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-sm text-indigo-200">
-                  {getStudentFullName(detailModalStudent).charAt(0)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold">{getStudentFullName(detailModalStudent)}</h3>
-                    <span className="bg-indigo-500/30 text-indigo-200 text-[10px] px-2 py-0.5 rounded-md border border-indigo-400/20 font-bold">
-                      فقط مشاهده مربی
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-300 font-mono">
-                    شماره تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
+            <div className="bg-slate-900 text-white px-4 py-3.5 sm:p-5 flex items-center gap-3 shrink-0">
+              <div className="w-11 h-11 shrink-0 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-sm text-emerald-200">
+                {getStudentFullName(detailModalStudent).charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold truncate">{getStudentFullName(detailModalStudent)}</h3>
+                  <span className="inline-flex items-center gap-1 bg-white/10 text-amber-200 text-[10px] px-2 py-0.5 rounded-full border border-white/10 font-bold whitespace-nowrap">
+                    <Lock className="w-3 h-3" /> فقط مشاهده
                   </span>
                 </div>
+                <span className="text-xs text-slate-300 tabular-nums whitespace-nowrap">
+                  تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
+                </span>
               </div>
-
               <button
+                type="button"
                 onClick={() => setDetailModalStudent(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                aria-label="بستن"
+                className="w-11 h-11 shrink-0 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div className="flex items-center bg-slate-100 p-2 border-b border-slate-200 text-xs font-bold">
-              <button
-                onClick={() => setModalActiveTab('grades')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'grades'
-                    ? 'bg-white text-indigo-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <GraduationCap className="w-4 h-4 text-indigo-600" />
-                <span>کارنامه و ریز نمرات درسی</span>
-              </button>
-
-              <button
-                onClick={() => setModalActiveTab('discipline')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'discipline'
-                    ? 'bg-white text-rose-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShieldAlert className="w-4 h-4 text-rose-600" />
-                <span>سوابق انضباطی، تاخیر و غیبت</span>
-              </button>
-
-              <button
-                onClick={() => setModalActiveTab('analysis')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'analysis'
-                    ? 'bg-white text-emerald-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                <span>تحلیل و راهبرد تربیتی مربی</span>
-              </button>
+            {/* Modal Navigation Tabs: یک ردیف افقی، بدون شکستن کلمات */}
+            <div className="flex items-center gap-1.5 overflow-x-auto bg-slate-100 p-2 border-b border-slate-200 text-xs font-bold shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+              {([
+                ['grades', 'کارنامه و ریز نمرات', GraduationCap, 'text-indigo-900', 'text-indigo-600'],
+                ['discipline', 'انضباطی، تأخیر و غیبت', ShieldAlert, 'text-rose-900', 'text-rose-600'],
+                ['analysis', 'تحلیل و راهبرد تربیتی', Sparkles, 'text-emerald-900', 'text-emerald-600'],
+              ] as const).map(([id, label, Icon, activeText, iconTone]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={modalActiveTab === id}
+                  onClick={() => setModalActiveTab(id)}
+                  className={`shrink-0 h-11 px-3.5 rounded-xl whitespace-nowrap transition cursor-pointer inline-flex items-center gap-1.5 ${
+                    modalActiveTab === id ? `bg-white ${activeText} shadow-xs` : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${iconTone}`} />
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
 
             {/* Modal Body Content */}
-            <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4 text-xs">
+            <div className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto space-y-4 text-xs">
               
               {/* TAB 1: ACADEMIC GRADES (READ-ONLY) */}
               {modalActiveTab === 'grades' && (
@@ -1120,7 +1279,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={() => setDetailModalStudent(null)}
                 className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"

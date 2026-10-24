@@ -35,7 +35,7 @@ export function delayEventsOf(student: Student, src: AttendanceSources): DelayEv
   const events: DelayEvent[] = [];
   const logged = (src.morningDelays || []).filter((d) => d.studentId === student.id);
   const loggedDates = new Set(logged.map((d) => d.date));
-  logged.forEach((d) => events.push({ date: d.date, minutes: d.delayMinutes || 0 }));
+  logged.forEach((d) => !d.isExcused && events.push({ date: d.date, minutes: d.delayMinutes || 0 })); // تأخیر موجه شمرده نمی‌شود
   (src.morningAttendance || []).forEach((r) => {
     if (r.studentId === student.id && r.status === 'present' && (r.delayMinutes || 0) > 0 && !loggedDates.has(r.date)) {
       events.push({ date: r.date, minutes: r.delayMinutes || 0 });

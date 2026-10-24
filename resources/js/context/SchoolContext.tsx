@@ -29,6 +29,9 @@ import {
   WorksheetWeek,
   WorksheetStatus,
   SchoolHoliday,
+  EntryTimeRecord,
+  AcademicTerm,
+  LessonPlan,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -66,7 +69,7 @@ import {
 import { FollowUpConfig, mergeFollowUpConfig } from '../utils/academicFollowUp';
 import { parentMeetingId, currentAcademicStartYear } from '../utils/parentMeetings';
 import { toEnglishDigits, toPersianDigits, tehranNow, setServerClock, setActiveAcademicYear, getTodayShamsi, setViewDate as applyViewDate, setLateEntry as applyLateEntry, getEntryClock, getRealTodayShamsiString, getDaysInShamsiMonth } from '../utils/persianDate';
-import { delayFromEntryTime } from '../utils/morningAttendance';
+import { DEFAULT_ENTRY_TIME, delayFromEntryTime } from '../utils/morningAttendance';
 import { closedReasonOf, normalizeShamsi, ClosedReason } from '../utils/schoolCalendar';
 import { buildGradePeriodList, isPeriodOpenForSubject, openSubjectIdsOf } from '../utils/gradePeriods';
 import { buildWorkshopList, workshopAsClass, workshopSubjectName } from '../utils/workshops';
@@ -150,6 +153,11 @@ interface SchoolContextType {
   /** ثبت دیرهنگام: اجازه‌ی ثبت و ویرایش برای روز گذشته‌ی انتخاب‌شده */
   lateEntry: boolean;
   changeLateEntry: (on: boolean) => void;
+  /** ساعت ورود تعیین‌شده برای هر روز (پیش‌فرض ۰۷:۰۰)؛ ورود پس از آن تأخیر است */
+  entryTimes: EntryTimeRecord[];
+  entryTimeFor: (date: string) => string;
+  /** time = null: بازگشت به ساعت پیش‌فرض */
+  setEntryTime: (date: string, time: string | null) => void;
   addSchoolHoliday: (date: string, title?: string | null) => void;
   removeSchoolHoliday: (date: string) => void;
   /** علامت‌گذاری کاربرگ هفتگی: status=null یعنی «تحویل نداده» (حذف رکورد) */
@@ -188,6 +196,16 @@ interface SchoolContextType {
   schoolSettings: SchoolSettings;
   updateSchoolSettings: (updated: Partial<SchoolSettings>) => void;
   updateAcademicYear: (newYear: string) => void;
+  /** طرح درس روزانه‌ی استاد (دبیر: طرح‌های خودش؛ معاونت آموزش: طرح‌های ارسال‌شده) */
+  lessonPlans: LessonPlan[];
+  saveLessonPlan: (plan: LessonPlan) => void;
+  deleteLessonPlan: (id: string) => void;
+  /** ثبت بازخورد و تأیید معاونت آموزش (تأیید نهایی با approved=true) */
+  reviewLessonPlan: (id: string, review: { feedback: string; approved: boolean }) => void;
+  /** تعریف دوره‌ی تحصیلی جدید (بدون انتقال خودکار دانش‌آموزان) */
+  addAcademicTerm: (term: { name: string; startDate: string; endDate: string }) => boolean;
+  /** انتقال انتخابی دانش‌آموزان به کلاس‌های دوره‌ی مقصد؛ تعداد انتقال‌های انجام‌شده را برمی‌گرداند */
+  transferStudentsToTerm: (items: { studentId: string; destClassId: string }[]) => number;
   grades: SchoolGradeItem[];
   addGrade: (name: string, stage?: string) => string;
   updateGrade: (id: string, updated: Partial<SchoolGradeItem>) => void;
@@ -261,6 +279,8 @@ interface SchoolContextType {
   resolveDelayDeduction: (studentId: string, approve: boolean) => void;
   updateStudentDiscipline: (studentId: string, score: number, status?: DisciplinaryStatus) => void;
   deleteDisciplinaryNote: (studentId: string, noteId: string) => void;
+  /** ویرایش مورد انضباطی ثبت‌شده (فقط مدیر و معاون انضباطی)؛ نمره‌ی انضباط با اختلاف کسر جدید و قدیم تنظیم می‌شود */
+  updateDisciplinaryNote: (studentId: string, noteId: string, patch: Partial<Pick<DisciplinaryNote, 'title' | 'description' | 'date' | 'type' | 'scoreDeduction'>>) => boolean;
 
   // Morning & School Entrance Delays (ثبت و مدیریت تاخیرهای ورود به مدرسه)
   addMorningDelay: (delay: Omit<MorningDelayRecord, 'id' | 'createdAt'>) => string;
@@ -461,6 +481,12 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rawMorningAttendance, setMorningAttendance] = useState<MorningAttendanceRecord[]>([]);
   const [rawSchoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
   const [schoolHolidays, setSchoolHolidays] = useState<SchoolHoliday[]>([]);
+  const [entryTimes, setEntryTimes] = useState<EntryTimeRecord[]>([]);
+  const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
+  const entryTimeFor = useCallback(
+    (date: string) => entryTimes.find((e) => e.id === `ent-${normalizeShamsi(date).replace(/\//g, '-')}`)?.time || DEFAULT_ENTRY_TIME,
+    [entryTimes]
+  );
 
   // جمعه‌ها و روزهای تعطیل اعلام‌شده روز درسی نیستند: حضور و غیاب آن روزها در هیچ محاسبه‌ای نمی‌آید
   // (state خام فقط برای همگام‌سازی با سرور نگه داشته می‌شود)
@@ -652,6 +678,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextAcademicFollowUps = (d.academicFollowUps || []) as unknown as AcademicFollowUpRecord[];
     const nextGreyList = (d.greyList || []) as unknown as GreyListRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
+    const nextEntryTimes = (d.entryTimes || []) as unknown as EntryTimeRecord[];
+    const nextLessonPlans = (d.lessonPlans || []) as unknown as LessonPlan[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
@@ -686,6 +714,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       greyList: nextGreyList as unknown as SyncRow[],
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
+      entryTimes: nextEntryTimes as unknown as SyncRow[],
+      lessonPlans: nextLessonPlans as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
@@ -719,6 +749,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setGreyList(nextGreyList);
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
+    setEntryTimes(nextEntryTimes);
+    setLessonPlans(nextLessonPlans);
     setWorksheetWeeks(nextWorksheetWeeks);
     setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
@@ -768,6 +800,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setGreyList([]);
     setWorksheets([]);
     setSchoolHolidays([]);
+    setEntryTimes([]);
+    setLessonPlans([]);
     setWorksheetWeeks([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
@@ -886,6 +920,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('morningAttendance', rawMorningAttendance as unknown as SyncRow[]); }, [rawMorningAttendance, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAbsences', rawSchoolAbsences as unknown as SyncRow[]); }, [rawSchoolAbsences, syncEngine]);
   useEffect(() => { syncEngine.push('schoolHolidays', schoolHolidays as unknown as SyncRow[]); }, [schoolHolidays, syncEngine]);
+  useEffect(() => { syncEngine.push('entryTimes', entryTimes as unknown as SyncRow[]); }, [entryTimes, syncEngine]);
+  useEffect(() => { syncEngine.push('lessonPlans', lessonPlans as unknown as SyncRow[]); }, [lessonPlans, syncEngine]);
   useEffect(() => { syncEngine.push('observations', observations as unknown as SyncRow[]); }, [observations, syncEngine]);
   useEffect(() => { syncEngine.push('nurturingDossiers', dossiersToRows(nurturingDossiers)); }, [nurturingDossiers, syncEngine]);
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
@@ -1163,6 +1199,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const canTeachClassAndSubject = (classId: string, subjectNameOrId?: string): boolean => {
     if (isAdmin || isEducationalVice) return true;
     if (workshops.some((w) => w.id === classId && w.teacherId === currentUser.id)) return true;
+    // مربی: برای کلاس‌های تحت پوشش خودش نمره‌ی همه‌ی دروس را می‌بیند و ویرایش می‌کند
+    if (isCoach) return nurturingClasses.some((c) => c.id === classId);
     if (isTeacher) {
       const teachesClass = currentUser.assignedClassIds.includes(classId) || classes.find((c) => c.id === classId)?.teacherIds.includes(currentUser.id);
       if (!teachesClass) return false;
@@ -1516,6 +1554,35 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast('نمره و وضعیت انضباطی بروزرسانی شد.');
   };
 
+  const updateDisciplinaryNote = (studentId: string, noteId: string, patch: Partial<Pick<DisciplinaryNote, 'title' | 'description' | 'date' | 'type' | 'scoreDeduction'>>): boolean => {
+    if (!(isAdmin || isDisciplinaryVice)) {
+      showToast('فقط مدیر و معاون انضباطی می‌تواند مورد انضباطی را ویرایش کند.', 'error');
+      return false;
+    }
+    const target = students.find((s) => s.id === studentId)?.disciplinaryNotes?.find((n) => n.id === noteId);
+    if (!target) return false;
+    if (target.source === 'auto_delay' || target.source === 'approved_delay' || target.source === 'delay_dismissed') {
+      showToast('کسر نمره‌ی تأخیر خودکار است و از این بخش قابل ویرایش نیست.', 'info');
+      return false;
+    }
+    const nextDeduction = patch.scoreDeduction !== undefined ? Math.max(0, Math.min(20, Number(patch.scoreDeduction) || 0)) : target.scoreDeduction || 0;
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const delta = (target.scoreDeduction || 0) - nextDeduction;
+        return {
+          ...s,
+          disciplineScore: Math.max(0, Math.min(20, (s.disciplineScore ?? 20) + delta)),
+          disciplinaryNotes: (s.disciplinaryNotes || []).map((n) =>
+            n.id === noteId ? { ...n, ...patch, scoreDeduction: nextDeduction, editedBy: currentUser.name, editedAt: new Date().toISOString() } : n
+          ),
+        };
+      })
+    );
+    showToast('مورد انضباطی ویرایش شد.');
+    return true;
+  };
+
   const deleteDisciplinaryNote = (studentId: string, noteId: string) => {
     setStudents((prev) =>
       prev.map((s) => {
@@ -1564,7 +1631,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }),
         status: 'present',
         entryTime,
-        delayMinutes: delayFromEntryTime(entryTime),
+        delayMinutes: delayFromEntryTime(entryTime, entryTimeFor(today.formattedDate)),
         delayManuallyAdjusted: false,
         isAcknowledged: false,
         acknowledgedAt: undefined,
@@ -1593,7 +1660,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setMorningAttendance((prev) =>
       prev.map((r) =>
         r.id === recordId && r.status === 'present'
-          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
+          ? { ...r, entryTime: hhmm, delayMinutes: delayFromEntryTime(hhmm, entryTimeFor(r.date)), delayManuallyAdjusted: false, updatedAt: new Date().toISOString() }
           : r
       )
     );
@@ -2220,6 +2287,67 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast(`سال تحصیلی جاری با موفقیت به «${trimmed}» تغییر یافت.`, 'success');
   };
 
+  const saveLessonPlan = (plan: LessonPlan) => {
+    const next: LessonPlan = { ...plan, teacherId: currentUser.id, teacherName: currentUser.name, updatedAt: new Date().toISOString() };
+    setLessonPlans((prev) => (prev.some((p) => p.id === next.id) ? prev.map((p) => (p.id === next.id ? next : p)) : [next, ...prev]));
+  };
+
+  const deleteLessonPlan = (id: string) => setLessonPlans((prev) => prev.filter((p) => p.id !== id));
+
+  const reviewLessonPlan = (id: string, review: { feedback: string; approved: boolean }) => {
+    setLessonPlans((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: review.approved ? 'approved' : 'submitted', review: { ...review, reviewerId: currentUser.id, reviewerName: currentUser.name, reviewedAt: new Date().toISOString() } }
+          : p
+      )
+    );
+  };
+
+  const addAcademicTerm = (term: { name: string; startDate: string; endDate: string }): boolean => {
+    const name = toEnglishDigits(term.name.trim());
+    const start = Number((name.match(/^(\d{4})-(\d{4})$/) || [])[1]);
+    if (!start || Number(name.slice(5)) !== start + 1) {
+      showToast('نام دوره را به‌صورت «۱۴۰۶-۱۴۰۷» وارد کنید.', 'error');
+      return false;
+    }
+    const exists = (schoolSettings.academicTerms || []).some((t) => toEnglishDigits(t.name) === name) || toEnglishDigits(schoolSettings.academicYear || '') === name;
+    if (exists) {
+      showToast(`دوره‌ی «${toPersianDigits(name)}» قبلاً تعریف شده است.`, 'info');
+      return false;
+    }
+    const entry: AcademicTerm = { id: `term-${start}`, name: toPersianDigits(name), startDate: toEnglishDigits(term.startDate), endDate: toEnglishDigits(term.endDate), createdAt: new Date().toISOString() };
+    setSchoolSettings((prev) => ({ ...prev, academicTerms: [...(prev.academicTerms || []), entry] }));
+    showToast(`دوره‌ی تحصیلی «${entry.name}» ایجاد شد. دانش‌آموزی به‌صورت خودکار منتقل نمی‌شود.`, 'success');
+    return true;
+  };
+
+  const transferStudentsToTerm = (items: { studentId: string; destClassId: string }[]): number => {
+    const nowIso = new Date().toISOString();
+    const already = new Set(rawStudents.map((s) => s.rolledOverFromId).filter(Boolean) as string[]);
+    const created: Student[] = [];
+    items.forEach((it, i) => {
+      const src = rawStudents.find((s) => s.id === it.studentId);
+      if (!src || already.has(src.id) || !rawClasses.some((c) => c.id === it.destClassId)) return;
+      already.add(src.id);
+      created.push({
+        ...src,
+        id: `stu-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
+        classId: it.destClassId,
+        disciplineScore: 20,
+        disciplinaryStatus: 'normal',
+        disciplinaryNotes: [],
+        rolledOverFromId: src.id,
+        rolledOverAt: nowIso,
+        createdAt: undefined,
+      });
+    });
+    if (created.length === 0) return 0;
+    setStudents((prev) => [...prev, ...created]);
+    showToast(`${created.length} دانش‌آموز به دوره‌ی جدید منتقل شد.`, 'success');
+    return created.length;
+  };
+
   const addGrade = (name: string, stage: string = 'دوره اول متوسطه'): string => {
     const trimmed = name.trim();
     const newId = `grd-${Date.now()}`;
@@ -2623,6 +2751,27 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ...prev.filter((h) => h.id !== id),
       { id, date: normalized, title: title?.trim() || null, setById: currentUser.id, setBy: currentUser.name, updatedAt: new Date().toISOString() },
     ]);
+  };
+
+  const setEntryTime = (date: string, time: string | null) => {
+    const normalized = normalizeShamsi(date);
+    const id = `ent-${normalized.replace(/\//g, '-')}`;
+    const clean = time && /^([01]?\d|2[0-3]):[0-5]\d$/.test(time) ? time.padStart(5, '0') : null;
+    setEntryTimes((prev) => [
+      ...prev.filter((e) => e.id !== id),
+      ...(clean && clean !== DEFAULT_ENTRY_TIME
+        ? [{ id, date: normalized, time: clean, setById: currentUser.id, setBy: currentUser.name, updatedAt: new Date().toISOString() }]
+        : []),
+    ]);
+    // ورودی‌های ثبت‌شده‌ی همان روز با ساعت ورود جدید دوباره سنجیده می‌شوند (به‌جز تأخیرهای دستی)
+    const reference = clean || DEFAULT_ENTRY_TIME;
+    setMorningAttendance((prev) =>
+      prev.map((r) =>
+        normalizeShamsi(r.date) === normalized && r.status === 'present' && r.entryTime && !r.delayManuallyAdjusted
+          ? { ...r, delayMinutes: delayFromEntryTime(r.entryTime, reference), updatedAt: new Date().toISOString() }
+          : r
+      )
+    );
   };
 
   const removeSchoolHoliday = (date: string) => {
@@ -3049,6 +3198,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         schoolSettings,
         updateSchoolSettings,
         updateAcademicYear,
+        addAcademicTerm,
+        transferStudentsToTerm,
         grades,
         addGrade,
         updateGrade,
@@ -3102,6 +3253,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         resolveDelayDeduction,
         updateStudentDiscipline,
         deleteDisciplinaryNote,
+        updateDisciplinaryNote,
         addMorningDelay,
         updateMorningDelay,
         deleteMorningDelay,
@@ -3135,6 +3287,13 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         worksheets,
         worksheetWeeks,
         schoolHolidays,
+        entryTimes,
+        lessonPlans,
+        saveLessonPlan,
+        deleteLessonPlan,
+        reviewLessonPlan,
+        entryTimeFor,
+        setEntryTime,
         isClosedDay,
         closedReasonOf: (date: string) => closedReasonOf(date, schoolHolidays),
         todayClosedReason: closedReasonOf(getTodayShamsi().formattedDate, schoolHolidays),

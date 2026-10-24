@@ -10,6 +10,7 @@ import {
   MorningDelayRecord, 
   AttendanceSession 
 } from '../types';
+import { EditDisciplineNoteModal } from './EditDisciplineNoteModal';
 import { useSchool } from '../context/SchoolContext';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { AddDisciplineModal } from './AddDisciplineModal';
@@ -58,7 +59,8 @@ import {
   Info,
   Loader2,
   ClipboardCheck,
-  History
+  History,
+  Pencil
 } from 'lucide-react';
 import { hasPermission } from '../utils/permissions';
 import { studentFullName } from '../utils/studentName';
@@ -116,6 +118,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     deleteStudent,
     showConfirm,
     isAdminOrVice,
+    isAdmin,
+    isDisciplinaryVice,
     isTeacher,
     currentUser,
     worksheets,
@@ -548,6 +552,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       showToast('خطا در حذف', 'عملیات حذف با خطا مواجه شد.', 'error');
     }
   };
+
+  const [editingNote, setEditingNote] = useState<DisciplinaryNote | null>(null);
 
   const handleDeleteDiscipline = (noteId: string) => {
     try {
@@ -1431,6 +1437,16 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                             </span>
                           )}
 
+                          {(isAdmin || isDisciplinaryVice) && (
+                            <button
+                              onClick={() => setEditingNote(note)}
+                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                              title="ویرایش این مورد انضباطی"
+                              aria-label="ویرایش این مورد انضباطی"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteDiscipline(note.id)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
@@ -1574,6 +1590,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
         </div>
       )}
 
+      <EditDisciplineNoteModal student={currentStudent ?? null} note={editingNote} onClose={() => setEditingNote(null)} />
     </div>
   );
 };

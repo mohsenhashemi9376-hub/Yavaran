@@ -305,6 +305,38 @@ CREATE TABLE IF NOT EXISTS `school_holidays` (
   KEY `school_holidays_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ساعت ورود تعیین‌شده‌ی روزهای مدرسه (ورود پس از آن تأخیر است)
+CREATE TABLE IF NOT EXISTS `school_entry_times` (
+  `id` varchar(100) NOT NULL,
+  `entry_date` varchar(20) NOT NULL,
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `school_entry_times_entry_date_unique` (`entry_date`),
+  KEY `school_entry_times_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- طرح درس روزانه‌ی اساتید و بررسی معاونت آموزش
+CREATE TABLE IF NOT EXISTS `lesson_plans` (
+  `id` varchar(100) NOT NULL,
+  `teacher_id` varchar(100) NOT NULL,
+  `class_id` varchar(100) DEFAULT NULL,
+  `plan_date` varchar(20) NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'draft',
+  `sort_order` int NOT NULL DEFAULT 0,
+  `data` longtext NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `lesson_plans_teacher_id_index` (`teacher_id`),
+  KEY `lesson_plans_class_id_index` (`class_id`),
+  KEY `lesson_plans_plan_date_index` (`plan_date`),
+  KEY `lesson_plans_status_index` (`status`),
+  KEY `lesson_plans_sort_order_index` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- حضور اولیا در جلسات عمومی اولیاء (سه جلسه در سال)
 CREATE TABLE IF NOT EXISTS `parent_meetings` (
   `id` varchar(150) NOT NULL,
