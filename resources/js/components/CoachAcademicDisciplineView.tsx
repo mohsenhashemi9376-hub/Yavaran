@@ -382,6 +382,24 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
     XLSX.writeFile(workbook, `گزارش_آموزش_و_انضباط_کلاس_مربی_${todayInfo.formattedDate.replace(/\//g, '-')}.xlsx`);
   };
 
+
+  // نوار چسبان موبایل درست زیر هدر چسبان برنامه قرار می‌گیرد
+  const [stickyTop, setStickyTop] = useState(0);
+  useEffect(() => {
+    const measure = () => setStickyTop(document.querySelector<HTMLElement>('.yv-header')?.offsetHeight || 0);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  const mobileFilters: { key: typeof filterType; label: string; icon?: React.ComponentType<{ className?: string }>; active: string; idle: string }[] = [
+    { key: 'all', label: `همه (${toPersianDigits(targetStudents.length)})`, active: 'bg-indigo-600 text-white border-indigo-600', idle: 'bg-white text-slate-700 border-slate-200' },
+    { key: 'needs_attention', label: `نیازمند پیگیری (${toPersianDigits(aggregateStats.attentionCount)})`, icon: AlertTriangle, active: 'bg-rose-600 text-white border-rose-600', idle: 'bg-rose-50 text-rose-800 border-rose-200' },
+    { key: 'absent', label: `دارای غیبت (${toPersianDigits(aggregateStats.absentStudents)})`, icon: UserX, active: 'bg-orange-600 text-white border-orange-600', idle: 'bg-orange-50 text-orange-800 border-orange-200' },
+    { key: 'delayed', label: `دارای تأخیر (${toPersianDigits(aggregateStats.delayedStudents)})`, icon: Clock, active: 'bg-amber-600 text-white border-amber-600', idle: 'bg-amber-50 text-amber-800 border-amber-200' },
+    { key: 'top_academic', label: 'ممتاز (۱۸+)', icon: Award, active: 'bg-emerald-600 text-white border-emerald-600', idle: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  ];
+
   return (
     <div className="space-y-5 font-['Vazirmatn',sans-serif]">
       
@@ -444,7 +462,58 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
       </div>
 
       {/* Control Bar: Class Selector, Search, Filter Buttons */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      {/* موبایل: نوار چسبان شیشه‌ای (جستجو + کلاس در یک خط، فیلترها در نوار افقی) */}
+      <div
+        className="md:hidden sticky z-20 -mx-4 px-4 py-2 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 space-y-2"
+        style={{ top: stickyTop }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="جستجوی دانش‌آموز…"
+              aria-label="جستجوی دانش‌آموز"
+              className="w-full h-11 bg-white border border-slate-200 rounded-xl pr-9 pl-8 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm('')} aria-label="پاک کردن جستجو" className="absolute left-1.5 top-1/2 -translate-y-1/2 w-8 h-8 text-slate-400 text-xs cursor-pointer">✕</button>
+            )}
+          </div>
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            aria-label="کلاس"
+            className="h-11 max-w-[42%] bg-white border border-slate-200 rounded-xl px-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {nurturingClasses.length > 1 && <option value="all">همه کلاس‌ها</option>}
+            {nurturingClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-4 px-4 pb-0.5 text-xs font-bold" role="tablist" aria-label="فیلتر دانش‌آموزان">
+          {mobileFilters.map((f) => {
+            const Icon = f.icon;
+            const active = filterType === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilterType(f.key)}
+                className={`h-10 px-3 shrink-0 rounded-full border inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition ${active ? f.active : f.idle}`}
+              >
+                {Icon && <Icon className="w-3.5 h-3.5" />}
+                <span>{f.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden md:flex bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
           
           {/* Class Selector */}
@@ -557,6 +626,67 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
           <p>دانش‌آموزی با شرایط جستجوی فعلی یافت نشد.</p>
         </div>
       ) : (
+        <>
+        {/* موبایل: کارت فشرده‌ی دانش‌آموز */}
+        <div className="md:hidden space-y-2.5">
+          {filteredStudents.map((student, idx) => {
+            const studentClass = classes.find((c) => c.id === student.classId);
+            const acad = getStudentAcademicData(student.id);
+            const disc = getStudentDisciplineData(student);
+            const gpa = acad.gpaAnnual;
+            const gpaCls = gpa === null ? '' : gpa >= 18 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : gpa >= 12 ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-rose-50 text-rose-800 border-rose-200';
+            const chip = 'inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border text-[11px] font-extrabold whitespace-nowrap';
+            return (
+              <article key={student.id} className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 text-center text-[11px] font-bold text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${avatarGradient(student.id)} text-white flex items-center justify-center font-black text-xs shrink-0 ring-2 ring-white`}>
+                    {getStudentFullName(student).charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900 text-sm truncate">{getStudentFullName(student)}</div>
+                    {selectedClassId === 'all' && <div className="text-[10px] text-slate-400 truncate">{studentClass?.name || '-'}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setDetailModalStudent(student); setModalActiveTab('grades'); }}
+                    aria-label={`پرونده ${getStudentFullName(student)}`}
+                    className="h-10 px-3 shrink-0 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4 text-indigo-600" />
+                    پرونده
+                  </button>
+                </div>
+                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+                  {gpa !== null && <span className={`${chip} ${gpaCls}`}>معدل {toPersianDigits(gpa.toFixed(2))}</span>}
+                  {disc.totalAbsences > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'absence' })} className={`${chip} bg-rose-50 text-rose-700 border-rose-200 cursor-pointer`}>
+                      <UserX className="w-3 h-3" />
+                      غیبت {toPersianDigits(disc.totalAbsences)} روز{disc.excusedAbsences > 0 ? ` (${toPersianDigits(disc.excusedAbsences)} موجه)` : ''}
+                    </button>
+                  )}
+                  {disc.delays.length > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'delay' })} className={`${chip} bg-amber-50 text-amber-800 border-amber-200 cursor-pointer`}>
+                      <Clock className="w-3 h-3" />
+                      تأخیر {toPersianDigits(disc.delays.length)} بار · {toPersianDigits(disc.totalDelayMinutes)} د
+                    </button>
+                  )}
+                  {disc.notesCount > 0 && (
+                    <button type="button" onClick={() => setDetail({ student, kind: 'note' })} className={`${chip} bg-violet-50 text-violet-800 border-violet-200 cursor-pointer`}>
+                      <BellRing className="w-3 h-3" />
+                      تذکر {toPersianDigits(disc.notesCount)}
+                    </button>
+                  )}
+                  {gpa === null && disc.totalAbsences === 0 && disc.delays.length === 0 && disc.notesCount === 0 && (
+                    <span className="text-[11px] text-slate-400">بدون مورد ثبت‌شده</span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block">
         <FitTable className="bg-white rounded-2xl border border-slate-200 shadow-xs">
           <table className="w-full table-fixed text-right text-xs">
             <thead className="bg-gradient-to-l from-indigo-50 via-slate-50 to-sky-50 text-slate-700 border-b border-slate-200 font-extrabold">
@@ -710,6 +840,8 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             </tbody>
           </table>
         </FitTable>
+        </div>
+        </>
       )}
 
       {/* ریز اطلاعات هر ستون (غیبت / تأخیر / تذکر) در کادر وسط صفحه */}
