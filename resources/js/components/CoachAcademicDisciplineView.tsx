@@ -28,6 +28,7 @@ import {
   Layers,
   Sparkles,
   UserX,
+  Users,
   CalendarDays,
   BellRing
 } from 'lucide-react';
@@ -403,8 +404,47 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   return (
     <div className="space-y-5 font-['Vazirmatn',sans-serif]">
       
+      {/* موبایل: کارت آماری فشرده */}
+      <div className="md:hidden bg-slate-900 text-white rounded-2xl p-3 shadow-sm border border-slate-800 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-emerald-300 shrink-0" />
+          <h2 className="flex-1 min-w-0 text-sm font-black truncate">
+            {selectedClassId === 'all' ? 'همه کلاس‌های مربی' : `کلاس ${nurturingClasses.find((c) => c.id === selectedClassId)?.name || ''}`}
+          </h2>
+          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-white/10 text-amber-200">
+            <Lock className="w-3 h-3" /> فقط مشاهده
+          </span>
+          <button type="button" onClick={() => window.print()} aria-label="چاپ" title="چاپ" className="w-10 h-10 shrink-0 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
+            <Printer className="w-4 h-4 text-sky-300" />
+          </button>
+          <button type="button" onClick={handleExportExcel} aria-label="خروجی اکسل" title="خروجی اکسل" className="w-10 h-10 shrink-0 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+          </button>
+        </div>
+        <div className="flex items-baseline justify-between gap-2 px-1">
+          <span className="text-[11px] text-slate-300">میانگین معدل کلاس</span>
+          <span className="text-2xl font-black text-emerald-300 tabular-nums">
+            {aggregateStats.avgGpa !== '-' ? toPersianDigits(aggregateStats.avgGpa) : 'ثبت نشده'}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {([
+            [Users, 'دانش‌آموز', aggregateStats.totalStudents, 'text-white'],
+            [AlertTriangle, 'پیگیری', aggregateStats.attentionCount, 'text-rose-300'],
+            [UserX, 'غیبت', aggregateStats.totalAbs, 'text-orange-300'],
+            [Clock, 'تأخیر', aggregateStats.totalDelaysCount, 'text-amber-300'],
+          ] as const).map(([Icon, label, value, tone]) => (
+            <div key={label} className="bg-white/10 rounded-xl py-2 px-1 text-center">
+              <Icon className={`w-3.5 h-3.5 mx-auto ${tone}`} />
+              <div className={`text-base font-black tabular-nums leading-tight mt-0.5 ${tone}`}>{toPersianDigits(value)}</div>
+              <div className="text-[10px] text-slate-300 leading-tight">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-indigo-900/40">
+      <div className="hidden md:block bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-4 sm:p-5 shadow-md border border-indigo-900/40">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-base sm:text-lg font-black flex items-center gap-2">
