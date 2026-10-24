@@ -514,6 +514,60 @@ export interface SchoolHoliday {
   updatedAt?: string;
 }
 
+/** ردیف «مراحل تدریس» در طرح درس: شرح مرحله، زمان، فعالیت معلم و فعالیت دانش‌آموزان */
+export interface LessonScenarioStep {
+  id: string;
+  description: string;
+  minutes: string;
+  teacherActivity: string;
+  studentActivity: string;
+}
+
+/** بازخورد و تأیید معاونت آموزش (فقط سرور آن را تعیین می‌کند) */
+export interface LessonPlanReview {
+  approved: boolean;
+  feedback: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  reviewedAt?: string;
+}
+
+/** طرح درس روزانه‌ی استاد (مطابق فرم سنتی طرح‌درس‌نویسی مدرسه) */
+export interface LessonPlan {
+  id: string;
+  teacherId: string;
+  teacherName?: string;
+  classId: string;
+  date: string; // "1405/08/05"
+  academicYear?: string;
+  /** پیش‌نویس؛ ارسال‌شده برای معاونت؛ تأییدشده */
+  status: 'draft' | 'submitted' | 'approved';
+  // ۱. مشخصات کلی
+  subject: string; // نام درس
+  mainTopic: string; // سرفصل کلی
+  subTopic: string; // ریز سرفصل
+  source: string; // منبع
+  grade: string; // پایه
+  className: string;
+  studentCount: string;
+  scope: string; // محدوده‌ی تدریس
+  // ۲. روش‌ها و اهداف
+  methodCriteria: string[]; // ملاک‌های انتخاب روش: موضوع، مخاطب، امکانات، روش تربیتی
+  methods: string[];
+  techniques: string[];
+  tools: string[];
+  objectives: { psychomotor: string[]; affective: string[]; cognitive: string[] };
+  // ۳. سناریوی تدریس
+  scenario: LessonScenarioStep[];
+  // ۴. ارزیابی و تجربه‌نگاری
+  evaluation: { initial: string; process: string; final: string };
+  checklist: { motivation: string; prior: string; alignment: string; summary: string; differences: string; engagement: string; homework: string };
+  reflection: string;
+  review?: LessonPlanReview | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 /** ساعت ورود تعیین‌شده‌ی یک روز توسط مدیر یا معاون انضباطی؛ ورود پس از آن در همان روز تأخیر است (بدون ثبت: ۰۷:۰۰) */
 export interface EntryTimeRecord {
   id: string; // ent-{تاریخ با خط تیره}

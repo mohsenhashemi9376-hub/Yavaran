@@ -142,6 +142,11 @@ final class DataExporter
             $query->where('teacher_id', $user->id);
         }
 
+        // طرح درس: معاونت پیش‌نویس‌ها را نمی‌بیند
+        if ($collection === 'lessonPlans' && ! $policy->isTeacher()) {
+            $query->where('status', '!=', 'draft');
+        }
+
         // دسترسی محدود (Scoped Access): مربی فقط دانش‌آموزان کلاس‌های خود را دریافت می‌کند
         if ($collection === 'students' && ! $policy->isManager() && $policy->isCoach()) {
             $own = $policy->accessibleClassIds();
@@ -330,6 +335,7 @@ final class DataExporter
 
             case 'teacherEvaluations':
             case 'teacherActivities':
+            case 'lessonPlans':
                 $query->where('teacher_id', $user->id);
                 break;
         }

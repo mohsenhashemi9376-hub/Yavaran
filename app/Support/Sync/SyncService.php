@@ -120,6 +120,11 @@ final class SyncService
                     $this->normalizeParentMeetingState($data, (string) $item->id, $oldData, $user, $policy);
                 }
 
+                if ($collection === 'lessonPlans') {
+                    $data = $this->normalizeLessonPlan($data, (string) $item->id, $oldData, $user, $policy);
+                    $data->id = $item->id;
+                }
+
                 if ($collection === 'comprehensiveExams' && $policy->isTeacher()) {
                     $data = $policy->mergeTeacherExam($data, $oldData);
                     $data->id = $item->id;
@@ -309,6 +314,54 @@ final class SyncService
         $data->setBy = (string) $user->name;
         $data->updatedAt = now()->toIso8601String();
         \App\Support\SchoolCalendar::reset();
+    }
+
+    /**
+     * طرح درس: دبیر فقط محتوای طرح را تعیین می‌کند (نویسنده و بخش «بررسی» را سرور تعیین می‌کند)؛
+     * بررسی‌کننده فقط بازخورد و تأیید را ثبت می‌کند و بقیه‌ی طرح از رکورد قبلی می‌ماند.
+     */
+    private function normalizeLessonPlan(object $data, string $id, ?object $oldData, User $user, AccessPolicy $policy): object
+    {
+        if ($policy->isTeacher()) {
+            $date = isset($data->date) && is_string($data->date) ? \App\Support\SchoolCalendar::normalize($data->date) : '';
+            if (! preg_match('/^\d{4}\/\d{2}\/\d{2}$/', $date)) {
+                abort(422, 'تاریخ طرح درس نامعتبر است.');
+            }
+            $data->date = $date;
+            $data->teacherId = (string) $user->id;
+            $data->teacherName = (string) $user->name;
+            $status = ($data->status ?? 'draft') === 'draft' ? 'draft' : 'submitted';
+            $review = $oldData->review ?? null;
+            if ($oldData !== null && ($oldData->status ?? '') === 'approved') {
+                // ویرایش پس از تأیید: دوباره برای بررسی ارسال می‌شود
+                $status = 'submitted';
+                if (is_object($review)) {
+                    $review->approved = false;
+                }
+            }
+            $data->status = $status;
+            $data->review = $review;
+            $data->updatedAt = now()->toIso8601String();
+
+            return $data;
+        }
+
+        if ($oldData === null || ($oldData->status ?? 'draft') === 'draft') {
+            abort(403, 'این طرح هنوز برای بررسی ارسال نشده است.');
+        }
+        $incoming = is_object($data->review ?? null) ? $data->review : new \stdClass();
+        $approved = ! empty($incoming->approved);
+        $feedback = isset($incoming->feedback) && is_string($incoming->feedback) ? mb_substr(trim($incoming->feedback), 0, 2000) : '';
+        $oldData->review = (object) [
+            'approved' => $approved,
+            'feedback' => $feedback,
+            'reviewerId' => (string) $user->id,
+            'reviewerName' => (string) $user->name,
+            'reviewedAt' => now()->toIso8601String(),
+        ];
+        $oldData->status = $approved ? 'approved' : 'submitted';
+
+        return $oldData;
     }
 
     /** ساعت ورود تعیین‌شده‌ی یک روز (ورود پس از آن تأخیر است)؛ شناسه ent-{تاریخ با خط تیره} */

@@ -29,6 +29,7 @@ import { ExamEducationalReport } from './ExamEducationalReport';
 import { SubjectClassAnalysis } from './SubjectClassAnalysis';
 import { TermComprehensiveReport } from './TermComprehensiveReport';
 import { UngradedSubjectsPanel } from './UngradedSubjectsPanel';
+import { LessonPlansReview } from './LessonPlansReview';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { WeeklyFollowUpDigest } from './WeeklyFollowUpDigest';
 import { buildGreySnapshot } from '../utils/greyList';
@@ -818,6 +819,22 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             onBack={() => setCurrentView(null)}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           />
+        )}
+
+        {currentView === 'lesson_plans' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3" dir="rtl">
+              <button
+                onClick={() => setCurrentView(null)}
+                className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 cursor-pointer"
+                aria-label="بازگشت"
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <h1 className="text-xl font-extrabold text-slate-900 flex-1">طرح درس اساتید</h1>
+            </div>
+            <LessonPlansReview />
+          </div>
         )}
 
         {currentView === 'worksheets' && (

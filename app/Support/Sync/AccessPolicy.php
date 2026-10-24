@@ -103,6 +103,11 @@ final class AccessPolicy
         }
 
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
+        // طرح درس: دبیر (فقط طرح‌های خودش، در DataExporter) و بررسی‌کنندگان؛ پیش‌نویس‌ها برای معاونت نمایش داده نمی‌شود
+        if ($collection === 'lessonPlans') {
+            return $this->isTeacher() || $this->isLessonPlanReviewer();
+        }
+
         // دبیران فارسی، ریاضی، علوم، عربی و انگلیسی فقط نمرات درس خودشان را می‌بینند (فیلتر در DataExporter)
         if ($collection === 'comprehensiveExams') {
             return ($this->isManager() && $this->user->hasPermission('comprehensive-exam'))
@@ -418,6 +423,12 @@ final class AccessPolicy
             $this->deny();
         }
 
+        if ($collection === 'lessonPlans') {
+            $this->authorizeLessonPlan($old, $new, false);
+
+            return;
+        }
+
         if ($this->isManager()) {
             return;
         }
@@ -518,6 +529,12 @@ final class AccessPolicy
     public function authorizeDelete(string $collection, object $old): void
     {
         $this->requireWritePermission($collection, $old);
+
+        if ($collection === 'lessonPlans') {
+            $this->authorizeLessonPlan($old, null, true);
+
+            return;
+        }
 
         if ($collection === 'academicFollowUps') {
             if (! $this->canUseAcademicFollowUps()) {
@@ -1295,6 +1312,43 @@ final class AccessPolicy
         }
 
         return $record;
+    }
+
+    /** مدیر سامانه، معاون آموزش و معاون اجرایی: بررسی و بازخورد طرح درس */
+    public function isLessonPlanReviewer(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
+    }
+
+    /**
+     * طرح درس: دبیر فقط طرح خودش را (برای کلاس‌های خودش) ثبت، ویرایش و (تا پیش از تأیید) حذف می‌کند؛
+     * بررسی‌کننده فقط طرح‌های موجود (غیر پیش‌نویس) را بازخورد می‌دهد/تأیید می‌کند و هرگز نمی‌تواند طرح بسازد یا حذف کند.
+     */
+    private function authorizeLessonPlan(?object $old, ?object $new, bool $deleting): void
+    {
+        if ($this->isTeacher()) {
+            if ($old !== null) {
+                $this->requireOwner($this->prop($old, 'teacherId'));
+                if ($deleting && $this->prop($old, 'status') === 'approved') {
+                    $this->deny('طرح درس تأییدشده قابل حذف نیست.');
+                }
+            }
+            if ($new !== null) {
+                $this->requireOwner($this->prop($new, 'teacherId'));
+                $classId = $this->prop($new, 'classId');
+                if ($classId !== null && $classId !== '') {
+                    $this->requireClass($classId);
+                }
+            }
+
+            return;
+        }
+
+        if ($this->isLessonPlanReviewer() && ! $deleting && $old !== null && $this->prop($old, 'status') !== 'draft') {
+            return;
+        }
+
+        $this->deny('شما مجاز به این عملیات روی طرح درس نیستید.');
     }
 
     private function requireNurturingClass(?string $classId): void

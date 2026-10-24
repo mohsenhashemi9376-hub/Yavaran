@@ -41,6 +41,7 @@ export type EducationalViewType =
   | 'grey_list'
   | 'homework_followup'
   | 'worksheets'
+  | 'lesson_plans'
   | 'students' 
   | 'attendance' 
   | 'settings';
@@ -216,6 +217,12 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
       id: 'tracking',
       title: 'پیگیری آموزشی',
       items: [
+        {
+          id: 'lesson_plans',
+          label: 'طرح درس اساتید',
+          tooltip: 'نظارت، بازخورد و تأیید طرح درس روزانه‌ی اساتید',
+          icon: ClipboardCheck,
+        },
         {
           id: 'worksheets',
           label: 'کاربرگ',

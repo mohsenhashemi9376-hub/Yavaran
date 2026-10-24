@@ -43,6 +43,7 @@ import {
 import { MobileBottomNav } from './MobileBottomNav';
 import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
+import { TeacherLessonPlans } from './TeacherLessonPlans';
 import { TeacherExamSection, examKeyOfSubjectName } from './TeacherExamSection';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
@@ -897,6 +898,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
               )}
             </div>
+          )}
+
+          {/* VIEW: طرح درس روزانه */}
+          {activeView === 'lesson_plans' && (
+            <TeacherLessonPlans classes={teacherClasses.filter((c) => !c.isWorkshop)} subjectNames={Array.from(new Set(subjectGroups.map((g) => g.subjectName)))} />
           )}
 
           {/* VIEW: آزمون جامع (فقط درس خود دبیر) */}

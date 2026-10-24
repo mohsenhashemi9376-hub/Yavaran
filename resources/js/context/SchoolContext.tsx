@@ -31,6 +31,7 @@ import {
   SchoolHoliday,
   EntryTimeRecord,
   AcademicTerm,
+  LessonPlan,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -195,6 +196,12 @@ interface SchoolContextType {
   schoolSettings: SchoolSettings;
   updateSchoolSettings: (updated: Partial<SchoolSettings>) => void;
   updateAcademicYear: (newYear: string) => void;
+  /** طرح درس روزانه‌ی استاد (دبیر: طرح‌های خودش؛ معاونت آموزش: طرح‌های ارسال‌شده) */
+  lessonPlans: LessonPlan[];
+  saveLessonPlan: (plan: LessonPlan) => void;
+  deleteLessonPlan: (id: string) => void;
+  /** ثبت بازخورد و تأیید معاونت آموزش (تأیید نهایی با approved=true) */
+  reviewLessonPlan: (id: string, review: { feedback: string; approved: boolean }) => void;
   /** تعریف دوره‌ی تحصیلی جدید (بدون انتقال خودکار دانش‌آموزان) */
   addAcademicTerm: (term: { name: string; startDate: string; endDate: string }) => boolean;
   /** انتقال انتخابی دانش‌آموزان به کلاس‌های دوره‌ی مقصد؛ تعداد انتقال‌های انجام‌شده را برمی‌گرداند */
@@ -475,6 +482,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rawSchoolAbsences, setSchoolAbsences] = useState<SchoolAbsenceRecord[]>([]);
   const [schoolHolidays, setSchoolHolidays] = useState<SchoolHoliday[]>([]);
   const [entryTimes, setEntryTimes] = useState<EntryTimeRecord[]>([]);
+  const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const entryTimeFor = useCallback(
     (date: string) => entryTimes.find((e) => e.id === `ent-${normalizeShamsi(date).replace(/\//g, '-')}`)?.time || DEFAULT_ENTRY_TIME,
     [entryTimes]
@@ -671,6 +679,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextGreyList = (d.greyList || []) as unknown as GreyListRecord[];
     const nextHolidays = (d.schoolHolidays || []) as unknown as SchoolHoliday[];
     const nextEntryTimes = (d.entryTimes || []) as unknown as EntryTimeRecord[];
+    const nextLessonPlans = (d.lessonPlans || []) as unknown as LessonPlan[];
     const nextWorksheets = (d.worksheets || []) as unknown as WorksheetRecord[];
     const nextWorksheetWeeks = (d.worksheetWeeks || []) as unknown as WorksheetWeek[];
     const nextGrades = (d.grades || []) as unknown as SchoolGradeItem[];
@@ -706,6 +715,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       worksheets: nextWorksheets as unknown as SyncRow[],
       schoolHolidays: nextHolidays as unknown as SyncRow[],
       entryTimes: nextEntryTimes as unknown as SyncRow[],
+      lessonPlans: nextLessonPlans as unknown as SyncRow[],
       worksheetWeeks: nextWorksheetWeeks as unknown as SyncRow[],
       grades: nextGrades as unknown as SyncRow[],
       settings: settingsToRows(nextSettings),
@@ -740,6 +750,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWorksheets(nextWorksheets);
     setSchoolHolidays(nextHolidays);
     setEntryTimes(nextEntryTimes);
+    setLessonPlans(nextLessonPlans);
     setWorksheetWeeks(nextWorksheetWeeks);
     setSecurity({ twoFactorEnabled: false, twoFactorRequired: false, reauthRequired: false, reauthEnabled: false, reauthMinutes: 30, ...(payload.security || {}) });
     setMustChangePassword(Boolean(payload.mustChangePassword));
@@ -790,6 +801,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWorksheets([]);
     setSchoolHolidays([]);
     setEntryTimes([]);
+    setLessonPlans([]);
     setWorksheetWeeks([]);
     setGrades([]);
     setSchoolSettings(INITIAL_SCHOOL_SETTINGS);
@@ -909,6 +921,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('schoolAbsences', rawSchoolAbsences as unknown as SyncRow[]); }, [rawSchoolAbsences, syncEngine]);
   useEffect(() => { syncEngine.push('schoolHolidays', schoolHolidays as unknown as SyncRow[]); }, [schoolHolidays, syncEngine]);
   useEffect(() => { syncEngine.push('entryTimes', entryTimes as unknown as SyncRow[]); }, [entryTimes, syncEngine]);
+  useEffect(() => { syncEngine.push('lessonPlans', lessonPlans as unknown as SyncRow[]); }, [lessonPlans, syncEngine]);
   useEffect(() => { syncEngine.push('observations', observations as unknown as SyncRow[]); }, [observations, syncEngine]);
   useEffect(() => { syncEngine.push('nurturingDossiers', dossiersToRows(nurturingDossiers)); }, [nurturingDossiers, syncEngine]);
   useEffect(() => { syncEngine.push('coachEvaluations', coachEvaluations as unknown as SyncRow[]); }, [coachEvaluations, syncEngine]);
@@ -2274,6 +2287,23 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast(`سال تحصیلی جاری با موفقیت به «${trimmed}» تغییر یافت.`, 'success');
   };
 
+  const saveLessonPlan = (plan: LessonPlan) => {
+    const next: LessonPlan = { ...plan, teacherId: currentUser.id, teacherName: currentUser.name, updatedAt: new Date().toISOString() };
+    setLessonPlans((prev) => (prev.some((p) => p.id === next.id) ? prev.map((p) => (p.id === next.id ? next : p)) : [next, ...prev]));
+  };
+
+  const deleteLessonPlan = (id: string) => setLessonPlans((prev) => prev.filter((p) => p.id !== id));
+
+  const reviewLessonPlan = (id: string, review: { feedback: string; approved: boolean }) => {
+    setLessonPlans((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: review.approved ? 'approved' : 'submitted', review: { ...review, reviewerId: currentUser.id, reviewerName: currentUser.name, reviewedAt: new Date().toISOString() } }
+          : p
+      )
+    );
+  };
+
   const addAcademicTerm = (term: { name: string; startDate: string; endDate: string }): boolean => {
     const name = toEnglishDigits(term.name.trim());
     const start = Number((name.match(/^(\d{4})-(\d{4})$/) || [])[1]);
@@ -3258,6 +3288,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         worksheetWeeks,
         schoolHolidays,
         entryTimes,
+        lessonPlans,
+        saveLessonPlan,
+        deleteLessonPlan,
+        reviewLessonPlan,
         entryTimeFor,
         setEntryTime,
         isClosedDay,

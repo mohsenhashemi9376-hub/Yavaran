@@ -28,7 +28,8 @@ export type TeacherViewType =
   | 'reports'
   | 'evaluations'
   | 'activities'
-  | 'exam';
+  | 'exam'
+  | 'lesson_plans';
 
 interface TeacherSidebarNavProps {
   activeView: TeacherViewType;
@@ -98,6 +99,11 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
           icon: UserCheck,
           badge: toPersianDigits(totalSessionsCount),
           badgeColor: 'bg-teal-100 text-teal-800',
+        },
+        {
+          id: 'lesson_plans',
+          label: 'طرح درس روزانه',
+          icon: BookOpen,
         },
         {
           id: 'grades',
