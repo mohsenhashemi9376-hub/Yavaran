@@ -359,7 +359,10 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           isCollapsed ? 'overflow-visible' : 'overflow-y-auto'
         }`}
       >
-        {filterNavGroups(navGroups, currentUser).map((group) => (
+        {filterNavGroups(navGroups, currentUser)
+          .map((group) => ({ ...group, items: group.items.filter((i) => i.id !== 'lesson_plans' || currentUser.role === 'vice_educational') }))
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
           <div key={group.id} className="space-y-0.5">
             {/* عنوان گروه منو در حالت Expanded */}
             {!isCollapsed ? (

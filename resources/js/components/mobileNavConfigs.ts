@@ -57,7 +57,7 @@ export const executiveMobileNav = (counts: { warnings: number; loans?: number })
   ] as MobileNavItem[],
 });
 
-export const educationalMobileNav = (counts: { warnings: number }) => ({
+export const educationalMobileNav = (counts: { warnings: number }, canReviewLessonPlans = false) => ({
   primary: [
     { id: HOME, label: 'داشبورد', icon: LayoutDashboard },
     { id: 'classes', label: 'کلاس‌ها', icon: GraduationCap },
@@ -73,7 +73,7 @@ export const educationalMobileNav = (counts: { warnings: number }) => ({
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'announcements', label: 'بخشنامه‌ها', icon: Megaphone },
     { id: 'teacher_evaluation', label: 'ارزیابی اساتید', icon: UserCheck },
-    { id: 'lesson_plans', label: 'طرح درس اساتید', icon: ClipboardCheck },
+    ...(canReviewLessonPlans ? [{ id: 'lesson_plans', label: 'طرح درس اساتید', icon: ClipboardCheck }] : []),
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },
     { id: 'warnings', label: 'هشدارها', icon: AlertTriangle, badge: counts.warnings },

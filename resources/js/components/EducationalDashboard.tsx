@@ -426,7 +426,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
       {/* نوار ناوبری پایین (فقط موبایل) */}
       {(() => {
-        const nav = educationalMobileNav({ warnings: openWarningStudents.length });
+        const nav = educationalMobileNav({ warnings: openWarningStudents.length }, currentUser.role === 'vice_educational');
         return (
           <MobileBottomNav
             items={nav.primary}
@@ -821,7 +821,11 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           />
         )}
 
-        {currentView === 'lesson_plans' && (
+        {currentView === 'lesson_plans' && currentUser.role !== 'vice_educational' && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-600" dir="rtl">بررسی و تأیید طرح درس اساتید فقط با معاون آموزشی است.</div>
+        )}
+
+        {currentView === 'lesson_plans' && currentUser.role === 'vice_educational' && (
           <div className="space-y-4">
             <div className="flex items-center gap-3" dir="rtl">
               <button

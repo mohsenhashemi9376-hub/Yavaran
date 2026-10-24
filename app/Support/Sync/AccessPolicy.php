@@ -1314,10 +1314,10 @@ final class AccessPolicy
         return $record;
     }
 
-    /** مدیر سامانه، معاون آموزش و معاون اجرایی: بررسی و بازخورد طرح درس */
+    /** فقط معاون آموزشی طرح درس اساتید را بررسی، بازخورد و تأیید می‌کند */
     public function isLessonPlanReviewer(): bool
     {
-        return in_array($this->user->role, ['admin', 'vice_educational', 'vice_principal'], true);
+        return $this->user->role === 'vice_educational';
     }
 
     /**
