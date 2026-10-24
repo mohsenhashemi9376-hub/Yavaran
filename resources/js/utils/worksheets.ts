@@ -75,7 +75,12 @@ export interface WorksheetAlertWeek {
 }
 
 export interface WorksheetAlerts {
+  /** همه‌ی هفته‌های دارای مورد (جدیدترین اول) = هشدار فعلی + سابقه */
   weeks: WorksheetAlertWeek[];
+  /** هشدار فقط برای آخرین هفته‌ی دارای مهلت گذشته؛ هشدار هفته‌های قبل به هفته‌های بعد منتقل نمی‌شود */
+  current: WorksheetAlertWeek | null;
+  /** سابقه‌ی هفته‌های قبل (بدون هشدار): چه کسانی نیاورده‌اند یا ناقص آورده‌اند */
+  history: WorksheetAlertWeek[];
   /** تعداد دانش‌آموزان تحویل‌نداده/ناقص در آخرین هفته‌ی دارای مهلت گذشته */
   latestIssueCount: number;
   /** تعداد کلاس‌های ثبت‌نشده در آخرین هفته */
@@ -144,6 +149,8 @@ export const computeWorksheetAlerts = (
   const latest = due[0] ? result.find((w) => w.weekStart === due[0].weekStart) : undefined;
   return {
     weeks: result,
+    current: latest ?? null,
+    history: result.filter((w) => w !== latest),
     latestIssueCount: latest ? latest.classes.reduce((n, c) => n + c.missing.length + c.partial.length, 0) : 0,
     latestUntouchedClasses: latest ? latest.classes.filter((c) => c.untouched).length : 0,
     streaks,

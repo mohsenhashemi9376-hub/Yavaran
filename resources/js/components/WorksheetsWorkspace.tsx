@@ -319,7 +319,7 @@ export const WorksheetsWorkspace: React.FC = () => {
 
       {alerts.weeks.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
-          <h3 className="text-sm font-black text-slate-900">آمار کل: دانش‌آموزان تحویل‌نداده و ناقص (هفته‌های دارای مهلت گذشته)</h3>
+          <h3 className="text-sm font-black text-slate-900">هشدار هفته‌ی جاری و سابقه‌ی تحویل‌نداده/ناقص در هفته‌های قبل</h3>
           <WorksheetAlertsDetail alerts={alerts} />
         </div>
       )}
