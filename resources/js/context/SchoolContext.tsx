@@ -30,6 +30,7 @@ import {
   WorksheetStatus,
   SchoolHoliday,
   EntryTimeRecord,
+  AcademicTerm,
   SchoolAbsenceRecord,
   StudentObservation,
   StudentNurturingDossier,
@@ -194,6 +195,10 @@ interface SchoolContextType {
   schoolSettings: SchoolSettings;
   updateSchoolSettings: (updated: Partial<SchoolSettings>) => void;
   updateAcademicYear: (newYear: string) => void;
+  /** تعریف دوره‌ی تحصیلی جدید (بدون انتقال خودکار دانش‌آموزان) */
+  addAcademicTerm: (term: { name: string; startDate: string; endDate: string }) => boolean;
+  /** انتقال انتخابی دانش‌آموزان به کلاس‌های دوره‌ی مقصد؛ تعداد انتقال‌های انجام‌شده را برمی‌گرداند */
+  transferStudentsToTerm: (items: { studentId: string; destClassId: string }[]) => number;
   grades: SchoolGradeItem[];
   addGrade: (name: string, stage?: string) => string;
   updateGrade: (id: string, updated: Partial<SchoolGradeItem>) => void;
@@ -2236,6 +2241,50 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     showToast(`سال تحصیلی جاری با موفقیت به «${trimmed}» تغییر یافت.`, 'success');
   };
 
+  const addAcademicTerm = (term: { name: string; startDate: string; endDate: string }): boolean => {
+    const name = toEnglishDigits(term.name.trim());
+    const start = Number((name.match(/^(\d{4})-(\d{4})$/) || [])[1]);
+    if (!start || Number(name.slice(5)) !== start + 1) {
+      showToast('نام دوره را به‌صورت «۱۴۰۶-۱۴۰۷» وارد کنید.', 'error');
+      return false;
+    }
+    const exists = (schoolSettings.academicTerms || []).some((t) => toEnglishDigits(t.name) === name) || toEnglishDigits(schoolSettings.academicYear || '') === name;
+    if (exists) {
+      showToast(`دوره‌ی «${toPersianDigits(name)}» قبلاً تعریف شده است.`, 'info');
+      return false;
+    }
+    const entry: AcademicTerm = { id: `term-${start}`, name: toPersianDigits(name), startDate: toEnglishDigits(term.startDate), endDate: toEnglishDigits(term.endDate), createdAt: new Date().toISOString() };
+    setSchoolSettings((prev) => ({ ...prev, academicTerms: [...(prev.academicTerms || []), entry] }));
+    showToast(`دوره‌ی تحصیلی «${entry.name}» ایجاد شد. دانش‌آموزی به‌صورت خودکار منتقل نمی‌شود.`, 'success');
+    return true;
+  };
+
+  const transferStudentsToTerm = (items: { studentId: string; destClassId: string }[]): number => {
+    const nowIso = new Date().toISOString();
+    const already = new Set(rawStudents.map((s) => s.rolledOverFromId).filter(Boolean) as string[]);
+    const created: Student[] = [];
+    items.forEach((it, i) => {
+      const src = rawStudents.find((s) => s.id === it.studentId);
+      if (!src || already.has(src.id) || !rawClasses.some((c) => c.id === it.destClassId)) return;
+      already.add(src.id);
+      created.push({
+        ...src,
+        id: `stu-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
+        classId: it.destClassId,
+        disciplineScore: 20,
+        disciplinaryStatus: 'normal',
+        disciplinaryNotes: [],
+        rolledOverFromId: src.id,
+        rolledOverAt: nowIso,
+        createdAt: undefined,
+      });
+    });
+    if (created.length === 0) return 0;
+    setStudents((prev) => [...prev, ...created]);
+    showToast(`${created.length} دانش‌آموز به دوره‌ی جدید منتقل شد.`, 'success');
+    return created.length;
+  };
+
   const addGrade = (name: string, stage: string = 'دوره اول متوسطه'): string => {
     const trimmed = name.trim();
     const newId = `grd-${Date.now()}`;
@@ -3086,6 +3135,8 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         schoolSettings,
         updateSchoolSettings,
         updateAcademicYear,
+        addAcademicTerm,
+        transferStudentsToTerm,
         grades,
         addGrade,
         updateGrade,

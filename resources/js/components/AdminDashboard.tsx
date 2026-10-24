@@ -10,6 +10,7 @@ import { getUserGreeting } from '../utils/userRoles';
 
 // Workspaces
 import { AdminSidebarNav, FullScreenView } from './AdminSidebarNav';
+import { AcademicTermsWorkspace } from './AcademicTermsWorkspace';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
@@ -1773,6 +1774,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           onBack={() => setCurrentFullScreenView(null)}
           onOpenSidebar={handleOpenSidebar}
           onSelectStudent={handleSelectStudent}
+        />
+      )}
+
+      {currentFullScreenView === 'terms' && isAdmin && (
+        <AcademicTermsWorkspace
+          onBack={() => setCurrentFullScreenView(null)}
+          onOpenSidebar={handleOpenSidebar}
         />
       )}
 

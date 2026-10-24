@@ -88,6 +88,9 @@ export interface Student {
   disciplinaryScore?: number; // alias for disciplineScore
   disciplinaryStatus?: DisciplinaryStatus; // وضعیت انضباطی
   disciplinaryNotes?: DisciplinaryNote[]; // لیست سوابق و یادداشت‌های انضباطی
+  /** اگر دانش‌آموز با «انتقال به دوره‌ی جدید» ساخته شده، شناسه‌ی پرونده‌ی دوره‌ی مبدأ */
+  rolledOverFromId?: string;
+  rolledOverAt?: string;
   /** زمان ثبت دانش‌آموز؛ فقط خواندنی و از سرور (برای مربی و معاون تربیتی) */
   createdAt?: string;
 }
@@ -698,6 +701,15 @@ export interface TeacherEvaluation {
 // School Settings & Base Information (تنظیمات و اطلاعات پایه سامانه)
 // ----------------------------------------------------
 
+/** دوره‌ی تحصیلی: از مهر تا خرداد، مثل «۱۴۰۶-۱۴۰۷» */
+export interface AcademicTerm {
+  id: string; // term-{سال شروع}
+  name: string; // "۱۴۰۶-۱۴۰۷"
+  startDate: string; // "1406/07/01"
+  endDate: string; // "1407/03/31"
+  createdAt?: string;
+}
+
 export interface SchoolSettings {
   schoolName: string; // نام مدرسه
   phone: string; // شماره تماس
@@ -705,6 +717,8 @@ export interface SchoolSettings {
   academicYear: string; // سال تحصیلی جاری: "۱۴۰۴-۱۴۰۵"
   schoolCode?: string; // کد مدرسه / مرکز
   principalName?: string; // نام مدیر
+  /** دوره‌های تحصیلی تعریف‌شده توسط مدیر (سال جاری همیشه در فهرست دوره‌ها نمایش داده می‌شود) */
+  academicTerms?: AcademicTerm[];
   logoUrl?: string; // نشان یا لوگوی مدرسه
 }
 
