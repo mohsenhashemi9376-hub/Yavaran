@@ -73,6 +73,7 @@ import {
   Settings,
   Sunrise,
   BellRing,
+  ChevronDown,
 } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { adminMobileNav, HOME } from './mobileNavConfigs';
@@ -610,10 +611,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <LoanOverdueBanner onOpen={() => setCurrentFullScreenView('loans')} />
           
+          {/* موبایل: هدر فشرده‌ی پروفایل */}
+          <div className="sm:hidden bg-white rounded-2xl p-3 border border-slate-200/90 shadow-xs space-y-1.5" id="admin-dashboard-header-compact">
+            <div className="flex items-center gap-2.5">
+              <span className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-teal-700 to-emerald-500 text-white font-black text-sm flex items-center justify-center" aria-hidden="true">
+                {(currentUser?.name || '؟').replace(/^(دکتر|مهندس|استاد)\s+/, '').charAt(0)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-sm font-black text-slate-900 truncate">{currentUser?.name}</h1>
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                    {isAdmin ? 'مدیر' : userGreeting.roleLabel}
+                  </span>
+                </div>
+              </div>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentFullScreenView('terms')}
+                  title="مدیریت سال تحصیلی"
+                  aria-label="مدیریت سال تحصیلی"
+                  className="h-9 shrink-0 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700 inline-flex items-center gap-1 cursor-pointer"
+                >
+                  {toPersianDigits(schoolSettings.academicYear || getCurrentAcademicYear())}
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              ) : (
+                <span className="h-9 shrink-0 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700 inline-flex items-center">
+                  {toPersianDigits(schoolSettings.academicYear || getCurrentAcademicYear())}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 truncate">
+              {schoolSettings.schoolName || 'دبیرستان یاوران ولایت'} · {todayInfo.dayOfWeek}، {todayInfo.displayDate}
+            </p>
+          </div>
+
           {/* ۱. هدر اصلی داشبورد (ساده، کارآمد و جهت‌یاب) */}
           <div 
             id="admin-dashboard-header" 
-            className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col gap-4"
+            className="hidden sm:flex bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col gap-4"
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
@@ -678,8 +715,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <AttendanceAlertsPanel onSelectStudent={(stu) => onSelectStudent?.(stu, 'attendance')} />
 
           <ParentMeetingAlertsCard onOpen={() => setCurrentFullScreenView('parent_meetings')} />
-
-          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} />
 
           {/* ۲. بخش نیازمند توجه (برای مدیر مدرسه حذف شده؛ از کارت «موارد نیازمند توجه» در اقدامات سریع قابل دسترسی است) */}
           {!isAdmin && (
@@ -1399,6 +1434,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* ممتازین انضباطی: پایین‌تر از کارت‌های وضعیت و اقدامات */}
+          <DisciplineExcellenceCard onSelectStudent={(stu) => onSelectStudent?.(stu, 'discipline')} />
 
           {/* ۵. رویدادها و فعالیت‌های اخیر (تایم‌لاین پویا از داده‌های واقعی) */}
           <div 

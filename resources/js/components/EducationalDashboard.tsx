@@ -9,8 +9,8 @@ import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
 import { SCORE_COLUMNS } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus } from '../types';
-import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User } from '../types';
-import { toPersianDigits, toEnglishDigits, getTodayShamsi } from '../utils/persianDate';
+import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
+import { toPersianDigits, toEnglishDigits, getTodayShamsi, getActiveAcademicYear } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
 import { lastShamsiDays } from '../utils/trends';
 import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
@@ -230,6 +230,19 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // نمرات ثبت‌نشده: فقط بازه‌های فعال‌شده توسط معاون آموزش مبنای محاسبه‌اند
   // = [مجموع دانش‌آموزان هر درس × بازه‌های فعال] − [نمرات ثبت‌شده همان بازه‌ها]
   const activeGradePeriods = gradePeriods.filter((p) => p.isActive);
+
+  // نوار فرمان چسبان صفحه‌ی ثبت نمرات: ماه انتخابی و فاصله‌ی چسبان زیر هدر برنامه
+  const [gradesPeriod, setGradesPeriod] = useState<MonthlyContinuousKey>(
+    () => SCORE_COLUMNS.find((m) => gradePeriods.find((p) => p.code === m.key)?.isActive)?.key ?? 'mehrContinuous'
+  );
+  const gradesPeriodOpen = gradePeriods.some((p) => p.code === gradesPeriod && p.isActive);
+  const [gradesStickyTop, setGradesStickyTop] = useState(0);
+  useEffect(() => {
+    const measure = () => setGradesStickyTop(document.querySelector<HTMLElement>('.yv-header')?.offsetHeight || 0);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
   const homeworkProblemCount = useMemo(() => homeworkProblemStudentCount(sessions, lastShamsiDays(14)), [sessions]);
 
   // فقط دروسی که نمره‌ی آن ماه برایشان باز شده و نمره‌ای ثبت نشده حساب می‌شوند
@@ -667,80 +680,62 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         {currentView === 'grades' && (
           <div className="space-y-5 animate-in fade-in" dir="rtl">
             
-            {/* ۱. هدر کارپوشه ثبت نمرات با طراحی هماهنگ */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-                    <span>پیشخوان اصلی</span>
-                    <span>/</span>
-                    <span className="text-teal-800">کارپوشه ثبت نمرات ماهانه</span>
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                    <Award className="w-6 h-6 text-teal-800" />
-                    <span>ثبت نمرات ماهانه دانش‌آموزان</span>
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-1">
-                    با باز شدن هر ماه، فقط یک نمره برای همان ماه ثبت می‌شود؛ مثل پنل اساتید.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setIsGradePeriodsOpen(true)}
-                    className="min-h-11 px-4 rounded-2xl bg-emerald-50/80 backdrop-blur border border-emerald-200 text-emerald-800 hover:bg-emerald-100 text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <CalendarCheck className="w-4 h-4" />
-                    <span>باز و بسته کردن نمره‌ی ماه‌ها</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileSidebarOpen(true)}
-                    className="lg:hidden px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
-                    title="باز کردن نوار کناری"
-                  >
-                    <Menu className="w-4 h-4 text-slate-700" />
-                    <span>منو</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentView(null)}
-                    className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  >
-                    <span>بازگشت به پیشخوان</span>
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* هدر فشرده */}
+            <div className="flex items-center gap-2.5">
+              <button type="button" onClick={() => setCurrentView(null)} aria-label="بازگشت به پیشخوان" className="w-11 h-11 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer">
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-xl font-black text-slate-900 flex items-center gap-2 truncate">
+                  <Award className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <span className="truncate">ثبت نمرات ماهانه</span>
+                </h1>
+                <span className="text-[11px] font-bold text-slate-500">سال تحصیلی {getActiveAcademicYear()}</span>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsGradePeriodsOpen(true)}
+                className="h-11 px-3 shrink-0 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>مدیریت ماه‌ها</span>
+              </button>
+              <button type="button" onClick={() => setIsMobileSidebarOpen(true)} aria-label="باز کردن منو" className="lg:hidden w-11 h-11 shrink-0 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center cursor-pointer">
+                <Menu className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* ۲. سلکتور کلاس و درس */}
-              <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* انتخاب کلاس */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-600">کلاس:</span>
-                    <select
-                      value={selectedClassId}
-                      onChange={(e) => setSelectedClassId(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
-                    >
-                      {classes.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                </div>
-
+            {/* نوار فرمان چسبان: کلاس + ماه */}
+            <div className="sticky z-20 -mx-4 px-4 py-2 bg-slate-50/85 backdrop-blur-md border-b border-slate-200/60 flex items-center gap-2" style={{ top: gradesStickyTop }}>
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                aria-label="کلاس"
+                className="flex-1 min-w-0 h-11 bg-white border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+              >
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div className="relative flex-1 min-w-0">
+                <span
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${gradesPeriodOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  title={gradesPeriodOpen ? 'ثبت نمره‌ی این ماه باز است' : 'ثبت نمره‌ی این ماه بسته است'}
+                  aria-hidden="true"
+                />
+                <select
+                  value={gradesPeriod}
+                  onChange={(e) => setGradesPeriod(e.target.value as MonthlyContinuousKey)}
+                  aria-label={`ماه (${gradesPeriodOpen ? 'باز' : 'بسته'})`}
+                  className="w-full h-11 bg-white border border-slate-200 rounded-xl pr-8 pl-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+                >
+                  {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.monthName}</option>)}
+                </select>
               </div>
             </div>
 
             {/* دروس بدون نمره */}
             <UngradedSubjectsPanel
+              classId={selectedClassId}
+              period={gradesPeriod}
               onPick={(classId, subjectId) => {
                 setSelectedClassId(classId);
                 setSelectedSubjectId(subjectId);
