@@ -237,6 +237,18 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   );
   const gradesPeriodOpen = gradePeriods.some((p) => p.code === gradesPeriod && p.isActive);
   const [gradesStickyTop, setGradesStickyTop] = useState(0);
+  const [gradesFiltersOpen, setGradesFiltersOpen] = useState(false);
+  const gradesMonthName = SCORE_COLUMNS.find((m) => m.key === gradesPeriod)?.monthName ?? '';
+  // با اسکرول به پایین، پنل فیلترها خودکار جمع می‌شود
+  useEffect(() => {
+    if (!gradesFiltersOpen) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      if (Math.abs(window.scrollY - last) > 60) setGradesFiltersOpen(false);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [gradesFiltersOpen]);
   useEffect(() => {
     const measure = () => setGradesStickyTop(document.querySelector<HTMLElement>('.yv-header')?.offsetHeight || 0);
     measure();
@@ -705,30 +717,51 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
               </button>
             </div>
 
-            {/* نوار فرمان چسبان: کلاس + ماه */}
-            <div className="sticky z-20 -mx-4 px-4 py-2 bg-slate-50/85 backdrop-blur-md border-b border-slate-200/60 flex items-center gap-2" style={{ top: gradesStickyTop }}>
-              <select
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                aria-label="کلاس"
-                className="flex-1 min-w-0 h-11 bg-white border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+            {/* نوار خلاصه‌ی چسبان: فیلترها جمع‌شونده‌اند (پیش‌فرض بسته) */}
+            <div className="sticky z-20 -mx-4 px-4 py-2 bg-slate-50/85 backdrop-blur-md border-b border-slate-200/60" style={{ top: gradesStickyTop }}>
+              <button
+                type="button"
+                onClick={() => setGradesFiltersOpen((v) => !v)}
+                aria-expanded={gradesFiltersOpen}
+                aria-controls="grades-filters-panel"
+                className="w-full h-11 px-3.5 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center gap-2 text-sm font-bold text-slate-800 cursor-pointer"
               >
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <div className="relative flex-1 min-w-0">
-                <span
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${gradesPeriodOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  title={gradesPeriodOpen ? 'ثبت نمره‌ی این ماه باز است' : 'ثبت نمره‌ی این ماه بسته است'}
-                  aria-hidden="true"
-                />
-                <select
-                  value={gradesPeriod}
-                  onChange={(e) => setGradesPeriod(e.target.value as MonthlyContinuousKey)}
-                  aria-label={`ماه (${gradesPeriodOpen ? 'باز' : 'بسته'})`}
-                  className="w-full h-11 bg-white border border-slate-200 rounded-xl pr-8 pl-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
-                >
-                  {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.monthName}</option>)}
-                </select>
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${gradesPeriodOpen ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-hidden="true" />
+                <span className="inline-flex items-center gap-1.5 truncate"><CalendarCheck className="w-4 h-4 text-emerald-700 shrink-0" />{gradesMonthName}</span>
+                <span className="text-slate-300">•</span>
+                <span className="inline-flex items-center gap-1.5 truncate min-w-0"><School className="w-4 h-4 text-slate-500 shrink-0" /><span className="truncate">کلاس {currentClass?.name || '—'}</span></span>
+                <ChevronDown className={`w-4 h-4 mr-auto shrink-0 text-slate-400 transition-transform duration-200 ${gradesFiltersOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <div id="grades-filters-panel" className={`grid transition-[grid-template-rows] duration-300 ${gradesFiltersOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                  <div className="flex items-center gap-2 pt-2">
+                    <select
+                      value={selectedClassId}
+                      onChange={(e) => setSelectedClassId(e.target.value)}
+                      aria-label="کلاس"
+                      tabIndex={gradesFiltersOpen ? 0 : -1}
+                      className="flex-1 min-w-0 h-11 bg-white border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+                    >
+                      {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="relative flex-1 min-w-0">
+                      <span
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${gradesPeriodOpen ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                        title={gradesPeriodOpen ? 'ثبت نمره‌ی این ماه باز است' : 'ثبت نمره‌ی این ماه بسته است'}
+                        aria-hidden="true"
+                      />
+                      <select
+                        value={gradesPeriod}
+                        onChange={(e) => setGradesPeriod(e.target.value as MonthlyContinuousKey)}
+                        aria-label={`ماه (${gradesPeriodOpen ? 'باز' : 'بسته'})`}
+                        tabIndex={gradesFiltersOpen ? 0 : -1}
+                        className="w-full h-11 bg-white border border-slate-200 rounded-xl pr-8 pl-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+                      >
+                        {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.monthName}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
