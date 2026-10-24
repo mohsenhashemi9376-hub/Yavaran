@@ -1,9 +1,10 @@
 import { LessonPlan, LessonScenarioStep } from '../types';
+import { TEACHING_METHOD_NAMES } from './teachingMethods';
 import { getActiveAcademicYear, getTodayShamsi, toEnglishDigits } from './persianDate';
 
 /** ملاک‌های انتخاب روش تدریس در فرم سنتی مدرسه */
 export const METHOD_CRITERIA = ['موضوع', 'مخاطب', 'امکانات', 'روش تربیتی'];
-export const METHOD_OPTIONS = ['سخنرانی', 'پرسش و پاسخ', 'بحث گروهی', 'ایفای نقش', 'حل مسئله', 'اکتشافی', 'داستان‌گویی', 'یادگیری مشارکتی', 'نمایشی/آزمایشی', 'مطالعه‌ی موردی', 'کارگاهی', 'بازی آموزشی'];
+export const METHOD_OPTIONS = TEACHING_METHOD_NAMES;
 export const TECHNIQUE_OPTIONS = ['طوفان فکری', 'نقشه‌ی مفهومی', 'گروه‌بندی', 'جیگساو', 'کارت‌های مرور', 'تحلیل تصویر', 'پرسش‌گری', 'خلاصه‌نویسی', 'مسابقه‌ی کلاسی'];
 export const TOOL_OPTIONS = ['تخته و ماژیک', 'پروژکتور', 'کتاب درسی', 'برگه‌ی کار', 'فیلم/انیمیشن', 'لپ‌تاپ', 'کارت‌های تصویری', 'وسایل آزمایشگاهی', 'نقشه/پوستر', 'بلندگو'];
 

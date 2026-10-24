@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Plus, Save, Send, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
 import { LessonPlan, SchoolClass } from '../types';
-import { METHOD_CRITERIA, METHOD_OPTIONS, TECHNIQUE_OPTIONS, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
+import { GUIDE_SUBJECTS, TEACHING_METHODS } from '../utils/teachingMethods';
+import { METHOD_CRITERIA, TECHNIQUE_OPTIONS, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 
@@ -46,6 +47,80 @@ const TagPicker: React.FC<{ label: string; options: string[]; value: string[]; o
       <div className="flex items-center gap-2">
         <input value={custom} onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} placeholder="گزینه‌ی دیگر…" className={`${input} h-10 text-xs`} />
         <button type="button" onClick={add} className="h-10 px-3 shrink-0 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">افزودن</button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * دستیار هوشمند انتخاب روش تدریس: ۲۲ روش به‌صورت چیپ؛ با انتخاب هر روش، پنل راهنما
+ * (توضیح یک‌خطی و ۵ مثال کاربردی برای علوم، فارسی، ریاضی، عربی و زبان انگلیسی) زیر چیپ‌ها باز یا به‌روز می‌شود.
+ */
+const MethodAssistant: React.FC<{ value: string[]; onChange: (v: string[]) => void }> = ({ value, onChange }) => {
+  const [guide, setGuide] = useState<string | null>(null);
+  const [custom, setCustom] = useState('');
+  const extra = value.filter((v) => !TEACHING_METHODS[v]);
+  const info = guide ? TEACHING_METHODS[guide] : null;
+
+  const click = (name: string) => {
+    if (value.includes(name)) {
+      // انتخاب‌شده: اگر راهنمای همین روش باز است، با کلیک دوباره لغو انتخاب می‌شود؛ وگرنه فقط راهنمای آن نمایش داده می‌شود
+      if (guide === name) {
+        onChange(value.filter((x) => x !== name));
+        setGuide(null);
+      } else setGuide(name);
+    } else {
+      onChange([...value, name]);
+      setGuide(name);
+    }
+  };
+  const addCustom = () => {
+    const t = custom.trim();
+    if (t && !value.includes(t)) onChange([...value, t]);
+    setCustom('');
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-bold text-slate-700">روش تدریس <span className="font-medium text-slate-400">(با لمس هر روش، راهنمای آن باز می‌شود)</span></div>
+        <span className="text-[11px] font-bold text-emerald-700">{toPersianDigits(value.length)} انتخاب</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="روش تدریس">
+        {[...Object.keys(TEACHING_METHODS), ...extra].map((name) => {
+          const on = value.includes(name);
+          const focused = guide === name;
+          return (
+            <button key={name} type="button" aria-pressed={on} onClick={() => (TEACHING_METHODS[name] ? click(name) : onChange(value.filter((x) => x !== name)))}
+              className={`min-h-10 px-3 rounded-full border text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition ${on ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'} ${focused ? 'ring-2 ring-emerald-300 ring-offset-1' : ''}`}>
+              {on && <Check className="w-3.5 h-3.5" />}{name}
+            </button>
+          );
+        })}
+      </div>
+      {info && guide && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5 space-y-2.5 animate-in fade-in" aria-live="polite">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-black text-emerald-900">راهنمای «{guide}»</div>
+              <p className="text-xs text-slate-700 leading-6 mt-0.5">{info.summary}</p>
+            </div>
+            <button type="button" onClick={() => setGuide(null)} aria-label="بستن راهنما" className="w-9 h-9 shrink-0 rounded-lg text-slate-400 hover:bg-white cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>
+          </div>
+          <ul className="space-y-1.5">
+            {GUIDE_SUBJECTS.map((s) => (
+              <li key={s.key} className="flex gap-2 rounded-xl bg-white border border-emerald-100 p-2.5 text-xs leading-6">
+                <span className="shrink-0 h-6 px-2 rounded-lg bg-emerald-600 text-white text-[11px] font-bold inline-flex items-center">{s.label}</span>
+                <span className="text-slate-800">{info.examples[s.key]}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <input value={custom} onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} placeholder="روش دیگر…" className={`${input} h-10 text-xs`} />
+        <button type="button" onClick={addCustom} className="h-10 px-3 shrink-0 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold cursor-pointer">افزودن</button>
       </div>
     </div>
   );
@@ -182,7 +257,7 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
             <div className="space-y-3">
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
                 <TagPicker label="ملاک‌های انتخاب روش تدریس" options={METHOD_CRITERIA} value={plan.methodCriteria} onChange={(v) => set('methodCriteria', v)} />
-                <TagPicker label="روش تدریس" options={METHOD_OPTIONS} value={plan.methods} onChange={(v) => set('methods', v)} />
+                <MethodAssistant value={plan.methods} onChange={(v) => set('methods', v)} />
                 <TagPicker label="تکنیک‌های مورد استفاده" options={TECHNIQUE_OPTIONS} value={plan.techniques} onChange={(v) => set('techniques', v)} />
                 <TagPicker label="وسایل مورد استفاده" options={TOOL_OPTIONS} value={plan.tools} onChange={(v) => set('tools', v)} />
               </div>
