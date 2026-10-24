@@ -1036,79 +1036,66 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
         );
       })()}
 
-      {/* Read-Only Modal: Full Academic & Disciplinary Detail */}
+      {/* Read-Only Modal: Full Academic & Disciplinary Detail (باتم‌شیت در موبایل) */}
       {detailModalStudent && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-['Vazirmatn',sans-serif]">
-            
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setDetailModalStudent(null); }}
+        >
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-['Vazirmatn',sans-serif] max-h-[92vh] flex flex-col" dir="rtl">
+            <div className="sm:hidden pt-2 flex justify-center bg-slate-900 shrink-0"><span className="w-10 h-1 rounded-full bg-white/30" /></div>
+
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-sm text-indigo-200">
-                  {getStudentFullName(detailModalStudent).charAt(0)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold">{getStudentFullName(detailModalStudent)}</h3>
-                    <span className="bg-indigo-500/30 text-indigo-200 text-[10px] px-2 py-0.5 rounded-md border border-indigo-400/20 font-bold">
-                      فقط مشاهده مربی
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-300 font-mono">
-                    شماره تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
+            <div className="bg-slate-900 text-white px-4 py-3.5 sm:p-5 flex items-center gap-3 shrink-0">
+              <div className="w-11 h-11 shrink-0 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-sm text-emerald-200">
+                {getStudentFullName(detailModalStudent).charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold truncate">{getStudentFullName(detailModalStudent)}</h3>
+                  <span className="inline-flex items-center gap-1 bg-white/10 text-amber-200 text-[10px] px-2 py-0.5 rounded-full border border-white/10 font-bold whitespace-nowrap">
+                    <Lock className="w-3 h-3" /> فقط مشاهده
                   </span>
                 </div>
+                <span className="text-xs text-slate-300 tabular-nums whitespace-nowrap">
+                  تماس ولی: {toPersianDigits(detailModalStudent.parentPhone || '---')}
+                </span>
               </div>
-
               <button
+                type="button"
                 onClick={() => setDetailModalStudent(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                aria-label="بستن"
+                className="w-11 h-11 shrink-0 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div className="flex items-center bg-slate-100 p-2 border-b border-slate-200 text-xs font-bold">
-              <button
-                onClick={() => setModalActiveTab('grades')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'grades'
-                    ? 'bg-white text-indigo-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <GraduationCap className="w-4 h-4 text-indigo-600" />
-                <span>کارنامه و ریز نمرات درسی</span>
-              </button>
-
-              <button
-                onClick={() => setModalActiveTab('discipline')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'discipline'
-                    ? 'bg-white text-rose-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShieldAlert className="w-4 h-4 text-rose-600" />
-                <span>سوابق انضباطی، تاخیر و غیبت</span>
-              </button>
-
-              <button
-                onClick={() => setModalActiveTab('analysis')}
-                className={`flex-1 py-2 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  modalActiveTab === 'analysis'
-                    ? 'bg-white text-emerald-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                <span>تحلیل و راهبرد تربیتی مربی</span>
-              </button>
+            {/* Modal Navigation Tabs: یک ردیف افقی، بدون شکستن کلمات */}
+            <div className="flex items-center gap-1.5 overflow-x-auto bg-slate-100 p-2 border-b border-slate-200 text-xs font-bold shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+              {([
+                ['grades', 'کارنامه و ریز نمرات', GraduationCap, 'text-indigo-900', 'text-indigo-600'],
+                ['discipline', 'انضباطی، تأخیر و غیبت', ShieldAlert, 'text-rose-900', 'text-rose-600'],
+                ['analysis', 'تحلیل و راهبرد تربیتی', Sparkles, 'text-emerald-900', 'text-emerald-600'],
+              ] as const).map(([id, label, Icon, activeText, iconTone]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={modalActiveTab === id}
+                  onClick={() => setModalActiveTab(id)}
+                  className={`shrink-0 h-11 px-3.5 rounded-xl whitespace-nowrap transition cursor-pointer inline-flex items-center gap-1.5 ${
+                    modalActiveTab === id ? `bg-white ${activeText} shadow-xs` : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${iconTone}`} />
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
 
             {/* Modal Body Content */}
-            <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4 text-xs">
+            <div className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto space-y-4 text-xs">
               
               {/* TAB 1: ACADEMIC GRADES (READ-ONLY) */}
               {modalActiveTab === 'grades' && (
@@ -1292,7 +1279,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={() => setDetailModalStudent(null)}
                 className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold transition cursor-pointer"
