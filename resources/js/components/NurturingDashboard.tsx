@@ -4,6 +4,7 @@ import { ObservationInsights } from './ObservationInsights';
 import { StudentObservationModal } from './StudentObservationModal';
 import { MentorHome } from './MentorHome';
 import { StudentDossierList } from './StudentDossierList';
+import { StudentDossierDetail } from './StudentDossierDetail';
 import { ReferralsHistoryButton, StudentReferralsCard } from './ReferralsHistory';
 import { ClassFilterDropdown } from './ClassFilterDropdown';
 import { MyWorkshopsSection } from './MyWorkshopsSection';
@@ -1049,109 +1050,24 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       {/* DOSSIER DETAIL: 8 INTERACTIVE CARDS FOR SELECTED STUDENT */}
       {/* ========================================================================= */}
       {currentView === 'dossier' && selectedDossierStudent && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          {/* Back and Student Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSelectedDossierStudent(null)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold text-xs"
-              >
-                <ArrowRight className="w-4 h-4" />
-                <span>بازگشت به لیست دانش‌آموزان</span>
-              </button>
-
-              <div className="h-8 w-px bg-slate-200 hidden md:block" />
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black text-slate-900">
-                    پرونده تربیتی: {studentFullName(selectedDossierStudent)}
-                  </h2>
-                  <span className="text-xs font-bold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
-                    {getStudentClassName(selectedDossierStudent.classId)}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  کد ملی: <span className="font-mono font-bold text-slate-700">{selectedDossierStudent.nationalId}</span> | شماره دانش‌آموزی: <span className="font-mono font-bold text-slate-700">{selectedDossierStudent.studentCode}</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => window.print()}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-slate-600" />
-                <span>چاپ پرونده</span>
-              </button>
-            </div>
-          </div>
-
+        <StudentDossierDetail
+          student={selectedDossierStudent}
+          className={getStudentClassName(selectedDossierStudent.classId)}
+          dossier={getStudentNurturingDossier(selectedDossierStudent.id)}
+          configs={SECTION_CONFIGS}
+          complete={(() => {
+            const d = nurturingDossiers[selectedDossierStudent.id];
+            return !!d
+              && d.thinkingPoints.length > 0 && d.privateSessions.length > 0 && d.parentInterviews.length > 0
+              && !!(d.temperament.dominantType || d.temperament.entries.length > 0)
+              && d.growthPath.length > 0 && d.lifestyle.length > 0 && d.interviews.length > 0
+              && !!(d.nurturingSummary.overallSummary || d.nurturingSummary.entries.length > 0);
+          })()}
+          onBack={() => setSelectedDossierStudent(null)}
+          onOpenSection={handleOpenSectionModal}
+        >
           {isNurturingVice && <StudentReferralsCard studentId={selectedDossierStudent.id} />}
-
-          {/* 8 Specific Boxes Requested by the User */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(Object.keys(SECTION_CONFIGS) as NurturingSectionKey[]).map((sectionKey) => {
-              const cfg = SECTION_CONFIGS[sectionKey];
-              const IconComp = cfg.icon;
-              const dossier = getStudentNurturingDossier(selectedDossierStudent.id);
-
-              let entryCount = 0;
-              let previewSnippet = '';
-
-              if (sectionKey === 'temperament') {
-                entryCount = dossier.temperament?.entries?.length || 0;
-                previewSnippet = dossier.temperament?.dominantType 
-                  ? `طبع: ${dossier.temperament.dominantType}` 
-                  : 'طبع ثبت نشده است';
-              } else if (sectionKey === 'nurturingSummary') {
-                entryCount = dossier.nurturingSummary?.entries?.length || 0;
-                previewSnippet = dossier.nurturingSummary?.overallSummary || 'جمعبندی کلی ثبت نشده است';
-              } else {
-                const list = (dossier[sectionKey] as DossierSectionEntry[]) || [];
-                entryCount = list.length;
-                previewSnippet = list[0]?.title || 'یادداشتی درج نشده است';
-              }
-
-              return (
-                <div
-                  key={sectionKey}
-                  onClick={() => handleOpenSectionModal(sectionKey)}
-                  className={`bg-white rounded-2xl border ${cfg.borderColor} p-5 shadow-xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-4 group hover:-translate-y-1`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className={`w-12 h-12 rounded-2xl ${cfg.bgLight} border ${cfg.borderColor} flex items-center justify-center ${cfg.color} group-hover:scale-110 transition`}>
-                        <IconComp className="w-6 h-6" />
-                      </div>
-                      <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${cfg.badgeBg} ${cfg.badgeText}`}>
-                        {entryCount > 0 ? `${toPersianDigits(entryCount)} یادداشت` : 'خالی'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h3 className="font-black text-slate-900 text-base group-hover:text-emerald-800 transition flex items-center justify-between">
-                        <span>{cfg.title}</span>
-                      </h3>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
-                        {cfg.subtitle}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-[11px] text-slate-700 min-h-[45px] flex items-center justify-between">
-                    <span className="line-clamp-1 font-medium">{previewSnippet}</span>
-                    <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-slate-800 group-hover:-translate-x-1 transition shrink-0" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
+        </StudentDossierDetail>
       )}
 
       {/* انتخاب کلاس و دانش‌آموز برای ثبت مشاهده جدید */}
