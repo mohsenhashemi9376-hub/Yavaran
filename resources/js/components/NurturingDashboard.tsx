@@ -906,8 +906,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
         {(currentView === null || currentView === 'dashboard') && !isNurturingVice && (
           <MentorHome
             greeting={userGreeting.greeting}
-            roleLabel={userGreeting.roleLabel}
-            dayOfWeek={todayInfo.dayOfWeek}
+                        dayOfWeek={todayInfo.dayOfWeek}
             displayDate={todayInfo.displayDate}
             students={filteredStudents}
             classes={availableClasses}

@@ -15,7 +15,6 @@ const RECENT_DAYS = 30;
 
 export interface MentorHomeProps {
   greeting: string;
-  roleLabel: string;
   dayOfWeek: string;
   displayDate: string;
   students: Student[];
@@ -35,7 +34,7 @@ export interface MentorHomeProps {
 
 /** پیشخوان مربی: هدر ساده + کاشی‌های شیشه‌ای رنگی (هم‌سبک پنل معاون تربیتی و معاون آموزشی) */
 export const MentorHome: React.FC<MentorHomeProps> = ({
-  greeting, roleLabel, dayOfWeek, displayDate, students, classes, observations, attentionCount,
+  greeting, dayOfWeek, displayDate, students, classes, observations, attentionCount,
   onOpenSidebar, onNewObservation, onOpenTimeline, onOpenHomework, onOpenAcademicDiscipline, onOpenGreyList,
   onOpenAttention, onSelectDisciplineStudent,
 }) => {
@@ -73,9 +72,6 @@ export const MentorHome: React.FC<MentorHomeProps> = ({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-base sm:text-xl font-black text-slate-900 whitespace-nowrap">{greeting} 👋</h1>
-              <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">
-                {roleLabel}
-              </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
