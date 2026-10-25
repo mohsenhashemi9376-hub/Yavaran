@@ -1,4 +1,4 @@
-import { LessonPlan, LessonScenarioStep } from '../types';
+import { LessonPlan, LessonScenarioStep, LessonStandardKey } from '../types';
 import { TEACHING_METHOD_NAMES } from './teachingMethods';
 import { getActiveAcademicYear, getTodayShamsi, toEnglishDigits } from './persianDate';
 
@@ -46,7 +46,9 @@ export const emptyLessonPlan = (teacherId: string, init: Partial<LessonPlan> = {
   scenario: defaultScenario(),
   evaluation: { initial: '', process: '', final: '' },
   checklist: { motivation: '', prior: '', alignment: '', summary: '', differences: '', engagement: '', homework: '' },
+  standards: {},
   reflection: '',
+  reflectionTags: [],
   review: null,
   ...init,
 });
@@ -93,6 +95,20 @@ export const HOOK_IDEAS = [
   'یک سؤال «اگر … چه می‌شد؟» بپرسید (مثلاً: اگر گرانش نبود…) و چند پاسخ جالب بشنوید.',
   'چند ثانیه سکوت کنید، یک کلمه‌ی درس را روی تخته بنویسید و بگذارید بچه‌ها بی‌صدا ذهن‌شان را حرکت دهند.',
   'یک چالش ۶۰ ثانیه‌ای بدهید: «در یک دقیقه چند مثال از … پیدا می‌کنید؟»',
+];
+
+/** استانداردهای طرح درس (چک‌لیست لمسی گام پایانی ویزارد) */
+export const LESSON_STANDARDS: { key: LessonStandardKey; label: string }[] = [
+  { key: 'initialAssessment', label: 'سنجش آغازین' },
+  { key: 'processEvaluation', label: 'ارزشیابی فرآیندی' },
+  { key: 'finalEvaluation', label: 'ارزشیابی پایانی' },
+  { key: 'motivation', label: 'انگیزه‌بخشی' },
+  { key: 'prior', label: 'اتصال به یادگیری قبلی' },
+  { key: 'alignment', label: 'تطبیق برنامه با اهداف' },
+  { key: 'summary', label: 'جمع‌بندی' },
+  { key: 'differences', label: 'توجه به اختلاف سطح' },
+  { key: 'engagement', label: 'درگیری دانش‌آموزان' },
+  { key: 'homework', label: 'تمرین در منزل' },
 ];
 
 /** راهکارهای اختلاف سطح */

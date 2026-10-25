@@ -2,15 +2,15 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { suggestForStep, SuggestPhase } from '../utils/lessonSuggest';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
 import { LessonPlan, SchoolClass } from '../types';
 import { GUIDE_SUBJECTS, TeachingMethod } from '../utils/teachingMethods';
 import { METHOD_GUIDE, TECHNIQUE_GUIDE } from '../utils/teachingGuide';
-import { BLOOM_VERBS, CLASS_MINUTES, DIFFERENTIATION, HOOK_IDEAS, REFLECTION_CHALLENGES, METHOD_CRITERIA, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
+import { BLOOM_VERBS, CLASS_MINUTES, DIFFERENTIATION, HOOK_IDEAS, LESSON_STANDARDS, METHOD_CRITERIA, TOOL_OPTIONS, newScenarioStep, totalMinutes } from '../utils/lessonPlan';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 
-const STEPS = ['مشخصات', 'اهداف و روش‌ها', 'سناریو', 'ارزیابی و تجربه‌نگاری'];
+const STEPS = ['مشخصات', 'اهداف و روش‌ها', 'سناریو', 'ارزیابی و استانداردها'];
 
 const input = 'w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500';
 const area = 'w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 resize-none leading-6';
@@ -241,15 +241,10 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
     setStepRow(id, { teacherActivity: HOOK_IDEAS[n] });
   };
 
-  const [diffOpen, setDiffOpen] = useState(false);
   const addToDifferences = (text: string) => {
     const cur = plan.checklist.differences;
     if (cur.includes(text)) return;
     set('checklist', { ...plan.checklist, differences: cur.trim() ? `${cur.trim()}\n• ${text}` : `• ${text}` });
-  };
-  const toggleChallenge = (tag: string) => {
-    const cur = plan.reflection;
-    set('reflection', cur.includes(tag) ? cur.replace(new RegExp(`\\n?[ \\t]*${tag}[.،]?`), '').trim() : `${cur.trim() ? `${cur.trim()}\n` : ''}${tag}.`);
   };
 
   const setStepRow = (id: string, patch: Partial<LessonPlan['scenario'][number]>) => set('scenario', plan.scenario.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -401,67 +396,43 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
           {step === 3 && (
             <div className="space-y-3">
               <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-                <h3 className="text-sm font-black text-slate-900">ارزشیابی</h3>
-                <Field label="سنجش آغازین"><textarea rows={2} value={plan.evaluation.initial} onChange={(e) => set('evaluation', { ...plan.evaluation, initial: e.target.value })} className={area} /></Field>
-                <Field label="ارزشیابی فرایندی"><textarea rows={2} value={plan.evaluation.process} onChange={(e) => set('evaluation', { ...plan.evaluation, process: e.target.value })} className={area} /></Field>
-                <Field label="ارزشیابی پایانی"><textarea rows={2} value={plan.evaluation.final} onChange={(e) => set('evaluation', { ...plan.evaluation, final: e.target.value })} className={area} /></Field>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">چک‌لیست استانداردها</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">هر مورد را که در سناریوی خود لحاظ کرده‌اید، با یک لمس روشن کنید.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label="استانداردهای طرح درس">
+                  {LESSON_STANDARDS.map(({ key, label }) => {
+                    const on = Boolean(plan.standards?.[key]);
+                    return (
+                      <button key={key} type="button" role="switch" aria-checked={on} onClick={() => set('standards', { ...plan.standards, [key]: !on })}
+                        className={`!min-h-0 min-h-12 px-3 py-2 rounded-xl border text-xs font-bold flex items-center justify-between gap-2 text-right cursor-pointer transition ${on ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
+                        <span>{label}</span>
+                        <span className={`w-5 h-5 shrink-0 rounded-full grid place-items-center ${on ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-transparent'}`}><Check className="w-3.5 h-3.5" /></span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-[11px] font-bold text-emerald-700">{toPersianDigits(LESSON_STANDARDS.filter((x) => plan.standards?.[x.key]).length)} از {toPersianDigits(LESSON_STANDARDS.length)} مورد لحاظ شده</div>
               </div>
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-                <h3 className="text-sm font-black text-slate-900">فرایند تدریس</h3>
-                {([
-                  ['motivation', 'انگیزه‌بخشی'], ['prior', 'اتصال به یادگیری قبلی'], ['alignment', 'تطبیق برنامه با اهداف'], ['summary', 'جمع‌بندی'],
-                  ['differences', 'توجه به اختلاف سطح'], ['engagement', 'درگیری دانش‌آموزان'], ['homework', 'تمرین در منزل'],
-                ] as const).map(([k, label]) => (
-                  <React.Fragment key={k}>
-                    {k === 'differences' && (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50">
-                        <button type="button" onClick={() => setDiffOpen((v) => !v)} aria-expanded={diffOpen} className="w-full h-12 px-3.5 flex items-center justify-between text-xs font-extrabold text-slate-800 cursor-pointer">
-                          <span className="inline-flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-amber-500" /> پیشنهادگر اختلاف سطح</span>
-                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${diffOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {diffOpen && (
-                          <div className="px-3.5 pb-3.5 space-y-3">
-                            {([['دانش‌آموزان سریع', DIFFERENTIATION.fast, 'border-sky-200 text-sky-800 bg-sky-50'], ['دانش‌آموزان نیازمند تلاش', DIFFERENTIATION.needs, 'border-amber-200 text-amber-800 bg-amber-50']] as const).map(([title, tags, tone]) => (
-                              <div key={title}>
-                                <div className="text-[11px] font-bold text-slate-500 mb-1.5">{title}</div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {tags.map((t) => (
-                                    <button key={t} type="button" onClick={() => addToDifferences(t)} className={`min-h-9 px-2.5 rounded-full border text-[11px] font-bold cursor-pointer ${plan.checklist.differences.includes(t) ? 'bg-emerald-600 border-emerald-600 text-white' : tone}`}>
-                                      {plan.checklist.differences.includes(t) ? '✓ ' : '+ '}{t}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+
+              {plan.standards?.differences && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                  <div className="text-xs font-extrabold text-slate-800 inline-flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-amber-500" /> پیشنهادگر اختلاف سطح</div>
+                  {([['دانش‌آموزان سریع', DIFFERENTIATION.fast, 'border-sky-200 text-sky-800 bg-sky-50'], ['دانش‌آموزان نیازمند تلاش', DIFFERENTIATION.needs, 'border-amber-200 text-amber-800 bg-amber-50']] as const).map(([title, tags, tone]) => (
+                    <div key={title}>
+                      <div className="text-[11px] font-bold text-slate-500 mb-1.5">{title}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tags.map((t) => (
+                          <button key={t} type="button" onClick={() => addToDifferences(t)} className={`min-h-9 px-2.5 rounded-full border text-[11px] font-bold cursor-pointer ${plan.checklist.differences.includes(t) ? 'bg-emerald-600 border-emerald-600 text-white' : tone}`}>
+                            {plan.checklist.differences.includes(t) ? '✓ ' : '+ '}{t}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                    <Field label={label}><textarea rows={2} value={plan.checklist[k]} onChange={(e) => set('checklist', { ...plan.checklist, [k]: e.target.value })} className={area} /></Field>
-                  </React.Fragment>
-                ))}
-              </div>
-              <div className="bg-white rounded-2xl border border-slate-200 p-4">
-                <Field label="تجربه‌نگاری" hint="پس از تدریس بنویسید چه چیزی خوب پیش رفت و چه چیزی را بهتر می‌توان انجام داد.">
-                  <textarea rows={5} value={plan.reflection} onChange={(e) => set('reflection', e.target.value)} className={area} />
-                </Field>
-                <div className="mt-2.5 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-500">چالش‌های پرتکرار (لمس کنید تا به متن اضافه شود):</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {REFLECTION_CHALLENGES.map((c) => {
-                      const on = plan.reflection.includes(c.tag);
-                      return (
-                        <button key={c.tag} type="button" aria-pressed={on} onClick={() => toggleChallenge(c.tag)} className={`min-h-9 px-2.5 rounded-full border text-[11px] font-bold cursor-pointer ${on ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{on ? '✓ ' : '+ '}{c.tag}</button>
-                      );
-                    })}
-                  </div>
-                  {REFLECTION_CHALLENGES.filter((c) => plan.reflection.includes(c.tag)).map((c) => (
-                    <div key={c.tag} className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-6 text-emerald-900 animate-in fade-in">
-                      <b>💡 پیشنهاد برای جلسه‌ی بعد ({c.tag}): </b>{c.advice}
                     </div>
                   ))}
+                  {plan.checklist.differences.trim() && <p className="whitespace-pre-wrap rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-xs leading-6 text-slate-700">{plan.checklist.differences}</p>}
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

@@ -333,10 +333,19 @@ final class SyncService
             $status = ($data->status ?? 'draft') === 'draft' ? 'draft' : 'submitted';
             $review = $oldData->review ?? null;
             if ($oldData !== null && ($oldData->status ?? '') === 'approved') {
-                // ویرایش پس از تأیید: دوباره برای بررسی ارسال می‌شود
-                $status = 'submitted';
-                if (is_object($review)) {
-                    $review->approved = false;
+                // تجربه‌نگاری پس از کلاس، طراحی طرح را تغییر نمی‌دهد و تأیید را باطل نمی‌کند
+                $designOnly = static fn (object $o): string => json_encode(array_diff_key(
+                    (array) $o,
+                    array_flip(['reflection', 'reflectionTags', 'reflectedAt', 'updatedAt', 'status', 'review', 'teacherName'])
+                ));
+                if ($designOnly($data) === $designOnly($oldData)) {
+                    $status = 'approved';
+                } else {
+                    // ویرایش پس از تأیید: دوباره برای بررسی ارسال می‌شود
+                    $status = 'submitted';
+                    if (is_object($review)) {
+                        $review->approved = false;
+                    }
                 }
             }
             $data->status = $status;
