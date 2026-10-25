@@ -105,7 +105,7 @@ final class AccessPolicy
         // نمرات آزمون جامع فقط برای مدیر و معاونین قابل مشاهده است
         // طرح درس: دبیر (فقط طرح‌های خودش، در DataExporter) و بررسی‌کنندگان؛ پیش‌نویس‌ها برای معاونت نمایش داده نمی‌شود
         if ($collection === 'lessonPlans') {
-            return $this->isTeacher() || $this->isLessonPlanReviewer();
+            return $this->isTeacher() || $this->isLessonPlanReviewer() || $this->teachesCourses();
         }
 
         // دبیران فارسی، ریاضی، علوم، عربی و انگلیسی فقط نمرات درس خودشان را می‌بینند (فیلتر در DataExporter)
@@ -1320,13 +1320,30 @@ final class AccessPolicy
         return $this->user->role === 'vice_educational';
     }
 
+    /** کاربری با نقش دیگر (مربی، معاون…) که درس هم تدریس می‌کند و داشبورد دبیر دارد */
+    public function teachesCourses(): bool
+    {
+        return ($this->user->profile()->isAlsoTeacher ?? false) === true
+            || $this->teachingCourses()['id'] !== [];
+    }
+
+    /** نویسنده‌ی طرح درس: دبیر، یا کاربر دارای درس (مربی/معاون معلم) برای طرح جدید یا طرح خودش */
+    public function actsAsLessonPlanAuthor(?object $old): bool
+    {
+        if ($this->isTeacher()) {
+            return true;
+        }
+
+        return $this->teachesCourses() && ($old === null || $this->prop($old, 'teacherId') === $this->user->id);
+    }
+
     /**
      * طرح درس: دبیر فقط طرح خودش را (برای کلاس‌های خودش) ثبت، ویرایش و (تا پیش از تأیید) حذف می‌کند؛
      * بررسی‌کننده فقط طرح‌های موجود (غیر پیش‌نویس) را بازخورد می‌دهد/تأیید می‌کند و هرگز نمی‌تواند طرح بسازد یا حذف کند.
      */
     private function authorizeLessonPlan(?object $old, ?object $new, bool $deleting): void
     {
-        if ($this->isTeacher()) {
+        if ($this->actsAsLessonPlanAuthor($old)) {
             if ($old !== null) {
                 $this->requireOwner($this->prop($old, 'teacherId'));
                 if ($deleting && $this->prop($old, 'status') === 'approved') {

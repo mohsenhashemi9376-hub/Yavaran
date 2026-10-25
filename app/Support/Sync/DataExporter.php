@@ -144,7 +144,9 @@ final class DataExporter
 
         // طرح درس: معاونت پیش‌نویس‌ها را نمی‌بیند
         if ($collection === 'lessonPlans' && ! $policy->isTeacher()) {
-            $query->where('status', '!=', 'draft');
+            $query->where(static function ($q) use ($user): void {
+                $q->where('status', '!=', 'draft')->orWhere('teacher_id', $user->id);
+            });
         }
 
         // دسترسی محدود (Scoped Access): مربی فقط دانش‌آموزان کلاس‌های خود را دریافت می‌کند
