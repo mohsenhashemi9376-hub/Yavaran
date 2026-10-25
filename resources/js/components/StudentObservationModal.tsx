@@ -3,6 +3,8 @@ import { Calendar, ClipboardList, Edit3, Eye, MapPin, NotebookPen, Plus, Save, T
 import { ObservationCategory, StudentObservation } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
 import { EmptyState } from './EmptyState';
+import { ShamsiDatePicker } from './ShamsiDatePicker';
+import { ClockTimePicker } from './ClockTimePicker';
 
 export interface ObservationCategoryOption { key: ObservationCategory; label: string; color: string }
 
@@ -140,8 +142,10 @@ export const StudentObservationModal: React.FC<Props> = (p) => {
                   <span className="mb-1 block text-[11px] font-bold text-slate-700">زمان مشاهده</span>
                   {p.dateManual ? (
                     <div className="flex items-center gap-2">
-                      <input type="text" dir="ltr" value={p.date} onChange={(e) => { p.onDate(e.target.value); p.onDateManual(true); }} placeholder="1405/07/28" aria-label="تاریخ" className={`${inputCls} text-center font-mono`} />
-                      <input type="text" dir="ltr" value={p.time} onChange={(e) => { p.onTime(e.target.value); p.onDateManual(true); }} placeholder="10:15" aria-label="ساعت" className={`${inputCls} w-24 shrink-0 text-center font-mono`} />
+                      <div className="min-w-0 flex-1 [&>div]:block">
+                        <ShamsiDatePicker value={p.date} onChange={(v) => { p.onDate(v); p.onDateManual(true); }} className={`${inputCls} text-center font-bold cursor-pointer`} />
+                      </div>
+                      <ClockTimePicker label="ساعت مشاهده" value={p.time} onChange={(v) => { p.onTime(v); p.onDateManual(true); }} className={`${inputCls} w-28 shrink-0 font-bold`} />
                       <button type="button" onClick={p.onResetDateTime} className="!min-h-0 h-11 shrink-0 rounded-xl px-2.5 text-[11px] font-bold text-teal-700 hover:bg-teal-50 cursor-pointer">اکنون</button>
                     </div>
                   ) : (
