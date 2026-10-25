@@ -3,6 +3,7 @@ import { Clock, RotateCcw } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { DEFAULT_ENTRY_TIME } from '../utils/morningAttendance';
 import { toPersianDigits } from '../utils/persianDate';
+import { ClockTimePicker } from './ClockTimePicker';
 
 /**
  * ساعت ورود به مدرسه در یک روز: پیش‌فرض ۰۷:۰۰ است و مدیر یا معاون انضباطی می‌تواند برای همان روز تغییرش دهد؛
@@ -23,16 +24,11 @@ export const EntryTimeControl: React.FC<{ date: string; className?: string }> = 
       </div>
       {canManage ? (
         <div className="mr-auto flex items-center gap-2">
-          <input
-            type="time"
-            dir="ltr"
-            aria-label="ساعت ورود به مدرسه"
+          <ClockTimePicker
+            label="ساعت ورود به مدرسه"
             value={time}
-            onChange={(e) => {
-              if (!e.target.value) return;
-              setEntryTime(date, e.target.value);
-            }}
-            className="h-11 w-28 text-center text-base font-extrabold bg-white rounded-xl text-slate-900 outline-none border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition cursor-pointer"
+            onChange={(v) => v && setEntryTime(date, v)}
+            className="h-11 w-28 text-base font-extrabold bg-white rounded-xl text-slate-900 border border-slate-200 hover:border-emerald-400 transition"
           />
           {isCustom && (
             <button

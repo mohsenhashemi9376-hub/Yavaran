@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { clockToMinutes, delayFromEntryTime, DEFAULT_ENTRY_TIME, minutesToClockString } from '../utils/morningAttendance';
 import { EntryTimeControl } from './EntryTimeControl';
+import { ClockTimePicker } from './ClockTimePicker';
 import { getEntryClock, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { Student, MorningDelayRecord } from '../types';
@@ -388,19 +389,17 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
           <div className="space-y-2">
             <label htmlFor="delay-arrival-input" className="block text-sm font-bold text-slate-700">ساعت ورود دانش‌آموز</label>
             <div className="flex items-center gap-3">
-              <input
+              <ClockTimePicker
                 id="delay-arrival-input"
-                type="time"
-                dir="ltr"
+                label="ساعت ورود دانش‌آموز"
                 value={arrivalInput}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   setArrivalInput(v);
                   const m = delayFromEntryTime(v, referenceTime);
                   if (v && m > 0) setDelayMinutesInput(String(m));
                   setErrorMessage(null);
                 }}
-                className="h-12 w-36 text-center text-lg font-extrabold bg-slate-50 rounded-2xl text-slate-900 outline-none border border-transparent focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition cursor-pointer"
+                className="h-12 w-36 text-lg font-extrabold bg-slate-50 rounded-2xl text-slate-900 border border-transparent hover:border-emerald-400 transition"
               />
               <span className="text-xs text-slate-500 leading-5">ساعتی که دانش‌آموز به مدرسه رسیده است؛ تأخیر نسبت به ساعت ورود این روز ({toPersianDigits(referenceTime)}) خودکار محاسبه می‌شود.</span>
             </div>

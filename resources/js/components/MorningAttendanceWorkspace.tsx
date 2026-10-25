@@ -18,6 +18,7 @@ import { closedReasonMessage } from '../utils/schoolCalendar';
 import { SchoolHolidaysPanel } from './SchoolHolidaysPanel';
 import { FitTable } from './ui/FitTable';
 import { EntryTimeControl } from './EntryTimeControl';
+import { ClockTimePicker } from './ClockTimePicker';
 
 export type MorningStatusFilter = 'present' | 'absent' | 'late' | null;
 
@@ -193,13 +194,11 @@ const AckButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
 const EntryTimeInput: React.FC<{ value: string; onSave: (time: string) => void; compact?: boolean }> = ({ value, onSave, compact }) => (
   <label className="inline-flex items-center gap-1 text-[11px] text-slate-500" onClick={(e) => e.stopPropagation()}>
     <span>{compact ? 'ساعت ورود:' : ''}</span>
-    <input
-      type="time"
-      dir="ltr"
+    <ClockTimePicker
       value={value}
-      onChange={(e) => e.target.value && onSave(e.target.value)}
-      aria-label="ساعت ورود دانش‌آموز"
-      className="h-8 px-1.5 rounded-lg bg-white/80 border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer"
+      onChange={(v) => v && onSave(v)}
+      label="ساعت ورود دانش‌آموز"
+      className="h-9 px-2.5 rounded-lg bg-white/80 border border-slate-200 text-xs font-bold text-slate-800 hover:border-emerald-400"
     />
   </label>
 );

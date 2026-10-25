@@ -10,6 +10,7 @@ import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { getUserGreeting } from '../utils/userRoles';
 import { SessionDetailModal } from './SessionDetailModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
+import { ClassGradeAnalytics } from './ClassGradeAnalytics';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
 import { TeacherActivitiesSection } from './TeacherActivitiesSection';
@@ -888,10 +889,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
 
               {currentGradeClass ? (
-                <ClassMonthlyGradesSection
-                  classData={currentGradeClass}
-                  onSelectStudent={onSelectStudent}
-                />
+                <>
+                  <ClassGradeAnalytics classData={currentGradeClass} />
+                  <ClassMonthlyGradesSection
+                    classData={currentGradeClass}
+                    onSelectStudent={onSelectStudent}
+                  />
+                </>
               ) : (
                 <div className="bg-white p-8 rounded-2xl border text-center text-slate-500">
                   هیچ کلاسی در دسترس نیست.

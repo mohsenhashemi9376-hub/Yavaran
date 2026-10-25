@@ -3,6 +3,7 @@ import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYe
 import { useSchool } from '../context/SchoolContext';
 import { BellPeriod } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
+import { ClockTimePicker } from './ClockTimePicker';
 import { 
   Clock, 
   Plus, 
@@ -315,12 +316,11 @@ export const BellPeriodsManagementSection: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 ساعت شروع (فرمت 24 ساعته) <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="time"
+              <ClockTimePicker
+                label="ساعت شروع"
                 value={newForm.startTime}
-                onChange={(e) => setNewForm({ ...newForm, startTime: e.target.value })}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                required
+                onChange={(v) => setNewForm({ ...newForm, startTime: v })}
+                className="w-full h-11 px-3 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl hover:border-emerald-400"
               />
             </div>
 
@@ -328,12 +328,11 @@ export const BellPeriodsManagementSection: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 ساعت پایان (فرمت 24 ساعته) <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="time"
+              <ClockTimePicker
+                label="ساعت پایان"
                 value={newForm.endTime}
-                onChange={(e) => setNewForm({ ...newForm, endTime: e.target.value })}
-                className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
-                required
+                onChange={(v) => setNewForm({ ...newForm, endTime: v })}
+                className="w-full h-11 px-3 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl hover:border-emerald-400"
               />
             </div>
 
@@ -481,20 +480,20 @@ export const BellPeriodsManagementSection: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">ساعت شروع</label>
-                        <input
-                          type="time"
+                        <ClockTimePicker
+                          label="ساعت شروع"
                           value={editForm.startTime}
-                          onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                          onChange={(v) => setEditForm({ ...editForm, startTime: v })}
+                          className="w-full h-10 px-2.5 text-xs font-bold bg-white border border-slate-200 rounded-lg hover:border-emerald-400"
                         />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">ساعت پایان</label>
-                        <input
-                          type="time"
+                        <ClockTimePicker
+                          label="ساعت پایان"
                           value={editForm.endTime}
-                          onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                          onChange={(v) => setEditForm({ ...editForm, endTime: v })}
+                          className="w-full h-10 px-2.5 text-xs font-bold bg-white border border-slate-200 rounded-lg hover:border-emerald-400"
                         />
                       </div>
                     </div>
