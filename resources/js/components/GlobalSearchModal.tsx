@@ -121,6 +121,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     if (isOpen) {
       setRecentStudentIds(readRecentStudentIds());
       setQuery('');
+      setBrowse(null);
       setActiveIndex(0);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -132,13 +133,29 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   const normalize = (text: string) => {
     return toEnglishDigits(text)
       .toLowerCase()
-      .replace(/ي/g, 'ی')
+      .replace(/[يىئ]/g, 'ی')
       .replace(/ك/g, 'ک')
+      .replace(/[ةۀ]/g, 'ه')
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ؤ/g, 'و')
+      .replace(/[ً-ٰٟـ]/g, '') // اعراب و کشیده
       .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width
       .trim();
   };
 
-  const cleanQuery = useMemo(() => normalize(query), [query]);
+  const cleanQuery = useMemo(() => normalize(query).replace(/\s+/g, ' '), [query]);
+  const queryTokens = useMemo(() => cleanQuery.split(' ').filter(Boolean), [cleanQuery]);
+
+  /** همه‌ی کلمات جستجو باید در متن باشند (با هر ترتیبی) */
+  const matchesAll = (...fields: Array<string | undefined>) => {
+    const haystack = normalize(fields.filter(Boolean).join(' '));
+    return queryTokens.every((t) => haystack.includes(t));
+  };
+
+  /** دسترسی سریع: نمایش فهرست یک دسته بدون نیاز به تایپ */
+  type Category = 'student' | 'class' | 'teacher' | 'coach';
+  const [browse, setBrowse] = useState<Category | null>(null);
+  const isSearching = Boolean(cleanQuery) || browse !== null;
 
   // Class ID to Class map for quick lookup
   const classMap = useMemo(() => {
@@ -156,62 +173,47 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   // Categorized Results
   const matchedStudents = useMemo(() => {
-    if (!cleanQuery) return [];
+    if (!isSearching || (!cleanQuery && browse !== 'student')) return [];
+    const limit = cleanQuery ? 8 : 12;
     return students.filter((s) => {
-      const fullName = normalize(`${studentFullName(s)}`);
-      const reverseName = normalize(`${s.firstName || ''} ${s.lastName || ''}`);
-      const fatherName = normalize(s.fatherName || '');
-      const code = normalize(s.studentCode || '');
-      const nationalId = normalize(s.nationalId || '');
+      if (!cleanQuery) return true;
       const cls = classMap.get(s.classId);
-      const className = cls ? normalize(cls.name) : '';
-      return (
-        fullName.includes(cleanQuery) ||
-        reverseName.includes(cleanQuery) ||
-        fatherName.includes(cleanQuery) ||
-        code.includes(cleanQuery) ||
-        nationalId.includes(cleanQuery) ||
-        className.includes(cleanQuery)
+      return matchesAll(
+        studentFullName(s),
+        `${s.firstName || ''} ${s.lastName || ''}`,
+        s.fatherName,
+        s.studentCode,
+        s.nationalId,
+        cls?.name
       );
-    }).slice(0, 8);
-  }, [cleanQuery, students, classMap]);
+    }).slice(0, limit);
+  }, [cleanQuery, browse, isSearching, students, classMap]);
 
   const matchedClasses = useMemo(() => {
-    if (!cleanQuery) return [];
-    return classes.filter((c) => {
-      const name = normalize(c.name);
-      const grade = normalize(c.grade || '');
-      const room = normalize(c.room || '');
-      return name.includes(cleanQuery) || grade.includes(cleanQuery) || room.includes(cleanQuery);
-    }).slice(0, 4);
-  }, [cleanQuery, classes]);
+    if (!isSearching || (!cleanQuery && browse !== 'class')) return [];
+    const limit = cleanQuery ? 4 : 12;
+    return classes.filter((c) => !cleanQuery || matchesAll(c.name, c.grade, c.room)).slice(0, limit);
+  }, [cleanQuery, browse, isSearching, classes]);
 
   const matchedTeachers = useMemo(() => {
-    if (!cleanQuery) return [];
+    if (!isSearching || (!cleanQuery && browse !== 'teacher')) return [];
+    const limit = cleanQuery ? 4 : 12;
     return allTeachers.filter((t) => {
-      const name = normalize(t.name);
-      const phone = normalize(t.phone || '');
-      const subjects = (t.assignedSubjectIds || [])
-        .map((id) => normalize(subjectMap.get(id) || ''))
-        .join(' ');
-      return name.includes(cleanQuery) || phone.includes(cleanQuery) || subjects.includes(cleanQuery);
-    }).slice(0, 4);
-  }, [cleanQuery, allTeachers, subjectMap]);
+      if (!cleanQuery) return true;
+      const subjects = (t.assignedSubjectIds || []).map((id) => subjectMap.get(id) || '').join(' ');
+      return matchesAll(t.name, t.phone, subjects);
+    }).slice(0, limit);
+  }, [cleanQuery, browse, isSearching, allTeachers, subjectMap]);
 
   const matchedCoaches = useMemo(() => {
-    if (!cleanQuery) return [];
+    if (!isSearching || (!cleanQuery && browse !== 'coach')) return [];
+    const limit = cleanQuery ? 4 : 12;
     return allCoaches.filter((c) => {
-      const name = normalize(c.name);
-      const phone = normalize(c.phone || '');
-      const assignedClassNames = (c.assignedClassIds || [])
-        .map((cid) => {
-          const cls = classMap.get(cid);
-          return cls ? normalize(cls.name) : '';
-        })
-        .join(' ');
-      return name.includes(cleanQuery) || phone.includes(cleanQuery) || assignedClassNames.includes(cleanQuery);
-    }).slice(0, 4);
-  }, [cleanQuery, allCoaches, classMap]);
+      if (!cleanQuery) return true;
+      const assignedClassNames = (c.assignedClassIds || []).map((cid) => classMap.get(cid)?.name || '').join(' ');
+      return matchesAll(c.name, c.phone, assignedClassNames);
+    }).slice(0, limit);
+  }, [cleanQuery, browse, isSearching, allCoaches, classMap]);
 
   // Flatten items for keyboard selection
   type FlatResultItem = 
@@ -329,6 +331,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
+              setBrowse(null);
               setActiveIndex(0);
             }}
             onKeyDown={handleKeyDown}
@@ -363,7 +366,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 divide-y divide-slate-100"
         >
           {/* 1. When query is empty: show Recent Searches and Quick Entity Filters */}
-          {!cleanQuery && (
+          {!isSearching && (
             <div className="space-y-4 pt-1">
               {recentStudents.length > 0 && (
                 <div>
@@ -443,7 +446,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setQuery('کلاس');
+                      setBrowse('class');
+                      setActiveIndex(0);
                       inputRef.current?.focus();
                     }}
                     className="p-3 text-right rounded-xl bg-slate-50 hover:bg-teal-50/70 border border-slate-200/70 hover:border-teal-200 transition cursor-pointer group"
@@ -456,7 +460,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setQuery('دانش‌آموز');
+                      setBrowse('student');
+                      setActiveIndex(0);
                       inputRef.current?.focus();
                     }}
                     className="p-3 text-right rounded-xl bg-slate-50 hover:bg-teal-50/70 border border-slate-200/70 hover:border-teal-200 transition cursor-pointer group"
@@ -469,7 +474,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setQuery('معلم');
+                      setBrowse('teacher');
+                      setActiveIndex(0);
                       inputRef.current?.focus();
                     }}
                     className="p-3 text-right rounded-xl bg-slate-50 hover:bg-teal-50/70 border border-slate-200/70 hover:border-teal-200 transition cursor-pointer group"
@@ -482,7 +488,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setQuery('مربی');
+                      setBrowse('coach');
+                      setActiveIndex(0);
                       inputRef.current?.focus();
                     }}
                     className="p-3 text-right rounded-xl bg-slate-50 hover:bg-teal-50/70 border border-slate-200/70 hover:border-teal-200 transition cursor-pointer group"
@@ -497,7 +504,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           )}
 
           {/* 2. When query is not empty and results found */}
-          {cleanQuery && totalResultsCount > 0 && (
+          {isSearching && totalResultsCount > 0 && (
             <div className="space-y-4 pt-1">
               {/* بخش دانش‌آموزان */}
               {matchedStudents.length > 0 && (
@@ -764,7 +771,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           )}
 
           {/* 3. When query is entered but nothing matches (Empty State) */}
-          {cleanQuery && totalResultsCount === 0 && (
+          {isSearching && totalResultsCount === 0 && (
             <div className="py-10 px-4 text-center">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
                 <Search className="w-6 h-6" />

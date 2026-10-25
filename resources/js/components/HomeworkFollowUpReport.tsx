@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ClipboardList, Download, Search } from 'lucide-react';
+import { ArrowRight, ChevronDown, ClipboardCheck, ClipboardList, Download, Eye, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { Student } from '../types';
@@ -40,7 +40,7 @@ interface Row {
 const monthOf = (date: string) => Number(toEnglishDigits(date).split('/')[1]);
 
 /** پیگیری تکالیف: چه کسی تکلیف کلاسی را انجام نداده است (معاون آموزشی، معاون تربیتی، مربی) */
-export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) => void }> = ({ onSelectStudent }) => {
+export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) => void; onBack?: () => void }> = ({ onSelectStudent, onBack }) => {
   const { nurturingClasses, nurturingSessionClasses, students, sessions } = useSchool();
   const [classId, setClassId] = useState('');
   const [subject, setSubject] = useState('');
@@ -164,6 +164,17 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
     <div className="space-y-3" dir="rtl">
       {/* عنوان + خروجی */}
       <div className="flex items-center gap-2">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="بازگشت به داشبورد"
+            className="!min-h-0 h-9 px-3 shrink-0 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">بازگشت به داشبورد</span>
+          </button>
+        )}
         <ClipboardList className="w-5 h-5 shrink-0 text-amber-700" />
         <h2 className="flex-1 min-w-0 text-base font-black text-slate-900">پیگیری تکالیف دانش‌آموزان</h2>
         <button
@@ -185,18 +196,18 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
             type="button"
             aria-pressed={filter === k.key}
             onClick={() => setFilter(filter === k.key ? 'all' : k.key)}
-            className={`rounded-2xl border px-1.5 py-3 cursor-pointer transition ${k.box} ${filter === k.key ? `ring-2 ${k.ring} shadow-sm` : ''}`}
+            className={`rounded-2xl border px-1.5 py-3 md:py-2 md:px-4 md:flex md:items-center md:justify-center md:gap-3 cursor-pointer transition ${k.box} ${filter === k.key ? `ring-2 ${k.ring} shadow-sm` : ''}`}
           >
-            <div className={`text-2xl font-black leading-none ${k.num}`}>{toPersianDigits(k.value)}</div>
-            <div className="mt-1.5 text-[10px] font-medium text-slate-600 whitespace-nowrap">{k.label}</div>
+            <div className={`text-2xl md:text-xl font-black leading-none ${k.num}`}>{toPersianDigits(k.value)}</div>
+            <div className="mt-1.5 md:mt-0 text-[10px] md:text-xs font-medium text-slate-600 whitespace-nowrap">{k.label}</div>
           </button>
         ))}
       </div>
 
-      {/* جستجو (راست) + ماه (چپ) */}
-      <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
+      {/* نوار فیلتر چسبان: جستجو، کلاس، درس، ماه در یک ردیف (دسکتاپ) */}
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur rounded-2xl p-3 border border-slate-200 shadow-xs space-y-2 md:space-y-0 md:flex md:items-center md:gap-2">
+        <div className="flex items-center gap-2 md:contents">
+          <div className="relative min-w-0 flex-1 md:flex-[2]">
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="search"
@@ -206,7 +217,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
               className="h-11 w-full pr-9 pl-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 [&::-webkit-search-cancel-button]:hidden"
             />
           </div>
-          <div className="relative w-[8.5rem] shrink-0">
+          <div className="relative w-[8.5rem] shrink-0 md:order-last">
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))} aria-label="ماه" className={`${selectCls} appearance-none pl-8`}>
               <option value={0}>همه ماه‌ها</option>
               {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
@@ -214,7 +225,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
             <ChevronDown className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:contents">
           <select value={classId} onChange={(e) => { setClassId(e.target.value); setSubject(''); }} aria-label="کلاس" className={selectCls}>
             <option value="">همه کلاس‌ها</option>
             {nurturingSessionClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -249,7 +260,102 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
           })()}
         </div>
       ) : (
-        <ul className="space-y-2.5">
+        <>
+        {/* دسکتاپ: جدول */}
+        <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-slate-50 text-[11px] font-bold text-slate-500">
+              <tr>
+                <th className="w-12 px-3 py-2.5">#</th>
+                <th className="px-3 py-2.5">دانش‌آموز</th>
+                <th className="px-3 py-2.5">کلاس</th>
+                <th className="px-3 py-2.5">وضعیت تکالیف</th>
+                <th className="w-52 px-3 py-2.5 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r, i) => {
+                const open = openId === r.student.id;
+                return (
+                  <React.Fragment key={r.student.id}>
+                    <tr className="hover:bg-slate-50/70">
+                      <td className="px-3 py-2.5 text-xs font-bold text-slate-400">{toPersianDigits(i + 1)}</td>
+                      <td className="px-3 py-2.5 font-bold text-slate-900 whitespace-nowrap">{studentFullName(r.student)}</td>
+                      <td className="px-3 py-2.5">
+                        <span className="whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          {r.className.startsWith('کلاس') ? r.className : `کلاس ${r.className}`}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.streak >= 2 && (
+                            <span className="whitespace-nowrap rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">🚨 {toPersianDigits(r.streak)} جلسه پیاپی</span>
+                          )}
+                          {r.notDone > 0 && (
+                            <span className="whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700">{toPersianDigits(r.notDone)} تکلیف انجام‌نشده</span>
+                          )}
+                          {r.incomplete > 0 && (
+                            <span className="whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">{toPersianDigits(r.incomplete)} تکلیف ناقص</span>
+                          )}
+                          <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">{toPersianDigits(pct(r))}٪ از {toPersianDigits(r.total)}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectStudent?.(r.student)}
+                            className="!min-h-0 h-8 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5" />
+                            ثبت پیگیری
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOpenId(open ? null : r.student.id)}
+                            aria-expanded={open}
+                            className="!min-h-0 h-8 px-2.5 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            جزئیات
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {open && (
+                      <tr className="bg-slate-50">
+                        <td colSpan={5} className="px-4 py-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {r.details.length === 0 ? (
+                              <div className="text-xs text-slate-400">مورد انجام‌نشده یا ناقصی ثبت نشده است.</div>
+                            ) : (
+                              r.details.map((d) => (
+                                <div key={d.sessionId} className="rounded-xl bg-white border border-slate-200 p-2.5 text-xs space-y-1">
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="font-mono text-slate-700 whitespace-nowrap" title="تاریخ جلسه‌ای که تکلیف در آن داده شد">{toPersianDigits(d.date)}</span>
+                                    <span className="text-slate-500 whitespace-nowrap">{d.subject}</span>
+                                    <span className={`mr-auto px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap ${d.outcome === 'not_done' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                                      {OUTCOME_LABEL[d.outcome]}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-600 leading-5">{d.homework || 'تکلیفی توضیح داده نشده'}</p>
+                                  <p className="text-[10px] text-slate-400">وضعیت در جلسه {toPersianDigits(d.recordedDate)} ثبت شد</p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* موبایل: کارت */}
+        <ul className="space-y-2.5 md:hidden">
           {rows.map((r, i) => {
             const open = openId === r.student.id;
             return (
@@ -319,6 +425,7 @@ export const HomeworkFollowUpReport: React.FC<{ onSelectStudent?: (s: Student) =
             );
           })}
         </ul>
+        </>
       )}
     </div>
   );

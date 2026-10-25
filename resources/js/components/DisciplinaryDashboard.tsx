@@ -913,8 +913,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
           {/* پیگیری تکالیف (currentView === 'homework_followup') */}
           {currentView === 'homework_followup' && (
             <div className="space-y-3">
-              <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
-              <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} />
+              <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')} onBack={() => setCurrentView(null)} />
             </div>
           )}
 

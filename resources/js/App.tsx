@@ -146,6 +146,14 @@ const MainApp: React.FC = () => {
 
   // Global search & Teacher/Coach profile states
   const [globalSearchModalOpen, setGlobalSearchModalOpen] = useState(false);
+
+  // پیش‌بارگذاری کد جستجو در زمان بیکاری تا اولین کلیک روی دکمه‌ی جستجو بدون تأخیر باز شود
+  useEffect(() => {
+    const preload = () => { void import('./components/GlobalSearchModal').catch(() => {}); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(preload);
+    else setTimeout(preload, 1500);
+  }, []);
   const [teacherProfileModalOpen, setTeacherProfileModalOpen] = useState(false);
   const [selectedTeacherForProfile, setSelectedTeacherForProfile] = useState<User | null>(null);
   const [coachProfileModalOpen, setCoachProfileModalOpen] = useState(false);

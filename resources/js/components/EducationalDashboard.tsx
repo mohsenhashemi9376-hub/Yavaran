@@ -809,8 +809,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
         {currentView === 'homework_followup' && (
           <div className="space-y-3">
-            <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>
-            <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu)} />
+            <HomeworkFollowUpReport onSelectStudent={(stu) => onSelectStudent(stu)} onBack={() => setCurrentView(null)} />
           </div>
         )}
 
