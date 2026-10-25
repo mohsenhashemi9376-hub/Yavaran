@@ -326,7 +326,7 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
           {step === 2 && (
             <div className="space-y-3">
               <h3 className="text-sm font-black text-slate-900">مراحل تدریس</h3>
-              {/* ماشین‌حساب زمان: جمع زمان گام‌ها در برابر ۷۵ دقیقه‌ی کلاس */}
+              {/* ماشین‌حساب زمان: جمع زمان گام‌ها در برابر سقف ۴۵ دقیقه‌ی هر زنگ */}
               <div className={`rounded-2xl border p-3 space-y-1.5 ${minutes > CLASS_MINUTES ? 'border-rose-200 bg-rose-50' : 'border-emerald-200 bg-emerald-50/60'}`} aria-live="polite">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className={minutes > CLASS_MINUTES ? 'text-rose-700' : 'text-emerald-800'}>زمان برنامه‌ریزی‌شده</span>
@@ -336,9 +336,9 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
                   <div className={`h-full rounded-full transition-all ${minutes > CLASS_MINUTES ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (minutes / CLASS_MINUTES) * 100)}%` }} />
                 </div>
                 {minutes > CLASS_MINUTES ? (
-                  <div className="text-xs font-extrabold text-rose-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> ⚠️ زمان‌بندی از وقت کلاس بیشتر شد! ({toPersianDigits(minutes - CLASS_MINUTES)} دقیقه اضافه)</div>
+                  <div className="text-xs font-extrabold text-rose-700 inline-flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> ⚠️ زمان‌بندی از زنگ {toPersianDigits(CLASS_MINUTES)} دقیقه‌ای بیشتر شد! ({toPersianDigits(minutes - CLASS_MINUTES)} دقیقه اضافه)</div>
                 ) : (
-                  <div className="text-[11px] text-slate-500">{toPersianDigits(CLASS_MINUTES - minutes)} دقیقه‌ی آزاد باقی مانده است.</div>
+                  <div className="text-[11px] text-slate-500">{minutes === CLASS_MINUTES ? `✅ زمان‌بندی دقیقاً ${toPersianDigits(CLASS_MINUTES)} دقیقه است.` : `${toPersianDigits(CLASS_MINUTES - minutes)} دقیقه از زنگ ${toPersianDigits(CLASS_MINUTES)} دقیقه‌ای آزاد باقی مانده است.`}</div>
                 )}
               </div>
               {plan.scenario.map((s, i) => (
@@ -353,6 +353,8 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
                         </button>
                       </>
                     )}
+                    {i === 1 && <span className="text-xs font-extrabold text-slate-800">تدریس اصلی</span>}
+                    {i === 2 && <span className="text-xs font-extrabold text-slate-800">جمع‌بندی</span>}
                     <input value={toPersianDigits(s.minutes)} onChange={(e) => setStepRow(s.id, { minutes: toEnglishDigits(e.target.value).replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="زمان (دقیقه)" aria-label="زمان" className={`${input} w-32`} />
                     {plan.scenario.length > 1 && <button type="button" onClick={() => set('scenario', plan.scenario.filter((x) => x.id !== s.id))} aria-label="حذف مرحله" className="mr-auto w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
                   </div>

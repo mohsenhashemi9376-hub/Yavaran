@@ -8,13 +8,20 @@ export const METHOD_OPTIONS = TEACHING_METHOD_NAMES;
 export const TECHNIQUE_OPTIONS = ['طوفان فکری', 'نقشه‌ی مفهومی', 'گروه‌بندی', 'جیگساو', 'کارت‌های مرور', 'تحلیل تصویر', 'پرسش‌گری', 'خلاصه‌نویسی', 'مسابقه‌ی کلاسی'];
 export const TOOL_OPTIONS = ['تخته و ماژیک', 'پروژکتور', 'کتاب درسی', 'برگه‌ی کار', 'فیلم/انیمیشن', 'لپ‌تاپ', 'کارت‌های تصویری', 'وسایل آزمایشگاهی', 'نقشه/پوستر', 'بلندگو'];
 
-export const newScenarioStep = (): LessonScenarioStep => ({
+export const newScenarioStep = (minutes = ''): LessonScenarioStep => ({
   id: `st-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
   description: '',
-  minutes: '',
+  minutes,
   teacherActivity: '',
   studentActivity: '',
 });
+
+/** مرحله‌های پیش‌فرض یک زنگ ۴۵ دقیقه‌ای: ۵ دقیقه انگیزه، ۲۵ دقیقه تدریس اصلی، ۱۵ دقیقه جمع‌بندی */
+export const defaultScenario = (): LessonScenarioStep[] => [
+  { ...newScenarioStep('5'), id: `st-${Date.now()}-a` },
+  { ...newScenarioStep('25'), id: `st-${Date.now()}-b` },
+  { ...newScenarioStep('15'), id: `st-${Date.now()}-c` },
+];
 
 export const emptyLessonPlan = (teacherId: string, init: Partial<LessonPlan> = {}): LessonPlan => ({
   id: `lp-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -36,7 +43,7 @@ export const emptyLessonPlan = (teacherId: string, init: Partial<LessonPlan> = {
   techniques: [],
   tools: [],
   objectives: { psychomotor: [''], affective: [''], cognitive: [''] },
-  scenario: [newScenarioStep()],
+  scenario: defaultScenario(),
   evaluation: { initial: '', process: '', final: '' },
   checklist: { motivation: '', prior: '', alignment: '', summary: '', differences: '', engagement: '', homework: '' },
   reflection: '',
@@ -62,8 +69,8 @@ export const STATUS_LABEL: Record<LessonPlan['status'], string> = { draft: 'پی
 /** نام ماه شمسی از تاریخ «۱۴۰۵/۰۸/۰۵» (۱ تا ۱۲) */
 export const monthOfDate = (date: string): number => Number(toEnglishDigits(date || '').split('/')[1]) || 0;
 
-/** مدت کل کلاس (دقیقه) برای ماشین‌حساب زمان سناریو */
-export const CLASS_MINUTES = 75;
+/** مدت کل هر زنگ کلاس (دقیقه) برای ماشین‌حساب زمان سناریو */
+export const CLASS_MINUTES = 45;
 
 /** افعال حرکتی هرم بلوم برای هر حوزه‌ی هدف */
 export const BLOOM_VERBS = {
