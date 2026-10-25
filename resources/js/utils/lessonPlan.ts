@@ -1,4 +1,4 @@
-import { LessonPlan, LessonScenarioStep } from '../types';
+import { LessonPlan, LessonScenarioStep, LessonStandardKey } from '../types';
 import { TEACHING_METHOD_NAMES } from './teachingMethods';
 import { getActiveAcademicYear, getTodayShamsi, toEnglishDigits } from './persianDate';
 
@@ -8,13 +8,20 @@ export const METHOD_OPTIONS = TEACHING_METHOD_NAMES;
 export const TECHNIQUE_OPTIONS = ['طوفان فکری', 'نقشه‌ی مفهومی', 'گروه‌بندی', 'جیگساو', 'کارت‌های مرور', 'تحلیل تصویر', 'پرسش‌گری', 'خلاصه‌نویسی', 'مسابقه‌ی کلاسی'];
 export const TOOL_OPTIONS = ['تخته و ماژیک', 'پروژکتور', 'کتاب درسی', 'برگه‌ی کار', 'فیلم/انیمیشن', 'لپ‌تاپ', 'کارت‌های تصویری', 'وسایل آزمایشگاهی', 'نقشه/پوستر', 'بلندگو'];
 
-export const newScenarioStep = (): LessonScenarioStep => ({
+export const newScenarioStep = (minutes = ''): LessonScenarioStep => ({
   id: `st-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
   description: '',
-  minutes: '',
+  minutes,
   teacherActivity: '',
   studentActivity: '',
 });
+
+/** مرحله‌های پیش‌فرض یک زنگ ۴۵ دقیقه‌ای: ۵ دقیقه انگیزه، ۲۵ دقیقه تدریس اصلی، ۱۵ دقیقه جمع‌بندی */
+export const defaultScenario = (): LessonScenarioStep[] => [
+  { ...newScenarioStep('5'), id: `st-${Date.now()}-a` },
+  { ...newScenarioStep('25'), id: `st-${Date.now()}-b` },
+  { ...newScenarioStep('15'), id: `st-${Date.now()}-c` },
+];
 
 export const emptyLessonPlan = (teacherId: string, init: Partial<LessonPlan> = {}): LessonPlan => ({
   id: `lp-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -36,10 +43,12 @@ export const emptyLessonPlan = (teacherId: string, init: Partial<LessonPlan> = {
   techniques: [],
   tools: [],
   objectives: { psychomotor: [''], affective: [''], cognitive: [''] },
-  scenario: [newScenarioStep()],
+  scenario: defaultScenario(),
   evaluation: { initial: '', process: '', final: '' },
   checklist: { motivation: '', prior: '', alignment: '', summary: '', differences: '', engagement: '', homework: '' },
+  standards: {},
   reflection: '',
+  reflectionTags: [],
   review: null,
   ...init,
 });
@@ -62,8 +71,8 @@ export const STATUS_LABEL: Record<LessonPlan['status'], string> = { draft: 'پی
 /** نام ماه شمسی از تاریخ «۱۴۰۵/۰۸/۰۵» (۱ تا ۱۲) */
 export const monthOfDate = (date: string): number => Number(toEnglishDigits(date || '').split('/')[1]) || 0;
 
-/** مدت کل کلاس (دقیقه) برای ماشین‌حساب زمان سناریو */
-export const CLASS_MINUTES = 75;
+/** مدت کل هر زنگ کلاس (دقیقه) برای ماشین‌حساب زمان سناریو */
+export const CLASS_MINUTES = 45;
 
 /** افعال حرکتی هرم بلوم برای هر حوزه‌ی هدف */
 export const BLOOM_VERBS = {
@@ -86,6 +95,20 @@ export const HOOK_IDEAS = [
   'یک سؤال «اگر … چه می‌شد؟» بپرسید (مثلاً: اگر گرانش نبود…) و چند پاسخ جالب بشنوید.',
   'چند ثانیه سکوت کنید، یک کلمه‌ی درس را روی تخته بنویسید و بگذارید بچه‌ها بی‌صدا ذهن‌شان را حرکت دهند.',
   'یک چالش ۶۰ ثانیه‌ای بدهید: «در یک دقیقه چند مثال از … پیدا می‌کنید؟»',
+];
+
+/** استانداردهای طرح درس (چک‌لیست لمسی گام پایانی ویزارد) */
+export const LESSON_STANDARDS: { key: LessonStandardKey; label: string }[] = [
+  { key: 'initialAssessment', label: 'سنجش آغازین' },
+  { key: 'processEvaluation', label: 'ارزشیابی فرآیندی' },
+  { key: 'finalEvaluation', label: 'ارزشیابی پایانی' },
+  { key: 'motivation', label: 'انگیزه‌بخشی' },
+  { key: 'prior', label: 'اتصال به یادگیری قبلی' },
+  { key: 'alignment', label: 'تطبیق برنامه با اهداف' },
+  { key: 'summary', label: 'جمع‌بندی' },
+  { key: 'differences', label: 'توجه به اختلاف سطح' },
+  { key: 'engagement', label: 'درگیری دانش‌آموزان' },
+  { key: 'homework', label: 'تمرین در منزل' },
 ];
 
 /** راهکارهای اختلاف سطح */

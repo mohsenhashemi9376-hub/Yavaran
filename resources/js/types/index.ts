@@ -514,6 +514,10 @@ export interface SchoolHoliday {
   updatedAt?: string;
 }
 
+export type LessonStandardKey =
+  | 'initialAssessment' | 'processEvaluation' | 'finalEvaluation' | 'motivation' | 'prior'
+  | 'alignment' | 'summary' | 'differences' | 'engagement' | 'homework';
+
 /** ردیف «مراحل تدریس» در طرح درس: شرح مرحله، زمان، فعالیت معلم و فعالیت دانش‌آموزان */
 export interface LessonScenarioStep {
   id: string;
@@ -562,7 +566,12 @@ export interface LessonPlan {
   // ۴. ارزیابی و تجربه‌نگاری
   evaluation: { initial: string; process: string; final: string };
   checklist: { motivation: string; prior: string; alignment: string; summary: string; differences: string; engagement: string; homework: string };
+  /** استانداردهای لحاظ‌شده در سناریو (چک‌لیست لمسی گام پایانی) */
+  standards?: Partial<Record<LessonStandardKey, boolean>>;
+  /** تجربه‌نگاری پس از کلاس (از «سوابق طرح درس‌های من» ثبت می‌شود) */
   reflection: string;
+  reflectionTags?: string[];
+  reflectedAt?: string;
   review?: LessonPlanReview | null;
   createdAt?: string;
   updatedAt?: string;

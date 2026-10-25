@@ -1,6 +1,6 @@
 import React from 'react';
 import { LessonPlan } from '../types';
-import { totalMinutes } from '../utils/lessonPlan';
+import { LESSON_STANDARDS, totalMinutes } from '../utils/lessonPlan';
 import { formatShamsiWithWeekday, toPersianDigits } from '../utils/persianDate';
 
 const Row: React.FC<{ label: string; value?: string }> = ({ label, value }) =>
@@ -82,6 +82,9 @@ export const LessonPlanView: React.FC<{ plan: LessonPlan; tone?: 'emerald' | 'bl
         </ol>
       </Section>
       <Section title="ارزشیابی و فرایند تدریس">
+        {LESSON_STANDARDS.some((x) => plan.standards?.[x.key]) && (
+          <Chips label="استانداردهای لحاظ‌شده" items={LESSON_STANDARDS.filter((x) => plan.standards?.[x.key]).map((x) => x.label)} tone={chip} />
+        )}
         <dl>
           <Row label="سنجش آغازین" value={plan.evaluation.initial} />
           <Row label="ارزشیابی فرایندی" value={plan.evaluation.process} />
@@ -89,7 +92,12 @@ export const LessonPlanView: React.FC<{ plan: LessonPlan; tone?: 'emerald' | 'bl
           {checklist.map(([l, v]) => <Row key={l} label={l} value={v} />)}
         </dl>
       </Section>
-      {plan.reflection?.trim() && <Section title="تجربه‌نگاری"><p className="text-sm text-slate-800 leading-7 whitespace-pre-wrap">{plan.reflection}</p></Section>}
+      {(plan.reflection?.trim() || plan.reflectionTags?.length) ? (
+        <Section title="تجربه‌نگاری پس از کلاس">
+          <Chips label="چالش‌ها" items={plan.reflectionTags || []} tone="bg-amber-50 text-amber-800 border-amber-200" />
+          {plan.reflection?.trim() && <p className="text-sm text-slate-800 leading-7 whitespace-pre-wrap">{plan.reflection}</p>}
+        </Section>
+      ) : null}
     </div>
   );
 };

@@ -98,6 +98,23 @@ export const StudentMonthlyGradesTable: React.FC<Props> = ({ grades, onEdit }) =
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="font-black">
+                <td className="sticky right-0 z-10 bg-slate-100 border-l border-t-2 border-slate-300 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] px-3 py-2 whitespace-nowrap text-slate-900">میانگین کل</td>
+                {shown.map((m) => {
+                  const avg = monthlyGpa(grades, m.key);
+                  return (
+                    <td key={m.key} className="border-t-2 border-slate-300 bg-slate-50 px-2 py-2 text-center whitespace-nowrap">
+                      <span className={`inline-block min-w-[3rem] px-2 py-1 rounded-xl text-xs ${avg !== undefined ? scorePillClass(avg) : 'bg-slate-100/70 border border-slate-200/70 text-slate-400'}`}>{fa(avg)}</span>
+                    </td>
+                  );
+                })}
+                {col === 'all' && <td className="border-t-2 border-slate-300 bg-indigo-50 px-3 py-2 text-center text-indigo-900 whitespace-nowrap">{fa(gpa)}</td>}
+                <td className="border-t-2 border-slate-300 bg-slate-50 px-2 py-2 text-center whitespace-nowrap">
+                  {gpa !== undefined && <span className={`px-2.5 py-1 rounded-xl text-[11px] ${scorePillClass(gpa)}`}>{scoreLabel(gpa)}</span>}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

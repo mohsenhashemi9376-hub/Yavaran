@@ -11,7 +11,15 @@ export function lazyModal<C extends ComponentType<any>>(loader: () => Promise<{ 
     if (props.isOpen && !seen) setSeen(true);
     if (!seen) return null;
     return (
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          props.isOpen ? (
+            <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40" role="status" aria-label="در حال بارگذاری">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/40 border-t-white" />
+            </div>
+          ) : null
+        }
+      >
         <Inner {...props} />
       </Suspense>
     );
