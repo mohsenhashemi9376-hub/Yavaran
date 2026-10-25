@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { useSchool } from '../context/SchoolContext';
+import { suggestForStep, SuggestPhase } from '../utils/lessonSuggest';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
 import { LessonPlan, SchoolClass } from '../types';
@@ -252,6 +254,30 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
 
   const setStepRow = (id: string, patch: Partial<LessonPlan['scenario'][number]>) => set('scenario', plan.scenario.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
+  /** پیشنهاد هوشمند: بر اساس درس (گام ۱) و روش/تکنیک (گام ۲) فعالیت معلم و دانش‌آموز را در همان گام می‌نویسد */
+  const { showToast } = useSchool();
+  const suggestCount = useRef<Record<string, number>>({});
+  const lastSuggested = useRef<Record<string, { teacher: string; student: string }>>({});
+  const suggestStep = (stepId: string, index: number) => {
+    const phase: SuggestPhase = index === 0 ? 'motivation' : index === plan.scenario.length - 1 && plan.scenario.length > 1 ? 'wrapup' : 'content';
+    const n = suggestCount.current[stepId] ?? 0;
+    const sug = suggestForStep(phase, { subject: plan.subject, methods: plan.methods, techniques: plan.techniques }, n);
+    if (!sug) {
+      showToast('ابتدا درس و روش تدریس را در مراحل قبل مشخص کنید.', 'info');
+      return;
+    }
+    suggestCount.current[stepId] = n + 1;
+    const cur = plan.scenario.find((x) => x.id === stepId);
+    const prev = lastSuggested.current[stepId];
+    // اگر فیلد خالی است یا هنوز همان پیشنهاد قبلی است، جایگزین می‌شود؛ در غیر این صورت متن استاد حفظ و پیشنهاد به انتهای آن افزوده می‌شود
+    const merge = (now: string, old: string | undefined, next: string) => (!now.trim() || now === old ? next : `${now.trim()}\n${next}`);
+    setStepRow(stepId, {
+      teacherActivity: merge(cur?.teacherActivity ?? '', prev?.teacher, sug.teacher),
+      studentActivity: merge(cur?.studentActivity ?? '', prev?.student, sug.student),
+    });
+    lastSuggested.current[stepId] = sug;
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col font-['Vazirmatn',sans-serif]" dir="rtl" role="dialog" aria-modal="true" aria-label="ویزارد طرح درس">
       {/* هدر و گام‌ها */}
@@ -343,7 +369,7 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
               </div>
               {plan.scenario.map((s, i) => (
                 <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black flex items-center justify-center">{toPersianDigits(i + 1)}</span>
                     {i === 0 && (
                       <>
@@ -355,6 +381,9 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
                     )}
                     {i === 1 && <span className="text-xs font-extrabold text-slate-800">تدریس اصلی</span>}
                     {i === 2 && <span className="text-xs font-extrabold text-slate-800">جمع‌بندی</span>}
+                    <button type="button" onClick={() => suggestStep(s.id, i)} title="پیشنهاد هوشمند بر اساس درس و روش تدریس" aria-label="پیشنهاد هوشمند" className="!min-h-0 h-9 px-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-xs font-bold inline-flex items-center gap-1 whitespace-nowrap cursor-pointer">
+                      🪄 پیشنهاد هوشمند
+                    </button>
                     <input value={toPersianDigits(s.minutes)} onChange={(e) => setStepRow(s.id, { minutes: toEnglishDigits(e.target.value).replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="زمان (دقیقه)" aria-label="زمان" className={`${input} w-32`} />
                     {plan.scenario.length > 1 && <button type="button" onClick={() => set('scenario', plan.scenario.filter((x) => x.id !== s.id))} aria-label="حذف مرحله" className="mr-auto w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
                   </div>
