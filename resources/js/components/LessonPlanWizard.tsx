@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { suggestForStep, SuggestPhase } from '../utils/lessonSuggest';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Timer, Check, ChevronLeft, ChevronRight, Dices, Lightbulb, Plus, Save, Send, X } from 'lucide-react';
 import { LessonPlan, SchoolClass } from '../types';
 import { GUIDE_SUBJECTS, TeachingMethod } from '../utils/teachingMethods';
 import { METHOD_GUIDE, TECHNIQUE_GUIDE } from '../utils/teachingGuide';
@@ -13,7 +13,19 @@ import { ShamsiDatePicker } from './ShamsiDatePicker';
 const STEPS = ['مشخصات', 'اهداف و روش‌ها', 'سناریو', 'ارزیابی و استانداردها'];
 
 const input = 'w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500';
-const area = 'w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500 resize-none leading-6';
+const area = 'w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 resize-none leading-7 overflow-hidden transition';
+
+/** کادر متنی با ارتفاع خودکار: با هر تغییر محتوا (تایپ یا پیشنهاد هوشمند) ارتفاع به اندازه‌ی متن می‌شود، بدون اسکرول داخلی */
+const AutoTextarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = ({ value, className, ...rest }) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return <textarea ref={ref} value={value} className={className} {...rest} />;
+};
 
 const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
   <label className="block space-y-1">
@@ -189,6 +201,8 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
   const [plan, setPlan] = useState<LessonPlan>(initial);
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
+  /** با اسکرول بدنه به پایین، نوار مراحل جمع می‌شود تا فضای موبایل باز شود */
+  const [scrolled, setScrolled] = useState(false);
   const set = <K extends keyof LessonPlan>(k: K, v: LessonPlan[K]) => setPlan((p) => ({ ...p, [k]: v }));
   const minutes = useMemo(() => totalMinutes(plan.scenario), [plan.scenario]);
 
@@ -276,15 +290,17 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col font-['Vazirmatn',sans-serif]" dir="rtl" role="dialog" aria-modal="true" aria-label="ویزارد طرح درس">
       {/* هدر و گام‌ها */}
-      <div className="bg-white border-b border-slate-200 px-3 pt-3 pb-2 shrink-0 space-y-2.5">
+      <div className={`sticky top-0 z-10 bg-white border-b border-slate-200 px-3 shrink-0 transition-all duration-200 ${scrolled ? 'pt-1.5 pb-1.5 shadow-sm' : 'pt-3 pb-2'}`}>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onClose} aria-label="بستن" className="w-11 h-11 shrink-0 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center cursor-pointer"><ArrowRight className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} aria-label="بستن" className={`${scrolled ? 'w-10 h-10' : 'w-11 h-11'} shrink-0 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center cursor-pointer transition-all`}><ArrowRight className="w-5 h-5" /></button>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-black text-slate-900 truncate">طرح درس روزانه</h2>
-            <p className="text-[11px] text-slate-500">سال تحصیلی {toPersianDigits(plan.academicYear || '1405-1406')}</p>
+            <p className={`text-[11px] text-slate-500 overflow-hidden transition-all duration-200 ${scrolled ? 'max-h-0 opacity-0' : 'max-h-5 opacity-100'}`}>سال تحصیلی {toPersianDigits(plan.academicYear || '1405-1406')}</p>
           </div>
           <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">مرحله {toPersianDigits(step + 1)} از {toPersianDigits(4)}</span>
         </div>
+        <div className={`grid transition-all duration-300 ease-out ${scrolled ? 'grid-rows-[0fr] opacity-0 mt-0' : 'grid-rows-[1fr] opacity-100 mt-2.5'}`} aria-hidden={scrolled}>
+        <div className="overflow-hidden">
         <div className="flex items-center gap-1" role="tablist" aria-label="مراحل">
           {STEPS.map((s, i) => (
             <button key={s} type="button" role="tab" aria-selected={i === step} onClick={() => go(i)} className="flex-1 min-w-0 cursor-pointer">
@@ -293,10 +309,12 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
             </button>
           ))}
         </div>
+        </div>
+        </div>
       </div>
 
       {/* بدنه */}
-      <div id="lesson-wizard-body" className="flex-1 overflow-y-auto p-3 sm:p-5">
+      <div id="lesson-wizard-body" onScroll={(e) => { const y = e.currentTarget.scrollTop; setScrolled((v) => (v ? y > 8 : y > 48)); }} className="flex-1 overflow-y-auto p-3 sm:p-5">
         <div className="max-w-3xl mx-auto space-y-4">
           {error && <div role="alert" className="rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold p-3">{error}</div>}
 
@@ -379,13 +397,19 @@ export const LessonPlanWizard: React.FC<Props> = ({ initial, classes, subjectNam
                     <button type="button" onClick={() => suggestStep(s.id, i)} title="پیشنهاد هوشمند بر اساس درس و روش تدریس" aria-label="پیشنهاد هوشمند" className="!min-h-0 h-9 px-2.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-xs font-bold inline-flex items-center gap-1 whitespace-nowrap cursor-pointer">
                       🪄 پیشنهاد هوشمند
                     </button>
-                    <input value={toPersianDigits(s.minutes)} onChange={(e) => setStepRow(s.id, { minutes: toEnglishDigits(e.target.value).replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="زمان (دقیقه)" aria-label="زمان" className={`${input} w-32`} />
-                    {plan.scenario.length > 1 && <button type="button" onClick={() => set('scenario', plan.scenario.filter((x) => x.id !== s.id))} aria-label="حذف مرحله" className="mr-auto w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
+                    <div className="mr-auto flex items-center gap-2">
+                      <label className="w-32 h-10 flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-2.5 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 transition">
+                        <Timer className="w-4 h-4 shrink-0 text-emerald-600" aria-hidden />
+                        <input value={toPersianDigits(s.minutes)} onChange={(e) => setStepRow(s.id, { minutes: toEnglishDigits(e.target.value).replace(/[^0-9]/g, '') })} inputMode="numeric" placeholder="۰" aria-label="زمان (دقیقه)" className="min-w-0 flex-1 bg-transparent outline-none text-center text-sm font-bold text-slate-900 tabular-nums" />
+                        <span className="shrink-0 text-[11px] font-bold text-slate-400">دقیقه</span>
+                      </label>
+                      {plan.scenario.length > 1 && <button type="button" onClick={() => set('scenario', plan.scenario.filter((x) => x.id !== s.id))} aria-label="حذف مرحله" className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4 mx-auto" /></button>}
+                    </div>
                   </div>
-                  <Field label="شرح و تفصیل مرحله"><textarea rows={2} value={s.description} onChange={(e) => setStepRow(s.id, { description: e.target.value })} className={area} /></Field>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <Field label="فعالیت معلم"><textarea rows={2} value={s.teacherActivity} onChange={(e) => setStepRow(s.id, { teacherActivity: e.target.value })} className={area} /></Field>
-                    <Field label="فعالیت دانش‌آموزان (بچه‌ها چه می‌کنند؟)"><textarea rows={2} value={s.studentActivity} onChange={(e) => setStepRow(s.id, { studentActivity: e.target.value })} className={area} /></Field>
+                  <Field label="شرح و تفصیل مرحله"><AutoTextarea rows={2} value={s.description} onChange={(e) => setStepRow(s.id, { description: e.target.value })} className={area} /></Field>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="فعالیت معلم"><AutoTextarea rows={3} value={s.teacherActivity} onChange={(e) => setStepRow(s.id, { teacherActivity: e.target.value })} className={area} /></Field>
+                    <Field label="فعالیت دانش‌آموزان (بچه‌ها چه می‌کنند؟)"><AutoTextarea rows={3} value={s.studentActivity} onChange={(e) => setStepRow(s.id, { studentActivity: e.target.value })} className={area} /></Field>
                   </div>
                 </div>
               ))}
