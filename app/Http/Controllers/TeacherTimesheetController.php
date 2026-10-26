@@ -84,6 +84,8 @@ class TeacherTimesheetController extends Controller
             'entries' => ['present', 'array', 'max:31'],
             'entries.*.in' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'entries.*.out' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'entries.*.in2' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'entries.*.out2' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'entries.*.tags' => ['nullable', 'array', 'max:'.count(self::TAGS)],
             'entries.*.tags.*' => ['string', Rule::in(array_keys(self::TAGS))],
             'entries.*.otherText' => ['nullable', 'string', 'max:120'],
@@ -94,6 +96,8 @@ class TeacherTimesheetController extends Controller
         ], [
             'entries.*.in.regex' => 'ساعت ورود معتبر نیست.',
             'entries.*.out.regex' => 'ساعت خروج معتبر نیست.',
+            'entries.*.in2.regex' => 'ساعت ورود دوم معتبر نیست.',
+            'entries.*.out2.regex' => 'ساعت خروج دوم معتبر نیست.',
         ]);
 
         // فقط تاریخ‌های همین ماه کاری پذیرفته می‌شود
@@ -104,6 +108,8 @@ class TeacherTimesheetController extends Controller
             $entries[$date] = [
                 'in' => $entry['in'] ?? null,
                 'out' => $entry['out'] ?? null,
+                'in2' => $entry['in2'] ?? null,
+                'out2' => $entry['out2'] ?? null,
                 'tags' => $tags,
                 'otherText' => in_array('other', $tags, true) ? trim((string) ($entry['otherText'] ?? '')) : '',
             ];

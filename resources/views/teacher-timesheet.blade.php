@@ -13,7 +13,7 @@
   <body class="bg-slate-50 text-slate-900 antialiased">
     <script type="application/json" id="timesheet-config">@json($config)</script>
 
-    <main x-data="timesheet" x-cloak class="mx-auto max-w-2xl px-4 pb-32 pt-4">
+    <main x-data="timesheet" x-cloak class="mx-auto max-w-2xl px-4 pb-32 pt-4 lg:max-w-6xl lg:px-8">
       {{-- سربرگ --}}
       <header class="mb-4 flex items-center justify-between gap-3">
         <div class="min-w-0">
@@ -27,50 +27,57 @@
         </a>
       </header>
 
-      {{-- ویجت پانچ سریع (One-Tap Check-in) --}}
-      <section class="relative mb-3 overflow-hidden rounded-3xl bg-slate-900 p-5 text-white shadow-sm" aria-label="پانچ سریع">
-        <div class="pointer-events-none absolute -start-10 -top-10 size-40 rounded-full bg-emerald-500/10 blur-2xl"></div>
-        <div class="relative flex items-center gap-4">
-          <div class="relative size-24 shrink-0">
-            <svg viewBox="0 0 100 100" class="size-24 -rotate-90" aria-hidden="true">
-              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(51 65 85)" stroke-width="5" />
-              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(52 211 153)" stroke-width="5" stroke-linecap="round" stroke-dasharray="276.5" :stroke-dashoffset="ringOffset" class="transition-[stroke-dashoffset] duration-1000 ease-linear" />
-            </svg>
-            <span class="absolute inset-0 flex items-center justify-center text-2xl font-extrabold tabular-nums" x-text="clockSec"></span>
+      {{-- داشبورد پانچ: ثبت ورود / خروج (تا دو نوبت در روز) --}}
+      <section class="relative mb-3 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-5 text-white shadow-sm md:p-6" aria-label="ثبت ورود و خروج">
+        <div class="pointer-events-none absolute -start-10 -top-10 size-48 rounded-full bg-emerald-500/15 blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
+          {{-- ساعت زنده و روز جاری --}}
+          <div class="flex items-center gap-4 md:shrink-0">
+            <div class="relative size-24 shrink-0">
+              <svg viewBox="0 0 100 100" class="size-24 -rotate-90" aria-hidden="true">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(51 65 85)" stroke-width="5" />
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(52 211 153)" stroke-width="5" stroke-linecap="round" stroke-dasharray="276.5" :stroke-dashoffset="ringOffset" class="transition-[stroke-dashoffset] duration-1000 ease-linear" />
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-2xl font-extrabold tabular-nums" x-text="clockSec"></span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-emerald-300" x-text="todayLabel"></p>
+              <p class="text-4xl font-extrabold leading-tight tabular-nums" dir="ltr" x-text="clockHM"></p>
+              <p class="text-xs font-medium text-slate-400">ساعت اکنون</p>
+            </div>
           </div>
-          <div class="min-w-0">
-            <p class="text-xs font-medium text-slate-400">ساعت اکنون</p>
-            <p class="text-4xl font-extrabold leading-tight tabular-nums" dir="ltr" x-text="clockHM"></p>
-            <p x-show="isPunch('working')" class="mt-1 text-xs font-bold text-emerald-300">ورود شما: <span x-text="todayInText"></span></p>
+
+          {{-- نوبت‌های امروز --}}
+          <div class="min-w-0 flex-1" x-show="hasSessions">
+            <ul class="space-y-1.5">
+              <template x-for="s in todaySessions" :key="s.key">
+                <li class="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-sm">
+                  <span class="font-bold text-emerald-200" x-text="s.label"></span>
+                  <span class="font-extrabold tabular-nums">ورود <span x-text="s.inText"></span> · خروج <span x-text="s.outText"></span></span>
+                </li>
+              </template>
+            </ul>
+            <p class="mt-2 text-xs text-slate-300">جمع امروز: <span class="font-extrabold text-white" x-text="todayHoursText"></span> ساعت</p>
           </div>
-        </div>
 
-        {{-- وضعیت ۱: ثبت نشده --}}
-        <button type="button" x-show="isPunch('idle')" :disabled="cannotPunch" @click="punch()" class="relative mt-4 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-lg font-extrabold text-white shadow-lg shadow-emerald-900/30 transition active:scale-[0.98] disabled:opacity-40">
-          <span class="relative flex size-3">
-            <span class="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75"></span>
-            <span class="relative inline-flex size-3 rounded-full bg-white"></span>
-          </span>
-          ثبت ورود به مدرسه
-        </button>
-
-        {{-- وضعیت ۲: ورود زده --}}
-        <button type="button" x-show="isPunch('working')" :disabled="cannotPunch" @click="punch()" class="relative mt-4 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 text-lg font-extrabold text-white shadow-lg shadow-rose-900/30 transition active:scale-[0.98] disabled:opacity-40">
-          ثبت خروج و پایان کار
-        </button>
-
-        {{-- وضعیت ۳: پایان روز --}}
-        <div x-show="isPunch('done')" class="relative mt-4 rounded-2xl bg-slate-800 p-4 text-center">
-          <p class="text-base font-extrabold text-emerald-300">خسته نباشید، ساعت امروز ثبت شد ✓</p>
-          <p class="mt-1 text-xs text-slate-300">
-            ورود <span class="font-bold text-white" x-text="todayInText"></span> · خروج <span class="font-bold text-white" x-text="todayOutText"></span> · <span class="font-bold text-white" x-text="todayHoursText"></span> ساعت
-          </p>
-        </div>
-
-        <p x-show="punchError" class="relative mt-2 text-center text-xs font-bold text-rose-300" x-text="punchError"></p>
-        <div x-show="hasHint" class="relative mt-3 flex items-center justify-between gap-2 text-xs text-slate-300">
-          <span x-text="punchHint"></span>
-          <button type="button" x-show="todayInOtherMonth" @click="goToday()" class="min-h-11 shrink-0 rounded-xl bg-slate-700 px-3 font-bold text-white active:bg-slate-600">رفتن به ماه امروز</button>
+          {{-- دکمهٔ اصلی (نزدیک شست) --}}
+          <div class="md:w-72 md:shrink-0 md:ms-auto">
+            <button type="button" x-show="isNotDone" :disabled="cannotPunch" @click="punch()" :class="punchBtnClass" class="flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl px-4 text-lg font-extrabold text-white shadow-lg transition active:scale-[0.98] disabled:opacity-40">
+              <span class="relative flex size-3">
+                <span class="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75"></span>
+                <span class="relative inline-flex size-3 rounded-full bg-white"></span>
+              </span>
+              <span x-text="punchLabel"></span>
+            </button>
+            <div x-show="isPunch('done')" class="rounded-2xl bg-white/10 p-4 text-center">
+              <p class="text-base font-extrabold text-emerald-300">خسته نباشید، امروز دو نوبت ثبت شد ✓</p>
+            </div>
+            <p x-show="punchError" class="mt-2 text-center text-xs font-bold text-rose-300" x-text="punchError"></p>
+            <div x-show="hasHint" class="mt-3 flex items-center justify-between gap-2 text-xs text-slate-300">
+              <span x-text="punchHint"></span>
+              <button type="button" x-show="todayInOtherMonth" @click="goToday()" class="min-h-11 shrink-0 rounded-xl bg-slate-700 px-3 font-bold text-white active:bg-slate-600">رفتن به ماه امروز</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -111,11 +118,12 @@
 
       <p x-show="loading" class="py-10 text-center text-sm font-medium text-slate-500">در حال بارگذاری…</p>
 
-      {{-- تب ۱: ثبت ساعات کاری --}}
+      {{-- تب ۱: ثبت ساعات کاری (موبایل: کارت ستونی، دسکتاپ: سطر افقی شبیه جدول) --}}
       <section x-show="isTab('timesheet')" class="space-y-3" aria-label="ثبت ساعات کاری">
         <template x-for="day in days" :key="day.date">
-          <article :class="rowClass(day)" class="rounded-2xl border p-3 shadow-sm">
-            <div class="flex items-center justify-between gap-2">
+          <article :id="dayId(day)" :class="rowClass(day)" class="flex scroll-mt-40 flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4">
+            {{-- تاریخ و روز --}}
+            <div class="flex items-center justify-between gap-2 md:w-36 md:shrink-0 md:flex-col md:items-start md:justify-center">
               <div>
                 <p class="text-sm font-extrabold text-slate-800">
                   <span x-text="day.label"></span>
@@ -127,51 +135,76 @@
                   <span x-show="isFutureWorking(day)"> · روز آینده</span>
                 </p>
               </div>
-              <span x-show="isOpen(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
+              <span x-show="isOpen(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold md:hidden">
                 <span x-text="dayHoursText(day.date)"></span>
                 <span x-show="hasHours(day.date)" class="text-xs font-bold">ساعت</span>
               </span>
             </div>
 
-            <div x-show="isOpen(day)" class="mt-3 space-y-2">
-              <div class="grid grid-cols-2 gap-2">
-                <label class="block">
-                  <span class="mb-1 block text-xs font-bold text-slate-500">ساعت ورود</span>
+            {{-- ورود و خروج (نوبت اول و دوم) --}}
+            <div x-show="isOpen(day)" class="space-y-1 md:shrink-0">
+              <div class="grid grid-cols-2 gap-2 md:flex">
+                <label class="block md:w-32">
+                  <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-11 pe-3 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
                   </span>
                 </label>
-                <label class="block">
-                  <span class="mb-1 block text-xs font-bold text-slate-500">ساعت خروج</span>
+                <label class="block md:w-32">
+                  <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-11 pe-3 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
                   </span>
                 </label>
               </div>
-              <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت خروج باید بعد از ساعت ورود باشد.</p>
+              <div x-show="hasSecond(day.date)" class="grid grid-cols-2 gap-2 md:flex">
+                <label class="block md:w-32">
+                  <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود دوم</span>
+                  <span class="time-field relative block">
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in2')" @input="setField(day.date, 'in2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                  </span>
+                </label>
+                <label class="block md:w-32">
+                  <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج دوم</span>
+                  <span class="time-field relative block">
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out2')" @input="setField(day.date, 'out2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                  </span>
+                </label>
+              </div>
+              <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت‌ها معتبر نیست (خروج باید بعد از ورود باشد).</p>
+            </div>
 
-              <div class="flex flex-wrap gap-2" role="group" aria-label="فعالیت‌های امروز">
-                <template x-for="tag in tagList" :key="tag.key">
-                  <button type="button" @click="toggleTag(day.date, tag.key)" :class="tagClass(day.date, tag.key)" :aria-pressed="hasTag(day.date, tag.key)" class="min-h-11 rounded-full border px-4 text-sm font-bold transition" x-text="tag.label"></button>
-                </template>
-              </div>
-              <div x-show="hasOther(day.date)" class="relative">
-                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                <input type="text" maxlength="120" :value="otherText(day.date)" @input="setOtherText(day.date, $event)" placeholder="فعالیت دلخواه خود را بنویسید…" aria-label="شرح سایر موارد" class="min-h-12 w-full rounded-xl border border-emerald-200 bg-emerald-50/60 ps-11 pe-3 text-sm font-bold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+            {{-- تگ‌های فعالیت + «سایر موارد» به‌صورت Inline --}}
+            <div x-show="isOpen(day)" class="flex flex-wrap items-center gap-2 md:flex-1" role="group" aria-label="فعالیت‌های روز">
+              <template x-for="tag in tagList" :key="tag.key">
+                <button type="button" @click="toggleTag(day.date, tag.key)" :class="tagClass(day.date, tag.key)" :aria-pressed="hasTag(day.date, tag.key)" class="min-h-11 rounded-full border px-4 text-sm font-bold transition md:min-h-9 md:px-3 md:text-xs" x-text="tag.label"></button>
+              </template>
+              <div x-show="hasOther(day.date)" class="relative w-full md:w-56">
+                <svg class="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                <input type="text" maxlength="120" :value="otherText(day.date)" @input="setOtherText(day.date, $event)" placeholder="فعالیت دلخواه…" aria-label="شرح سایر موارد" class="min-h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50/60 ps-9 pe-3 text-sm font-bold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-9 md:text-xs" />
               </div>
             </div>
 
-            <fieldset x-show="isLocked(day)" disabled class="mt-3 grid grid-cols-2 gap-2">
-              <span class="time-field relative block">
-                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-11 pe-3 text-center text-lg font-extrabold text-slate-400" aria-label="ساعت ورود (غیرفعال)" />
-              </span>
-              <span class="time-field relative block">
-                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-11 pe-3 text-center text-lg font-extrabold text-slate-400" aria-label="ساعت خروج (غیرفعال)" />
-              </span>
+            {{-- ساعت محاسبه‌شده (دسکتاپ: انتهای سطر) --}}
+            <span x-show="isOpen(day)" :class="badgeClass(day.date)" class="hidden w-28 shrink-0 rounded-xl px-3 py-2 text-center text-base font-extrabold md:block">
+              <span x-text="dayHoursText(day.date)"></span>
+              <span x-show="hasHours(day.date)" class="text-xs font-bold">ساعت</span>
+            </span>
+
+            {{-- روز تعطیل یا آینده --}}
+            <fieldset x-show="isLocked(day)" disabled class="grid grid-cols-2 gap-2 md:flex md:flex-1 md:justify-start">
+                <span class="time-field relative block md:w-32">
+                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-10 pe-2 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-base" aria-label="ساعت ورود (غیرفعال)" />
+                </span>
+                <span class="time-field relative block md:w-32">
+                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-10 pe-2 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-base" aria-label="ساعت خروج (غیرفعال)" />
+                </span>
             </fieldset>
           </article>
         </template>
@@ -217,7 +250,7 @@
 
       {{-- نوار پایین (نزدیک شست): تب‌ها + ذخیره --}}
       <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="بخش‌ها">
-        <div class="mx-auto max-w-2xl px-4 pt-2">
+        <div class="mx-auto max-w-2xl px-4 pt-2 lg:max-w-6xl lg:px-8">
           <p class="mb-1.5 min-h-4 text-center text-xs font-bold" :class="statusClass" x-text="statusText"></p>
           <div class="flex items-center gap-2 pb-3">
             <div class="grid flex-1 grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">

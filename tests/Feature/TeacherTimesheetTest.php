@@ -100,7 +100,7 @@ class TeacherTimesheetTest extends TestCase
         $vice = $this->makeUser('vice_educational', ['phone' => '09120000062']);
         $this->actingAs($teacher)->postJson('/api/teacher-timesheet', [
             'month' => 'aban',
-            'entries' => ['1405/08/01' => ['in' => '08:00', 'out' => '14:30', 'tags' => ['teaching']]],
+            'entries' => ['1405/08/01' => ['in' => '08:00', 'out' => '12:00', 'in2' => '13:00', 'out2' => '15:30', 'tags' => ['teaching']]],
             'selfEvaluation' => ['scores' => ['growth' => 4, 'extra' => 5], 'extraNote' => 'کلاس تقویتی'],
         ])->assertOk();
 
