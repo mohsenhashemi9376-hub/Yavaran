@@ -5,7 +5,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, AttendanceSession, User, Student, DisciplinaryNote, StudentAttendanceRecord } from '../types';
-import { toPersianDigits, getTodayShamsi, formatShamsiDisplay } from '../utils/persianDate';
+import { toPersianDigits, toEnglishDigits, getTodayShamsi, formatShamsiDisplay, PERSIAN_MONTHS } from '../utils/persianDate';
+import { FOLLOW_UP_MONTHS } from '../utils/academicFollowUp';
 import { getUserGreeting } from '../utils/userRoles';
 
 // Workspaces
@@ -355,6 +356,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return { normal, verbal, written, parents, avgScore };
   }, [students]);
 
+  // فیلتر ماه «نیازمند توجه و پیگیری»: خودکار روی ماه جاری (اگر ماه تحصیلی باشد)؛ ۰ = همه‌ی ماه‌ها
+  const [attentionMonth, setAttentionMonth] = useState<number>(() => (FOLLOW_UP_MONTHS.includes(todayInfo.month) ? todayInfo.month : 0));
+  const monthOfDate = (date: string) => Number(toEnglishDigits(date || '').split('/')[1]);
+  const inAttentionMonth = (date: string) => attentionMonth === 0 || monthOfDate(date) === attentionMonth;
+  /** هشدارهای «امروز» فقط وقتی معنا دارند که ماه انتخابی همه‌ی ماه‌ها یا ماه جاری باشد */
+  const showTodayAlerts = attentionMonth === 0 || attentionMonth === todayInfo.month;
+
+  const monthWarningList = useMemo(() => {
+    const absences = new Map<string, number>();
+    sessions.forEach((sess) => {
+      if (!inAttentionMonth(sess.date)) return;
+      Object.entries(sess.records || {}).forEach(([sid, item]) => {
+        if ((item as StudentAttendanceRecord).status === 'absent') absences.set(sid, (absences.get(sid) || 0) + 1);
+      });
+    });
+    return students.filter((st) => (absences.get(st.id) || 0) >= 2);
+  }, [students, sessions, attentionMonth]);
+
+  const monthUnexcusedDelays = useMemo(
+    () => (morningDelays || []).filter((d) => d.isExcused === false && inAttentionMonth(d.date)),
+    [morningDelays, attentionMonth]
+  );
+
+  const monthFlaggedStudents = useMemo(() => {
+    if (attentionMonth === 0) return flaggedDisciplineStudents;
+    // در یک ماه مشخص: دانش‌آموزانی که در همان ماه مورد انضباطی ثبت‌شده دارند
+    return students.filter((s) => (s.disciplinaryNotes || []).some((n) => inAttentionMonth(n.date)));
+  }, [students, flaggedDisciplineStudents, attentionMonth]);
+
   // 8. Needs Attention Items
   const needsAttentionItems = useMemo(() => {
     const items: {
@@ -369,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }[] = [];
 
     // Check 1: Attendance not taken today
-    if (classesWithoutAttendanceToday.length > 0) {
+    if (showTodayAlerts && classesWithoutAttendanceToday.length > 0) {
       items.push({
         id: 'unrecorded-attendance',
         severity: 'warning',
@@ -385,7 +415,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     // Check 2: Absences
-    if (todayAttendanceStats.absent > 0) {
+    if (showTodayAlerts && todayAttendanceStats.absent > 0) {
       items.push({
         id: 'today-absences',
         severity: 'danger',
@@ -396,21 +426,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         icon: UserX,
         badgeCount: todayAttendanceStats.absent,
       });
-    } else if (schoolWarningList.length > 0) {
+    } else if (monthWarningList.length > 0) {
       items.push({
         id: 'critical-absences',
         severity: 'danger',
-        title: `${toPersianDigits(schoolWarningList.length)} دانش‌آموز دارای غیبت‌های مکرر و بحرانی`,
+        title: `${toPersianDigits(monthWarningList.length)} دانش‌آموز دارای غیبت‌های مکرر و بحرانی`,
         description: 'دانش‌آموزان با ۲ جلسه غیبت یا بیشتر نیازمند صدور اخطار غیبت و تماس با اولیاء هستند.',
         actionLabel: 'مشاهده لیست پیگیری',
         onAction: () => setCurrentFullScreenView('warnings'),
         icon: AlertTriangle,
-        badgeCount: schoolWarningList.length,
+        badgeCount: monthWarningList.length,
       });
     }
 
     // Check 3: Delays
-    if (todayDelays.length > 0) {
+    if (showTodayAlerts && todayDelays.length > 0) {
       const totalMin = todayDelays.reduce((sum, d) => sum + (d.delayMinutes || 0), 0);
       items.push({
         id: 'today-delays',
@@ -422,30 +452,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         icon: Clock,
         badgeCount: todayDelays.length,
       });
-    } else if (unexcusedDelays.length > 0) {
+    } else if (monthUnexcusedDelays.length > 0) {
       items.push({
         id: 'unexcused-delays',
         severity: 'warning',
-        title: `${toPersianDigits(unexcusedDelays.length)} مورد تأخیر غیرموجه در پرونده‌ها`,
+        title: `${toPersianDigits(monthUnexcusedDelays.length)} مورد تأخیر غیرموجه در پرونده‌ها`,
         description: 'تأخیرهای بدون عذر موجه نیازمند بررسی معاونت انضباطی جهت اقدام یا کسر نمره هستند.',
         actionLabel: 'بررسی تأخیرها',
         onAction: () => openMorning('late'),
         icon: Clock,
-        badgeCount: unexcusedDelays.length,
+        badgeCount: monthUnexcusedDelays.length,
       });
     }
 
     // Check 4: Discipline Flags
-    if (flaggedDisciplineStudents.length > 0) {
+    if (monthFlaggedStudents.length > 0) {
       items.push({
         id: 'flagged-discipline',
         severity: 'danger',
-        title: `${toPersianDigits(flaggedDisciplineStudents.length)} پرونده انضباطی نیازمند مداخله و بررسی`,
+        title: `${toPersianDigits(monthFlaggedStudents.length)} پرونده انضباطی نیازمند مداخله و بررسی`,
         description: 'دانش‌آموزان دارای تذکر کتبی، کسر نمره یا وضعیت احضار اولیاء نیازمند رسیدگی هستند.',
         actionLabel: 'بررسی پرونده‌های انضباطی',
         onAction: () => setCurrentFullScreenView('discipline'),
         icon: ShieldAlert,
-        badgeCount: flaggedDisciplineStudents.length,
+        badgeCount: monthFlaggedStudents.length,
       });
     }
 
@@ -484,10 +514,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     classesWithoutAttendanceToday,
     classes,
     todayAttendanceStats.absent,
-    schoolWarningList,
+    monthWarningList,
     todayDelays,
-    unexcusedDelays,
-    flaggedDisciplineStudents,
+    monthUnexcusedDelays,
+    monthFlaggedStudents,
+    showTodayAlerts,
     onOpenNewAttendance,
   ]);
 
@@ -742,9 +773,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-500 hidden sm:inline">
-                رویدادهایی که نیازمند تصمیم‌گیری، ثبت یا تماس با اولیاء هستند
-              </span>
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                ماه:
+                <select
+                  value={attentionMonth}
+                  onChange={(e) => setAttentionMonth(Number(e.target.value))}
+                  aria-label="ماه نیازمند توجه"
+                  className="min-h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 cursor-pointer"
+                >
+                  <option value={0}>همه‌ی ماه‌ها</option>
+                  {FOLLOW_UP_MONTHS.map((m) => (
+                    <option key={m} value={m}>{PERSIAN_MONTHS[m - 1]}</option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             {needsAttentionItems.length > 0 ? (
