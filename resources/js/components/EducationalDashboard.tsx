@@ -4,13 +4,13 @@ import { AccessDeniedNotice } from './AccessDeniedNotice';
 import { canAccessSection } from '../utils/permissions';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
-import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
+import { computeFollowUps, FOLLOW_UP_MONTHS, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
 import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus, EXAM_SUBJECTS } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
-import { toPersianDigits, toEnglishDigits, getTodayShamsi, getActiveAcademicYear } from '../utils/persianDate';
+import { toPersianDigits, toEnglishDigits, getTodayShamsi, getActiveAcademicYear, PERSIAN_MONTHS } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
 import { lastShamsiDays } from '../utils/trends';
 import { calculateAnnualScore, analyzeSubjectGrade } from '../utils/academicAnalysis';
@@ -182,6 +182,11 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   const [warningClassFilter, setWarningClassFilter] = useState<string>('all');
   const [warningSearch, setWarningSearch] = useState('');
   const [warningGroup, setWarningGroup] = useState<'all' | FollowUpGroup>('all');
+  // ماه پیگیری: خودکار روی ماه جاری (اگر ماه تحصیلی باشد)؛ ۰ = همه‌ی ماه‌ها
+  const [warningMonth, setWarningMonth] = useState<number>(() => {
+    const m = getTodayShamsi().month;
+    return FOLLOW_UP_MONTHS.includes(m) ? m : 0;
+  });
   const [showResolved, setShowResolved] = useState(false);
   const [criteriaOpen, setCriteriaOpen] = useState(false);
 
@@ -290,8 +295,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
   // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
   const followUpsByStudent = useMemo(
-    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions, config: followUpConfig }),
-    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions, followUpConfig]
+    () => computeFollowUps({ students, grades: academicGrades, exams: comprehensiveExams, worksheets, worksheetWeeks, sessions, config: followUpConfig, month: warningMonth || null }),
+    [students, academicGrades, comprehensiveExams, worksheets, worksheetWeeks, sessions, followUpConfig, warningMonth]
   );
   const academicWarningStudents = useMemo(() => {
     const byStudent = new Map(academicFollowUps.map((r) => [r.studentId, r]));
@@ -1132,7 +1137,19 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
               {/* ۲. فیلترها */}
               <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-600">ماه:</span>
+                  <select
+                    value={warningMonth}
+                    onChange={(e) => setWarningMonth(Number(e.target.value))}
+                    aria-label="ماه پیگیری"
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
+                  >
+                    <option value={0}>همه‌ی ماه‌ها</option>
+                    {FOLLOW_UP_MONTHS.map((m) => (
+                      <option key={m} value={m}>{PERSIAN_MONTHS[m - 1]}</option>
+                    ))}
+                  </select>
                   <span className="text-xs font-bold text-slate-600">فیلتر کلاس:</span>
                   <select
                     value={warningClassFilter}
