@@ -8,6 +8,13 @@ use Tests\TestCase;
 /** کارتابل بررسی طرح درس: فقط معاون آموزش؛ تأیید ۵۰ امتیاز (یک‌بار)، ارجاع برای اصلاح، فقط سال ۱۴۰۵-۱۴۰۶ */
 class LessonPlanReviewTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // در CI فایل‌های build (manifest ویت) ساخته نمی‌شوند؛ صفحه‌های Blade بدون Vite رندر می‌شوند
+        $this->withoutVite();
+    }
+
     private function plan(string $id, string $teacherId, string $status, string $date = '1405/08/03', array $extra = []): void
     {
         DB::table('lesson_plans')->insert([

@@ -8,6 +8,13 @@ use Tests\TestCase;
 /** ساعت کاری و خودارزیابی اساتید: هر استاد فقط دادهٔ خودش را می‌بیند و می‌نویسد */
 class TeacherTimesheetTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // در CI فایل‌های build (manifest ویت) ساخته نمی‌شوند؛ صفحه‌های Blade بدون Vite رندر می‌شوند
+        $this->withoutVite();
+    }
+
     public function test_calendar_runs_from_26th_to_25th(): void
     {
         $aban = TimesheetCalendar::month('aban');
