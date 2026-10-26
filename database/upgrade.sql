@@ -431,3 +431,34 @@ CREATE TABLE IF NOT EXISTS `grey_list_entries` (
   KEY `grey_list_entries_month_index` (`month`),
   KEY `grey_list_entries_sort_order_index` (`sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- حذف ماژول قدیمی «فعالیت خارج از مدرسه» و ایجاد «ساعت کاری و خودارزیابی اساتید»
+DROP TABLE IF EXISTS `teacher_activities`;
+
+CREATE TABLE IF NOT EXISTS `teacher_timesheets` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `month_key` varchar(20) NOT NULL,
+  `entries` longtext DEFAULT NULL,
+  `self_evaluation` longtext DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `teacher_timesheets_user_month_unique` (`user_id`,`month_key`),
+  CONSTRAINT `teacher_timesheets_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- امتیاز گیمیفیکیشن اساتید (پاداش تأیید طرح درس)
+CREATE TABLE IF NOT EXISTS `teacher_points` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `points` int NOT NULL,
+  `reason` varchar(191) NOT NULL,
+  `ref` varchar(150) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `teacher_points_ref_unique` (`ref`),
+  KEY `teacher_points_user_id_index` (`user_id`),
+  CONSTRAINT `teacher_points_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

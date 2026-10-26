@@ -10,7 +10,7 @@ import {
 import { isDeadlinePassed, worksheetKey } from './worksheets';
 import { monthKeyOf } from './attendanceStats';
 import { PERSIAN_MONTHS, toPersianDigits } from './persianDate';
-import { CONTINUOUS_MONTHS, activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
+import { CONTINUOUS_MONTHS, ExamMonth, activeExamSubjects, examMonthLabel, examMonthsWithData, examScoresOf, examSubjectScore } from './examReport';
 
 export const FOLLOW_UP_THRESHOLD = 12;
 
@@ -124,6 +124,15 @@ function worksheetWeeksOf(classId: string, weeks: WorksheetWeek[], byKey: Map<st
     }));
 }
 
+/** ماه‌های سال تحصیلی به ترتیب (شماره‌ی ماه شمسی) برای فیلتر ماه */
+export const FOLLOW_UP_MONTHS = [7, 8, 9, 10, 11, 12, 1, 2, 3];
+
+/** ستون نمره‌ی مستمرِ هر ماه (دی و خرداد ستون مستمر ندارند) */
+const MONTH_COLUMN: Record<number, string> = {
+  7: 'mehrContinuous', 8: 'abanContinuous', 9: 'azarContinuous', 11: 'bahmanContinuous',
+  12: 'esfandContinuous', 1: 'farvardinContinuous', 2: 'ordibeheshtContinuous',
+};
+
 export interface FollowUpInput {
   students: Student[];
   grades: StudentAcademicGrade[];
@@ -132,16 +141,28 @@ export interface FollowUpInput {
   worksheetWeeks: WorksheetWeek[];
   sessions: AttendanceSession[];
   config?: FollowUpConfig;
+  /** شماره‌ی ماه شمسی (۱ تا ۱۲) برای محدود کردن همه‌ی معیارها به همان ماه؛ بدون مقدار = همه‌ی ماه‌ها */
+  month?: number | null;
 }
 
 /** دلایل نیاز به پیگیری هر دانش‌آموز (فقط دانش‌آموزانی که دست‌کم یک دلیل دارند) */
-export function computeFollowUps({ students, grades, exams, worksheets, worksheetWeeks, sessions, config = DEFAULT_FOLLOW_UP_CONFIG }: FollowUpInput): Map<string, FollowUpReason[]> {
+export function computeFollowUps({ students, grades, exams, worksheets, worksheetWeeks, sessions: allSessions, config = DEFAULT_FOLLOW_UP_CONFIG, month = null }: FollowUpInput): Map<string, FollowUpReason[]> {
   const result = new Map<string, FollowUpReason[]>();
   const add = (id: string, r: Omit<FollowUpReason, 'group'>) => {
     if (!config.enabled[r.kind]) return;
     result.set(id, [...(result.get(id) || []), { ...r, group: GROUP_OF[r.kind] }]);
   };
   const T = config.lowScore;
+
+  // محدودیت به یک ماه: جلسات، هفته‌های کاربرگ و ستون‌های نمره‌ی همان ماه
+  const monthOnly = month !== null && month !== undefined;
+  const inMonth = (date: string) => Number(monthKeyOf(date).split('/')[1]) === month;
+  const sessions = monthOnly ? allSessions.filter((s) => inMonth(s.date)) : allSessions;
+  if (monthOnly) worksheetWeeks = worksheetWeeks.filter((w) => inMonth(w.weekStart));
+  const selKey = monthOnly ? MONTH_COLUMN[month as number] : undefined;
+  const lowKeys = monthOnly ? CONTINUOUS_KEYS.filter((p) => p.key === selKey) : CONTINUOUS_KEYS;
+  const upToKeys = monthOnly ? CONTINUOUS_KEYS.slice(0, CONTINUOUS_KEYS.findIndex((p) => p.key === selKey) + 1) : CONTINUOUS_KEYS;
+  const examMonth = (monthOnly ? selKey : 'all') as ExamMonth | undefined;
   const tl = toPersianDigits(T);
 
   const byKey = new Map(worksheets.map((r) => [worksheetKey(r.studentId, r.weekStart), r]));
@@ -155,7 +176,7 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
     const lowSubjects: string[] = [];
     const all: number[] = [];
     grades.filter((g) => g.studentId === st.id).forEach((g) => {
-      const vals = CONTINUOUS_KEYS.map((p) => g[p.key]).filter(num);
+      const vals = lowKeys.map((p) => g[p.key]).filter(num);
       all.push(...vals);
       if (vals.some((v) => v < T)) lowSubjects.push(g.subjectName);
     });
@@ -178,16 +199,16 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
     const exam = examByClass.get(st.classId);
     if (exam) {
       const low: string[] = [];
-      examMonthsWithData(exam).forEach((month) => {
-        const scores = examScoresOf(exam, month)[st.id];
+      examMonthsWithData(exam).filter((m) => !monthOnly || m === selKey).forEach((em) => {
+        const scores = examScoresOf(exam, em)[st.id];
         if (!scores) return;
-        activeExamSubjects(exam, month).forEach((sub) => {
+        activeExamSubjects(exam, em).forEach((sub) => {
           const v = scores[sub.key];
-          if (num(v) && v < T) low.push(month === 'legacy' ? sub.label : `${sub.label} (${examMonthLabel(month)})`);
+          if (num(v) && v < T) low.push(em === 'legacy' ? sub.label : `${sub.label} (${examMonthLabel(em)})`);
         });
       });
       if (low.length) add(st.id, { kind: 'low_exam', label: `آزمون جامع زیر ${tl}`, detail: low.join('، ') });
-      const examAvg = mean(activeExamSubjects(exam, 'all').map((sub) => examSubjectScore(exam, st.id, sub.key, 'all')).filter(num));
+      const examAvg = examMonth ? mean(activeExamSubjects(exam, examMonth).map((sub) => examSubjectScore(exam, st.id, sub.key, examMonth)).filter(num)) : undefined;
       if (examAvg !== undefined && examAvg < T) add(st.id, { kind: 'low_exam_avg', label: `میانگین آزمون جامع زیر ${tl}`, detail: String(round2(examAvg)) });
     }
   }
@@ -199,7 +220,8 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
     const own = grades.filter((g) => g.studentId === st.id);
     const declines: string[] = [];
     own.forEach((g) => {
-      const vals = CONTINUOUS_KEYS.map((p) => g[p.key]).filter(num);
+      if (monthOnly && !num(g[selKey as keyof typeof g])) return; // افت فقط وقتی نمره‌ی همین ماه ثبت شده باشد
+      const vals = upToKeys.map((p) => g[p.key]).filter(num);
       const n = vals.length;
       const last3 = vals.slice(-3);
       const steady = n >= 3 && last3[0] > last3[1] && last3[1] > last3[2];
@@ -210,9 +232,9 @@ export function computeFollowUps({ students, grades, exams, worksheets, workshee
 
     const exam = examByClass.get(st.classId);
     if (exam) {
-      const all = own.flatMap((g) => CONTINUOUS_KEYS.map((p) => g[p.key]).filter(num));
+      const all = own.flatMap((g) => lowKeys.map((p) => g[p.key]).filter(num));
       const contAvg = mean(all);
-      const examAvg = mean(activeExamSubjects(exam, 'all').map((sub) => examSubjectScore(exam, st.id, sub.key, 'all')).filter(num));
+      const examAvg = examMonth ? mean(activeExamSubjects(exam, examMonth).map((sub) => examSubjectScore(exam, st.id, sub.key, examMonth)).filter(num)) : undefined;
       if (contAvg !== undefined && examAvg !== undefined && Math.abs(contAvg - examAvg) >= config.continuousVsExamGap) {
         add(st.id, { kind: 'exam_gap', label: 'اختلاف مستمر و آزمون جامع', detail: `مستمر ${fa(contAvg)} / جامع ${fa(examAvg)}` });
       }

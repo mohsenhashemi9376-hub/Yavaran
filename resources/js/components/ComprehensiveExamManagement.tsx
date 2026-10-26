@@ -6,7 +6,7 @@ import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -51,13 +51,16 @@ const isInvalid = (v: string | undefined) => {
 };
 
 export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementProps> = ({ onBack, onOpenSidebar }) => {
-  const { classes, students, comprehensiveExams, saveComprehensiveExam, showToast, showConfirm } = useSchool();
+  const { classes, students, comprehensiveExams, saveComprehensiveExam, showToast, showConfirm, currentUser } = useSchool();
+  /** ثبت غیبت آزمون جامع فقط با معاون آموزش (و مدیر سامانه) */
+  const canMarkAbsent = currentUser.role === 'vice_educational' || currentUser.role === 'admin';
 
   const [classId, setClassId] = useState<string>(classes[0]?.id || '');
   /** ماه آزمونی که در حال ثبت است؛ «legacy» = نمرات قدیمی بدون ماه */
   const [month, setMonth] = useState<Exclude<ExamMonth, 'all'>>(() => defaultExamMonth(comprehensiveExams.find((r) => r.classId === (classes[0]?.id || ''))));
   const [active, setActive] = useState<ExamSubjectKey[]>(EXAM_SUBJECTS.map((s) => s.key));
   const [draft, setDraft] = useState<Draft>({});
+  const [absent, setAbsent] = useState<Record<string, boolean>>({});
   const [dirty, setDirty] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null);
 
@@ -81,6 +84,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       });
     });
     setDraft(next);
+    setAbsent(month === 'legacy' ? {} : { ...(record?.monthlyAbsent?.[month] || {}) });
     setDirty(false);
     setSort(null);
   }, [classId, month]);
@@ -108,6 +112,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   const activeSubjects = EXAM_SUBJECTS.filter((s) => active.includes(s.key));
 
   const averageOf = (sid: string): number | null => {
+    if (absent[sid]) return null;
     const vals = activeSubjects
       .map((s) => draft[sid]?.[s.key])
       .filter((v) => !isInvalid(v))
@@ -124,7 +129,16 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     setDirty(true);
   };
 
+  /** ثبت یا لغو غیبت: با ثبت غیبت، نمره‌ی این ماه پاک و ورود نمره بسته می‌شود */
+  const toggleAbsent = (sid: string) => {
+    if (!canMarkAbsent || month === 'legacy') return;
+    setAbsent((prev) => ({ ...prev, [sid]: !prev[sid] }));
+    setDraft((prev) => (absent[sid] ? prev : { ...prev, [sid]: {} }));
+    setDirty(true);
+  };
+
   const setScore = (sid: string, key: ExamSubjectKey, raw: string) => {
+    if (absent[sid]) return;
     setDraft((prev) => ({ ...prev, [sid]: { ...prev[sid], [key]: normalizeInput(raw) } }));
     setDirty(true);
   };
@@ -149,6 +163,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   // ------------------------- تحلیل -------------------------
   const subjectAverages = EXAM_SUBJECTS.map((s) => {
     const vals = classStudents
+      .filter((st) => !absent[st.id])
       .map((st) => draft[st.id]?.[s.key])
       .filter((v) => !isInvalid(v))
       .map(parseScore)
@@ -169,6 +184,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     }
     const scores: ComprehensiveExamRecord['scores'] = {};
     classStudents.forEach((st) => {
+      if (absent[st.id]) return;
       const entry: Partial<Record<ExamSubjectKey, number>> = {};
       EXAM_SUBJECTS.forEach((s) => {
         const n = parseScore(draft[st.id]?.[s.key]);
@@ -184,6 +200,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       monthlyActive: month === 'legacy' ? base?.monthlyActive : { ...base?.monthlyActive, [month]: active },
       scores: month === 'legacy' ? scores : base?.scores || {},
       monthly: month === 'legacy' ? base?.monthly : { ...base?.monthly, [month]: scores },
+      monthlyAbsent: month === 'legacy' ? base?.monthlyAbsent : { ...base?.monthlyAbsent, [month]: Object.fromEntries(Object.entries(absent).filter(([, v]) => v)) },
     });
     setDirty(false);
     showToast(`نمرات آزمون جامع ${examMonthLabel(month)} ذخیره شد.`, 'success');
@@ -384,7 +401,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       {/* جدول */}
       <div className={`${card} overflow-hidden`}>
         <FitTable className="">
-          <table className="w-full min-w-[850px] text-right text-sm">
+          <table className="w-full min-w-[920px] text-right text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
                 <th className="p-3 w-14 text-center font-bold">ردیف</th>
@@ -404,12 +421,13 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                   </button>
                 </th>
                 <th className="p-3 text-center font-bold">وضعیت</th>
+                {month !== 'legacy' && <th className="p-3 text-center font-bold">غیبت</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={activeSubjects.length + 4} className="p-10 text-center text-slate-400">
+                  <td colSpan={activeSubjects.length + 5} className="p-10 text-center text-slate-400">
                     دانش‌آموزی در این کلاس ثبت نشده است.
                   </td>
                 </tr>
@@ -429,6 +447,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                           <td key={s.key} className="p-2 text-center">
                             <input
                               type="text"
+                              disabled={Boolean(absent[st.id])}
                               inputMode="decimal"
                               value={toPersianDigits((v ?? '').replace('.', '٫'))}
                               onChange={(e) => setScore(st.id, s.key, e.target.value)}
@@ -449,7 +468,9 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                         <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap ${avg === null ? 'bg-slate-100/70 border border-slate-200/70 text-slate-400' : 'bg-indigo-50/60 border border-indigo-200 text-indigo-950'}`}>{fa(avg)}</span>
                       </td>
                       <td className="p-3 text-center">
-                        {lv ? (
+                        {absent[st.id] ? (
+                          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap bg-rose-100 text-rose-800 border-rose-300">غایب در آزمون</span>
+                        ) : lv ? (
                           <span
                             className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
                               lv.id === LEVELS[0].id
@@ -465,6 +486,22 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                           <span className="inline-block px-3 py-1 rounded-full text-xs bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>
                         )}
                       </td>
+                      {month !== 'legacy' && (
+                        <td className="p-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleAbsent(st.id)}
+                            disabled={!canMarkAbsent}
+                            aria-pressed={Boolean(absent[st.id])}
+                            title={canMarkAbsent ? undefined : 'ثبت غیبت فقط با معاون آموزش است'}
+                            className={`h-10 px-3 rounded-xl text-xs font-extrabold border transition whitespace-nowrap cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                              absent[st.id] ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-700'
+                            }`}
+                          >
+                            {absent[st.id] ? 'لغو غیبت' : 'ثبت غیبت'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

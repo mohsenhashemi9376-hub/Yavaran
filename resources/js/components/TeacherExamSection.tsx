@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Lock, Save, Trophy, TrendingDown, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ComprehensiveExamRecord, EXAM_SUBJECTS, ExamSubjectKey, SchoolClass } from '../types';
-import { EXAM_MONTHS, EXAM_WEAK_BELOW, examScoresOf, mean, round2 } from '../utils/examReport';
+import { EXAM_MONTHS, EXAM_WEAK_BELOW, examScoresOf, isExamAbsent, mean, round2 } from '../utils/examReport';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { scorePillClass } from '../utils/gradePeriods';
 import { studentFullName } from '../utils/studentName';
@@ -106,6 +106,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups }) => {
     const prevMonth = record?.monthly?.[month] || {};
     classStudents.forEach((s) => {
       const base = { ...(prevMonth[s.id] || {}) };
+      if (isExamAbsent(record, s.id, month)) return; // غیبت ثبت شده؛ نمره بسته است
       const n = parseScore(draft[s.id] ?? '');
       if (n === null) delete base[opt.key];
       else base[opt.key] = n as number;
@@ -210,14 +211,15 @@ export const TeacherExamSection: React.FC<Props> = ({ groups }) => {
         <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
         <ul className="divide-y divide-slate-100">
           {classStudents.map((s, i) => (
-            <li key={s.id} className="flex items-center gap-3 px-4 py-2">
+            <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>
               <span className="w-6 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
               <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</span>
               {typeof parseScore(draft[s.id] ?? '') === 'number' && !invalid(s.id) && <span className={`hidden sm:inline px-2 py-0.5 rounded-lg text-[11px] ${scorePillClass(parseScore(draft[s.id] ?? '') as number)}`}>{fa(parseScore(draft[s.id] ?? '') as number)}</span>}
+              {isExamAbsent(record, s.id, month) && <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-extrabold">غایب</span>}
               <input
                 value={toPersianDigits(draft[s.id] ?? '')}
                 onChange={(e) => { setDraft((p) => ({ ...p, [s.id]: toEnglishDigits(e.target.value).replace(/[٫/،,]/g, '.').replace(/[^0-9.]/g, '') })); setDirty(true); }}
-                disabled={!canEdit}
+                disabled={!canEdit || isExamAbsent(record, s.id, month)}
                 inputMode="decimal"
                 dir="ltr"
                 aria-label={`نمره ${studentFullName(s)}`}

@@ -13,7 +13,6 @@ import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { ClassGradeAnalytics } from './ClassGradeAnalytics';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
-import { TeacherActivitiesSection } from './TeacherActivitiesSection';
 import { 
   GraduationCap, 
   Users, 
@@ -241,6 +240,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           <TeacherSidebarNav
             activeView={activeView}
             onSelectView={(view) => {
+              if (view === 'activities') { window.location.assign('/teacher-timesheet'); return; }
               setActiveView(view);
               if (view === 'grades' && !selectedClassForMonthlyGrades && teacherClasses.length > 0) {
                 setSelectedClassForMonthlyGrades(teacherClasses[0].id);
@@ -266,6 +266,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               moreItems={nav.more}
               activeId={activeView}
               onSelect={(id) => {
+                if (id === 'activities') { window.location.assign('/teacher-timesheet'); return; }
                 setActiveView(id as TeacherViewType);
                 if (id === 'grades' && !selectedClassForMonthlyGrades && teacherClasses.length > 0) {
                   setSelectedClassForMonthlyGrades(teacherClasses[0].id);
@@ -1101,7 +1102,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             </div>
           )}
 
-          {activeView === 'activities' && <TeacherActivitiesSection />}
 
           {/* VIEW 8: EVALUATIONS & NOTICES */}
           {activeView === 'evaluations' && (

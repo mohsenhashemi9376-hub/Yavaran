@@ -114,7 +114,7 @@ final class DataExporter
 
         $query = DB::table($table)->orderBy('sort_order')->orderBy('id');
 
-        if ($policy->isTeacher()) {
+        if ($policy->isTeacher() || ($collection === 'comprehensiveExams' && $policy->isExamTeacher())) {
             return $this->teacherRows($user, $policy, $collection, $query);
         }
 
@@ -138,7 +138,7 @@ final class DataExporter
             $query->whereIn('class_id', $policy->nurturingClassIds());
         }
 
-        if (in_array($collection, ['teacherEvaluations', 'teacherActivities'], true) && ! $policy->isManager()) {
+        if (in_array($collection, ['teacherEvaluations'], true) && ! $policy->isManager()) {
             $query->where('teacher_id', $user->id);
         }
 
@@ -336,7 +336,6 @@ final class DataExporter
                     ->filter(static fn ($json) => is_string($json) && $json !== '')->values()->all();
 
             case 'teacherEvaluations':
-            case 'teacherActivities':
             case 'lessonPlans':
                 $query->where('teacher_id', $user->id);
                 break;

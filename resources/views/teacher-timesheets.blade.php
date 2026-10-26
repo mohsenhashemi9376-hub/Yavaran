@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fa" dir="rtl" translate="no" class="notranslate">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b4838" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>تایم‌شیت اساتید</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    @vite(['resources/css/review.css', 'resources/js/timesheet-overview.js'])
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased">
+    <script type="application/json" id="overview-config">@json($config)</script>
+
+    <main x-data="timesheetOverview" x-cloak class="mx-auto max-w-3xl px-4 pb-16 pt-4">
+      <header class="mb-4 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h1 class="text-xl font-extrabold">تایم‌شیت و خودارزیابی اساتید</h1>
+          <p class="mt-0.5 text-xs font-medium text-slate-500">سال تحصیلی {{ $config['academicYear'] }}</p>
+        </div>
+        <a href="/" class="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm active:bg-slate-100">بازگشت</a>
+      </header>
+
+      <section class="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <label for="month" class="mb-1.5 block text-xs font-bold text-slate-500">ماه کاری</label>
+        <select id="month" @change="changeMonth($event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+          <template x-for="m in months" :key="m.key">
+            <option :value="m.key" :selected="isMonth(m.key)" x-text="m.label"></option>
+          </template>
+        </select>
+      </section>
+
+      <section class="mb-4 grid grid-cols-3 gap-2 text-center">
+        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><p class="text-[11px] font-bold text-slate-500">اساتید</p><p class="mt-1 text-2xl font-extrabold" x-text="teacherCount"></p></div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><p class="text-[11px] font-bold text-slate-500">دارای ساعت ثبت‌شده</p><p class="mt-1 text-2xl font-extrabold text-emerald-600" x-text="submittedCount"></p></div>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-600 p-3 text-white shadow-sm"><p class="text-[11px] font-bold text-emerald-100">مجموع ساعات</p><p class="mt-1 text-2xl font-extrabold" x-text="totalText"></p></div>
+      </section>
+
+      <p x-show="loading" class="py-10 text-center text-sm font-medium text-slate-500">در حال بارگذاری…</p>
+      <p x-show="hasError" class="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700" x-text="error"></p>
+      <p x-show="isEmpty" class="rounded-2xl border border-dashed border-slate-300 bg-white py-10 text-center text-sm text-slate-500">استادی یافت نشد.</p>
+
+      <ul class="space-y-2">
+        <template x-for="t in teachers" :key="t.id">
+          <li class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <button type="button" @click="toggle(t)" class="flex w-full min-h-16 items-center justify-between gap-3 p-4 text-start">
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-extrabold" x-text="t.name"></span>
+                <span class="mt-0.5 block text-xs text-slate-500"><span x-text="daysText(t)"></span> روز ثبت‌شده · خودارزیابی <span x-text="scoreText(t)"></span></span>
+              </span>
+              <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-extrabold text-emerald-700"><span x-text="hoursText(t)"></span> ساعت</span>
+            </button>
+            <div x-show="isOpen(t)" class="space-y-2 border-t border-slate-100 p-4">
+              <template x-for="a in axes" :key="a.id">
+                <div class="flex items-center justify-between gap-3 text-sm"><span class="text-slate-600" x-text="a.title"></span><span class="font-extrabold text-slate-800"><span x-text="axisScore(t, a)"></span> / ۵</span></div>
+              </template>
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" :style="barStyle(t)"></div></div>
+              <p x-show="hasNote(t)" class="whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm leading-7 text-slate-700" x-text="t.extraNote"></p>
+            </div>
+          </li>
+        </template>
+      </ul>
+    </main>
+  </body>
+</html>

@@ -5,7 +5,7 @@ import { GreyListRecord, Student } from '../types';
 import { GREY_CAUSES, GREY_OTHER, GREY_SUBJECT_BELOW, causeLabel, isFollowUpDue } from '../utils/greyList';
 import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { getTodayShamsi, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
-import { academicMonths, currentMonthKey } from '../utils/teacherActivities';
+import { academicMonths, currentMonthKey } from '../utils/academicMonths';
 import { compareStudents, studentFullName } from '../utils/studentName';
 import { ShamsiDatePicker } from './ShamsiDatePicker';
 

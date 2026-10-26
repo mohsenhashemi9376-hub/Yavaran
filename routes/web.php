@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BootstrapController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\LessonPlanReviewController;
 use App\Http\Controllers\MentorMessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NurturingAuditController;
@@ -11,6 +12,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\TeacherTimesheetController;
+use App\Http\Controllers\TeacherTimesheetOverviewController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -108,6 +111,17 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::get('nurturing-audit', [NurturingAuditController::class, 'index'])
             ->middleware('throttle:60,1')
             ->name('api.nurturing-audit');
+        Route::prefix('lesson-plan-review')->middleware('throttle:120,1')->group(function (): void {
+            Route::get('/', [LessonPlanReviewController::class, 'index'])->name('api.lesson-plan-review.index');
+            Route::post('{plan}', [LessonPlanReviewController::class, 'review'])->name('api.lesson-plan-review.review');
+        });
+        Route::get('teacher-timesheets', [TeacherTimesheetOverviewController::class, 'index'])
+            ->middleware('throttle:60,1')
+            ->name('api.teacher-timesheets.index');
+        Route::prefix('teacher-timesheet')->middleware('throttle:120,1')->group(function (): void {
+            Route::get('/', [TeacherTimesheetController::class, 'show'])->name('api.teacher-timesheet.show');
+            Route::post('/', [TeacherTimesheetController::class, 'save'])->name('api.teacher-timesheet.save');
+        });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
             ->name('api.sync');
@@ -115,6 +129,13 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
 
     Route::any('{any}', fn () => response()->json(['message' => 'مسیر یافت نشد.'], 404))->where('any', '.*');
 });
+
+// صفحهٔ ساعت کاری و خودارزیابی اساتید (Blade + Alpine.js)
+Route::get('teacher-timesheet', [TeacherTimesheetController::class, 'page'])->name('teacher-timesheet');
+// نمای مدیریتی تایم‌شیت اساتید (مدیر و معاونین)
+Route::get('teacher-timesheets', [TeacherTimesheetOverviewController::class, 'page'])->name('teacher-timesheets');
+// کارتابل بررسی طرح درس اساتید (معاون آموزش)
+Route::get('lesson-plan-review', [LessonPlanReviewController::class, 'page'])->name('lesson-plan-review');
 
 /*
 |--------------------------------------------------------------------------

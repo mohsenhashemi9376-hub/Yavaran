@@ -15,7 +15,6 @@ import {
   Settings,
   Package,
   UsersRound,
-  Clock,
   CalendarRange,
   X, 
   ChevronLeft,
@@ -37,7 +36,6 @@ export type FullScreenView =
   | 'subjects' 
   | 'warnings' 
   | 'reports'
-  | 'activities'
   | 'terms'
   | 'settings';
 
@@ -152,14 +150,6 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
           icon: CheckCircle2,
           count: totalSessions > 0 ? totalSessions : undefined,
           allowedRoles: ['admin', 'principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'],
-        },
-        {
-          id: 'activities',
-          label: 'فعالیت خارج مدرسه اساتید',
-          subtitle: 'گزارش ماهانه ساعات کارکرد اضافه',
-          tooltip: 'فعالیت خارج مدرسه اساتید',
-          icon: Clock,
-          allowedRoles: ['admin', 'principal', 'vice_educational', 'vice_principal'],
         },
         {
           id: 'discipline',

@@ -41,6 +41,10 @@ export function examScoresOf(record: ComprehensiveExamRecord | undefined, month:
   return (month === 'legacy' ? record.scores : record.monthly?.[month]) || {};
 }
 
+/** آیا دانش‌آموز در آزمون جامع این ماه غایب ثبت شده است؟ */
+export const isExamAbsent = (record: ComprehensiveExamRecord | undefined, studentId: string, month: ExamMonth): boolean =>
+  month !== 'all' && month !== 'legacy' && Boolean(record?.monthlyAbsent?.[month]?.[studentId]);
+
 /** ماه‌هایی که دست‌کم یک نمره دارند، به ترتیب سال (سوابق بدون ماه آخر) */
 export function examMonthsWithData(record?: ComprehensiveExamRecord): Exclude<ExamMonth, 'all'>[] {
   if (!record) return [];
@@ -76,6 +80,16 @@ export function examSubjectScore(record: ComprehensiveExamRecord | undefined, st
     return num(v) ? v : undefined;
   }
   return mean(examMonthsWithData(record).map((m) => examScoresOf(record, m)[studentId]?.[subject]).filter(num));
+}
+
+/** معدل آزمون جامع یک دانش‌آموز (ماه مشخص یا میانگین همه‌ی ماه‌ها) به‌همراه نمره‌ی هر درس؛ معدل کلاس و دانش‌آموز بر مبنای آزمون جامع حساب می‌شود، نه مستمر */
+export function studentExamSummary(record: ComprehensiveExamRecord | undefined, studentId: string, month: ExamMonth): { gpa?: number; scores: Partial<Record<ExamSubjectKey, number>> } {
+  const scores: Partial<Record<ExamSubjectKey, number>> = {};
+  activeExamSubjects(record, month).forEach((s) => {
+    const v = examSubjectScore(record, studentId, s.key, month);
+    if (v !== undefined) scores[s.key] = v;
+  });
+  return { gpa: mean(Object.values(scores).filter(num)), scores };
 }
 
 export interface ExamRow {

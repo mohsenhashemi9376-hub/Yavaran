@@ -125,7 +125,7 @@ final class SyncService
                     $data->id = $item->id;
                 }
 
-                if ($collection === 'comprehensiveExams' && $policy->isTeacher()) {
+                if ($collection === 'comprehensiveExams' && $policy->isExamTeacher()) {
                     $data = $policy->mergeTeacherExam($data, $oldData);
                     $data->id = $item->id;
                 }
@@ -350,6 +350,13 @@ final class SyncService
             }
             $data->status = $status;
             $data->review = $review;
+            if ($status === 'submitted') {
+                // تاریخ ارسال برای کارتابل معاونت؛ با ارسال دوباره پس از ارجاع، «نیاز به اصلاح» پاک می‌شود
+                $data->submittedAt = ($oldData->status ?? '') === 'submitted' && ! empty($oldData->submittedAt) ? $oldData->submittedAt : now()->toIso8601String();
+                if (is_object($review)) {
+                    $review->returned = false;
+                }
+            }
             $data->updatedAt = now()->toIso8601String();
 
             return $data;
