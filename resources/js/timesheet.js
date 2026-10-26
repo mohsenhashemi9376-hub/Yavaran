@@ -38,6 +38,14 @@ const request = async (url, options = {}) => {
   return body;
 };
 
+const DEFAULT_IN = '07:30';
+const DEFAULT_OUT = '14:00';
+const DEFAULT_TAG = 'teaching';
+
+const pad = (n) => String(n).padStart(2, '0');
+const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hmOf = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
 Alpine.data('timesheet', () => ({
   config: JSON.parse(document.getElementById('timesheet-config').textContent),
   tab: 'timesheet',
@@ -51,20 +59,33 @@ Alpine.data('timesheet', () => ({
   dirty: false,
   error: '',
   savedText: '',
+  punchError: '',
   timer: null,
+  now: new Date(),
 
   async init() {
-    this.monthKey = this.config.months[0].key;
+    // ساعت زنده: هر ثانیه
+    setInterval(() => { this.now = new Date(); }, 1000);
+    // ماه جاری؛ اگر امروز خارج از سال تحصیلی باشد، نزدیک‌ترین ماه
+    const today = isoOf(this.now);
+    const hit = this.months.find((m) => m.days.some((d) => d.g === today));
+    this.monthKey = (hit || (today < this.months[0].days[0].g ? this.months[0] : this.months[this.months.length - 1])).key;
     await this.load();
     window.addEventListener('beforeunload', () => { if (this.dirty) this.save(); });
   },
+
+  // ---------- ساعت زنده ----------
+  get clockHM() { return toFa(hmOf(this.now)); },
+  get clockSec() { return toFa(pad(this.now.getSeconds())); },
+  get ringOffset() { return 276.5 * (1 - this.now.getSeconds() / 60); },
+  get todayIso() { return isoOf(this.now); },
 
   // ---------- ماه و تب ----------
   get months() { return this.config.months; },
   get month() { return this.months.find((m) => m.key === this.monthKey); },
   get days() { return this.month.days; },
   get axes() { return this.config.axes; },
-  get yearLabel() { return this.config.academicYear; },
+  get tagList() { return Object.entries(this.config.tags).map(([key, label]) => ({ key, label })); },
   isMonth(key) { return key === this.monthKey; },
   isTab(name) { return this.tab === name; },
   setTab(name) { this.tab = name; },
@@ -75,8 +96,11 @@ Alpine.data('timesheet', () => ({
   },
 
   async changeMonth(e) {
+    await this.goMonth(e.target.value);
+  },
+  async goMonth(key) {
     if (this.dirty) await this.save();
-    this.monthKey = e.target.value;
+    this.monthKey = key;
     await this.load();
   },
 
@@ -98,12 +122,29 @@ Alpine.data('timesheet', () => ({
     }
   },
 
-  // ---------- ثبت ساعات ----------
+  // ---------- روزها ----------
   entry(date) { return this.entries[date] || {}; },
   valueOf(date, field) { return this.entry(date)[field] || ''; },
+  isToday(day) { return day.g === this.todayIso; },
+  isOff(day) { return day.off; },
   setField(date, field, e) {
     this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: e.target.value } };
     this.touch();
+  },
+
+  // ---------- تگ‌های فعالیت ----------
+  tagsOf(date) { return this.entry(date).tags || []; },
+  hasTag(date, key) { return this.tagsOf(date).includes(key); },
+  toggleTag(date, key) {
+    const cur = this.tagsOf(date);
+    const tags = cur.includes(key) ? cur.filter((t) => t !== key) : [...cur, key];
+    this.entries = { ...this.entries, [date]: { ...this.entry(date), tags } };
+    this.touch();
+  },
+  tagClass(date, key) {
+    return this.hasTag(date, key)
+      ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+      : 'border-slate-200 bg-white text-slate-600 active:bg-slate-100';
   },
 
   /** ساعت کارکرد یک روز (اعشاری)؛ null اگر ناقص یا نامعتبر باشد */
@@ -124,9 +165,10 @@ Alpine.data('timesheet', () => ({
     return h === null ? '—' : fmtHours(h);
   },
   rowClass(day) {
+    if (day.off) return 'border-slate-200 bg-slate-100 opacity-60 grayscale';
+    if (this.isToday(day)) return 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200';
     if (this.isInvalid(day.date)) return 'border-rose-300 bg-rose-50';
-    if (this.hasHours(day.date)) return 'border-emerald-200 bg-white';
-    return day.friday ? 'border-slate-200 bg-slate-100/70' : 'border-slate-200 bg-white';
+    return this.hasHours(day.date) ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
   },
   badgeClass(date) {
     if (this.isInvalid(date)) return 'bg-rose-100 text-rose-700';
@@ -138,10 +180,84 @@ Alpine.data('timesheet', () => ({
   },
   get totalText() { return fmtHours(this.totalHours); },
   get filledDays() { return toFa(this.days.filter((d) => this.hasHours(d.date)).length); },
-  get daysCount() { return toFa(this.days.length); },
+  get workDaysCount() { return toFa(this.days.filter((d) => !d.off).length); },
   get averageText() {
     const n = this.days.filter((d) => this.hasHours(d.date)).length;
     return n ? fmtHours(this.totalHours / n) : '—';
+  },
+
+  // ---------- پانچ سریع ----------
+  get todayDay() { return this.days.find((d) => this.isToday(d)); },
+  get hasToday() { return Boolean(this.todayDay); },
+  get todayOff() { return this.hasToday && this.todayDay.off; },
+  get todayDate() { return this.hasToday ? this.todayDay.date : ''; },
+  /** idle: ثبت نشده، working: ورود زده، done: پایان روز */
+  get punchState() {
+    const e = this.hasToday ? this.entry(this.todayDate) : {};
+    if (e.in && e.out) return 'done';
+    return e.in ? 'working' : 'idle';
+  },
+  isPunch(name) { return this.punchState === name; },
+  get todayInText() { return this.hasToday ? toFa(this.entry(this.todayDate).in || '') : ''; },
+  get todayOutText() { return this.hasToday ? toFa(this.entry(this.todayDate).out || '') : ''; },
+  get todayHoursText() { return this.hasToday ? this.dayHoursText(this.todayDate) : '—'; },
+  get canPunch() { return this.hasToday && !this.todayOff && !this.loading; },
+  get cannotPunch() { return !this.canPunch; },
+
+  async punch() {
+    this.punchError = '';
+    if (!this.canPunch) return;
+    // اگر امروز در ماه دیگری از ماه نمایش‌داده‌شده است، اول به آن ماه می‌رویم
+    const date = this.todayDate;
+    const hm = hmOf(new Date());
+    const e = this.entry(date);
+    if (!e.in) {
+      this.entries = { ...this.entries, [date]: { ...e, in: hm, tags: e.tags && e.tags.length ? e.tags : [DEFAULT_TAG] } };
+    } else if (!e.out) {
+      if (toMinutes(hm) <= toMinutes(e.in)) {
+        this.punchError = 'خروج باید دست‌کم یک دقیقه بعد از ورود باشد.';
+        return;
+      }
+      this.entries = { ...this.entries, [date]: { ...e, out: hm } };
+    }
+    this.touch();
+    await this.save();
+  },
+  async goToday() {
+    const m = this.months.find((x) => x.days.some((d) => d.g === this.todayIso));
+    if (m && m.key !== this.monthKey) await this.goMonth(m.key);
+  },
+  get todayInOtherMonth() {
+    const m = this.months.find((x) => x.days.some((d) => d.g === this.todayIso));
+    return Boolean(m) && m.key !== this.monthKey;
+  },
+  get todayOutsideYear() {
+    return !this.months.some((x) => x.days.some((d) => d.g === this.todayIso));
+  },
+  get punchHint() {
+    if (this.todayOutsideYear) return 'امروز در بازهٔ سال تحصیلی ۱۴۰۵-۱۴۰۶ نیست.';
+    if (this.todayInOtherMonth) return 'ماه امروز را از فهرست انتخاب کنید یا دکمهٔ زیر را بزنید.';
+    if (this.todayOff) return 'امروز تعطیل است.';
+    return '';
+  },
+  get hasHint() { return this.punchHint !== ''; },
+
+  // ---------- پر کردن خودکار ----------
+  get emptyWorkDays() {
+    return this.days.filter((d) => !d.off && !this.isToday(d) && !this.entry(d.date).in && !this.entry(d.date).out);
+  },
+  get emptyCount() { return toFa(this.emptyWorkDays.length); },
+  get noEmptyDays() { return this.emptyWorkDays.length === 0; },
+  magicFill() {
+    const targets = this.emptyWorkDays;
+    if (!targets.length) return;
+    if (!window.confirm(`${toFa(targets.length)} روز کاری خالی با ورود ${toFa(DEFAULT_IN)}، خروج ${toFa(DEFAULT_OUT)} و تگ «تدریس موظفی» پر شود؟`)) return;
+    const next = { ...this.entries };
+    for (const d of targets) {
+      next[d.date] = { ...next[d.date], in: DEFAULT_IN, out: DEFAULT_OUT, tags: [DEFAULT_TAG] };
+    }
+    this.entries = next;
+    this.touch();
   },
 
   // ---------- خودارزیابی ----------
@@ -186,15 +302,16 @@ Alpine.data('timesheet', () => ({
   },
   async save() {
     clearTimeout(this.timer);
-    if (this.saving) return;
+    if (this.saving) { this.timer = setTimeout(() => this.save(), 400); return; }
     this.saving = true;
     this.error = '';
     try {
       const entries = {};
       for (const d of this.days) {
         const e = this.entry(d.date);
-        if (e.in || e.out || (e.note || '').trim()) {
-          entries[d.date] = { in: e.in || null, out: e.out || null, note: (e.note || '').trim() };
+        if (d.off) continue;
+        if (e.in || e.out || (e.tags || []).length) {
+          entries[d.date] = { in: e.in || null, out: e.out || null, tags: e.tags || [] };
         }
       }
       await request('/api/teacher-timesheet', {

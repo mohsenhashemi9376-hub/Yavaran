@@ -6,9 +6,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
-import { SCORE_COLUMNS } from '../utils/examReport';
+import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
-import { AcademicFollowUpStatus } from '../types';
+import { AcademicFollowUpStatus, EXAM_SUBJECTS } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
 import { toPersianDigits, toEnglishDigits, getTodayShamsi, getActiveAcademicYear } from '../utils/persianDate';
 import { homeworkProblemStudentCount } from '../utils/homework';
@@ -267,53 +267,25 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
   }, [activeGradePeriods, academicSubjects, classes, students, academicGrades]);
   const [isGradePeriodsOpen, setIsGradePeriodsOpen] = useState(false);
 
-  // معدل کل مدرسه
-  let schoolGradeSum = 0;
-  let schoolGradeCount = 0;
-  academicGrades.forEach(g => {
-    const v = gradeScoreForMonth(g, 'all');
-    if (v !== undefined) {
-      schoolGradeSum += v;
-      schoolGradeCount++;
-    }
-  });
-  const schoolAverageGrade = schoolGradeCount > 0 ? (schoolGradeSum / schoolGradeCount).toFixed(1) : '—';
-
-  // محاسبه معدل تحصیلی هر دانش‌آموز جهت کارنامه و پیگیری
+  // معدل هر دانش‌آموز بر مبنای آزمون جامع (نه مستمر)؛ ماه کارنامه: یکی از ماه‌های آزمون یا میانگین همه‌ی آزمون‌ها
   const studentsAcademicData = useMemo(() => {
+    const recordByClass = new Map(comprehensiveExams.map((r) => [r.classId, r]));
     return students.map(stu => {
       const studentClass = classes.find(c => c.id === stu.classId);
-      const stuGrades = academicGrades.filter(g => g.studentId === stu.id);
-      
-      let sum = 0;
-      let totalWeight = 0;
-      let weakSubjects: string[] = [];
-
-      // نمره‌ی هر ماه جداگانه: ماه انتخابی، یا میانگین ماه‌های ثبت‌شده
-      stuGrades.forEach(g => {
-        const ann = gradeScoreForMonth(g, reportMonth);
-        if (ann !== undefined) {
-          sum += ann;
-          totalWeight += 1;
-          if (ann < 12) {
-            weakSubjects.push(g.subjectName);
-          }
-        }
-      });
-
-      const gpa = totalWeight > 0 ? (sum / totalWeight) : undefined;
+      const { gpa, scores } = studentExamSummary(recordByClass.get(stu.classId), stu.id, reportMonth as ExamMonth);
+      const weakSubjects = EXAM_SUBJECTS.filter((s) => (scores[s.key] ?? 20) < 12).map((s) => s.label);
 
       return {
         student: stu,
         className: studentClass?.name || 'نامشخص',
         classId: stu.classId,
         gpa: gpa !== undefined ? Number(gpa.toFixed(2)) : undefined,
-        gradesCount: stuGrades.filter((g) => gradeScoreForMonth(g, reportMonth) !== undefined).length,
+        gradesCount: Object.keys(scores).length,
         weakSubjects,
         hasWarning: gpa !== undefined ? gpa < 12 : false,
       };
     });
-  }, [students, classes, academicGrades, reportMonth]);
+  }, [students, classes, comprehensiveExams, reportMonth]);
 
   // لیست دانش‌آموزان نیازمند پیگیری آموزشی
   // معیارها: مستمر زیر ۱۲، میانگین مستمر زیر ۱۲، دو هفته متوالی کاربرگ تحویل‌نداده، آزمون جامع زیر ۱۲، میانگین آزمون جامع زیر ۱۲
@@ -382,7 +354,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'نام و نام خانوادگی': `${studentFullName(item.student)}`,
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
-      'ستون': reportMonth === 'all' ? 'میانگین مستمر' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
+      'ستون': reportMonth === 'all' ? 'میانگین آزمون‌های جامع' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
       'معدل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
       'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
@@ -962,8 +934,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   aria-label="ماه کارنامه"
                   className="min-h-[40px] px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-teal-700 cursor-pointer"
                 >
-                  <option value="all">میانگین مستمر</option>
-                  {SCORE_COLUMNS.map((m) => <option key={m.key} value={m.key}>{m.key.endsWith('Final') ? m.monthName : `مستمر ${m.monthName}`}</option>)}
+                  <option value="all">میانگین آزمون‌های جامع</option>
+                  {EXAM_MONTHS.map((m) => <option key={m.key} value={m.key}>{`آزمون جامع ${m.monthName}`}</option>)}
                 </select>
 
                 <div className="relative">
@@ -1031,13 +1003,13 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
-                          <div className="text-[11px] text-slate-500 mb-1">معدل محاسبه‌شده</div>
+                          <div className="text-[11px] text-slate-500 mb-1">معدل آزمون جامع</div>
                           <div className={`inline-flex items-center justify-center min-w-[3rem] text-lg font-black tabular-nums px-3 py-0.5 rounded-xl ${scorePillClass(hasGpa ? item.gpa! : null)}`}>
                             {hasGpa ? toPersianDigits(item.gpa!) : '—'}
                           </div>
                         </div>
                         <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
-                          <div className="text-[11px] text-slate-500 mb-1">دروس ثبت‌شده</div>
+                          <div className="text-[11px] text-slate-500 mb-1">دروس آزمون جامع</div>
                           <div className="text-lg font-black text-slate-800 tabular-nums">
                             {toPersianDigits(item.gradesCount)} <span className="text-xs font-semibold text-slate-500">درس</span>
                           </div>

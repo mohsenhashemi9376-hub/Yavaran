@@ -22,6 +22,14 @@ class TeacherTimesheetController extends Controller
         ['id' => 'extra', 'title' => 'کارهای اضافه‌تر از وظایف اصلی'],
     ];
 
+    /** تگ‌های فعالیت روزانه (کلید ⇒ عنوان)؛ «تدریس موظفی» تگ پیش‌فرض پر کردن خودکار است */
+    public const TAGS = [
+        'teaching' => 'تدریس موظفی',
+        'parents' => 'جلسه اولیا',
+        'exam_design' => 'طراحی آزمون',
+        'council' => 'حضور در شورا',
+    ];
+
     public function page(Request $request): View|RedirectResponse
     {
         /** @var User|null $user */
@@ -35,6 +43,7 @@ class TeacherTimesheetController extends Controller
                 'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
                 'months' => TimesheetCalendar::months(),
                 'axes' => self::AXES,
+                'tags' => self::TAGS,
                 'teacherName' => $user->name,
             ],
         ]);
@@ -62,7 +71,8 @@ class TeacherTimesheetController extends Controller
             'entries' => ['present', 'array', 'max:31'],
             'entries.*.in' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'entries.*.out' => ['nullable', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-            'entries.*.note' => ['nullable', 'string', 'max:500'],
+            'entries.*.tags' => ['nullable', 'array', 'max:'.count(self::TAGS)],
+            'entries.*.tags.*' => ['string', Rule::in(array_keys(self::TAGS))],
             'selfEvaluation' => ['present', 'array'],
             'selfEvaluation.scores' => ['nullable', 'array', 'max:5'],
             'selfEvaluation.scores.*' => ['integer', 'between:0,5'],
@@ -75,6 +85,13 @@ class TeacherTimesheetController extends Controller
         // فقط تاریخ‌های همین ماه کاری پذیرفته می‌شود
         $allowed = array_column(TimesheetCalendar::month($data['month'])['days'], 'date');
         $entries = array_intersect_key($data['entries'], array_flip($allowed));
+        foreach ($entries as $date => $entry) {
+            $entries[$date] = [
+                'in' => $entry['in'] ?? null,
+                'out' => $entry['out'] ?? null,
+                'tags' => array_values(array_unique($entry['tags'] ?? [])),
+            ];
+        }
 
         $axisIds = array_column(self::AXES, 'id');
         $scores = array_intersect_key($data['selfEvaluation']['scores'] ?? [], array_flip($axisIds));

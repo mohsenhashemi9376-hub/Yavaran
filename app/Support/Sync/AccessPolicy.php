@@ -108,7 +108,7 @@ final class AccessPolicy
         // دبیران فارسی، ریاضی، علوم، عربی و انگلیسی فقط نمرات درس خودشان را می‌بینند (فیلتر در DataExporter)
         if ($collection === 'comprehensiveExams') {
             return ($this->isManager() && $this->user->hasPermission('comprehensive-exam'))
-                || ($this->isTeacher() && $this->teacherExamKeys() !== []);
+                || ($this->isExamTeacher() && $this->teacherExamKeys() !== []);
         }
 
         // امانات و لوازم مدرسه فقط برای مدیر و معاونین دارای مجوز قابل مشاهده است
@@ -188,7 +188,7 @@ final class AccessPolicy
         }
 
         // دبیر آزمون جامع: فقط ثبت نمره‌ی درس خودش (جزئیات در authorizeUpsert و ادغام امن در mergeTeacherExam)
-        if ($collection === 'comprehensiveExams' && $this->isTeacher() && $this->teacherExamKeys() !== []) {
+        if ($collection === 'comprehensiveExams' && $this->isExamTeacher() && $this->teacherExamKeys() !== []) {
             return;
         }
 
@@ -426,20 +426,23 @@ final class AccessPolicy
             return;
         }
 
-        if ($this->isManager()) {
-            return;
+        if ($collection === 'comprehensiveExams') {
+            $this->authorizeExamAbsences($old, $new);
+            if ($this->isExamTeacher()) {
+                $classId = $this->prop($new, 'classId');
+                if ($classId === null) {
+                    $this->deny();
+                }
+                $this->requireClass($classId);
+                if ($this->teacherExamKeysForClass($classId) === []) {
+                    $this->deny('شما فقط مجاز به ثبت نمره‌ی آزمون جامع درس خودتان هستید.');
+                }
+
+                return;
+            }
         }
 
-        if ($collection === 'comprehensiveExams') {
-            $classId = $this->prop($new, 'classId');
-            if (! $this->isTeacher() || $classId === null) {
-                $this->deny();
-            }
-            $this->requireClass($classId);
-            if ($this->teacherExamKeysForClass($classId) === []) {
-                $this->deny('شما فقط مجاز به ثبت نمره‌ی آزمون جامع درس خودتان هستید.');
-            }
-
+        if ($this->isManager()) {
             return;
         }
 
@@ -1142,7 +1145,7 @@ final class AccessPolicy
         }
         $this->examKeysByClass = [];
         $this->examSubjectIds = [];
-        if (! $this->isTeacher()) {
+        if (! $this->isTeacher() && ! $this->teachesCourses()) {
             return;
         }
         $subjectNames = CollectionRegistry::tableExists('academic_subjects') ? DB::table('academic_subjects')->pluck('name', 'id')->all() : [];
@@ -1160,6 +1163,63 @@ final class AccessPolicy
         }
         foreach ($this->examSubjectIds as $k => $ids) {
             $this->examSubjectIds[$k] = array_values($ids);
+        }
+    }
+
+    /** دسترسی کامل به آزمون جامع: مدیر یا معاونِ دارای مجوز «آزمون جامع» */
+    public function hasFullExamAccess(): bool
+    {
+        return $this->isManager() && $this->user->hasPermission('comprehensive-exam');
+    }
+
+    /**
+     * ثبت‌کننده‌ی نمره‌ی درس خودش در آزمون جامع: دبیر، یا مربی/معاونی که درس تدریس می‌کند
+     * و مجوز کامل آزمون جامع ندارد (فقط درس و کلاس‌های خودش را می‌بیند و می‌نویسد).
+     */
+    public function isExamTeacher(): bool
+    {
+        if ($this->hasFullExamAccess()) {
+            return false;
+        }
+
+        return $this->isTeacher() || $this->teachesCourses();
+    }
+
+    /** ثبت یا لغو غیبت آزمون جامع فقط با معاون آموزش (و مدیر سامانه) */
+    public function canMarkExamAbsence(): bool
+    {
+        return in_array($this->user->role, ['admin', 'vice_educational'], true);
+    }
+
+    /** @return array<string, true> کلید «ماه|دانش‌آموز» ← غیبت */
+    private static function examAbsenceSet(?object $record): array
+    {
+        $set = [];
+        $absent = $record !== null ? json_decode(json_encode($record->monthlyAbsent ?? new \stdClass()), true) : [];
+        foreach (is_array($absent) ? $absent : [] as $month => $students) {
+            foreach (is_array($students) ? array_keys(array_filter($students)) : [] as $sid) {
+                $set[$month.'|'.$sid] = true;
+            }
+        }
+
+        return $set;
+    }
+
+    /** غیبت آزمون جامع: فقط معاون آموزش آن را تغییر می‌دهد و نمره‌ی دانش‌آموزِ غایب بسته است */
+    private function authorizeExamAbsences(?object $old, object $new): void
+    {
+        $before = self::examAbsenceSet($old);
+        $after = self::examAbsenceSet($new);
+        $changed = array_diff_key($before, $after) !== [] || array_diff_key($after, $before) !== [];
+        if ($changed && ! $this->canMarkExamAbsence()) {
+            $this->deny('ثبت غیبت آزمون جامع فقط با معاون آموزش است.');
+        }
+        $monthly = json_decode(json_encode($new->monthly ?? new \stdClass()), true);
+        foreach (array_keys($after) as $key) {
+            [$month, $sid] = explode('|', $key, 2);
+            if (! empty($monthly[$month][$sid])) {
+                $this->deny('برای این دانش‌آموز غیبت ثبت شده است؛ نمره‌ی آزمون جامع او بسته است.');
+            }
         }
     }
 
@@ -1238,7 +1298,7 @@ final class AccessPolicy
             }
             $active = $base['monthlyActive'][$month] ?? ($base['activeSubjects'] ?? array_keys(self::EXAM_KEY_WORDS));
             foreach ($perStudent as $sid => $cells) {
-                if (! isset($studentIds[$sid]) || ! is_array($cells)) {
+                if (! isset($studentIds[$sid]) || ! is_array($cells) || ! empty($base['monthlyAbsent'][$month][$sid])) {
                     continue;
                 }
                 foreach ($keys as $k) {

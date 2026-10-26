@@ -125,7 +125,7 @@ final class SyncService
                     $data->id = $item->id;
                 }
 
-                if ($collection === 'comprehensiveExams' && $policy->isTeacher()) {
+                if ($collection === 'comprehensiveExams' && $policy->isExamTeacher()) {
                     $data = $policy->mergeTeacherExam($data, $oldData);
                     $data->id = $item->id;
                 }

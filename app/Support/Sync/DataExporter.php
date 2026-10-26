@@ -114,7 +114,7 @@ final class DataExporter
 
         $query = DB::table($table)->orderBy('sort_order')->orderBy('id');
 
-        if ($policy->isTeacher()) {
+        if ($policy->isTeacher() || ($collection === 'comprehensiveExams' && $policy->isExamTeacher())) {
             return $this->teacherRows($user, $policy, $collection, $query);
         }
 

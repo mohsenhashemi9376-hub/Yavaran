@@ -19,7 +19,7 @@
         <div class="min-w-0">
           <h1 class="truncate text-lg font-extrabold text-slate-900">ساعت کاری و خودارزیابی</h1>
           <p class="mt-0.5 text-xs font-medium text-slate-500">
-            {{ $config['teacherName'] }} · سال تحصیلی <span x-text="yearLabel"></span>
+            {{ $config['teacherName'] }} · سال تحصیلی {{ $config['academicYear'] }}
           </p>
         </div>
         <a href="/" class="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600 shadow-sm active:bg-slate-100">
@@ -27,14 +27,67 @@
         </a>
       </header>
 
-      {{-- انتخاب ماه کاری --}}
-      <section class="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <label for="month" class="mb-1.5 block text-xs font-bold text-slate-500">ماه کاری</label>
-        <select id="month" @change="changeMonth($event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200">
-          <template x-for="m in months" :key="m.key">
-            <option :value="m.key" :selected="isMonth(m.key)" x-text="m.label"></option>
-          </template>
-        </select>
+      {{-- ویجت پانچ سریع (One-Tap Check-in) --}}
+      <section class="relative mb-3 overflow-hidden rounded-3xl bg-slate-900 p-5 text-white shadow-sm" aria-label="پانچ سریع">
+        <div class="pointer-events-none absolute -start-10 -top-10 size-40 rounded-full bg-emerald-500/10 blur-2xl"></div>
+        <div class="relative flex items-center gap-4">
+          <div class="relative size-24 shrink-0">
+            <svg viewBox="0 0 100 100" class="size-24 -rotate-90" aria-hidden="true">
+              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(51 65 85)" stroke-width="5" />
+              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(52 211 153)" stroke-width="5" stroke-linecap="round" stroke-dasharray="276.5" :stroke-dashoffset="ringOffset" class="transition-[stroke-dashoffset] duration-1000 ease-linear" />
+            </svg>
+            <span class="absolute inset-0 flex items-center justify-center text-2xl font-extrabold tabular-nums" x-text="clockSec"></span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-medium text-slate-400">ساعت اکنون</p>
+            <p class="text-4xl font-extrabold leading-tight tabular-nums" dir="ltr" x-text="clockHM"></p>
+            <p x-show="isPunch('working')" class="mt-1 text-xs font-bold text-emerald-300">ورود شما: <span x-text="todayInText"></span></p>
+          </div>
+        </div>
+
+        {{-- وضعیت ۱: ثبت نشده --}}
+        <button type="button" x-show="isPunch('idle')" :disabled="cannotPunch" @click="punch()" class="relative mt-4 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-lg font-extrabold text-white shadow-lg shadow-emerald-900/30 transition active:scale-[0.98] disabled:opacity-40">
+          <span class="relative flex size-3">
+            <span class="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75"></span>
+            <span class="relative inline-flex size-3 rounded-full bg-white"></span>
+          </span>
+          ثبت ورود به مدرسه
+        </button>
+
+        {{-- وضعیت ۲: ورود زده --}}
+        <button type="button" x-show="isPunch('working')" :disabled="cannotPunch" @click="punch()" class="relative mt-4 flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 text-lg font-extrabold text-white shadow-lg shadow-rose-900/30 transition active:scale-[0.98] disabled:opacity-40">
+          ثبت خروج و پایان کار
+        </button>
+
+        {{-- وضعیت ۳: پایان روز --}}
+        <div x-show="isPunch('done')" class="relative mt-4 rounded-2xl bg-slate-800 p-4 text-center">
+          <p class="text-base font-extrabold text-emerald-300">خسته نباشید، ساعت امروز ثبت شد ✓</p>
+          <p class="mt-1 text-xs text-slate-300">
+            ورود <span class="font-bold text-white" x-text="todayInText"></span> · خروج <span class="font-bold text-white" x-text="todayOutText"></span> · <span class="font-bold text-white" x-text="todayHoursText"></span> ساعت
+          </p>
+        </div>
+
+        <p x-show="punchError" class="relative mt-2 text-center text-xs font-bold text-rose-300" x-text="punchError"></p>
+        <div x-show="hasHint" class="relative mt-3 flex items-center justify-between gap-2 text-xs text-slate-300">
+          <span x-text="punchHint"></span>
+          <button type="button" x-show="todayInOtherMonth" @click="goToday()" class="min-h-11 shrink-0 rounded-xl bg-slate-700 px-3 font-bold text-white active:bg-slate-600">رفتن به ماه امروز</button>
+        </div>
+      </section>
+
+      {{-- نوار کنترل: ماه کاری + پر کردن خودکار --}}
+      <section class="mb-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div>
+          <label for="month" class="mb-1.5 block text-xs font-bold text-slate-500">ماه کاری</label>
+          <select id="month" @change="changeMonth($event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <template x-for="m in months" :key="m.key">
+              <option :value="m.key" :selected="isMonth(m.key)" x-text="m.label"></option>
+            </template>
+          </select>
+        </div>
+        <button type="button" @click="magicFill()" :disabled="noEmptyDays" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-extrabold text-emerald-800 transition active:bg-emerald-100 disabled:opacity-40">
+          🪄 پر کردن خودکار روزهای خالی
+          <span class="rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white" x-text="emptyCount"></span>
+        </button>
       </section>
 
       {{-- کارت آماری چسبان: مجموع ساعات کاری ماه --}}
@@ -50,7 +103,7 @@
           <dl class="flex gap-4 text-center text-xs">
             <div>
               <dt class="text-emerald-100">روز ثبت‌شده</dt>
-              <dd class="mt-1 text-base font-extrabold"><span x-text="filledDays"></span> / <span x-text="daysCount"></span></dd>
+              <dd class="mt-1 text-base font-extrabold"><span x-text="filledDays"></span> / <span x-text="workDaysCount"></span></dd>
             </div>
             <div>
               <dt class="text-emerald-100">میانگین روزانه</dt>
@@ -66,33 +119,47 @@
       <section x-show="isTab('timesheet')" class="space-y-3" aria-label="ثبت ساعات کاری">
         <template x-for="day in days" :key="day.date">
           <article :class="rowClass(day)" class="rounded-2xl border p-3 shadow-sm">
-            <div class="mb-2 flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-2">
               <div>
-                <p class="text-sm font-extrabold text-slate-800" x-text="day.label"></p>
-                <p class="text-xs font-medium text-slate-500" x-text="day.weekday"></p>
+                <p class="text-sm font-extrabold text-slate-800">
+                  <span x-text="day.label"></span>
+                  <span x-show="isToday(day)" class="ms-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">امروز</span>
+                </p>
+                <p class="text-xs font-medium text-slate-500">
+                  <span x-text="day.weekday"></span>
+                  <span x-show="isOff(day)"> · تعطیل</span>
+                </p>
               </div>
-              <span :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
+              <span x-show="!isOff(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
                 <span x-text="dayHoursText(day.date)"></span>
                 <span x-show="hasHours(day.date)" class="text-xs font-bold">ساعت</span>
               </span>
             </div>
 
-            <div class="grid grid-cols-2 gap-2">
-              <label class="block">
-                <span class="mb-1 block text-xs font-bold text-slate-500">ساعت ورود</span>
-                <input type="time" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
-              </label>
-              <label class="block">
-                <span class="mb-1 block text-xs font-bold text-slate-500">ساعت خروج</span>
-                <input type="time" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
-              </label>
-            </div>
-            <p x-show="isInvalid(day.date)" class="mt-1.5 text-xs font-bold text-rose-600">ساعت خروج باید بعد از ساعت ورود باشد.</p>
+            <div x-show="!isOff(day)" class="mt-3 space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="mb-1 block text-xs font-bold text-slate-500">ساعت ورود</span>
+                  <input type="time" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-xs font-bold text-slate-500">ساعت خروج</span>
+                  <input type="time" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                </label>
+              </div>
+              <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت خروج باید بعد از ساعت ورود باشد.</p>
 
-            <label class="mt-2 block">
-              <span class="mb-1 block text-xs font-bold text-slate-500">توضیحات و فعالیت‌های امروز</span>
-              <input type="text" maxlength="500" :value="valueOf(day.date, 'note')" @input="setField(day.date, 'note', $event)" placeholder="مثلاً: تدریس، جلسه اولیا، تصحیح برگه‌ها…" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
-            </label>
+              <div class="flex flex-wrap gap-2" role="group" aria-label="فعالیت‌های امروز">
+                <template x-for="tag in tagList" :key="tag.key">
+                  <button type="button" @click="toggleTag(day.date, tag.key)" :class="tagClass(day.date, tag.key)" :aria-pressed="hasTag(day.date, tag.key)" class="min-h-11 rounded-full border px-4 text-sm font-bold transition" x-text="tag.label"></button>
+                </template>
+              </div>
+            </div>
+
+            <fieldset x-show="isOff(day)" disabled class="mt-3 grid grid-cols-2 gap-2">
+              <input type="time" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 px-3" aria-label="ساعت ورود (تعطیل)" />
+              <input type="time" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 px-3" aria-label="ساعت خروج (تعطیل)" />
+            </fieldset>
           </article>
         </template>
       </section>

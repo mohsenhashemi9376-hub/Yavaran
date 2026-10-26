@@ -836,6 +836,8 @@ export interface ComprehensiveExamRecord {
   monthly?: Partial<Record<MonthlyContinuousKey, Record<string, Partial<Record<ExamSubjectKey, number>>>>>;
   /** دروس فعال هر ماه (اگر تعریف نشده باشد، activeSubjects کلاس) */
   monthlyActive?: Partial<Record<MonthlyContinuousKey, ExamSubjectKey[]>>;
+  /** غیبت در آزمون جامع هر ماه (ثبت‌شده توسط معاون آموزش): کلید ماه ← studentId ← true؛ نمره‌ی دانش‌آموز غایب بسته است */
+  monthlyAbsent?: Partial<Record<MonthlyContinuousKey, Record<string, boolean>>>;
   updatedAt?: string;
 }
 
