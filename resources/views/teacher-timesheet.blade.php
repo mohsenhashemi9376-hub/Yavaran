@@ -74,8 +74,8 @@
         </div>
       </section>
 
-      {{-- نوار کنترل: ماه کاری + پر کردن خودکار --}}
-      <section class="mb-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      {{-- نوار کنترل: ماه کاری --}}
+      <section class="mb-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <div>
           <label for="month" class="mb-1.5 block text-xs font-bold text-slate-500">ماه کاری</label>
           <select id="month" @change="changeMonth($event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200">
@@ -84,10 +84,6 @@
             </template>
           </select>
         </div>
-        <button type="button" @click="magicFill()" :disabled="noEmptyDays" class="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-extrabold text-emerald-800 transition active:bg-emerald-100 disabled:opacity-40">
-          🪄 پر کردن خودکار روزهای خالی
-          <span class="rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white" x-text="emptyCount"></span>
-        </button>
       </section>
 
       {{-- کارت آماری چسبان: مجموع ساعات کاری ماه --}}
@@ -128,23 +124,30 @@
                 <p class="text-xs font-medium text-slate-500">
                   <span x-text="day.weekday"></span>
                   <span x-show="isOff(day)"> · تعطیل</span>
+                  <span x-show="isFutureWorking(day)"> · روز آینده</span>
                 </p>
               </div>
-              <span x-show="isWorking(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
+              <span x-show="isOpen(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
                 <span x-text="dayHoursText(day.date)"></span>
                 <span x-show="hasHours(day.date)" class="text-xs font-bold">ساعت</span>
               </span>
             </div>
 
-            <div x-show="isWorking(day)" class="mt-3 space-y-2">
+            <div x-show="isOpen(day)" class="mt-3 space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <label class="block">
                   <span class="mb-1 block text-xs font-bold text-slate-500">ساعت ورود</span>
-                  <input type="time" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                  <span class="time-field relative block">
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-11 pe-3 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                  </span>
                 </label>
                 <label class="block">
                   <span class="mb-1 block text-xs font-bold text-slate-500">ساعت خروج</span>
-                  <input type="time" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base font-bold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                  <span class="time-field relative block">
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 " viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-11 pe-3 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                  </span>
                 </label>
               </div>
               <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت خروج باید بعد از ساعت ورود باشد.</p>
@@ -154,11 +157,21 @@
                   <button type="button" @click="toggleTag(day.date, tag.key)" :class="tagClass(day.date, tag.key)" :aria-pressed="hasTag(day.date, tag.key)" class="min-h-11 rounded-full border px-4 text-sm font-bold transition" x-text="tag.label"></button>
                 </template>
               </div>
+              <div x-show="hasOther(day.date)" class="relative">
+                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                <input type="text" maxlength="120" :value="otherText(day.date)" @input="setOtherText(day.date, $event)" placeholder="فعالیت دلخواه خود را بنویسید…" aria-label="شرح سایر موارد" class="min-h-12 w-full rounded-xl border border-emerald-200 bg-emerald-50/60 ps-11 pe-3 text-sm font-bold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+              </div>
             </div>
 
-            <fieldset x-show="isOff(day)" disabled class="mt-3 grid grid-cols-2 gap-2">
-              <input type="time" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 px-3" aria-label="ساعت ورود (تعطیل)" />
-              <input type="time" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 px-3" aria-label="ساعت خروج (تعطیل)" />
+            <fieldset x-show="isLocked(day)" disabled class="mt-3 grid grid-cols-2 gap-2">
+              <span class="time-field relative block">
+                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-11 pe-3 text-center text-lg font-extrabold text-slate-400" aria-label="ساعت ورود (غیرفعال)" />
+              </span>
+              <span class="time-field relative block">
+                <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-11 pe-3 text-center text-lg font-extrabold text-slate-400" aria-label="ساعت خروج (غیرفعال)" />
+              </span>
             </fieldset>
           </article>
         </template>

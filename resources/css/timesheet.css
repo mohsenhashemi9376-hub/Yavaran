@@ -45,3 +45,25 @@
 html, body { font-family: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif; }
 button, input, select, textarea { font-family: inherit; }
 [x-cloak] { display: none !important; }
+
+/* فیلد ساعت سفارشی: نشانگر پیش‌فرض مرورگر نامرئی ولی روی کل فیلد پهن است تا با لمس هر جای فیلد انتخابگر باز شود */
+.time-field input[type="time"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+.time-field input[type="time"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.time-field input[type="time"]::-webkit-datetime-edit {
+  padding: 0;
+}
+.time-field input[type="time"]:disabled::-webkit-calendar-picker-indicator {
+  cursor: not-allowed;
+}

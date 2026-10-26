@@ -11,8 +11,6 @@ const toMinutes = (t) => {
   return h * 60 + m;
 };
 
-const DEFAULT_IN = '07:30';
-const DEFAULT_OUT = '14:00';
 const DEFAULT_TAG = 'teaching';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -101,6 +99,12 @@ Alpine.data('timesheet', () => ({
   isToday(day) { return day.g === this.todayIso; },
   isOff(day) { return day.off; },
   isWorking(day) { return !day.off; },
+  /** روز آینده (بعد از امروز): غیرفعال و بدون نیاز به ثبت */
+  isFuture(day) { return day.g > this.todayIso; },
+  isFutureWorking(day) { return !day.off && this.isFuture(day); },
+  /** فقط روزهای کاری گذشته و امروز قابل ویرایش‌اند */
+  isOpen(day) { return !day.off && !this.isFuture(day); },
+  isLocked(day) { return day.off || this.isFuture(day); },
   setField(date, field, e) {
     this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: e.target.value } };
     this.touch();
@@ -113,6 +117,12 @@ Alpine.data('timesheet', () => ({
     const cur = this.tagsOf(date);
     const tags = cur.includes(key) ? cur.filter((t) => t !== key) : [...cur, key];
     this.entries = { ...this.entries, [date]: { ...this.entry(date), tags } };
+    this.touch();
+  },
+  hasOther(date) { return this.hasTag(date, 'other'); },
+  otherText(date) { return this.entry(date).otherText || ''; },
+  setOtherText(date, e) {
+    this.entries = { ...this.entries, [date]: { ...this.entry(date), otherText: e.target.value } };
     this.touch();
   },
   tagClass(date, key) {
@@ -140,6 +150,7 @@ Alpine.data('timesheet', () => ({
   },
   rowClass(day) {
     if (day.off) return 'border-slate-200 bg-slate-100 opacity-60 grayscale';
+    if (this.isFuture(day)) return 'border-slate-200 bg-slate-50 opacity-50';
     if (this.isToday(day)) return 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200';
     if (this.isInvalid(day.date)) return 'border-rose-300 bg-rose-50';
     return this.hasHours(day.date) ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
@@ -154,7 +165,7 @@ Alpine.data('timesheet', () => ({
   },
   get totalText() { return fmtHours(this.totalHours); },
   get filledDays() { return toFa(this.days.filter((d) => this.hasHours(d.date)).length); },
-  get workDaysCount() { return toFa(this.days.filter((d) => !d.off).length); },
+  get workDaysCount() { return toFa(this.days.filter((d) => this.isOpen(d)).length); },
   get averageText() {
     const n = this.days.filter((d) => this.hasHours(d.date)).length;
     return n ? fmtHours(this.totalHours / n) : '—';
@@ -216,24 +227,6 @@ Alpine.data('timesheet', () => ({
   },
   get hasHint() { return this.punchHint !== ''; },
 
-  // ---------- پر کردن خودکار ----------
-  get emptyWorkDays() {
-    return this.days.filter((d) => !d.off && !this.isToday(d) && !this.entry(d.date).in && !this.entry(d.date).out);
-  },
-  get emptyCount() { return toFa(this.emptyWorkDays.length); },
-  get noEmptyDays() { return this.emptyWorkDays.length === 0; },
-  magicFill() {
-    const targets = this.emptyWorkDays;
-    if (!targets.length) return;
-    if (!window.confirm(`${toFa(targets.length)} روز کاری خالی با ورود ${toFa(DEFAULT_IN)}، خروج ${toFa(DEFAULT_OUT)} و تگ «تدریس موظفی» پر شود؟`)) return;
-    const next = { ...this.entries };
-    for (const d of targets) {
-      next[d.date] = { ...next[d.date], in: DEFAULT_IN, out: DEFAULT_OUT, tags: [DEFAULT_TAG] };
-    }
-    this.entries = next;
-    this.touch();
-  },
-
   // ---------- خودارزیابی ----------
   isExtra(axis) { return axis.id === 'extra'; },
   axisNumber(index) { return toFa(index + 1); },
@@ -283,9 +276,15 @@ Alpine.data('timesheet', () => ({
       const entries = {};
       for (const d of this.days) {
         const e = this.entry(d.date);
-        if (d.off) continue;
+        if (!this.isOpen(d)) continue;
         if (e.in || e.out || (e.tags || []).length) {
-          entries[d.date] = { in: e.in || null, out: e.out || null, tags: e.tags || [] };
+          const tags = e.tags || [];
+          entries[d.date] = {
+            in: e.in || null,
+            out: e.out || null,
+            tags,
+            otherText: tags.includes('other') ? (e.otherText || '').trim() : '',
+          };
         }
       }
       await request('/api/teacher-timesheet', {

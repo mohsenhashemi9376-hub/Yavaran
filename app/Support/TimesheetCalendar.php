@@ -100,8 +100,8 @@ final class TimesheetCalendar
             'g' => sprintf('%04d-%02d-%02d', $gy, $gm, $gd),
             'label' => self::digits($d).' '.self::NAMES[$m],
             'weekday' => self::WEEKDAYS[$dow],
-            // پنج‌شنبه و جمعه و تعطیلی‌های اعلام‌شده‌ی مدرسه
-            'off' => in_array($dow, [4, 5], true) || SchoolCalendar::closedReason($date) !== null,
+            // فقط جمعه و تعطیلی‌های اعلام‌شده‌ی مدرسه (پنج‌شنبه کاری است)
+            'off' => $dow === 5 || SchoolCalendar::closedReason($date) !== null,
         ];
     }
 }
