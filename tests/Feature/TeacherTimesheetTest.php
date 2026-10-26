@@ -77,7 +77,7 @@ class TeacherTimesheetTest extends TestCase
     public function test_rejects_bad_month_time_and_score(): void
     {
         $u = $this->makeUser('teacher');
-        $this->actingAs($u)->getJson('/api/teacher-timesheet?month=mehr')->assertStatus(422);
+        $this->actingAs($u)->getJson("/api/teacher-timesheet?month=shahrivar")->assertStatus(422);
         $this->actingAs($u)->postJson('/api/teacher-timesheet', [
             'month' => 'aban', 'entries' => ['1405/07/26' => ['in' => '25:99']], 'selfEvaluation' => ['scores' => []],
         ])->assertStatus(422);

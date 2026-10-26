@@ -1,8 +1,6 @@
 // ساعت کاری و خودارزیابی اساتید — Alpine.js (نسخهٔ سازگار با CSP)
 import Alpine from '@alpinejs/csp';
-
-const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const toFa = (v) => String(v).replace(/\d/g, (d) => FA_DIGITS[d]);
+import { request, toFa } from './lib/pageApi.js';
 
 /** ساعت اعشاری با ممیز فارسی: ۶٫۵ */
 const fmtHours = (h) => toFa((Math.round(h * 100) / 100).toString()).replace('.', '٫');
@@ -11,31 +9,6 @@ const toMinutes = (t) => {
   if (!/^\d{2}:\d{2}$/.test(t || '')) return null;
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
-};
-
-const readXsrf = () => {
-  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : '';
-};
-
-const request = async (url, options = {}) => {
-  const res = await fetch(url, {
-    credentials: 'same-origin',
-    ...options,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-XSRF-TOKEN': readXsrf(),
-    },
-  });
-  if (res.status === 401 || res.status === 419) {
-    window.location.assign('/');
-    throw new Error('auth');
-  }
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.message || 'خطا در ارتباط با سرور.');
-  return body;
 };
 
 const DEFAULT_IN = '07:30';
@@ -127,6 +100,7 @@ Alpine.data('timesheet', () => ({
   valueOf(date, field) { return this.entry(date)[field] || ''; },
   isToday(day) { return day.g === this.todayIso; },
   isOff(day) { return day.off; },
+  isWorking(day) { return !day.off; },
   setField(date, field, e) {
     this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: e.target.value } };
     this.touch();

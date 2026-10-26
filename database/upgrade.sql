@@ -447,3 +447,18 @@ CREATE TABLE IF NOT EXISTS `teacher_timesheets` (
   UNIQUE KEY `teacher_timesheets_user_month_unique` (`user_id`,`month_key`),
   CONSTRAINT `teacher_timesheets_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- امتیاز گیمیفیکیشن اساتید (پاداش تأیید طرح درس)
+CREATE TABLE IF NOT EXISTS `teacher_points` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(100) NOT NULL,
+  `points` int NOT NULL,
+  `reason` varchar(191) NOT NULL,
+  `ref` varchar(150) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `teacher_points_ref_unique` (`ref`),
+  KEY `teacher_points_user_id_index` (`user_id`),
+  CONSTRAINT `teacher_points_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

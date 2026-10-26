@@ -130,13 +130,13 @@
                   <span x-show="isOff(day)"> · تعطیل</span>
                 </p>
               </div>
-              <span x-show="!isOff(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
+              <span x-show="isWorking(day)" :class="badgeClass(day.date)" class="min-w-20 rounded-full px-3 py-1.5 text-center text-sm font-extrabold">
                 <span x-text="dayHoursText(day.date)"></span>
                 <span x-show="hasHours(day.date)" class="text-xs font-bold">ساعت</span>
               </span>
             </div>
 
-            <div x-show="!isOff(day)" class="mt-3 space-y-2">
+            <div x-show="isWorking(day)" class="mt-3 space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <label class="block">
                   <span class="mb-1 block text-xs font-bold text-slate-500">ساعت ورود</span>
