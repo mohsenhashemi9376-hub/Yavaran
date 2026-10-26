@@ -111,7 +111,7 @@ Alpine.data('timesheet', () => ({
 
   // ---------- روزها ----------
   entry(date) { return this.entries[date] || {}; },
-  valueOf(date, field) { return this.entry(date)[field] || ''; },
+  fieldValue(date, field) { return this.entry(date)[field] || ''; },
   isToday(day) { return day.g === this.todayIso; },
   isOff(day) { return day.off; },
   isWorking(day) { return !day.off; },

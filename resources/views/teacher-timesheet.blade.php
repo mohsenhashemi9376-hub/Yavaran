@@ -123,7 +123,7 @@
         <template x-for="day in days" :key="day.date">
           <article :id="dayId(day)" :class="rowClass(day)" class="flex scroll-mt-40 flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4">
             {{-- تاریخ و روز --}}
-            <div class="flex items-center justify-between gap-2 md:w-36 md:shrink-0 md:flex-col md:items-start md:justify-center">
+            <div class="flex items-center justify-between gap-2 md:w-24 md:shrink-0 md:flex-col md:items-start md:justify-center">
               <div>
                 <p class="text-sm font-extrabold text-slate-800">
                   <span x-text="day.label"></span>
@@ -142,38 +142,39 @@
             </div>
 
             {{-- ورود و خروج (نوبت اول و دوم) --}}
-            <div x-show="isOpen(day)" class="space-y-1 md:shrink-0">
-              <div class="grid grid-cols-2 gap-2 md:flex">
-                <label class="block md:w-32">
+            <div x-show="isOpen(day)" class="space-y-1 md:shrink-0 md:space-y-0">
+              <div class="md:flex md:gap-2"><div class="grid grid-cols-2 gap-2 md:flex">
+                <label class="block md:w-24">
                   <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
                   </span>
                 </label>
-                <label class="block md:w-32">
+                <label class="block md:w-24">
                   <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
                   </span>
                 </label>
               </div>
-              <div x-show="hasSecond(day.date)" class="grid grid-cols-2 gap-2 md:flex">
-                <label class="block md:w-32">
+              <div x-show="hasSecond(day.date)" class="mt-2 grid grid-cols-2 gap-2 md:mt-0 md:flex md:border-s md:border-slate-200 md:ps-2">
+                <label class="block md:w-24">
                   <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود دوم</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'in2')" @input="setField(day.date, 'in2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'in2')" @input="setField(day.date, 'in2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
                   </span>
                 </label>
-                <label class="block md:w-32">
+                <label class="block md:w-24">
                   <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج دوم</span>
                   <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="valueOf(day.date, 'out2')" @input="setField(day.date, 'out2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-10 pe-2 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-base" />
+                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'out2')" @input="setField(day.date, 'out2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
                   </span>
                 </label>
+              </div>
               </div>
               <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت‌ها معتبر نیست (خروج باید بعد از ورود باشد).</p>
             </div>
@@ -197,13 +198,13 @@
 
             {{-- روز تعطیل یا آینده --}}
             <fieldset x-show="isLocked(day)" disabled class="grid grid-cols-2 gap-2 md:flex md:flex-1 md:justify-start">
-                <span class="time-field relative block md:w-32">
-                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-10 pe-2 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-base" aria-label="ساعت ورود (غیرفعال)" />
+                <span class="time-field relative block md:w-24">
+                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-sm" aria-label="ساعت ورود (غیرفعال)" />
                 </span>
-                <span class="time-field relative block md:w-32">
-                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-10 pe-2 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-base" aria-label="ساعت خروج (غیرفعال)" />
+                <span class="time-field relative block md:w-24">
+                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-sm" aria-label="ساعت خروج (غیرفعال)" />
                 </span>
             </fieldset>
           </article>
