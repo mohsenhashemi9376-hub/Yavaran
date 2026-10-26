@@ -7,7 +7,7 @@ import { Student, StudentAttendanceRecord } from '../types';
 import { absenceEventsOf, delayEventsOf } from '../utils/attendanceStats';
 import { dateToShamsiString, getAcademicYearStart, getActiveAcademicYear, getTodayShamsi, PERSIAN_MONTHS, shamsiStringToDate, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { studentFullName, compareStudents } from '../utils/studentName';
-import { academicMonths } from '../utils/teacherActivities';
+import { academicMonths } from '../utils/academicMonths';
 
 /** تأخیر نسبت به ۰۷:۰۰ محاسبه می‌شود؛ ورود تا ۰۷:۱۰ (۱۰ دقیقه) «تأخیر جزئی» است و دانش‌آموز را از «تقریباً ممتاز» خارج نمی‌کند */
 const MINOR_DELAY_MINUTES = 10;

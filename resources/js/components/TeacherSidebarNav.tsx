@@ -128,7 +128,7 @@ export const TeacherSidebarNav: React.FC<TeacherSidebarNavProps> = ({
         },
         {
           id: 'activities',
-          label: 'فعالیت خارج مدرسه',
+          label: 'ساعت کاری و خودارزیابی',
           icon: Clock,
         },
         {

@@ -18,7 +18,6 @@ import { StudentGrowthChart } from './StudentGrowthChart';
 import { TeacherEvaluationSection } from './TeacherEvaluationSection';
 import { AnnouncementsManagement } from './AnnouncementsManagement';
 import { HomeworkFollowUpReport } from './HomeworkFollowUpReport';
-import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { WorksheetsWorkspace } from './WorksheetsWorkspace';
 import { WorksheetAlertsCard } from './WorksheetAlertsCard';
 import { GradePeriodsModal } from './GradePeriodsModal';
@@ -33,7 +32,7 @@ import { LessonPlansReview } from './LessonPlansReview';
 import { GreyListWorkspace } from './GreyListWorkspace';
 import { WeeklyFollowUpDigest } from './WeeklyFollowUpDigest';
 import { buildGreySnapshot } from '../utils/greyList';
-import { currentMonthKey } from '../utils/teacherActivities';
+import { currentMonthKey } from '../utils/academicMonths';
 import { EducationalSidebarNav, EducationalViewType } from './EducationalSidebarNav';
 import { AdminClassesWorkspace } from './AdminClassesWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
@@ -793,13 +792,6 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {currentView === 'activities' && (
-          <TeacherActivitiesReport
-            onBack={() => setCurrentView(null)}
-            onOpenSidebar={() => setIsMobileSidebarOpen(true)}
-          />
-        )}
-
         {currentView === 'grey_list' && (
           <div className="space-y-3">
             <button type="button" onClick={() => setCurrentView(null)} className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer">← بازگشت به داشبورد</button>

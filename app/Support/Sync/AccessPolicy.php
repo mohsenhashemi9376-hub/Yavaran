@@ -43,9 +43,6 @@ final class AccessPolicy
     /** مجموعه‌های پرونده تربیتی (فقط تیم تربیتی) */
     private const NURTURING = ['observations', 'coachEvaluations', 'nurturingDossiers'];
 
-    /** فعالیت‌های خارج از مدرسه: هر معلم فقط رکوردهای خودش را می‌نویسد */
-    private const TEACHER_OWNED = ['teacherActivities'];
-
     /** @var array<int, \Closure> کارهایی که باید بعد از Rollback تراکنش اجرا شوند (لاگ تلاش ردشده، اعلان امنیتی) */
     private array $afterRollback = [];
 
@@ -450,15 +447,6 @@ final class AccessPolicy
             $this->requireOpenGradePeriods($old, $new);
         }
 
-        if (in_array($collection, self::TEACHER_OWNED, true)) {
-            if ($old !== null) {
-                $this->requireOwner($this->prop($old, 'teacherId'));
-            }
-            $this->requireOwner($this->prop($new, 'teacherId'));
-
-            return;
-        }
-
         if (in_array($collection, self::MANAGER_ONLY, true)) {
             $this->deny();
         }
@@ -614,12 +602,6 @@ final class AccessPolicy
         }
 
         if ($this->isManager()) {
-            return;
-        }
-
-        if (in_array($collection, self::TEACHER_OWNED, true)) {
-            $this->requireOwner($this->prop($old, 'teacherId'));
-
             return;
         }
 

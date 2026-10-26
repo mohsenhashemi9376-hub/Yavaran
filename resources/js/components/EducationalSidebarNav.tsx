@@ -16,7 +16,6 @@ import {
   CheckCircle2, 
   Settings,
   Megaphone,
-  Clock,
   UserCheck,
   X, 
   ChevronLeft,
@@ -34,7 +33,6 @@ export type EducationalViewType =
   | 'report_cards' 
   | 'comprehensive_exam'
   | 'announcements'
-  | 'activities'
   | 'teacher_evaluation'
   | 'reports' 
   | 'warnings' 
@@ -159,12 +157,6 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
           label: 'بخشنامه‌ها و اطلاعیه‌ها',
           tooltip: 'مدیریت و ابلاغ بخشنامه‌ها و اطلاعیه‌ها به اساتید',
           icon: Megaphone,
-        },
-        {
-          id: 'activities',
-          label: 'فعالیت خارج مدرسه اساتید',
-          tooltip: 'گزارش ماهانه فعالیت‌های خارج مدرسه اساتید',
-          icon: Clock,
         },
       ],
     },

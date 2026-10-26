@@ -13,7 +13,6 @@ import {
   TeachingAssignment,
   MorningDelayRecord,
   MorningAttendanceRecord,
-  TeacherActivity,
   GradePeriod,
   Workshop,
   LoanItem,
@@ -109,7 +108,6 @@ interface SchoolContextType {
   comprehensiveExams: ComprehensiveExamRecord[];
   saveComprehensiveExam: (record: ComprehensiveExamRecord) => void;
   courseAssignments: CourseAssignment[];
-  teacherActivities: TeacherActivity[];
   /** فهرست کامل بازه‌های ثبت نمره (فعال/قفل) */
   gradePeriods: GradePeriod[];
   workshops: Workshop[];
@@ -181,9 +179,6 @@ interface SchoolContextType {
   setGradePeriodSubjectOpen: (code: string, subjectId: string, open: boolean) => void;
   /** آیا ثبت نمره برای این بازه باز است؟ (مدیر و معاونین همیشه مجازند) */
   isGradePeriodOpen: (code: string, subjectId?: string) => boolean;
-  addTeacherActivity: (data: Pick<TeacherActivity, 'date' | 'title' | 'hours'>) => void;
-  updateTeacherActivity: (id: string, updates: Partial<Pick<TeacherActivity, 'date' | 'title' | 'hours' | 'status'>>) => void;
-  deleteTeacherActivity: (id: string) => void;
   /** انتساب (یا لغو انتساب با teacherId=null) استاد به یک درس در یک کلاس */
   assignCourseTeacher: (classId: string, subjectId: string, teacherId: string | null) => void;
   /** تمام کاربران فعال کادر مدرسه برای انتخاب استاد درس */
@@ -502,7 +497,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [schoolAnnouncements, setSchoolAnnouncements] = useState<SchoolAnnouncement[]>([]);
   const [comprehensiveExams, setComprehensiveExams] = useState<ComprehensiveExamRecord[]>([]);
   const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([]);
-  const [teacherActivities, setTeacherActivities] = useState<TeacherActivity[]>([]);
   const [storedGradePeriods, setStoredGradePeriods] = useState<GradePeriod[]>([]);
   const [storedWorkshops, setStoredWorkshops] = useState<Workshop[]>([]);
   const [viewDate, setViewDateState] = useState<string | null>(null);
@@ -668,7 +662,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextAnnouncements = (d.schoolAnnouncements || []) as unknown as SchoolAnnouncement[];
     const nextExams = (d.comprehensiveExams || []) as unknown as ComprehensiveExamRecord[];
     const nextCourseAssignments = (d.courseAssignments || []) as unknown as CourseAssignment[];
-    const nextTeacherActivities = (d.teacherActivities || []) as unknown as TeacherActivity[];
     const nextGradePeriods = (d.gradePeriods || []) as unknown as GradePeriod[];
     const nextWorkshops = (d.workshops || []) as unknown as Workshop[];
     const nextLoanItems = (d.loanItems || []) as unknown as LoanItem[];
@@ -703,7 +696,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       schoolAnnouncements: nextAnnouncements as unknown as SyncRow[],
       comprehensiveExams: nextExams as unknown as SyncRow[],
       courseAssignments: nextCourseAssignments as unknown as SyncRow[],
-      teacherActivities: nextTeacherActivities as unknown as SyncRow[],
       gradePeriods: nextGradePeriods as unknown as SyncRow[],
       workshops: nextWorkshops as unknown as SyncRow[],
       loanItems: nextLoanItems as unknown as SyncRow[],
@@ -738,7 +730,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSchoolAnnouncements(nextAnnouncements);
     setComprehensiveExams(nextExams);
     setCourseAssignments(nextCourseAssignments);
-    setTeacherActivities(nextTeacherActivities);
     setStoredGradePeriods(nextGradePeriods);
     setStoredWorkshops(nextWorkshops);
     setLoanItems(nextLoanItems);
@@ -789,7 +780,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSchoolAnnouncements([]);
     setComprehensiveExams([]);
     setCourseAssignments([]);
-    setTeacherActivities([]);
     setStoredGradePeriods([]);
     setStoredWorkshops([]);
     setLoanItems([]);
@@ -928,7 +918,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { syncEngine.push('teacherEvaluations', teacherEvaluations as unknown as SyncRow[]); }, [teacherEvaluations, syncEngine]);
   useEffect(() => { syncEngine.push('schoolAnnouncements', schoolAnnouncements as unknown as SyncRow[]); }, [schoolAnnouncements, syncEngine]);
   useEffect(() => { syncEngine.push('courseAssignments', courseAssignments as unknown as SyncRow[]); }, [courseAssignments, syncEngine]);
-  useEffect(() => { syncEngine.push('teacherActivities', teacherActivities as unknown as SyncRow[]); }, [teacherActivities, syncEngine]);
   useEffect(() => { syncEngine.push('workshops', storedWorkshops as unknown as SyncRow[]); }, [storedWorkshops, syncEngine]);
   useEffect(() => { syncEngine.push('loanItems', loanItems as unknown as SyncRow[]); }, [loanItems, syncEngine]);
   useEffect(() => { syncEngine.push('parentMeetings', parentMeetings as unknown as SyncRow[]); }, [parentMeetings, syncEngine]);
@@ -1724,38 +1713,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       };
       return [created, ...prev];
     });
-  };
-
-  // ------------------------------------------------------------------
-  // فعالیت خارج از مدرسه معلمان
-  // ------------------------------------------------------------------
-  const addTeacherActivity = (data: Pick<TeacherActivity, 'date' | 'title' | 'hours'>) => {
-    const nowIso = new Date().toISOString();
-    const record: TeacherActivity = {
-      id: `tact-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      teacherId: currentUser.id,
-      teacherName: currentUser.name,
-      date: toEnglishDigits(data.date),
-      title: data.title.trim(),
-      hours: Math.round(data.hours * 100) / 100,
-      status: 'approved',
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    };
-    setTeacherActivities((prev) => [record, ...prev]);
-  };
-
-  const updateTeacherActivity = (
-    id: string,
-    updates: Partial<Pick<TeacherActivity, 'date' | 'title' | 'hours' | 'status'>>
-  ) => {
-    setTeacherActivities((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a))
-    );
-  };
-
-  const deleteTeacherActivity = (id: string) => {
-    setTeacherActivities((prev) => prev.filter((a) => a.id !== id));
   };
 
   // ------------------------------------------------------------------
@@ -3263,7 +3220,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setMorningEntryTime,
         acknowledgeMorningRecord,
         setMorningAbsenceInfo,
-        teacherActivities,
         gradePeriods,
         workshops,
         loanItems,
@@ -3315,9 +3271,6 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setGradePeriodActive,
         setGradePeriodSubjectOpen,
         isGradePeriodOpen,
-        addTeacherActivity,
-        updateTeacherActivity,
-        deleteTeacherActivity,
         addMorningDelaysBatch,
         addSchoolAbsence,
         updateSchoolAbsence,

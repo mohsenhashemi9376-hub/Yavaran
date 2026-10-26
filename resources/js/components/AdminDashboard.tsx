@@ -16,7 +16,6 @@ import { AdminStudentsWorkspace } from './AdminStudentsWorkspace';
 import { AdminTeachersWorkspace } from './AdminTeachersWorkspace';
 import { AdminCoachesWorkspace } from './AdminCoachesWorkspace';
 import { AdminAttendanceWorkspace } from './AdminAttendanceWorkspace';
-import { TeacherActivitiesReport } from './TeacherActivitiesReport';
 import { SendAnnouncementModal } from './SendAnnouncementModal';
 import { EarlyWarningDossier, EarlyWarningPill, useEarlyWarnings } from './EarlyWarningDossier';
 import type { MorningStatusFilter } from './MorningAttendanceWorkspace';
@@ -1728,10 +1727,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setIsEditCoachModalOpen(true);
           }}
         />
-      )}
-
-      {currentFullScreenView === 'activities' && (
-        <TeacherActivitiesReport onBack={() => setCurrentFullScreenView(null)} onOpenSidebar={handleOpenSidebar} />
       )}
 
       {currentFullScreenView === 'attendance' && (

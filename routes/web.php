@@ -11,6 +11,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\TeacherTimesheetController;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
@@ -108,6 +109,10 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::get('nurturing-audit', [NurturingAuditController::class, 'index'])
             ->middleware('throttle:60,1')
             ->name('api.nurturing-audit');
+        Route::prefix('teacher-timesheet')->middleware('throttle:120,1')->group(function (): void {
+            Route::get('/', [TeacherTimesheetController::class, 'show'])->name('api.teacher-timesheet.show');
+            Route::post('/', [TeacherTimesheetController::class, 'save'])->name('api.teacher-timesheet.save');
+        });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
             ->name('api.sync');
@@ -115,6 +120,9 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
 
     Route::any('{any}', fn () => response()->json(['message' => 'مسیر یافت نشد.'], 404))->where('any', '.*');
 });
+
+// صفحهٔ ساعت کاری و خودارزیابی اساتید (Blade + Alpine.js)
+Route::get('teacher-timesheet', [TeacherTimesheetController::class, 'page'])->name('teacher-timesheet');
 
 /*
 |--------------------------------------------------------------------------

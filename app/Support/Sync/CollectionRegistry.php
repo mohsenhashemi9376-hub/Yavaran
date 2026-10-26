@@ -27,7 +27,6 @@ final class CollectionRegistry
         'schoolAnnouncements' => 'school_announcements',
         'comprehensiveExams' => 'comprehensive_exams',
         'courseAssignments' => 'course_assignments',
-        'teacherActivities' => 'teacher_activities',
         'gradePeriods' => 'grade_periods',
         'workshops' => 'workshops',
         'loanItems' => 'loan_items',
@@ -302,25 +301,6 @@ final class CollectionRegistry
                     $t->timestamps();
                 });
                 self::seedGradePeriods();
-            } catch (\Throwable) {
-            }
-            unset(self::$schemaCache["t:$table"]);
-
-            return self::tableExists($table);
-        }
-        if ($table === 'teacher_activities') {
-            try {
-                \Illuminate\Support\Facades\Schema::create('teacher_activities', function ($t): void {
-                    $t->string('id', 100)->primary();
-                    $t->string('teacher_id', 100)->index();
-                    $t->date('date')->index();
-                    $t->text('activity_title');
-                    $t->decimal('hours', 4, 2)->default(0);
-                    $t->string('status', 20)->default('approved');
-                    $t->integer('sort_order')->default(0)->index();
-                    $t->longText('data');
-                    $t->timestamps();
-                });
             } catch (\Throwable) {
             }
             unset(self::$schemaCache["t:$table"]);
@@ -627,13 +607,6 @@ final class CollectionRegistry
                 'recipient_name' => self::str($d, 'recipientName', 191) ?? '',
                 'loan_date' => self::str($d, 'loanDate', 20),
                 'is_returned' => ! empty($d->returned),
-            ],
-            'teacherActivities' => [
-                'teacher_id' => self::str($d, 'teacherId', 100) ?? '',
-                'date' => \App\Support\Jalali::shamsiToDate(self::str($d, 'date', 20)) ?? now()->toDateString(),
-                'activity_title' => self::str($d, 'title', 2000) ?? '',
-                'hours' => isset($d->hours) && is_numeric($d->hours) ? max(0, min(24, round((float) $d->hours, 2))) : 0,
-                'status' => ($d->status ?? null) === 'pending' ? 'pending' : 'approved',
             ],
             'grades' => [
                 'name' => self::str($d, 'name', 100) ?? '',

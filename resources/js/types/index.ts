@@ -111,7 +111,7 @@ export interface SchoolClass {
   name: string; // e.g. "پایه دهم ریاضی الف"
   grade: string; // e.g. "دهم"
   major: string; // e.g. "ریاضی و فیزیک", "علوم تجربی", "انسانی"
-  academicYear: string; // e.g. "۱۴۰۴-۱۴۰۵"
+  academicYear: string; // e.g. "۱۴۰۵-۱۴۰۶"
   roomNumber?: string;
   room?: string; // شماره یا نام اتاق کلاس
   academicAdvisor?: string; // مشاور تحصیلی کلاس
@@ -836,19 +836,6 @@ export interface ComprehensiveExamRecord {
   monthly?: Partial<Record<MonthlyContinuousKey, Record<string, Partial<Record<ExamSubjectKey, number>>>>>;
   /** دروس فعال هر ماه (اگر تعریف نشده باشد، activeSubjects کلاس) */
   monthlyActive?: Partial<Record<MonthlyContinuousKey, ExamSubjectKey[]>>;
-  updatedAt?: string;
-}
-
-/** فعالیت خارج از مدرسه معلم (ساعات کار اضافه) */
-export interface TeacherActivity {
-  id: string;
-  teacherId: string;
-  teacherName?: string;
-  date: string; // Shamsi: "1405/07/12"
-  title: string; // عنوان و شرح فعالیت
-  hours: number; // مثلاً 1.5
-  status: 'pending' | 'approved';
-  createdAt: string;
   updatedAt?: string;
 }
 

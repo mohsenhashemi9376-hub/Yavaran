@@ -117,7 +117,7 @@ export const teacherMobileNav = (hasExam = false) => ({
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
     ...(hasExam ? [{ id: 'exam', label: 'آزمون جامع', icon: Award }] : []),
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
-    { id: 'activities', label: 'فعالیت خارج مدرسه', icon: Clock },
+    { id: 'activities', label: 'ساعت کاری و خودارزیابی', icon: Clock },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },
   ] as MobileNavItem[],
 });
