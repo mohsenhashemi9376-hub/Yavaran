@@ -7,7 +7,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [
     laravel({
-      input: ['resources/js/main.tsx', 'resources/css/timesheet.css', 'resources/js/timesheet.js', 'resources/css/review.css', 'resources/js/lesson-review.js'],
+      input: ['resources/js/main.tsx', 'resources/css/timesheet.css', 'resources/js/timesheet.js', 'resources/css/review.css', 'resources/js/lesson-review.js', 'resources/js/timesheet-overview.js'],
       refresh: true,
     }),
     react(),

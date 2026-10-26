@@ -85,4 +85,25 @@ class TeacherTimesheetTest extends TestCase
             'month' => 'aban', 'entries' => [], 'selfEvaluation' => ['scores' => ['growth' => 6]],
         ])->assertStatus(422);
     }
+
+    public function test_managers_see_overview_with_hours_and_scores(): void
+    {
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000061']);
+        $vice = $this->makeUser('vice_educational', ['phone' => '09120000062']);
+        $this->actingAs($teacher)->postJson('/api/teacher-timesheet', [
+            'month' => 'aban',
+            'entries' => ['1405/08/01' => ['in' => '08:00', 'out' => '14:30', 'tags' => ['teaching']]],
+            'selfEvaluation' => ['scores' => ['growth' => 4, 'extra' => 5], 'extraNote' => 'کلاس تقویتی'],
+        ])->assertOk();
+
+        $this->actingAs($teacher)->get('/teacher-timesheets')->assertRedirect('/');
+        $this->actingAs($teacher)->getJson('/api/teacher-timesheets?month=aban')->assertStatus(403);
+
+        $this->actingAs($vice)->get('/teacher-timesheets')->assertOk();
+        $row = collect($this->actingAs($vice)->getJson('/api/teacher-timesheets?month=aban')->assertOk()->json('teachers'))->firstWhere('id', $teacher->id);
+        $this->assertSame(6.5, (float) $row['hours']);
+        $this->assertSame(1, $row['days']);
+        $this->assertSame(9, $row['scoreTotal']);
+        $this->assertSame('کلاس تقویتی', $row['extraNote']);
+    }
 }
