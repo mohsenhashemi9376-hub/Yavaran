@@ -33,4 +33,16 @@ class BootstrapController extends Controller
             'Content-Type' => 'application/json; charset=utf-8',
         ]);
     }
+
+    /** بررسی سبک تغییر داده‌ها: فقط نسخه را برمی‌گرداند (برای تصمیم دربارهٔ دریافت کامل) */
+    public function version(Request $request, DataExporter $exporter): Response
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user || ! $user->isActive() || $user->mustChangePassword()) {
+            return response()->json(['authenticated' => false]);
+        }
+
+        return response()->json(['authenticated' => true, 'version' => $exporter->version()]);
+    }
 }

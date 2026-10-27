@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::class)->group(function (): void {
     Route::get('bootstrap', BootstrapController::class)->name('api.bootstrap');
+    Route::get('bootstrap/version', [BootstrapController::class, 'version'])->middleware('throttle:120,1')->name('api.bootstrap.version');
 
     Route::post('auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:30,1')

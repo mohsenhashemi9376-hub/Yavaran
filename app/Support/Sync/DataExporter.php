@@ -7,6 +7,7 @@ use App\Models\StudentObservation;
 use App\Models\User;
 use App\Support\NurturingAudit;
 use App\Policies\NurturingRecordPolicy;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +18,28 @@ use Illuminate\Support\Facades\Schema;
  */
 final class DataExporter
 {
+    /** شمارندهٔ تغییرات؛ SyncService پس از هر نوشتن موفق آن را افزایش می‌دهد */
+    public const REV_KEY = 'sync:rev';
+
+    /**
+     * اثرانگشت سبک کل داده‌ها (تعداد رکورد + آخرین updated_at هر جدول + شمارندهٔ تغییرات).
+     * تغییر در هر جدولی (حتی نامرتبط با نقش کاربر) نسخه را عوض می‌کند؛ یعنی فقط ممکن است یک دریافت اضافه رخ دهد، نه اینکه تغییری از قلم بیفتد.
+     */
+    public function version(): string
+    {
+        $parts = [(string) Cache::get(self::REV_KEY, 0)];
+        foreach (CollectionRegistry::TABLES as $table) {
+            if (! CollectionRegistry::tableExists($table)) {
+                continue;
+            }
+            $hasStamp = Schema::hasColumn($table, 'updated_at');
+            $row = DB::table($table)->selectRaw($hasStamp ? 'count(*) as c, max(updated_at) as m' : 'count(*) as c, null as m')->first();
+            $parts[] = $table.':'.$row->c.':'.($row->m ?? '');
+        }
+
+        return md5(implode('|', $parts));
+    }
+
     public function json(User $user): string
     {
         // رمز اجباری هنوز تغییر نکرده: هیچ داده‌ای ارسال نمی‌شود
@@ -26,6 +49,8 @@ final class DataExporter
                 .'"serverTime":'.((int) round(microtime(true) * 1000)).',"data":{}}';
         }
 
+        // نسخه پیش از خواندن داده‌ها گرفته می‌شود تا نوشتن همزمان، حداکثر یک دریافت اضافه ایجاد کند
+        $version = $this->version();
         $policy = new AccessPolicy($user);
         $parts = [];
 
@@ -36,6 +61,7 @@ final class DataExporter
         return '{"authenticated":true,'
             .'"userId":'.json_encode($user->id, SyncService::JSON_FLAGS).','
             .'"serverTime":'.((int) round(microtime(true) * 1000)).','
+            .'"version":'.json_encode($version).','
             .'"security":'.json_encode([
                 'twoFactorEnabled' => $user->hasTwoFactor(),
                 'twoFactorRequired' => $user->requiresTwoFactor(),
