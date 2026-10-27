@@ -1,5 +1,7 @@
 import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
 import { monthlyGpa } from '../utils/monthlyReport';
+import { examMonthLabel, examMonthsWithData, studentExamSummary } from '../utils/examReport';
+import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -125,6 +127,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     worksheets,
     worksheetWeeks,
     todayClosedReason,
+    comprehensiveExams,
   } = useSchool();
 
   // کاربرگ هفتگی: فقط کسانی که مجوز مشاهده/ثبت کاربرگ دارند (دبیر ندارد)
@@ -391,6 +394,19 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const disciplineScore = currentStudent?.disciplineScore !== undefined 
     ? currentStudent.disciplineScore 
     : calculatedDisciplineScore;
+
+  // معدل آزمون جامع دانش‌آموز (کل سال و هر ماه)؛ فقط وقتی نمره‌ای ثبت شده باشد
+  const examSummary = useMemo(() => {
+    if (!currentStudent) return null;
+    const record = comprehensiveExams.find((r) => r.classId === currentStudent.classId);
+    if (!record) return null;
+    const total = studentExamSummary(record, currentStudent.id, 'all').gpa;
+    if (total === undefined) return null;
+    const months = examMonthsWithData(record)
+      .map((m) => ({ key: m, label: examMonthLabel(m), gpa: studentExamSummary(record, currentStudent.id, m).gpa }))
+      .filter((m) => m.gpa !== undefined) as { key: string; label: string; gpa: number }[];
+    return { total, months };
+  }, [comprehensiveExams, currentStudent]);
 
   // Academic Report
   const studentAcademicGrades = useMemo(() => {
@@ -1493,6 +1509,28 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                 grades={studentAcademicGrades} 
                 studentName={`${studentFullName(currentStudent)}`} 
               />
+
+              {/* معدل آزمون جامع */}
+              {examSummary && (
+                <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold text-slate-500">معدل آزمون جامع</div>
+                      <div className="mt-1 text-3xl font-black text-indigo-900 tabular-nums">{toPersianDigits(Math.round(examSummary.total * 100) / 100)}</div>
+                    </div>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-black ${scorePillClass(examSummary.total)}`}>{scoreLabel(examSummary.total)}</span>
+                  </div>
+                  {examSummary.months.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {examSummary.months.map((m) => (
+                        <span key={m.key} className="rounded-xl bg-white border border-indigo-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+                          {m.label}: <b className="text-indigo-900 tabular-nums">{toPersianDigits(Math.round(m.gpa * 100) / 100)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* کارنامه تفکیکی دروس: نمره‌ی هر ماه جداگانه */}
               <StudentMonthlyGradesTable

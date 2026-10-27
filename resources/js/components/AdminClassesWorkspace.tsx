@@ -5,7 +5,8 @@ import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { ClassProfileView } from './ClassProfileView';
 import { useSchool } from '../context/SchoolContext';
-import { classExamAverage } from '../utils/examReport';
+import { classExamAverage, mean, round2 } from '../utils/examReport';
+import { gradeScoreForMonth } from '../utils/monthlyReport';
 import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { AddStudentToClassModal } from './AddStudentToClassModal';
 import { 
@@ -65,7 +66,7 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
   onEditClass,
 }) => {
   // معدل آزمون جامع کلاس: فقط برای مدیر و معاون آموزش
-  const { comprehensiveExams, isAdmin, isEducationalVice } = useSchool();
+  const { comprehensiveExams, academicGrades, isAdmin, isEducationalVice } = useSchool();
   const canSeeExamAverage = isAdmin || isEducationalVice;
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -399,6 +400,29 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
                           {hasNoStudents ? 'بدون دانش‌آموز' : `${toPersianDigits(classStudents.length)} نفر`}
                         </span>
                       </div>
+
+                      {/* معدل مستمر کلاس: میانگین نمره‌ی مستمر دانش‌آموزان */}
+                      {(() => {
+                        const ids = new Set(classStudents.map((st) => st.id));
+                        const perStudent = classStudents
+                          .map((st) => mean(academicGrades.filter((g) => g.studentId === st.id).map((g) => gradeScoreForMonth(g, 'all')).filter((v): v is number => typeof v === 'number')))
+                          .filter((v): v is number => v !== undefined);
+                        const avg = ids.size ? mean(perStudent) : undefined;
+                        const band = scoreBand(avg);
+                        return (
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 flex items-center gap-1.5">
+                              <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>معدل مستمر:</span>
+                            </span>
+                            {avg === undefined || !band ? (
+                              <span className="text-slate-400 text-[11px]">ثبت نشده</span>
+                            ) : (
+                              <span className={`px-2.5 py-0.5 rounded-lg font-black ${SCORE_BAND_STYLE[band].cell}`}>{toPersianDigits(round2(avg))}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* معدل آزمون جامع کلاس */}
                       {canSeeExamAverage && (() => {
