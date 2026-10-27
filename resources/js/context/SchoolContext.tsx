@@ -1124,9 +1124,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     .map((w) => ({ subjectId: `ws-subject-${w.id}`, subjectName: workshopSubjectName(w), classIds: [w.id] }));
   const studentsOfClass = (classId: string): Student[] => {
     const w = workshops.find((x) => x.id === classId);
-    if (!w) return students.filter((s) => s.classId === classId);
+    // فهرست کلاسی: الفبای فارسی بر اساس نام خانوادگی
+    if (!w) return students.filter((s) => s.classId === classId).sort(compareStudents);
     const members = new Set(w.studentIds);
-    return students.filter((s) => members.has(s.id));
+    return students.filter((s) => members.has(s.id)).sort(compareStudents);
   };
 
   const nurturingSessionClasses = (() => {

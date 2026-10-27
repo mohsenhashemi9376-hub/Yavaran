@@ -6,7 +6,7 @@ import { StudentFullReportModal } from './StudentFullReportModal';
 import { analyzeClassExam, bandCounts, stdDev, EXAM_MONTHS, EXAM_WEAK_BELOW, ExamMonth, examMonthLabel, examMonthsWithData, round2 } from '../utils/examReport';
 import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { nextBand, ScoreColumnHeader } from './ScoreColumnHeader';
 import { StudentExamCardModal } from './StudentExamCardModal';
 
@@ -32,7 +32,7 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
 
   const cls = examClasses.find((c) => c.id === classId) ?? examClasses[0];
   const record = comprehensiveExams.find((r) => r.classId === cls?.id);
-  const classStudents = useMemo(() => students.filter((s) => s.classId === cls?.id), [students, cls?.id]);
+  const classStudents = useMemo(() => students.filter((s) => s.classId === cls?.id).sort(compareStudents), [students, cls?.id]);
   const analysis = useMemo(() => analyzeClassExam(record, classStudents, month), [record, classStudents, month]);
   const monthsWithData = examMonthsWithData(record);
 

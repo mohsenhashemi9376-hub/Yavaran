@@ -29,12 +29,26 @@ export function studentFullName(s: { firstName?: string; lastName?: string } | n
 }
 
 const normKey = (v?: string) =>
-  (v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c\u200f]+/g, '');
+  (v || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[آأإ]/g, 'ا').replace(/[\s\u200c\u200f\u064b-\u065f]+/g, '');
 
-/** ترتیب الفبایی فارسی: نام خانوادگی، سپس نام (بدون توجه به فاصله و نیم‌فاصله، یکسان‌سازی ي/ك) */
+/** ترتیب حروف الفبای فارسی (ا، ب، پ، ت، ث، ج، چ، ح، خ، د، ذ، ر، ز، ژ، س، ش، ص، ض، ط، ظ، ع، غ، ف، ق، ک، گ، ل، م، ن، و، ه، ی) */
+const ALPHABET = 'ابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی';
+const rank = (ch: string): number => {
+  const i = ALPHABET.indexOf(ch);
+  return i === -1 ? ALPHABET.length + ch.charCodeAt(0) : i;
+};
+
+/** مقایسهٔ حرف‌به‌حرف بر اساس الفبای فارسی (مستقل از پشتیبانی مرورگر از collation فارسی) */
+const compareFa = (a: string, b: string): number => {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const d = rank(a[i]) - rank(b[i]);
+    if (d !== 0) return d;
+  }
+  return a.length - b.length;
+};
+
+/** ترتیب الفبایی فارسی: نام خانوادگی (از حرف اول)، سپس نام */
 export function compareStudents(a: { firstName?: string; lastName?: string }, b: { firstName?: string; lastName?: string }): number {
-  return (
-    normKey(a.lastName).localeCompare(normKey(b.lastName), 'fa') ||
-    normKey(a.firstName).localeCompare(normKey(b.firstName), 'fa')
-  );
+  return compareFa(normKey(a.lastName), normKey(b.lastName)) || compareFa(normKey(a.firstName), normKey(b.firstName));
 }

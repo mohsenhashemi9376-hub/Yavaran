@@ -39,7 +39,7 @@ import {
   AreaChart, 
   Area 
 } from 'recharts';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { ClassReportCard } from './ClassReportCard';
@@ -76,7 +76,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   } = useSchool();
 
   const classStudents = useMemo(() => {
-    return students.filter((s) => s.classId === classData.id);
+    return students.filter((s) => s.classId === classData.id).sort(compareStudents);
   }, [students, classData.id]);
 
   // Determine initial subject: if current user is teacher with subject, try matching
