@@ -118,6 +118,8 @@ const MainApp: React.FC = () => {
 
   // Modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // ارتفاع واقعی هدر ثابت؛ پدینگ بالای محتوا از همین مقدار ساخته می‌شود (بدون عدد هاردکد)
+  const [headerHeight, setHeaderHeight] = useState(0);
   // اگر پیش از بارگذاری دوباره (مثلاً خاموش‌شدن صفحه) فهرست حضور و غیاب باز بوده، همان فهرست با پیش‌نویسش بازمی‌گردد
   const [resumeAttendance] = useState<ActiveAttendance | null>(() => loadActiveAttendance(currentUser.id));
   const [resumeActive, setResumeActive] = useState<boolean>(Boolean(resumeAttendance));
@@ -264,13 +266,14 @@ const MainApp: React.FC = () => {
         onOpenAcademicGrades={() => handleOpenAcademicGrades()}
         onOpenLoginModal={() => setLoginModalOpen(true)}
         onOpenGlobalSearch={() => setGlobalSearchModalOpen(true)}
+        onHeightChange={setHeaderHeight}
         currentActiveTab={effectiveTab}
         onSelectTab={setActiveTab}
       />
       </ErrorBoundary>
 
       {/* Main Content Area */}
-      <main key={viewDate ?? 'today'} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
+      <main key={viewDate ?? 'today'} style={{ paddingTop: headerHeight + 16 }} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-28 md:pb-6">
         <ViewDateBar />
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           <ConfidentialGuard />
