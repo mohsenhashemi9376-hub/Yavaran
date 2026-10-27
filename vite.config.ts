@@ -21,5 +21,17 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 4000,
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // کتابخانه‌های پایدار در فایل جدا؛ با هر انتشار تازه، مرورگر آن‌ها را دوباره دانلود نمی‌کند
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react';
+          if (/node_modules\/(recharts|d3-[^/]+|victory-vendor|internmap)\//.test(id)) return 'vendor-charts';
+          if (/node_modules\/xlsx\//.test(id)) return 'vendor-xlsx';
+          return undefined;
+        },
+      },
+    },
   },
 });

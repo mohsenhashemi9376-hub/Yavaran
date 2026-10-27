@@ -1,15 +1,15 @@
 import { NotificationBell } from './NotificationBell';
 import { InboxButton } from './InboxButton';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { useAutoHideHeader } from '../utils/useAutoHideHeader';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { getUserGreeting } from '../utils/userRoles';
 import { SchoolBrand } from './SchoolBrand';
-import { UserProfileModal } from './UserProfileModal';
-import { SupportModal } from './SupportModal';
-import { SystemSettingsModal } from './SystemSettingsModal';
+const UserProfileModal = lazy(() => import('./UserProfileModal').then((m) => ({ default: m.UserProfileModal })));
+const SupportModal = lazy(() => import('./SupportModal').then((m) => ({ default: m.SupportModal })));
+const SystemSettingsModal = lazy(() => import('./SystemSettingsModal').then((m) => ({ default: m.SystemSettingsModal })));
 import { RolePanelSwitcher } from './RolePanelSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { 
@@ -756,22 +756,25 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       {/* مودال حساب کاربری (User Profile) */}
-      <UserProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-      />
+      {showProfileModal && (
+        <Suspense fallback={null}>
+          <UserProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+        </Suspense>
+      )}
 
       {/* مودال پشتیبانی و راهنما */}
-      <SupportModal
-        isOpen={showSupportModal}
-        onClose={() => setShowSupportModal(false)}
-      />
+      {showSupportModal && (
+        <Suspense fallback={null}>
+          <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} />
+        </Suspense>
+      )}
 
       {/* مودال تنظیمات سامانه */}
-      <SystemSettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-      />
+      {showSettingsModal && (
+        <Suspense fallback={null}>
+          <SystemSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
+        </Suspense>
+      )}
     </header>
   );
 };
