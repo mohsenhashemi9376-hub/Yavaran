@@ -125,4 +125,14 @@ class TeacherTimesheetTest extends TestCase
             ])->assertOk();
         }
     }
+
+    public function test_config_endpoint_feeds_the_panel(): void
+    {
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000081']);
+        $this->getJson('/api/teacher-timesheet/config')->assertStatus(401);
+        $res = $this->actingAs($teacher)->getJson('/api/teacher-timesheet/config')->assertOk();
+        $this->assertCount(9, $res->json('months'));
+        $this->assertCount(5, $res->json('axes'));
+        $this->assertArrayHasKey('teaching', $res->json('tags'));
+    }
 }

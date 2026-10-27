@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Clock, Minus, Plus, X } from 'lucide-react';
-import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
+import { tehranNow, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -58,7 +58,7 @@ export const ClockTimePicker: React.FC<{
   };
 
   const now = () => {
-    const d = new Date();
+    const d = tehranNow();
     setDraft({ h: d.getHours(), m: d.getMinutes() });
   };
 

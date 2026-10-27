@@ -55,6 +55,17 @@ class TeacherTimesheetController extends Controller
         ]);
     }
 
+    /** تقویم ماه‌های کاری، محورهای خودارزیابی و تگ‌ها برای صفحهٔ React پنل */
+    public function config(): JsonResponse
+    {
+        return response()->json([
+            'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
+            'months' => TimesheetCalendar::months(),
+            'axes' => self::AXES,
+            'tags' => self::TAGS,
+        ]);
+    }
+
     /** خواندن ساعت کاری؛ همان نکتهٔ نقش‌های Manager / Deputy / Coach در save() اینجا هم صدق می‌کند. */
     public function show(Request $request): JsonResponse
     {
