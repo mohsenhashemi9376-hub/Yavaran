@@ -773,7 +773,7 @@ export const DisciplinaryDashboard: React.FC<DisciplinaryDashboardProps> = ({
               morningDelays={safeMorningDelays}
               onBack={() => setCurrentView(null)}
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
-              onSelectStudent={(stu) => onSelectStudent(stu, 'discipline')}
+              onSelectStudent={(stu) => onSelectStudent(stu)}
               onOpenQuickAddStudent={() => setIsQuickAddStudentOpen(true)}
             />
           )}
