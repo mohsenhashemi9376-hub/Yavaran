@@ -1,6 +1,7 @@
 import { ViewDateBar } from './components/ViewDateBar';
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { lazyModal } from './utils/lazyModal';
+import { retryImport } from './utils/retryImport';
 import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
@@ -19,11 +20,11 @@ import { useWakeLock } from './utils/useWakeLock';
 import { ActiveAttendance, clearActiveAttendance, loadActiveAttendance } from './utils/attendanceDraft';
 
 // بارگذاری تنبل: فقط داشبورد نقش کاربر و پنجره‌هایی که باز می‌شوند دریافت می‌شوند
-const TeacherDashboard = lazy(() => import('./components/TeacherDashboard').then((m) => ({ default: m.TeacherDashboard })));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
-const DisciplinaryDashboard = lazy(() => import('./components/DisciplinaryDashboard').then((m) => ({ default: m.DisciplinaryDashboard })));
-const EducationalDashboard = lazy(() => import('./components/EducationalDashboard').then((m) => ({ default: m.EducationalDashboard })));
-const NurturingDashboard = lazy(() => import('./components/NurturingDashboard').then((m) => ({ default: m.NurturingDashboard })));
+const TeacherDashboard = lazy(() => retryImport(() => import('./components/TeacherDashboard')).then((m) => ({ default: m.TeacherDashboard })));
+const AdminDashboard = lazy(() => retryImport(() => import('./components/AdminDashboard')).then((m) => ({ default: m.AdminDashboard })));
+const DisciplinaryDashboard = lazy(() => retryImport(() => import('./components/DisciplinaryDashboard')).then((m) => ({ default: m.DisciplinaryDashboard })));
+const EducationalDashboard = lazy(() => retryImport(() => import('./components/EducationalDashboard')).then((m) => ({ default: m.EducationalDashboard })));
+const NurturingDashboard = lazy(() => retryImport(() => import('./components/NurturingDashboard')).then((m) => ({ default: m.NurturingDashboard })));
 const AttendanceModal = lazyModal(() => import('./components/AttendanceModal').then((m) => ({ default: m.AttendanceModal })));
 const ClassDetailModal = lazyModal(() => import('./components/ClassDetailModal').then((m) => ({ default: m.ClassDetailModal })));
 const MonthlySummaryModal = lazyModal(() => import('./components/MonthlySummaryModal').then((m) => ({ default: m.MonthlySummaryModal })));
