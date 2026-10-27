@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, ChevronLeft, CircleDashed, Plus, Printer } from 'lucide-react';
 import { DossierSectionEntry, NurturingSectionKey, Student, StudentNurturingDossier } from '../types';
@@ -101,8 +102,7 @@ export const StudentDossierDetail: React.FC<Props> = ({ student, className, doss
           </div>
         </div>
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-slate-500">
-          <span className="whitespace-nowrap">کد ملی: <b className="font-bold text-slate-800 tabular-nums">{toPersianDigits(student.nationalId || '—')}</b></span>
-          <span className="whitespace-nowrap">کد دانش‌آموزی: <b className="font-bold text-slate-800 tabular-nums">{toPersianDigits(student.studentCode || '—')}</b></span>
+          <span className="whitespace-nowrap">کد ملی: <b className="font-bold text-slate-800 tabular-nums">{toPersianDigits(realNationalId(student.nationalId, student.studentCode) || '—')}</b></span>
         </div>
       </div>
 

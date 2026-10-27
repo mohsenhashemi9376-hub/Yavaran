@@ -182,7 +182,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         studentFullName(s),
         `${s.firstName || ''} ${s.lastName || ''}`,
         s.fatherName,
-        s.studentCode,
         s.nationalId,
         cls?.name
       );

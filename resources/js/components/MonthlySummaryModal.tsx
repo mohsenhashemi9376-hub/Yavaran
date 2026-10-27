@@ -5,7 +5,7 @@ import { PERSIAN_MONTHS, getActiveAcademicYear, getAcademicYearStart, getTodaySh
 import { exportClassAttendanceToExcel, exportMonthlySummaryToExcel } from '../utils/excelExport';
 import { ABSENCE_ALERT_PER_MONTH, DELAY_ALERT_PER_MONTH, absenceEventsOf, delayEventsOf } from '../utils/attendanceStats';
 import { X, FileSpreadsheet, AlertTriangle, Phone, BarChart3, Printer, ArrowUp, ArrowDown, ChevronsUpDown, TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 
 interface MonthlySummaryModalProps {
@@ -57,7 +57,7 @@ export const MonthlySummaryModal: React.FC<MonthlySummaryModalProps> = ({ isOpen
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null);
 
   const currentClass = accessibleClasses.find((c) => c.id === selectedClassId) || accessibleClasses[0];
-  const classStudents = useMemo(() => (currentClass ? students.filter((s) => s.classId === currentClass.id) : []), [students, currentClass]);
+  const classStudents = useMemo(() => (currentClass ? students.filter((s) => s.classId === currentClass.id).sort(compareStudents) : []), [students, currentClass]);
 
   // آمار هر ماهِ سال تحصیلی برای کلاس انتخاب‌شده (برای جدول، مقایسه با ماه قبل و روند هشت‌ماهه)
   const byMonth = useMemo(() => {

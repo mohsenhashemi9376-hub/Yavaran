@@ -55,8 +55,8 @@ export const QuickAddStudentModal: React.FC<QuickAddStudentModalProps> = ({
         lastName: lastName.trim(),
         fatherName: fatherName.trim(),
         parentPhone: parentPhone.trim() || '۰۹۱۲۰۰۰۰۰۰۰',
-        nationalId: nationalId.trim() || '۰۰۰۰۰۰۰۰۰۰',
-        studentCode: String(Math.floor(100000 + Math.random() * 900000)),
+        nationalId: nationalId.trim(),
+        studentCode: '',
         disciplineScore: 20,
       });
 

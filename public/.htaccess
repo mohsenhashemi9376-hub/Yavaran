@@ -39,6 +39,16 @@
     </FilesMatch>
 </IfModule>
 
+# فایل‌های بیلد نام هش‌دار دارند؛ تغییر محتوا = تغییر نام، پس یک سال کش امن است
+<IfModule mod_headers.c>
+    <FilesMatch "-[A-Za-z0-9_-]{8}\.(js|css|woff2)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.(woff2|png|jpg|jpeg|webp|svg|ico)$">
+        Header setIfEmpty Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml application/manifest+json
 </IfModule>

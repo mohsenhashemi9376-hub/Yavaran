@@ -102,7 +102,7 @@ final class NurturingSession
     /** ثبت آخرین فعالیت واقعی کاربر (نه بازخوانی پس‌زمینه) برای خروج بر اثر بی‌فعالیتی */
     public static function touch(Request $request): void
     {
-        $background = $request->isMethod('GET') && ($request->is('api/bootstrap') || $request->is('api/notifications') || $request->is('api/mentor-messages/active'));
+        $background = $request->isMethod('GET') && ($request->is('api/bootstrap') || $request->is('api/bootstrap/version') || $request->is('api/notifications') || $request->is('api/mentor-messages/active'));
         if (! $background) {
             $request->session()->put(self::LAST_SEEN, now()->getTimestamp());
         }

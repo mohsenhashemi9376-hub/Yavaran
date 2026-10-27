@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::class)->group(function (): void {
     Route::get('bootstrap', BootstrapController::class)->name('api.bootstrap');
+    Route::get('bootstrap/version', [BootstrapController::class, 'version'])->middleware('throttle:120,1')->name('api.bootstrap.version');
 
     Route::post('auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:30,1')
@@ -119,6 +120,7 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
             ->middleware('throttle:60,1')
             ->name('api.teacher-timesheets.index');
         Route::prefix('teacher-timesheet')->middleware('throttle:120,1')->group(function (): void {
+            Route::get('config', [TeacherTimesheetController::class, 'config'])->name('api.teacher-timesheet.config');
             Route::get('/', [TeacherTimesheetController::class, 'show'])->name('api.teacher-timesheet.show');
             Route::post('/', [TeacherTimesheetController::class, 'save'])->name('api.teacher-timesheet.save');
         });

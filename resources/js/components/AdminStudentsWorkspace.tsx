@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useState } from 'react';
 import { Student, SchoolClass, AttendanceSession, MorningDelayRecord } from '../types';
@@ -89,11 +90,10 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
       const matchesName = fullName.includes(q);
-      const matchesCode = student.studentCode?.toLowerCase().includes(q);
       const matchesNational = student.nationalId?.includes(q);
       const matchesPhone = student.parentPhone?.includes(q);
       const matchesClass = studentClass?.name.toLowerCase().includes(q);
-      if (!matchesName && !matchesCode && !matchesNational && !matchesPhone && !matchesClass) {
+      if (!matchesName && !matchesNational && !matchesPhone && !matchesClass) {
         return false;
       }
     }
@@ -123,8 +123,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
         'نام و نام خانوادگی': `${studentFullName(s)}`,
         'کلاس': cls?.name || 'نامشخص',
         'پایه': cls?.grade || '-',
-        'کد دانش‌آموزی': s.studentCode || '-',
-        'کد ملی': s.nationalId || '-',
+        'کد ملی': realNationalId(s.nationalId, s.studentCode) || '-',
         'شماره تماس ولی': s.parentPhone || '-',
         'تعداد غیبت': metrics.absences,
         'تعداد تأخیر': metrics.lates,

@@ -1,3 +1,4 @@
+import { compareStudents } from '../utils/studentName';
 import React, { useMemo } from 'react';
 import { BarChart3, GraduationCap, Sparkles, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
@@ -29,7 +30,7 @@ export const ClassGradeAnalytics: React.FC<{ classData: SchoolClass }> = ({ clas
   const { scores, subjectNames, isDemo, total } = useMemo(() => {
     const own = academicSubjects.filter((s) => subjectAppliesToClass(s, classData) && (isAdmin || isEducationalVice || isCoach || canTeachClassAndSubject(classData.id, s.id)));
     const ids = new Set(own.map((s) => s.id));
-    const classStudents = students.filter((s) => s.classId === classData.id);
+    const classStudents = students.filter((s) => s.classId === classData.id).sort(compareStudents);
     const real: number[] = [];
     classStudents.forEach((stu) => {
       const avgs = academicGrades

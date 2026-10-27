@@ -39,7 +39,7 @@ import {
   AreaChart, 
   Area 
 } from 'recharts';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { StudentGrowthChart } from './StudentGrowthChart';
 import { ClassReportCard } from './ClassReportCard';
@@ -76,7 +76,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   } = useSchool();
 
   const classStudents = useMemo(() => {
-    return students.filter((s) => s.classId === classData.id);
+    return students.filter((s) => s.classId === classData.id).sort(compareStudents);
   }, [students, classData.id]);
 
   // Determine initial subject: if current user is teacher with subject, try matching
@@ -325,7 +325,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
   // Filter students for display
   const filteredStudents = classStudents.filter((s) => {
-    const fullName = `${studentFullName(s)} ${s.studentCode}`.toLowerCase();
+    const fullName = `${studentFullName(s)}`.toLowerCase();
     return !searchQuery || fullName.includes(searchQuery.toLowerCase());
   });
 
@@ -334,7 +334,6 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     const data = classStudents.map((stu, idx) => {
       const row: Record<string, any> = {
         'ردیف': idx + 1,
-        'کد دانش‌آموزی': stu.studentCode,
         'نام و نام خانوادگی': `${studentFullName(stu)}`,
         'کلاس': classData.name,
         'درس': currentSubject?.name || 'نامشخص',

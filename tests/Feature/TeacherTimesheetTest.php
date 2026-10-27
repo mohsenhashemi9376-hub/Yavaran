@@ -114,4 +114,25 @@ class TeacherTimesheetTest extends TestCase
         $this->assertSame(9, $row['scoreTotal']);
         $this->assertSame('کلاس تقویتی', $row['extraNote']);
     }
+
+    public function test_managers_can_save_their_own_hours_and_page_has_server_clock(): void
+    {
+        foreach (['vice_educational', 'vice_disciplinary', 'vice_nurturing', 'vice_principal', 'coach', 'admin'] as $i => $role) {
+            $u = $this->makeUser($role, ['phone' => '0912000071'.$i]);
+            $this->actingAs($u)->get('/teacher-timesheet')->assertOk()->assertSee('serverNow', false)->assertSee('انتخاب ساعت');
+            $this->actingAs($u)->postJson('/api/teacher-timesheet', [
+                'month' => 'aban', 'entries' => ['1405/08/01' => ['in' => '08:00', 'tags' => ['teaching']]], 'selfEvaluation' => ['scores' => []],
+            ])->assertOk();
+        }
+    }
+
+    public function test_config_endpoint_feeds_the_panel(): void
+    {
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000081']);
+        $this->getJson('/api/teacher-timesheet/config')->assertStatus(401);
+        $res = $this->actingAs($teacher)->getJson('/api/teacher-timesheet/config')->assertOk();
+        $this->assertCount(9, $res->json('months'));
+        $this->assertCount(5, $res->json('axes'));
+        $this->assertArrayHasKey('teaching', $res->json('tags'));
+    }
 }

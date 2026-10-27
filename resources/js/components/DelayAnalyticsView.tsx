@@ -192,9 +192,8 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
       const q = searchTerm.toLowerCase();
       result = result.filter((item) => {
         const fullName = `${studentFullName(item.student)}`.toLowerCase();
-        const code = item.student.studentCode.toLowerCase();
         const nationalId = (item.student.nationalId || '').toLowerCase();
-        return fullName.includes(q) || code.includes(q) || nationalId.includes(q);
+        return fullName.includes(q) || nationalId.includes(q);
       });
     }
 
@@ -272,7 +271,6 @@ export const DelayAnalyticsView: React.FC<DelayAnalyticsViewProps> = ({
       return {
         'ردیف': idx + 1,
         'نام و نام خانوادگی': `${studentFullName(item.student)}`,
-        'کد دانش‌آموزی': item.student.studentCode,
         'کلاس': item.studentClass?.name || '-',
         'تعداد دفعات تاخیر': item.delayCount,
         'مجموع دقایق تاخیر': item.totalMinutes,

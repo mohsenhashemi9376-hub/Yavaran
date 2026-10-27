@@ -214,7 +214,7 @@ export const ParentMeetingsWorkspace: React.FC<ParentMeetingsWorkspaceProps> = (
   const listStudents = useMemo(
     () =>
       baseList.filter((s) => {
-        if (q && !`${studentFullName(s)} ${s.fatherName || ''} ${s.studentCode || ''}`.includes(q)) return false;
+        if (q && !`${studentFullName(s)} ${s.fatherName || ''}`.includes(q)) return false;
         const rec = records.get(s.id);
         const st = attendanceState(rec);
         if (filter === 'unrecorded') return st === 'unrecorded';

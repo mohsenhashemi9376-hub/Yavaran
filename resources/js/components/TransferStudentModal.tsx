@@ -87,12 +87,6 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
               <span className="text-slate-500">کلاس فعلی:</span>
               <span className="font-bold text-teal-800">{currentClass?.name || 'نامشخص'}</span>
             </div>
-            {student.studentCode && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">کد دانش‌آموزی:</span>
-                <span className="font-mono text-slate-700">{student.studentCode}</span>
-              </div>
-            )}
           </div>
 
           <div>

@@ -82,6 +82,8 @@ export interface BootstrapPayload {
   authenticated: boolean;
   userId?: string;
   serverTime?: number;
+  /** اثرانگشت داده‌ها هنگام دریافت (برای بررسی سبک تغییر) */
+  version?: string;
   /** وضعیت ورود دومرحله‌ای کاربر جاری */
   security?: { twoFactorEnabled: boolean; twoFactorRequired: boolean; reauthRequired?: boolean; reauthEnabled?: boolean; reauthMinutes?: number };
   /** رمز عبور باید پیش از هر کاری تغییر کند */

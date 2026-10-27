@@ -194,7 +194,7 @@ export const AttendanceStatsView: React.FC<Props> = ({ onSelectStudent }) => {
     };
     return stats
       .filter((s) => (!classId || s.student.classId === classId)
-        && (!text || studentFullName(s.student).includes(text) || (s.student.studentCode || '').includes(text) || (s.student.nationalId || '').includes(text))
+        && (!text || studentFullName(s.student).includes(text) || (s.student.nationalId || '').includes(text))
         && within('unexcused', s.unexcusedAbsences)
         && within('excused', s.excusedAbsences)
         && within('totalAbs', s.unexcusedAbsences + s.excusedAbsences)

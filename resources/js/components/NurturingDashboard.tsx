@@ -439,7 +439,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       const matchSearch = 
         !searchTerm.trim() ||
         fullName.includes(searchTerm.toLowerCase()) ||
-        s.studentCode.includes(searchTerm) ||
         s.nationalId.includes(searchTerm);
       return matchClass && matchSearch;
     });
@@ -457,7 +456,6 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
       const matchSearch = 
         !searchTerm.trim() ||
         fullName.includes(searchTerm.toLowerCase()) ||
-        student.studentCode.includes(searchTerm) ||
         ev.coachName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (ev.strengths || []).some((st) => st.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (ev.growthRecommendations || []).some((gr) => gr.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -1850,7 +1848,7 @@ export const NurturingDashboard: React.FC<NurturingDashboardProps> = ({
                               {studentFullName(student)}
                             </h4>
                             <div className="text-[11px] text-slate-500">
-                              کلاس {studentClass?.name || '-'} • کد: {student.studentCode}
+                              کلاس {studentClass?.name || '-'}
                             </div>
                           </div>
                         </div>

@@ -4,7 +4,7 @@ import { EXAM_SUBJECTS, ExamSubjectKey, ComprehensiveExamRecord } from '../types
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent } from '../utils/examReport';
 
@@ -76,7 +76,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     () =>
       students
         .filter((s) => s.classId === classId)
-        ,
+        .sort(compareStudents),
     [students, classId]
   );
 

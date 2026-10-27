@@ -151,7 +151,7 @@ export const MorningDelayModal: React.FC<MorningDelayModalProps> = ({
     const words = query.split(' ');
     return students
       .filter((stu) => {
-        const haystack = normalizeText(`${studentFullName(stu)} ${stu.studentCode || ''}`);
+        const haystack = normalizeText(`${studentFullName(stu)}`);
         return words.every((w) => haystack.includes(w));
       })
       .slice(0, 8);

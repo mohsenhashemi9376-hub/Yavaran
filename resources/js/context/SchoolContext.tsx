@@ -625,6 +625,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const authStatusRef = useRef(authStatus);
   authStatusRef.current = authStatus;
   const lastRefreshRef = useRef<number>(0);
+  const dataVersionRef = useRef<string>('');
   const syncErrorHandlerRef = useRef<(error: ApiError) => void>(() => undefined);
   const syncRef = useRef<SyncEngine | null>(null);
   if (!syncRef.current) {
@@ -752,6 +753,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // تغییراتی که روی همین دستگاه (مثلاً در حالت آفلاین) ذخیره نشده‌اند، اول ارسال می‌شوند
     if (payload.userId) syncEngine.setUser(payload.userId);
     lastRefreshRef.current = Date.now();
+    dataVersionRef.current = typeof payload.version === 'string' ? payload.version : '';
     setAuthStatus('ready');
   }, [syncEngine]);
 
@@ -838,7 +840,19 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (document.visibilityState !== 'visible') return;
       if (authStatusRef.current !== 'ready' || !syncEngine.isIdle) return;
       if (Date.now() - lastRefreshRef.current < 60_000) return;
-      loadFromServer(true);
+      // ابتدا بررسی سبک نسخه؛ اگر داده‌ای تغییر نکرده و دریافت کامل اخیر است، دانلود کامل لازم نیست
+      const FULL_REFRESH_MAX_AGE = 10 * 60_000;
+      const knownVersion = dataVersionRef.current;
+      if (!knownVersion || Date.now() - lastRefreshRef.current > FULL_REFRESH_MAX_AGE) {
+        loadFromServer(true);
+        return;
+      }
+      apiRequest<{ authenticated: boolean; version?: string }>('GET', '/api/bootstrap/version')
+        .then((r) => {
+          if (r && r.authenticated && r.version === knownVersion) return;
+          loadFromServer(true);
+        })
+        .catch(() => loadFromServer(true));
     };
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleVisibility);
@@ -1110,9 +1124,10 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     .map((w) => ({ subjectId: `ws-subject-${w.id}`, subjectName: workshopSubjectName(w), classIds: [w.id] }));
   const studentsOfClass = (classId: string): Student[] => {
     const w = workshops.find((x) => x.id === classId);
-    if (!w) return students.filter((s) => s.classId === classId);
+    // فهرست کلاسی: الفبای فارسی بر اساس نام خانوادگی
+    if (!w) return students.filter((s) => s.classId === classId).sort(compareStudents);
     const members = new Set(w.studentIds);
-    return students.filter((s) => members.has(s.id));
+    return students.filter((s) => members.has(s.id)).sort(compareStudents);
   };
 
   const nurturingSessionClasses = (() => {
@@ -1369,12 +1384,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const split = splitListName(fullName);
         const firstName = split.firstName || 'دانش‌آموز';
         const lastName = split.lastName || `شماره ${idx + 1}`;
-        const randomCode = Math.floor(10000000 + Math.random() * 90000000).toString();
         return {
           id: `stu-${Date.now()}-${idx}`,
           classId,
-          studentCode: randomCode.slice(0, 8),
-          nationalId: `00${randomCode}`,
+          studentCode: '',
+          nationalId: '',
           firstName,
           lastName,
           nameFormat: 'v2',

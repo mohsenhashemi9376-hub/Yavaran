@@ -8,7 +8,7 @@ import { round2 } from '../utils/examReport';
 import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { buildStudentFullReport } from '../utils/studentFullReport';
 import { getCurrentAcademicYear, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
-import { studentFullName } from '../utils/studentName';
+import { studentFullName, compareStudents } from '../utils/studentName';
 
 const fa = (n?: number) => (n === undefined ? '—' : toPersianDigits(round2(n)));
 const cell = (v?: number) => {
@@ -32,7 +32,7 @@ const Stat: React.FC<{ label: string; value: React.ReactNode; tone?: string }> =
 /** کارنامه‌ی جامع دانش‌آموز: مستمر ماهانه، آزمون جامع، حضور، تکلیف، کاربرگ و انضباط در یک صفحه؛ قابل چاپ */
 export const StudentFullReportModal: React.FC<Props> = ({ student, classData, onClose }) => {
   const { students, academicGrades, comprehensiveExams, sessions, morningDelays, morningAttendance, schoolAbsences, worksheets, worksheetWeeks, schoolSettings } = useSchool();
-  const classStudents = useMemo(() => students.filter((s) => s.classId === classData.id), [students, classData.id]);
+  const classStudents = useMemo(() => students.filter((s) => s.classId === classData.id).sort(compareStudents), [students, classData.id]);
   const report = useMemo(
     () => buildStudentFullReport({
       student, classStudents, grades: academicGrades, exam: comprehensiveExams.find((r) => r.classId === classData.id),

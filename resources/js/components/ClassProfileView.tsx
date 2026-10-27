@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student, AttendanceSession } from '../types';
@@ -39,7 +40,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { studentFullName } from '../utils/studentName';
+import { compareStudents, studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 
 interface ClassProfileViewProps {
@@ -97,11 +98,11 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editParentPhone, setEditParentPhone] = useState('');
-  const [editStudentCode, setEditStudentCode] = useState('');
   const [editNationalId, setEditNationalId] = useState('');
 
   // Class related data
-  const classStudents = students.filter((s) => s.classId === classData.id);
+  // فهرست کلاسی: الفبای فارسی بر اساس نام خانوادگی، سپس نام
+  const classStudents = students.filter((s) => s.classId === classData.id).sort(compareStudents);
   const classSessions = sessions
     .filter((s) => s.classId === classData.id)
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -146,7 +147,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
 
   // Filtered students for student tab
   const filteredStudents = classStudents.filter((s) => 
-    `${studentFullName(s)} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase().includes(studentSearch.toLowerCase().trim())
+    `${studentFullName(s)} ${realNationalId(s.nationalId, s.studentCode)}`.toLowerCase().includes(studentSearch.toLowerCase().trim())
   );
 
   // Helper for student attendance percentage
@@ -172,8 +173,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
     setEditFirstName(stu.firstName);
     setEditLastName(stu.lastName);
     setEditParentPhone(stu.parentPhone || '');
-    setEditStudentCode(stu.studentCode || '');
-    setEditNationalId(stu.nationalId || '');
+    setEditNationalId(realNationalId(stu.nationalId, stu.studentCode));
   };
 
   const handleSaveEditStudent = (e: React.FormEvent) => {
@@ -184,7 +184,6 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
       firstName: editFirstName.trim(),
       lastName: editLastName.trim(),
       parentPhone: editParentPhone.trim(),
-      studentCode: editStudentCode.trim(),
       nationalId: editNationalId.trim(),
     });
 
@@ -827,7 +826,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
             <form onSubmit={handleSaveEditStudent} className="p-5 space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">نام *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">نام خانوادگی *</label>
                   <input
                     type="text"
                     required
@@ -837,7 +836,7 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">نام خانوادگی *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">نام *</label>
                   <input
                     type="text"
                     required
@@ -866,16 +865,6 @@ export const ClassProfileView: React.FC<ClassProfileViewProps> = ({
                     type="text"
                     value={editNationalId}
                     onChange={(e) => setEditNationalId(e.target.value)}
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-700 font-mono text-left"
-                    dir="ltr"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">کد دانش‌آموزی</label>
-                  <input
-                    type="text"
-                    value={editStudentCode}
-                    onChange={(e) => setEditStudentCode(e.target.value)}
                     className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-teal-700 font-mono text-left"
                     dir="ltr"
                   />

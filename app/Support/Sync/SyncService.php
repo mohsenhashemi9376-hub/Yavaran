@@ -196,6 +196,14 @@ final class SyncService
 
             throw $e;
         }
+
+        // علامت تغییر برای بررسی سبک نسخه (/api/bootstrap/version)
+        try {
+            \Illuminate\Support\Facades\Cache::add(DataExporter::REV_KEY, 0);
+            \Illuminate\Support\Facades\Cache::increment(DataExporter::REV_KEY);
+        } catch (\Throwable) {
+            // کش در دسترس نیست؛ اثرانگشت جدول‌ها همچنان تغییر را نشان می‌دهد
+        }
     }
 
     /**

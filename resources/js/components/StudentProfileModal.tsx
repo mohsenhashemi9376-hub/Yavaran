@@ -1,5 +1,7 @@
 import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
 import { monthlyGpa } from '../utils/monthlyReport';
+import { examMonthLabel, examMonthsWithData, studentExamSummary } from '../utils/examReport';
+import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
@@ -25,7 +27,7 @@ import {
   toEnglishDigits
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
-import { nationalIdError, phoneError } from '../utils/validators';
+import { nationalIdError, phoneError, realNationalId } from '../utils/validators';
 import {
   X,
   User,
@@ -125,6 +127,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     worksheets,
     worksheetWeeks,
     todayClosedReason,
+    comprehensiveExams,
   } = useSchool();
 
   // کاربرگ هفتگی: فقط کسانی که مجوز مشاهده/ثبت کاربرگ دارند (دبیر ندارد)
@@ -157,7 +160,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editFatherName, setEditFatherName] = useState('');
-  const [editStudentCode, setEditStudentCode] = useState('');
   const [editNationalId, setEditNationalId] = useState('');
   const [editParentPhone, setEditParentPhone] = useState('');
   const [editMotherPhone, setEditMotherPhone] = useState('');
@@ -171,8 +173,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
       setEditFatherName(currentStudent.fatherName || '');
-      setEditStudentCode(currentStudent.studentCode || '');
-      setEditNationalId(currentStudent.nationalId || '');
+      setEditNationalId(realNationalId(currentStudent.nationalId, currentStudent.studentCode));
       setEditParentPhone(currentStudent.parentPhone || '');
       setEditMotherPhone(currentStudent.motherPhone || '');
       setEditNotes(currentStudent.notes || '');
@@ -392,6 +393,19 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     ? currentStudent.disciplineScore 
     : calculatedDisciplineScore;
 
+  // معدل آزمون جامع دانش‌آموز (کل سال و هر ماه)؛ فقط وقتی نمره‌ای ثبت شده باشد
+  const examSummary = useMemo(() => {
+    if (!currentStudent) return null;
+    const record = comprehensiveExams.find((r) => r.classId === currentStudent.classId);
+    if (!record) return null;
+    const total = studentExamSummary(record, currentStudent.id, 'all').gpa;
+    if (total === undefined) return null;
+    const months = examMonthsWithData(record)
+      .map((m) => ({ key: m, label: examMonthLabel(m), gpa: studentExamSummary(record, currentStudent.id, m).gpa }))
+      .filter((m) => m.gpa !== undefined) as { key: string; label: string; gpa: number }[];
+    return { total, months };
+  }, [comprehensiveExams, currentStudent]);
+
   // Academic Report
   const studentAcademicGrades = useMemo(() => {
     if (!currentStudent) return [];
@@ -520,7 +534,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         firstName: editFirstName.trim(),
         lastName: editLastName.trim(),
         fatherName: editFatherName.trim(),
-        studentCode: editStudentCode.trim(),
         nationalId: editNationalId.trim(),
         parentPhone: editParentPhone.trim(),
         motherPhone: editMotherPhone.trim(),
@@ -626,7 +639,6 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     {studentClass.name}
                   </span>
                 )}
-                {currentStudent.studentCode && <span>کد: {toPersianDigits(currentStudent.studentCode)}</span>}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -1000,16 +1012,9 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="text-slate-400 text-[11px]">کد دانش‌آموزی (سناد)</div>
-                      <div className="font-bold text-slate-800 text-sm mt-1 font-mono">
-                        {toPersianDigits(currentStudent.studentCode || 'ثبت نشده')}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-slate-400 text-[11px]">کد ملی</div>
                       <div className="font-bold text-slate-800 text-sm mt-1 font-mono">
-                        {toPersianDigits(currentStudent.nationalId || 'ثبت نشده')}
+                        {toPersianDigits(realNationalId(currentStudent.nationalId, currentStudent.studentCode) || 'ثبت نشده')}
                       </div>
                     </div>
 
@@ -1098,19 +1103,6 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                         value={editFatherName}
                         onChange={(e) => setEditFatherName(e.target.value)}
                         className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        کد سناد
-                      </label>
-                      <input
-                        type="text"
-                        value={editStudentCode}
-                        onChange={(e) => setEditStudentCode(e.target.value)}
-                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
-                        dir="ltr"
                       />
                     </div>
 
@@ -1493,6 +1485,28 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                 grades={studentAcademicGrades} 
                 studentName={`${studentFullName(currentStudent)}`} 
               />
+
+              {/* معدل آزمون جامع */}
+              {examSummary && (
+                <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold text-slate-500">معدل آزمون جامع</div>
+                      <div className="mt-1 text-3xl font-black text-indigo-900 tabular-nums">{toPersianDigits(Math.round(examSummary.total * 100) / 100)}</div>
+                    </div>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-black ${scorePillClass(examSummary.total)}`}>{scoreLabel(examSummary.total)}</span>
+                  </div>
+                  {examSummary.months.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {examSummary.months.map((m) => (
+                        <span key={m.key} className="rounded-xl bg-white border border-indigo-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+                          {m.label}: <b className="text-indigo-900 tabular-nums">{toPersianDigits(Math.round(m.gpa * 100) / 100)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* کارنامه تفکیکی دروس: نمره‌ی هر ماه جداگانه */}
               <StudentMonthlyGradesTable
