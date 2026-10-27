@@ -11,17 +11,8 @@ export const realNationalId = (nationalId?: string, studentCode?: string): strin
   return /^\d{8}$/.test(code) && v === `00${code}` ? '' : (nationalId || '').trim();
 };
 
-/** کد ملی ۱۰ رقمی با رقم کنترل؛ مقدار خالی یا مقدار پیش‌فرض (۰۰۰۰۰۰۰۰۰۰) بررسی نمی‌شود */
-export const nationalIdError = (value: string): string | null => {
-  const v = toEnglishDigits((value || '').trim());
-  if (!v || PLACEHOLDER_NATIONAL_IDS.has(v)) return null;
-  if (!/^\d{10}$/.test(v)) return 'کد ملی باید ۱۰ رقم باشد.';
-  if (/^(\d)\1{9}$/.test(v)) return 'کد ملی وارد شده معتبر نیست.';
-  const sum = v.slice(0, 9).split('').reduce((s, d, i) => s + Number(d) * (10 - i), 0);
-  const r = sum % 11;
-  const check = Number(v[9]);
-  return (r < 2 ? check === r : check === 11 - r) ? null : 'کد ملی وارد شده معتبر نیست (رقم کنترل اشتباه است).';
-};
+/** کد ملی هیچ محدودیتی ندارد (تعداد رقم و رقم کنترل بررسی نمی‌شود)؛ تابع برای سازگاری با فراخوانی‌های فعلی باقی مانده است */
+export const nationalIdError = (_value: string): string | null => null;
 
 /** شماره موبایل (۰۹…) یا تلفن ثابت با کد شهر (۱۱ رقم)؛ مقدار خالی مجاز است */
 export const phoneError = (value: string): string | null => {
