@@ -1,6 +1,7 @@
 import { NotificationBell } from './NotificationBell';
 import { InboxButton } from './InboxButton';
 import React, { useState, useEffect, useRef } from 'react';
+import { useAutoHideHeader } from '../utils/useAutoHideHeader';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -114,6 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const headerVisible = useAutoHideHeader(showUserMenu || showNotifications || mobileMenuOpen);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
@@ -171,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="yv-header bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs" dir="rtl">
+    <header className={`yv-header bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs transition-transform duration-300 ease-in-out ${headerVisible ? 'translate-y-0' : 'max-md:-translate-y-full'}`} dir="rtl">
       {/* Click-outside backdrop for open dropdowns */}
       {(showUserMenu || showNotifications || mobileMenuOpen) && (
         <div 
