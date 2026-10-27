@@ -141,41 +141,18 @@
               </span>
             </div>
 
-            {{-- ورود و خروج (نوبت اول و دوم) --}}
-            <div x-show="isOpen(day)" class="space-y-1 md:shrink-0 md:space-y-0">
-              <div class="md:flex md:gap-2"><div class="grid grid-cols-2 gap-2 md:flex">
-                <label class="block md:w-24">
-                  <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود</span>
-                  <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'in')" @input="setField(day.date, 'in', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
-                  </span>
-                </label>
-                <label class="block md:w-24">
-                  <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج</span>
-                  <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'out')" @input="setField(day.date, 'out', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
-                  </span>
-                </label>
-              </div>
-              <div x-show="hasSecond(day.date)" class="mt-2 grid grid-cols-2 gap-2 md:mt-0 md:flex md:border-s md:border-slate-200 md:ps-2">
-                <label class="block md:w-24">
-                  <span class="mb-1 block text-[11px] font-bold text-slate-500">ورود دوم</span>
-                  <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'in2')" @input="setField(day.date, 'in2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
-                  </span>
-                </label>
-                <label class="block md:w-24">
-                  <span class="mb-1 block text-[11px] font-bold text-slate-500">خروج دوم</span>
-                  <span class="time-field relative block">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-emerald-600 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input type="time" dir="ltr" :value="fieldValue(day.date, 'out2')" @input="setField(day.date, 'out2', $event)" class="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold tabular-nums text-slate-800 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200 md:min-h-11 md:text-sm" />
-                  </span>
-                </label>
-              </div>
-              </div>
+            {{-- ورود و خروج (نوبت اول و دوم) با انتخابگر ساعت سفارشی --}}
+            <div x-show="isOpen(day)" class="space-y-2 md:flex md:shrink-0 md:items-center md:gap-3 md:space-y-0">
+              <template x-for="row in sessionRows" :key="row.key">
+                <div x-show="rowVisible(day.date, row)" :class="rowClass2(row)" class="grid grid-cols-2 gap-2 md:flex">
+                  <template x-for="f in row.fields" :key="f.id">
+                    <button type="button" @click="openPicker(day.date, f.id)" :class="fieldBtnClass(day.date, f.id)" class="flex min-h-14 flex-col items-center justify-center rounded-xl border px-2 shadow-sm transition active:scale-[0.98] md:min-h-12 md:w-24">
+                      <span class="text-[11px] font-bold opacity-70" x-text="f.label"></span>
+                      <span class="text-lg font-extrabold tabular-nums leading-tight md:text-base" dir="ltr" x-text="fieldText(day.date, f.id)"></span>
+                    </button>
+                  </template>
+                </div>
+              </template>
               <p x-show="isInvalid(day.date)" class="text-xs font-bold text-rose-600">ساعت‌ها معتبر نیست (خروج باید بعد از ورود باشد).</p>
             </div>
 
@@ -197,16 +174,10 @@
             </span>
 
             {{-- روز تعطیل یا آینده --}}
-            <fieldset x-show="isLocked(day)" disabled class="grid grid-cols-2 gap-2 md:flex md:flex-1 md:justify-start">
-                <span class="time-field relative block md:w-24">
-                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-sm" aria-label="ساعت ورود (غیرفعال)" />
-                </span>
-                <span class="time-field relative block md:w-24">
-                  <svg class="pointer-events-none absolute start-3 top-1/2 size-5 -translate-y-1/2 text-slate-400 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                  <input type="time" dir="ltr" disabled class="min-h-12 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-200/60 ps-9 pe-1 md:ps-1 text-center text-lg font-extrabold text-slate-400 md:min-h-11 md:text-sm" aria-label="ساعت خروج (غیرفعال)" />
-                </span>
-            </fieldset>
+            <div x-show="isLocked(day)" class="grid grid-cols-2 gap-2 md:flex md:flex-1 md:justify-start">
+              <span class="flex min-h-14 flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-200/60 text-lg font-extrabold text-slate-400 md:min-h-12 md:w-24 md:text-base">--:--</span>
+              <span class="flex min-h-14 flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-200/60 text-lg font-extrabold text-slate-400 md:min-h-12 md:w-24 md:text-base">--:--</span>
+            </div>
           </article>
         </template>
       </section>
@@ -262,6 +233,42 @@
           </div>
         </div>
       </nav>
+
+      {{-- انتخابگر ساعت: صفحهٔ پایین‌آمدنی (نزدیک شست) --}}
+      <div x-show="picker.open" x-transition.opacity class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm md:items-center" @click.self="closePicker()" role="dialog" aria-modal="true" aria-label="انتخاب ساعت">
+        <div class="w-full max-w-md rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl md:rounded-3xl">
+          <div class="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200 md:hidden"></div>
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-extrabold text-slate-700">ساعت <span x-text="pickerTitle"></span></p>
+            <button type="button" @click="pickNow()" class="min-h-11 rounded-xl bg-emerald-50 px-4 text-sm font-extrabold text-emerald-700 active:bg-emerald-100">همین الان</button>
+          </div>
+
+          <div class="my-4 flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-950 py-4 text-white">
+            <button type="button" @click="nudgeDown()" class="flex size-12 items-center justify-center rounded-xl bg-white/10 text-2xl font-extrabold active:bg-white/20" aria-label="یک دقیقه کمتر">−</button>
+            <p class="min-w-32 text-center text-5xl font-extrabold tabular-nums" dir="ltr" x-text="pickerText"></p>
+            <button type="button" @click="nudgeUp()" class="flex size-12 items-center justify-center rounded-xl bg-white/10 text-2xl font-extrabold active:bg-white/20" aria-label="یک دقیقه بیشتر">+</button>
+          </div>
+
+          <p class="mb-1.5 text-xs font-bold text-slate-500">ساعت</p>
+          <div class="grid grid-cols-6 gap-1.5" dir="ltr">
+            <template x-for="h in hours" :key="h">
+              <button type="button" @click="pickHour(h)" :class="hourClass(h)" class="min-h-11 rounded-xl text-base font-extrabold tabular-nums transition" x-text="hourText(h)"></button>
+            </template>
+          </div>
+
+          <p class="mb-1.5 mt-3 text-xs font-bold text-slate-500">دقیقه</p>
+          <div class="grid grid-cols-6 gap-1.5" dir="ltr">
+            <template x-for="m in minutes" :key="m">
+              <button type="button" @click="pickMinute(m)" :class="minuteClass(m)" class="min-h-11 rounded-xl text-base font-extrabold tabular-nums transition" x-text="minuteText(m)"></button>
+            </template>
+          </div>
+
+          <div class="mt-5 flex gap-2">
+            <button type="button" @click="applyPicker()" class="min-h-14 flex-1 rounded-2xl bg-emerald-600 text-base font-extrabold text-white shadow-sm active:bg-emerald-700">تأیید</button>
+            <button type="button" @click="clearPickerValue()" class="min-h-14 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-600 active:bg-slate-100">پاک کردن</button>
+          </div>
+        </div>
+      </div>
     </main>
   </body>
 </html>

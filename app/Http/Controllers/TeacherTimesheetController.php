@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 /** ساعت کاری ماهانه و خودارزیابی اساتید (سال تحصیلی ۱۴۰۵-۱۴۰۶) */
@@ -48,6 +50,7 @@ class TeacherTimesheetController extends Controller
                 'axes' => self::AXES,
                 'tags' => self::TAGS,
                 'teacherName' => $user->name,
+                'serverNow' => (int) now()->getTimestampMs(),
             ],
         ]);
     }
@@ -55,6 +58,7 @@ class TeacherTimesheetController extends Controller
     /** خواندن ساعت کاری؛ همان نکتهٔ نقش‌های Manager / Deputy / Coach در save() اینجا هم صدق می‌کند. */
     public function show(Request $request): JsonResponse
     {
+        self::ensureTable();
         $month = $request->validate(['month' => ['required', Rule::in(TimesheetCalendar::keys())]])['month'];
 
         $row = DB::table('teacher_timesheets')
@@ -128,8 +132,33 @@ class TeacherTimesheetController extends Controller
             'self_evaluation' => json_encode($evaluation, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT),
             'updated_at' => now(),
         ];
-        DB::table('teacher_timesheets')->updateOrInsert($key, $values + ['created_at' => now()]);
+        self::ensureTable();
+        try {
+            DB::table('teacher_timesheets')->updateOrInsert($key, $values + ['created_at' => now()]);
+        } catch (\Throwable $e) {
+            // علت واقعی در لاگ ثبت می‌شود و کاربر به‌جای «Server Error» پیام قابل فهم می‌بیند
+            Log::error('teacher-timesheet save failed', ['user' => $key['user_id'], 'role' => $request->user()->role, 'error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'ذخیره ساعت کاری انجام نشد. چند لحظه بعد دوباره تلاش کنید.'], 503);
+        }
 
         return response()->json(['ok' => true, 'savedAt' => now()->toIso8601String()]);
+    }
+
+    /** اگر مهاجرت جدول روی سرور اجرا نشده باشد، جدول (بدون کلید خارجی) ساخته می‌شود تا ثبت ساعت خطای ۵۰۰ ندهد. */
+    private static function ensureTable(): void
+    {
+        if (Schema::hasTable('teacher_timesheets')) {
+            return;
+        }
+        Schema::create('teacher_timesheets', function ($table) {
+            $table->bigIncrements('id');
+            $table->string('user_id', 100);
+            $table->string('month_key', 20);
+            $table->longText('entries')->nullable();
+            $table->longText('self_evaluation')->nullable();
+            $table->timestamps();
+            $table->unique(['user_id', 'month_key'], 'teacher_timesheets_user_month_unique');
+        });
     }
 }

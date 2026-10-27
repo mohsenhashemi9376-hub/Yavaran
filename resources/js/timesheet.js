@@ -21,8 +21,19 @@ const spanMinutes = (inT, outT) => {
 };
 
 const pad = (n) => String(n).padStart(2, '0');
-const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const hmOf = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+/** اجزای زمان به وقت تهران، مستقل از ساعت و منطقهٔ زمانی دستگاه */
+const TEHRAN = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
+const tehranParts = (d) => Object.fromEntries(TEHRAN.formatToParts(d).map((p) => [p.type, p.value]));
+const isoOf = (d) => { const p = tehranParts(d); return `${p.year}-${p.month}-${p.day}`; };
+const hmOf = (d) => { const p = tehranParts(d); return `${p.hour}:${p.minute}`; };
+const secOf = (d) => Number(tehranParts(d).second);
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+const FIELD_LABELS = { in: 'ورود', out: 'خروج', in2: 'ورود دوم', out2: 'خروج دوم' };
 
 Alpine.data('timesheet', () => ({
   config: JSON.parse(document.getElementById('timesheet-config').textContent),
@@ -40,10 +51,17 @@ Alpine.data('timesheet', () => ({
   punchError: '',
   timer: null,
   now: new Date(),
+  /** اختلاف ساعت سرور با دستگاه (میلی‌ثانیه)؛ ساعت اشتباه دستگاه روی ثبت اثر نمی‌گذارد */
+  offset: 0,
+  picker: { open: false, date: '', field: '', h: 8, m: 0 },
+  hours: HOURS,
+  minutes: MINUTES,
 
   async init() {
     // ساعت زنده: هر ثانیه
-    setInterval(() => { this.now = new Date(); }, 1000);
+    if (this.config.serverNow) this.offset = this.config.serverNow - Date.now();
+    this.now = new Date(Date.now() + this.offset);
+    setInterval(() => { this.now = new Date(Date.now() + this.offset); }, 1000);
     // ماه جاری؛ اگر امروز خارج از سال تحصیلی باشد، نزدیک‌ترین ماه
     const today = isoOf(this.now);
     const hit = this.months.find((m) => m.days.some((d) => d.g === today));
@@ -63,8 +81,8 @@ Alpine.data('timesheet', () => ({
 
   // ---------- ساعت زنده ----------
   get clockHM() { return toFa(hmOf(this.now)); },
-  get clockSec() { return toFa(pad(this.now.getSeconds())); },
-  get ringOffset() { return 276.5 * (1 - this.now.getSeconds() / 60); },
+  get clockSec() { return toFa(pad(secOf(this.now))); },
+  get ringOffset() { return 276.5 * (1 - secOf(this.now) / 60); },
   get todayIso() { return isoOf(this.now); },
 
   // ---------- ماه و تب ----------
@@ -124,6 +142,59 @@ Alpine.data('timesheet', () => ({
   setField(date, field, e) {
     this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: e.target.value } };
     this.touch();
+  },
+
+  // ---------- انتخابگر ساعت (جایگزین فیلد ساعت ویندوز/مرورگر) ----------
+  get sessionRows() {
+    return [
+      { key: 'a', fields: [{ id: 'in', label: FIELD_LABELS.in }, { id: 'out', label: FIELD_LABELS.out }] },
+      { key: 'b', fields: [{ id: 'in2', label: FIELD_LABELS.in2 }, { id: 'out2', label: FIELD_LABELS.out2 }] },
+    ];
+  },
+  rowClass2(row) { return row.key === 'b' ? 'md:border-s md:border-slate-200 md:ps-3' : ''; },
+  rowVisible(date, row) { return row.key === 'a' || this.hasSecond(date); },
+  fieldText(date, field) { const v = this.fieldValue(date, field); return v ? toFa(v) : '--:--'; },
+  fieldFilled(date, field) { return Boolean(this.fieldValue(date, field)); },
+  fieldBtnClass(date, field) {
+    return this.fieldFilled(date, field)
+      ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+      : 'border-slate-200 bg-slate-50 text-slate-400';
+  },
+  openPicker(date, field) {
+    const cur = toMinutes(this.fieldValue(date, field));
+    const base = cur !== null ? cur : toMinutes(hmOf(new Date(Date.now() + this.offset)));
+    this.picker = { open: true, date, field, h: Math.floor(base / 60), m: base % 60 };
+  },
+  closePicker() { this.picker = { ...this.picker, open: false }; },
+  get pickerTitle() { return FIELD_LABELS[this.picker.field] || ''; },
+  get pickerText() { return toFa(`${pad(this.picker.h)}:${pad(this.picker.m)}`); },
+  hourText(h) { return toFa(pad(h)); },
+  minuteText(m) { return toFa(pad(m)); },
+  pickHour(h) { this.picker = { ...this.picker, h }; },
+  pickMinute(m) { this.picker = { ...this.picker, m }; },
+  nudge(delta) {
+    const t = (((this.picker.h * 60 + this.picker.m + delta) % 1440) + 1440) % 1440;
+    this.picker = { ...this.picker, h: Math.floor(t / 60), m: t % 60 };
+  },
+  nudgeUp() { this.nudge(1); },
+  nudgeDown() { this.nudge(-1); },
+  pickNow() {
+    const t = toMinutes(hmOf(new Date(Date.now() + this.offset)));
+    this.picker = { ...this.picker, h: Math.floor(t / 60), m: t % 60 };
+  },
+  hourClass(h) { return this.picker.h === h ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 active:bg-slate-200'; },
+  minuteClass(m) { return this.picker.m === m ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 active:bg-slate-200'; },
+  applyPicker() {
+    const { date, field, h, m } = this.picker;
+    this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: `${pad(h)}:${pad(m)}` } };
+    this.touch();
+    this.closePicker();
+  },
+  clearPickerValue() {
+    const { date, field } = this.picker;
+    this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: '' } };
+    this.touch();
+    this.closePicker();
   },
 
   // ---------- تگ‌های فعالیت ----------
@@ -244,7 +315,7 @@ Alpine.data('timesheet', () => ({
     this.punchError = '';
     if (!this.canPunch) return;
     const date = this.todayDate;
-    const hm = hmOf(new Date());
+    const hm = hmOf(new Date(Date.now() + this.offset));
     const m = toMinutes(hm);
     const e = this.entry(date);
     if (!e.in) {
