@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { EXAM_SUBJECTS, ExamSubjectKey, ComprehensiveExamRecord } from '../types';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
-import { scorePillClass, subjectPillClass } from '../utils/gradePeriods';
+import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
@@ -12,6 +12,14 @@ interface ComprehensiveExamManagementProps {
   onBack: () => void;
   onOpenSidebar: () => void;
 }
+
+/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۰ تا کمتر از ۱۶ زرد، زیر ۱۰ قرمز، بدون نمره خاکستری کم‌رنگ */
+const examScoreClass = (score: number | null | undefined): string => {
+  if (score === null || score === undefined || Number.isNaN(score)) return 'bg-slate-100/70 border border-slate-200/70 text-slate-400';
+  if (score >= 16) return 'bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold';
+  if (score >= 10) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
+  return 'bg-rose-100 border border-rose-200 text-rose-700 font-bold';
+};
 
 type Draft = Record<string, Partial<Record<ExamSubjectKey, string>>>;
 type SortKey = ExamSubjectKey | 'average';
@@ -400,7 +408,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
       {/* جدول */}
       <div className={`${card} overflow-hidden`}>
-        <FitTable className="">
+        <FitTable className="" fullView="table" title="نمرات آزمون جامع">
           <table className="w-full min-w-[920px] text-right text-sm">
             <thead>
               <tr className="text-xs text-slate-500 border-b border-slate-100">
@@ -458,14 +466,14 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                               className={`w-16 text-center rounded-xl py-2 outline-none transition focus:ring-4 focus:ring-emerald-100 ${
                                 bad
                                   ? 'bg-rose-50 border border-rose-300 text-rose-700 font-bold'
-                                  : scorePillClass(parseScore(v))
+                                  : examScoreClass(parseScore(v))
                               }`}
                             />
                           </td>
                         );
                       })}
                       <td className="p-3 text-center">
-                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap ${avg === null ? 'bg-slate-100/70 border border-slate-200/70 text-slate-400' : 'bg-indigo-50/60 border border-indigo-200 text-indigo-950'}`}>{fa(avg)}</span>
+                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap tabular-nums ${examScoreClass(avg)}`}>{fa(avg)}</span>
                       </td>
                       <td className="p-3 text-center">
                         {absent[st.id] ? (

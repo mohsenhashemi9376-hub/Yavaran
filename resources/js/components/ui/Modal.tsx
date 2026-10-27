@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -57,6 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
     '2xl': 'max-w-5xl',
+    '3xl': 'max-w-6xl',
     full: 'max-w-7xl',
   };
 

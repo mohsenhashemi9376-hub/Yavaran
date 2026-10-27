@@ -61,10 +61,17 @@ class TeacherTimesheetOverviewController extends Controller
             $minutes = 0;
             $days = 0;
             foreach ($entries as $e) {
-                if (! empty($e['in']) && ! empty($e['out']) && $e['out'] > $e['in']) {
-                    [$ih, $im] = array_map('intval', explode(':', $e['in']));
-                    [$oh, $om] = array_map('intval', explode(':', $e['out']));
-                    $minutes += ($oh * 60 + $om) - ($ih * 60 + $im);
+                // مجموع نوبت اول و دوم (ورود/خروج اول و دوم)
+                $dayMinutes = 0;
+                foreach ([['in', 'out'], ['in2', 'out2']] as [$inKey, $outKey]) {
+                    if (! empty($e[$inKey]) && ! empty($e[$outKey]) && $e[$outKey] > $e[$inKey]) {
+                        [$ih, $im] = array_map('intval', explode(':', $e[$inKey]));
+                        [$oh, $om] = array_map('intval', explode(':', $e[$outKey]));
+                        $dayMinutes += ($oh * 60 + $om) - ($ih * 60 + $im);
+                    }
+                }
+                if ($dayMinutes > 0) {
+                    $minutes += $dayMinutes;
                     $days++;
                 }
             }

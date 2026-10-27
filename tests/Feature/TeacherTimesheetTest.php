@@ -27,7 +27,7 @@ class TeacherTimesheetTest extends TestCase
         $this->assertSame('1405/12/26', $farvardin['days'][0]['date']);
         $this->assertSame('1406/01/25', $farvardin['days'][array_key_last($farvardin['days'])]['date']);
 
-        // هیچ تاریخی پیش از ۱ مهر ۱۴۰۵ نیست؛ پنج‌شنبه و جمعه تعطیل‌اند
+        // هیچ تاریخی پیش از ۱ مهر ۱۴۰۵ نیست؛ فقط جمعه تعطیل است
         $mehr = TimesheetCalendar::month('mehr');
         $this->assertSame('1405/07/01', $mehr['days'][0]['date']);
         $this->assertSame('مهر ۱۴۰۵ (۱ تا ۲۵ مهر)', $mehr['label']);
@@ -35,7 +35,7 @@ class TeacherTimesheetTest extends TestCase
         // 1405/07/14 سه‌شنبه، 1405/07/16 پنج‌شنبه، 1405/07/17 جمعه
         $byDate = array_column($mehr['days'], 'off', 'date');
         $this->assertFalse($byDate['1405/07/14']);
-        $this->assertTrue($byDate['1405/07/16']);
+        $this->assertFalse($byDate['1405/07/16']);
         $this->assertTrue($byDate['1405/07/17']);
         $all = array_merge(...array_map(fn ($m) => array_column($m['days'], 'date'), TimesheetCalendar::months()));
         $this->assertSame('1405/07/01', min($all));
@@ -63,7 +63,7 @@ class TeacherTimesheetTest extends TestCase
         $payload = [
             'month' => 'aban',
             'entries' => [
-                '1405/07/26' => ['in' => '08:00', 'out' => '14:30', 'tags' => ['teaching', 'council']],
+                '1405/07/26' => ['in' => '08:00', 'out' => '14:30', 'tags' => ['teaching', 'other'], 'otherText' => 'نظارت بر امتحان'],
                 '1399/01/01' => ['in' => '08:00', 'out' => '09:00', 'tags' => []],
             ],
             'selfEvaluation' => ['scores' => ['growth' => 4, 'extra' => 5], 'extraNote' => 'کلاس تقویتی'],
@@ -73,7 +73,8 @@ class TeacherTimesheetTest extends TestCase
         $res = $this->actingAs($a)->getJson('/api/teacher-timesheet?month=aban')->assertOk();
         $this->assertSame(['1405/07/26'], array_keys($res->json('entries')));
         $this->assertSame('08:00', $res->json('entries.1405/07/26.in'));
-        $this->assertSame(['teaching', 'council'], $res->json('entries.1405/07/26.tags'));
+        $this->assertSame(['teaching', 'other'], $res->json('entries.1405/07/26.tags'));
+        $this->assertSame('نظارت بر امتحان', $res->json('entries.1405/07/26.otherText'));
         $this->assertSame(5, $res->json('selfEvaluation.scores.extra'));
         $this->assertSame('کلاس تقویتی', $res->json('selfEvaluation.extraNote'));
 
@@ -99,7 +100,7 @@ class TeacherTimesheetTest extends TestCase
         $vice = $this->makeUser('vice_educational', ['phone' => '09120000062']);
         $this->actingAs($teacher)->postJson('/api/teacher-timesheet', [
             'month' => 'aban',
-            'entries' => ['1405/08/01' => ['in' => '08:00', 'out' => '14:30', 'tags' => ['teaching']]],
+            'entries' => ['1405/08/01' => ['in' => '08:00', 'out' => '12:00', 'in2' => '13:00', 'out2' => '15:30', 'tags' => ['teaching']]],
             'selfEvaluation' => ['scores' => ['growth' => 4, 'extra' => 5], 'extraNote' => 'کلاس تقویتی'],
         ])->assertOk();
 

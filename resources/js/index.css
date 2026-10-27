@@ -310,6 +310,13 @@ button { transition-property: transform, background-color, border-color, color, 
 .yv-fit table { min-width: 0 !important; width: 100%; }
 .yv-fit th, .yv-fit td { white-space: normal !important; overflow-wrap: anywhere; }
 
+/* نمای کامل «جدول واقعی»: هدر چسبان هنگام اسکرول، ردیف‌های راه‌راه */
+.yv-datatable table { width: 100%; min-width: 920px; border-collapse: separate; border-spacing: 0; }
+.yv-datatable thead th { position: sticky; top: 0; z-index: 10; background: #f1f5f9; color: #475569; box-shadow: 0 1px 0 #e2e8f0; white-space: nowrap; }
+.yv-datatable tbody td { border-bottom: 1px solid #f1f5f9; }
+.yv-datatable tbody tr:nth-child(even) td { background: #f8fafc; }
+.yv-datatable tbody tr:hover td { background: #f1f5f9; }
+
 /* Full-view dialog: table rendered as stacked label/value cards */
 .yv-stack table, .yv-stack tbody { display: block; width: 100%; min-width: 0 !important; }
 .yv-stack thead { display: none; }

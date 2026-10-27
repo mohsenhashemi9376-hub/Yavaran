@@ -1,6 +1,7 @@
 import { ViewDateBar } from './components/ViewDateBar';
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { lazyModal } from './utils/lazyModal';
+import { retryImport } from './utils/retryImport';
 import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
@@ -19,11 +20,11 @@ import { useWakeLock } from './utils/useWakeLock';
 import { ActiveAttendance, clearActiveAttendance, loadActiveAttendance } from './utils/attendanceDraft';
 
 // بارگذاری تنبل: فقط داشبورد نقش کاربر و پنجره‌هایی که باز می‌شوند دریافت می‌شوند
-const TeacherDashboard = lazy(() => import('./components/TeacherDashboard').then((m) => ({ default: m.TeacherDashboard })));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
-const DisciplinaryDashboard = lazy(() => import('./components/DisciplinaryDashboard').then((m) => ({ default: m.DisciplinaryDashboard })));
-const EducationalDashboard = lazy(() => import('./components/EducationalDashboard').then((m) => ({ default: m.EducationalDashboard })));
-const NurturingDashboard = lazy(() => import('./components/NurturingDashboard').then((m) => ({ default: m.NurturingDashboard })));
+const TeacherDashboard = lazy(() => retryImport(() => import('./components/TeacherDashboard')).then((m) => ({ default: m.TeacherDashboard })));
+const AdminDashboard = lazy(() => retryImport(() => import('./components/AdminDashboard')).then((m) => ({ default: m.AdminDashboard })));
+const DisciplinaryDashboard = lazy(() => retryImport(() => import('./components/DisciplinaryDashboard')).then((m) => ({ default: m.DisciplinaryDashboard })));
+const EducationalDashboard = lazy(() => retryImport(() => import('./components/EducationalDashboard')).then((m) => ({ default: m.EducationalDashboard })));
+const NurturingDashboard = lazy(() => retryImport(() => import('./components/NurturingDashboard')).then((m) => ({ default: m.NurturingDashboard })));
 const AttendanceModal = lazyModal(() => import('./components/AttendanceModal').then((m) => ({ default: m.AttendanceModal })));
 const ClassDetailModal = lazyModal(() => import('./components/ClassDetailModal').then((m) => ({ default: m.ClassDetailModal })));
 const MonthlySummaryModal = lazyModal(() => import('./components/MonthlySummaryModal').then((m) => ({ default: m.MonthlySummaryModal })));
@@ -117,6 +118,8 @@ const MainApp: React.FC = () => {
 
   // Modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // ارتفاع واقعی هدر ثابت؛ پدینگ بالای محتوا از همین مقدار ساخته می‌شود (بدون عدد هاردکد)
+  const [headerHeight, setHeaderHeight] = useState(0);
   // اگر پیش از بارگذاری دوباره (مثلاً خاموش‌شدن صفحه) فهرست حضور و غیاب باز بوده، همان فهرست با پیش‌نویسش بازمی‌گردد
   const [resumeAttendance] = useState<ActiveAttendance | null>(() => loadActiveAttendance(currentUser.id));
   const [resumeActive, setResumeActive] = useState<boolean>(Boolean(resumeAttendance));
@@ -263,13 +266,14 @@ const MainApp: React.FC = () => {
         onOpenAcademicGrades={() => handleOpenAcademicGrades()}
         onOpenLoginModal={() => setLoginModalOpen(true)}
         onOpenGlobalSearch={() => setGlobalSearchModalOpen(true)}
+        onHeightChange={setHeaderHeight}
         currentActiveTab={effectiveTab}
         onSelectTab={setActiveTab}
       />
       </ErrorBoundary>
 
       {/* Main Content Area */}
-      <main key={viewDate ?? 'today'} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 pb-28 md:pb-6">
+      <main key={viewDate ?? 'today'} style={{ paddingTop: headerHeight + 16 }} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-28 md:pb-6">
         <ViewDateBar />
         <ErrorBoundary fallbackTitle="بارگذاری این بخش با مشکل موقت مواجه شد">
           <ConfidentialGuard />

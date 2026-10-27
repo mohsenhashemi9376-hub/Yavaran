@@ -6,7 +6,7 @@ import { homeworkOutcome } from '../utils/classroomActivity';
 import { getRealTodayShamsiString, tehranNow, toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { MentorMessagesSection } from './MentorMessages';
 import { DisciplineExcellenceCard, useDisciplineExcellence } from './DisciplineExcellence';
-import { Tile } from './NurturingViceHome';
+import { Tile } from './ui/Tile';
 import { Modal } from './ui/Modal';
 import { daysAgo } from './ObservationInsights';
 

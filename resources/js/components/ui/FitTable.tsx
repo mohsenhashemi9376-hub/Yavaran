@@ -8,6 +8,8 @@ export interface FitTableProps {
   className?: string;
   /** Title shown in the "full view" dialog. */
   title?: string;
+  /** حالت نمای کامل: کارت‌های زیرهم (پیش‌فرض) یا جدول واقعی عریض با هدر چسبان */
+  fullView?: 'cards' | 'table';
 }
 
 /**
@@ -15,7 +17,7 @@ export interface FitTableProps {
  * to fit its container (text wraps); if it still does not fit, a
  * "مشاهده کامل" button opens the same table as stacked cards in a dialog.
  */
-export const FitTable: React.FC<FitTableProps> = ({ children, className = '', title = 'مشاهده کامل جدول' }) => {
+export const FitTable: React.FC<FitTableProps> = ({ children, className = '', title = 'مشاهده کامل جدول', fullView = 'cards' }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [overflowing, setOverflowing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -58,8 +60,13 @@ export const FitTable: React.FC<FitTableProps> = ({ children, className = '', ti
           </button>
         </div>
       )}
-      <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="full">
-        <StackedView>{children}</StackedView>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size={fullView === 'table' ? '3xl' : 'full'}>
+        {fullView === 'table' ? (
+          // جدول واقعی با اسکرول داخلی؛ هدر با CSS (.yv-datatable) چسبان می‌ماند
+          <div className="yv-datatable max-h-[calc(92vh-9rem)] overflow-auto rounded-xl border border-slate-200 bg-white">{children}</div>
+        ) : (
+          <StackedView>{children}</StackedView>
+        )}
       </Modal>
     </>
   );

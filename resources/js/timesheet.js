@@ -11,9 +11,14 @@ const toMinutes = (t) => {
   return h * 60 + m;
 };
 
-const DEFAULT_IN = '07:30';
-const DEFAULT_OUT = '14:00';
 const DEFAULT_TAG = 'teaching';
+
+/** دقیقهٔ یک نوبت (ورود/خروج)؛ null اگر ناقص یا نامعتبر باشد */
+const spanMinutes = (inT, outT) => {
+  const a = toMinutes(inT);
+  const b = toMinutes(outT);
+  return a === null || b === null || b <= a ? null : b - a;
+};
 
 const pad = (n) => String(n).padStart(2, '0');
 const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -44,7 +49,16 @@ Alpine.data('timesheet', () => ({
     const hit = this.months.find((m) => m.days.some((d) => d.g === today));
     this.monthKey = (hit || (today < this.months[0].days[0].g ? this.months[0] : this.months[this.months.length - 1])).key;
     await this.load();
+    // با ورود به صفحه، روز جاری را نشان بده
+    this.$nextTick(() => this.scrollToToday());
     window.addEventListener('beforeunload', () => { if (this.dirty) this.save(); });
+  },
+
+  dayId(day) { return `day-${day.date}`; },
+  scrollToToday() {
+    if (!this.hasToday) return;
+    const el = document.getElementById(this.dayId(this.todayDay));
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   },
 
   // ---------- ساعت زنده ----------
@@ -97,10 +111,16 @@ Alpine.data('timesheet', () => ({
 
   // ---------- روزها ----------
   entry(date) { return this.entries[date] || {}; },
-  valueOf(date, field) { return this.entry(date)[field] || ''; },
+  fieldValue(date, field) { return this.entry(date)[field] || ''; },
   isToday(day) { return day.g === this.todayIso; },
   isOff(day) { return day.off; },
   isWorking(day) { return !day.off; },
+  /** روز آینده (بعد از امروز): غیرفعال و بدون نیاز به ثبت */
+  isFuture(day) { return day.g > this.todayIso; },
+  isFutureWorking(day) { return !day.off && this.isFuture(day); },
+  /** فقط روزهای کاری گذشته و امروز قابل ویرایش‌اند */
+  isOpen(day) { return !day.off && !this.isFuture(day); },
+  isLocked(day) { return day.off || this.isFuture(day); },
   setField(date, field, e) {
     this.entries = { ...this.entries, [date]: { ...this.entry(date), [field]: e.target.value } };
     this.touch();
@@ -115,24 +135,38 @@ Alpine.data('timesheet', () => ({
     this.entries = { ...this.entries, [date]: { ...this.entry(date), tags } };
     this.touch();
   },
+  hasOther(date) { return this.hasTag(date, 'other'); },
+  otherText(date) { return this.entry(date).otherText || ''; },
+  setOtherText(date, e) {
+    this.entries = { ...this.entries, [date]: { ...this.entry(date), otherText: e.target.value } };
+    this.touch();
+  },
   tagClass(date, key) {
     return this.hasTag(date, key)
       ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
       : 'border-slate-200 bg-white text-slate-600 active:bg-slate-100';
   },
 
-  /** ساعت کارکرد یک روز (اعشاری)؛ null اگر ناقص یا نامعتبر باشد */
+  /** نوبت دوم (ورود دوم و خروج دوم) وقتی نمایش داده می‌شود که نوبت اول کامل یا نوبت دوم شروع شده باشد */
+  hasSecond(date) {
+    const e = this.entry(date);
+    return Boolean(e.in2 || e.out2 || (e.in && e.out));
+  },
+  /** ساعت کارکرد یک روز (اعشاری)، مجموع نوبت اول و دوم؛ null اگر هیچ نوبت معتبری نباشد */
   dayHours(date) {
-    const a = toMinutes(this.entry(date).in);
-    const b = toMinutes(this.entry(date).out);
-    if (a === null || b === null || b <= a) return null;
-    return (b - a) / 60;
+    const e = this.entry(date);
+    const m1 = spanMinutes(e.in, e.out);
+    const m2 = spanMinutes(e.in2, e.out2);
+    if (m1 === null && m2 === null) return null;
+    return ((m1 || 0) + (m2 || 0)) / 60;
   },
   hasHours(date) { return this.dayHours(date) !== null; },
   isInvalid(date) {
-    const a = toMinutes(this.entry(date).in);
-    const b = toMinutes(this.entry(date).out);
-    return a !== null && b !== null && b <= a;
+    const e = this.entry(date);
+    const bad = (x, y) => toMinutes(x) !== null && toMinutes(y) !== null && toMinutes(y) <= toMinutes(x);
+    // نوبت دوم باید بعد از خروج اول شروع شود
+    const overlap = toMinutes(e.out) !== null && toMinutes(e.in2) !== null && toMinutes(e.in2) < toMinutes(e.out);
+    return bad(e.in, e.out) || bad(e.in2, e.out2) || overlap;
   },
   dayHoursText(date) {
     const h = this.dayHours(date);
@@ -140,6 +174,7 @@ Alpine.data('timesheet', () => ({
   },
   rowClass(day) {
     if (day.off) return 'border-slate-200 bg-slate-100 opacity-60 grayscale';
+    if (this.isFuture(day)) return 'border-slate-200 bg-slate-50 opacity-50';
     if (this.isToday(day)) return 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200';
     if (this.isInvalid(day.date)) return 'border-rose-300 bg-rose-50';
     return this.hasHours(day.date) ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
@@ -154,7 +189,7 @@ Alpine.data('timesheet', () => ({
   },
   get totalText() { return fmtHours(this.totalHours); },
   get filledDays() { return toFa(this.days.filter((d) => this.hasHours(d.date)).length); },
-  get workDaysCount() { return toFa(this.days.filter((d) => !d.off).length); },
+  get workDaysCount() { return toFa(this.days.filter((d) => this.isOpen(d)).length); },
   get averageText() {
     const n = this.days.filter((d) => this.hasHours(d.date)).length;
     return n ? fmtHours(this.totalHours / n) : '—';
@@ -165,15 +200,42 @@ Alpine.data('timesheet', () => ({
   get hasToday() { return Boolean(this.todayDay); },
   get todayOff() { return this.hasToday && this.todayDay.off; },
   get todayDate() { return this.hasToday ? this.todayDay.date : ''; },
-  /** idle: ثبت نشده، working: ورود زده، done: پایان روز */
+  /** idle: بدون ثبت، working: ورود اول، between: خروج اول، working2: ورود دوم، done: خروج دوم (پایان روز) */
   get punchState() {
     const e = this.hasToday ? this.entry(this.todayDate) : {};
-    if (e.in && e.out) return 'done';
+    if (e.out2) return 'done';
+    if (e.in2) return 'working2';
+    if (e.out) return 'between';
     return e.in ? 'working' : 'idle';
   },
   isPunch(name) { return this.punchState === name; },
-  get todayInText() { return this.hasToday ? toFa(this.entry(this.todayDate).in || '') : ''; },
-  get todayOutText() { return this.hasToday ? toFa(this.entry(this.todayDate).out || '') : ''; },
+  get isNotDone() { return this.punchState !== 'done'; },
+  get isPunchWorking() { return this.punchState === 'working' || this.punchState === 'working2'; },
+  get punchLabel() {
+    return {
+      idle: 'ثبت ورود به مدرسه',
+      working: 'ثبت خروج',
+      between: 'ثبت ورود دوم',
+      working2: 'ثبت خروج دوم',
+      done: 'پایان روز',
+    }[this.punchState];
+  },
+  get punchBtnClass() {
+    return this.isPunchWorking
+      ? 'bg-rose-500 shadow-rose-900/30'
+      : 'bg-emerald-500 shadow-emerald-900/30';
+  },
+  /** نوبت‌های امروز برای نمایش در داشبورد */
+  get todaySessions() {
+    if (!this.hasToday) return [];
+    const e = this.entry(this.todayDate);
+    const rows = [];
+    if (e.in) rows.push({ key: 's1', label: 'نوبت اول', inText: toFa(e.in), outText: e.out ? toFa(e.out) : '…' });
+    if (e.in2) rows.push({ key: 's2', label: 'نوبت دوم', inText: toFa(e.in2), outText: e.out2 ? toFa(e.out2) : '…' });
+    return rows;
+  },
+  get hasSessions() { return this.todaySessions.length > 0; },
+  get todayLabel() { return this.hasToday ? `${this.todayDay.weekday} ${this.todayDay.label}` : ''; },
   get todayHoursText() { return this.hasToday ? this.dayHoursText(this.todayDate) : '—'; },
   get canPunch() { return this.hasToday && !this.todayOff && !this.loading; },
   get cannotPunch() { return !this.canPunch; },
@@ -181,18 +243,23 @@ Alpine.data('timesheet', () => ({
   async punch() {
     this.punchError = '';
     if (!this.canPunch) return;
-    // اگر امروز در ماه دیگری از ماه نمایش‌داده‌شده است، اول به آن ماه می‌رویم
     const date = this.todayDate;
     const hm = hmOf(new Date());
+    const m = toMinutes(hm);
     const e = this.entry(date);
     if (!e.in) {
       this.entries = { ...this.entries, [date]: { ...e, in: hm, tags: e.tags && e.tags.length ? e.tags : [DEFAULT_TAG] } };
     } else if (!e.out) {
-      if (toMinutes(hm) <= toMinutes(e.in)) {
-        this.punchError = 'خروج باید دست‌کم یک دقیقه بعد از ورود باشد.';
-        return;
-      }
+      if (m <= toMinutes(e.in)) { this.punchError = 'خروج باید دست‌کم یک دقیقه بعد از ورود باشد.'; return; }
       this.entries = { ...this.entries, [date]: { ...e, out: hm } };
+    } else if (!e.in2) {
+      if (m < toMinutes(e.out)) { this.punchError = 'ورود دوم باید بعد از خروج اول باشد.'; return; }
+      this.entries = { ...this.entries, [date]: { ...e, in2: hm } };
+    } else if (!e.out2) {
+      if (m <= toMinutes(e.in2)) { this.punchError = 'خروج دوم باید دست‌کم یک دقیقه بعد از ورود دوم باشد.'; return; }
+      this.entries = { ...this.entries, [date]: { ...e, out2: hm } };
+    } else {
+      return;
     }
     this.touch();
     await this.save();
@@ -215,24 +282,6 @@ Alpine.data('timesheet', () => ({
     return '';
   },
   get hasHint() { return this.punchHint !== ''; },
-
-  // ---------- پر کردن خودکار ----------
-  get emptyWorkDays() {
-    return this.days.filter((d) => !d.off && !this.isToday(d) && !this.entry(d.date).in && !this.entry(d.date).out);
-  },
-  get emptyCount() { return toFa(this.emptyWorkDays.length); },
-  get noEmptyDays() { return this.emptyWorkDays.length === 0; },
-  magicFill() {
-    const targets = this.emptyWorkDays;
-    if (!targets.length) return;
-    if (!window.confirm(`${toFa(targets.length)} روز کاری خالی با ورود ${toFa(DEFAULT_IN)}، خروج ${toFa(DEFAULT_OUT)} و تگ «تدریس موظفی» پر شود؟`)) return;
-    const next = { ...this.entries };
-    for (const d of targets) {
-      next[d.date] = { ...next[d.date], in: DEFAULT_IN, out: DEFAULT_OUT, tags: [DEFAULT_TAG] };
-    }
-    this.entries = next;
-    this.touch();
-  },
 
   // ---------- خودارزیابی ----------
   isExtra(axis) { return axis.id === 'extra'; },
@@ -283,9 +332,17 @@ Alpine.data('timesheet', () => ({
       const entries = {};
       for (const d of this.days) {
         const e = this.entry(d.date);
-        if (d.off) continue;
-        if (e.in || e.out || (e.tags || []).length) {
-          entries[d.date] = { in: e.in || null, out: e.out || null, tags: e.tags || [] };
+        if (!this.isOpen(d)) continue;
+        if (e.in || e.out || e.in2 || e.out2 || (e.tags || []).length) {
+          const tags = e.tags || [];
+          entries[d.date] = {
+            in: e.in || null,
+            out: e.out || null,
+            in2: e.in2 || null,
+            out2: e.out2 || null,
+            tags,
+            otherText: tags.includes('other') ? (e.otherText || '').trim() : '',
+          };
         }
       }
       await request('/api/teacher-timesheet', {

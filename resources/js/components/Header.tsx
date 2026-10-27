@@ -1,6 +1,7 @@
 import { NotificationBell } from './NotificationBell';
 import { InboxButton } from './InboxButton';
 import React, { useState, useEffect, useRef } from 'react';
+import { useAutoHideHeader } from '../utils/useAutoHideHeader';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from '../utils/persianDate';
 import { useSchool } from '../context/SchoolContext';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -38,6 +39,8 @@ interface HeaderProps {
   onOpenDisciplinaryDashboard?: () => void;
   onOpenLoginModal?: () => void;
   onOpenGlobalSearch?: () => void;
+  /** ارتفاع واقعی هدر (پیکسل)؛ برای پدینگ پویای محتوای زیر هدر ثابت */
+  onHeightChange?: (height: number) => void;
   currentActiveTab?: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher';
   onSelectTab?: (tab: 'main' | 'discipline' | 'grades' | 'nurture' | 'teacher') => void;
 }
@@ -95,6 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDisciplinaryDashboard,
   onOpenLoginModal,
   onOpenGlobalSearch,
+  onHeightChange,
   currentActiveTab = 'main',
   onSelectTab,
 }) => {
@@ -114,6 +118,23 @@ export const Header: React.FC<HeaderProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const headerVisible = useAutoHideHeader(showUserMenu || showNotifications || mobileMenuOpen);
+
+  // ارتفاع واقعی هدر را اندازه می‌گیرد و با هر تغییر (چرخش گوشی، تغییر اندازهٔ پنجره، باز شدن ردیف تب‌ها) خبر می‌دهد
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || !onHeightChange) return;
+    const report = () => onHeightChange(el.offsetHeight);
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    window.addEventListener('resize', report);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', report);
+    };
+  }, [onHeightChange]);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
@@ -171,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="yv-header bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs" dir="rtl">
+    <header ref={headerRef} className={`yv-header bg-white/95 backdrop-blur-md border-b border-slate-200/80 fixed inset-x-0 top-0 z-30 w-full shadow-xs transition-transform duration-300 ease-in-out ${headerVisible ? 'translate-y-0' : 'max-md:-translate-y-full'}`} dir="rtl">
       {/* Click-outside backdrop for open dropdowns */}
       {(showUserMenu || showNotifications || mobileMenuOpen) && (
         <div 
