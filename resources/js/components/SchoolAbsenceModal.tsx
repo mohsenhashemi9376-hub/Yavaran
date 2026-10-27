@@ -67,10 +67,9 @@ export const SchoolAbsenceModal: React.FC<SchoolAbsenceModalProps> = ({
   // Student filtering
   const filteredStudents = students.filter((stu) => {
     const fullName = `${studentFullName(stu)}`.toLowerCase();
-    const code = (stu.studentCode || '').toLowerCase();
     const searchLower = studentSearch.toLowerCase().trim();
     if (!searchLower) return true;
-    return fullName.includes(searchLower) || code.includes(searchLower);
+    return fullName.includes(searchLower);
   });
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);

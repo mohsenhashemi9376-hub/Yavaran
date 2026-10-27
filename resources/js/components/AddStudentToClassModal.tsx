@@ -61,7 +61,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
   // Filter students from the entire school
   const filteredStudents = searchTerm.trim().length > 0 
     ? students.filter((s) => {
-        const full = `${studentFullName(s)} ${s.studentCode || ''} ${s.nationalId || ''}`.toLowerCase();
+        const full = `${studentFullName(s)} ${realNationalId(s.nationalId, s.studentCode)}`.toLowerCase();
         return full.includes(searchTerm.toLowerCase().trim());
       })
     : [];
@@ -327,7 +327,6 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                                 {studentFullName(stu)}
                               </div>
                               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                                {stu.studentCode && <span>کد: {toPersianDigits(stu.studentCode)}</span>}
                                 {realNationalId(stu.nationalId, stu.studentCode) && <span>کد ملی: {toPersianDigits(realNationalId(stu.nationalId, stu.studentCode))}</span>}
                               </div>
                               <div className="mt-1">

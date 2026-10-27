@@ -111,9 +111,8 @@ export const AddDisciplineModal: React.FC<AddDisciplineModalProps> = ({
       if (studentSearch.trim()) {
         const query = studentSearch.trim().toLowerCase();
         const fullName = `${studentFullName(s)}`.toLowerCase();
-        const code = (s.studentCode || '').toLowerCase();
         const nationalId = (s.nationalId || '').toLowerCase();
-        return fullName.includes(query) || code.includes(query) || nationalId.includes(query);
+        return fullName.includes(query) || nationalId.includes(query);
       }
       return true;
     });

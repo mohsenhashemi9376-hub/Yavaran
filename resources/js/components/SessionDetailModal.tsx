@@ -96,7 +96,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
 
   // Filter student list
   const filteredStudents = classStudents.filter((stu) => {
-    const fullName = `${studentFullName(stu)} ${stu.studentCode}`.toLowerCase();
+    const fullName = `${studentFullName(stu)}`.toLowerCase();
     if (searchTerm.trim() && !fullName.includes(searchTerm.trim().toLowerCase())) {
       return false;
     }
@@ -127,7 +127,6 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
 
       return {
         'ردیف': idx + 1,
-        'کد دانش‌آموزی': stu.studentCode,
         'نام و نام خانوادگی': `${studentFullName(stu)}`,
         'نام پدر': stu.fatherName || '-',
         'وضعیت حضور': statusTitle,
@@ -399,7 +398,6 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                   <tr>
                     <th className="p-3 w-12 text-center">ردیف</th>
                     <th className="p-3">نام و نام خانوادگی</th>
-                    <th className="p-3">کد دانش‌آموزی</th>
                     <th className="p-3 text-center">وضعیت حضور</th>
                     <th className="p-3 text-center">نمره کلاسی/شفاهی</th>
                     <th className="p-3 text-center">وضعیت تکلیف</th>
@@ -439,9 +437,6 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                             <div className="text-[10px] text-slate-400">
                               فرزند {stu.fatherName || '-'}
                             </div>
-                          </td>
-                          <td className="p-3 font-mono text-slate-600">
-                            {toPersianDigits(stu.studentCode)}
                           </td>
                           <td className="p-3 text-center">
                             {status === 'present' && (

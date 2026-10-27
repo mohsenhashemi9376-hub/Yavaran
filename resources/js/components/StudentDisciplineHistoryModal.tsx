@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import React, { useState } from 'react';
 import { Student, SchoolClass, DisciplinaryNote, MorningDelayRecord, AttendanceSession } from '../types';
 import { toPersianDigits, formatShamsiDisplay, getDayOfWeekFromShamsi } from '../utils/persianDate';
@@ -134,9 +135,7 @@ export const StudentDisciplineHistoryModal: React.FC<StudentDisciplineHistoryMod
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-300 mt-1 flex-wrap font-mono">
-                <span>کد دانش‌آموزی: {toPersianDigits(student.studentCode)}</span>
-                <span>•</span>
-                <span>کد ملی: {toPersianDigits(student.nationalId || '-')}</span>
+                <span>کد ملی: {toPersianDigits(realNationalId(student.nationalId, student.studentCode) || '-')}</span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Phone className="w-3 h-3 text-slate-400" />

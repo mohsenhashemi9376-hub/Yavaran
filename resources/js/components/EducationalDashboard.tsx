@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import { subjectAppliesToClass } from '../utils/courseAssignments';
 import { useScrollTop } from '../utils/useScrollTop';
 import { AccessDeniedNotice } from './AccessDeniedNotice';
@@ -333,7 +334,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
           data.push({
             'کلاس': c.name,
             'نام دانش‌آموز': `${studentFullName(stu)}`,
-            'کد ملی / دانش‌آموزی': stu.nationalId || stu.studentCode || '-',
+            'کد ملی': realNationalId(stu.nationalId, stu.studentCode) || '-',
             'نام درس': sub.name,
             ...Object.fromEntries(SCORE_COLUMNS.map((m) => [m.monthName, g && typeof g[m.key] === 'number' ? g[m.key] : ''])),
             'میانگین مستمر': avg !== undefined ? Math.round(avg * 100) / 100 : 'ثبت نشده',
@@ -964,7 +965,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                   if (!reportCardSearch) return true;
                   const q = reportCardSearch.trim().toLowerCase();
                   const name = `${studentFullName(item.student)}`.toLowerCase();
-                  const code = item.student.nationalId || item.student.studentCode || '';
+                  const code = realNationalId(item.student.nationalId, item.student.studentCode);
                   return name.includes(q) || code.includes(q);
                 })
                 .map(item => {

@@ -60,7 +60,6 @@ export const exportClassAttendanceToExcel = (
     const row: Record<string, any> = {
       'ردیف': index + 1,
       'نام و نام خانوادگی': `${studentFullName(student)}`,
-      'کد دانش‌آموزی': student.studentCode || '-',
       'کد ملی': realNationalId(student.nationalId, student.studentCode) || '-',
       'شماره تماس ولی': student.parentPhone || '-',
     };
@@ -248,7 +247,6 @@ export const exportStudentIndividualReportToExcel = (
   const metaSheet = [
     { 'مشخصه': 'نام و نام خانوادگی', 'مقدار': `${studentFullName(student)}` },
     { 'مشخصه': 'نام پدر', 'مقدار': student.fatherName || '-' },
-    { 'مشخصه': 'کد دانش‌آموزی', 'مقدار': student.studentCode || '-' },
     { 'مشخصه': 'کد ملی', 'مقدار': realNationalId(student.nationalId, student.studentCode) || '-' },
     { 'مشخصه': 'کلاس و رشته', 'مقدار': schoolClass ? `${schoolClass.name} (${schoolClass.grade} - ${schoolClass.major})` : '-' },
     { 'مشخصه': 'شماره تماس اولیاء', 'مقدار': student.parentPhone || '-' },
@@ -458,7 +456,6 @@ export const exportCoachReportToExcel = (
       'ردیف': idx + 1,
       'نام و نام خانوادگی': `${studentFullName(stu)}`,
       'کد ملی': realNationalId(stu.nationalId, stu.studentCode) || '-',
-      'کد دانش‌آموزی': stu.studentCode || '-',
       'کلاس': cls?.name || '-',
       'پایه': cls?.grade || '-',
       'شماره تماس ولی': stu.parentPhone || '-',

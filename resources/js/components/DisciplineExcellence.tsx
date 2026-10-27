@@ -293,7 +293,7 @@ export const DisciplineExcellenceCard: React.FC<{ onSelectStudent?: (s: Student)
 
   const exportExcel = () => {
     const rows = tab === 'excellent'
-      ? shownExcellent.map((s, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(s), 'کلاس': className(s.classId), 'کد دانش‌آموزی': s.studentCode || '' }))
+      ? shownExcellent.map((s, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(s), 'کلاس': className(s.classId) }))
       : (tab === 'near' ? shownNear : shownOthers).map((x, i) => ({ 'ردیف': i + 1, 'دانش‌آموز': studentFullName(x.student), 'کلاس': className(x.student.classId), 'مورد': x.reason }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
