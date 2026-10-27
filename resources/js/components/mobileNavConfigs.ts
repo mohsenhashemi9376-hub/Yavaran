@@ -110,14 +110,14 @@ export const teacherMobileNav = (hasExam = false) => ({
     { id: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
     { id: 'attendance', label: 'حضور و غیاب', icon: UserCheck },
     { id: 'grades', label: 'ثبت نمره', icon: Award },
-    { id: 'subjects', label: 'دروس من', icon: BookOpen },
+    { id: 'activities', label: 'ساعت کاری', icon: Clock },
   ] as MobileNavItem[],
   more: [
+    { id: 'subjects', label: 'دروس من', icon: BookOpen },
     { id: 'lesson_plans', label: 'طرح درس', icon: FileText },
     { id: 'report_cards', label: 'کارنامه', icon: FileText },
     ...(hasExam ? [{ id: 'exam', label: 'آزمون جامع', icon: Award }] : []),
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
-    { id: 'activities', label: 'ساعت کاری و خودارزیابی', icon: Clock },
     { id: 'evaluations', label: 'اعلانات و پیام‌ها', icon: MessageSquare },
   ] as MobileNavItem[],
 });
