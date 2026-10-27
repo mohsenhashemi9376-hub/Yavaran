@@ -49,7 +49,7 @@ import { TeacherLessonPlans } from './TeacherLessonPlans';
 import { TeacherExamSection, examKeyOfSubjectName } from './TeacherExamSection';
 import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { Tile } from './NurturingViceHome';
+import { Tile } from './ui/Tile';
 import { TeacherPunchTile } from './TeacherPunchTile';
 
 interface TeacherDashboardProps {
