@@ -3,6 +3,14 @@ import { normalizeShamsi } from './schoolCalendar';
 
 const PLACEHOLDER_NATIONAL_IDS = new Set(['0000000000']);
 
+/** کد ملی ساختگی که سامانه پیش‌تر خودکار می‌ساخت (۰۰۰۰۰۰۰۰۰۰ یا «۰۰» + کد ۸ رقمی تصادفی که همان کد سناد ساختگی بود) ← خالی حساب می‌شود */
+export const realNationalId = (nationalId?: string, studentCode?: string): string => {
+  const v = toEnglishDigits((nationalId || '').trim());
+  if (!v || PLACEHOLDER_NATIONAL_IDS.has(v)) return '';
+  const code = toEnglishDigits((studentCode || '').trim());
+  return /^\d{8}$/.test(code) && v === `00${code}` ? '' : (nationalId || '').trim();
+};
+
 /** کد ملی ۱۰ رقمی با رقم کنترل؛ مقدار خالی یا مقدار پیش‌فرض (۰۰۰۰۰۰۰۰۰۰) بررسی نمی‌شود */
 export const nationalIdError = (value: string): string | null => {
   const v = toEnglishDigits((value || '').trim());

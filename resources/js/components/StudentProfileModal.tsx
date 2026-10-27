@@ -27,7 +27,7 @@ import {
   toEnglishDigits
 } from '../utils/persianDate';
 import { formatDelayText } from '../utils/morningAttendance';
-import { nationalIdError, phoneError } from '../utils/validators';
+import { nationalIdError, phoneError, realNationalId } from '../utils/validators';
 import {
   X,
   User,
@@ -160,7 +160,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editFatherName, setEditFatherName] = useState('');
-  const [editStudentCode, setEditStudentCode] = useState('');
   const [editNationalId, setEditNationalId] = useState('');
   const [editParentPhone, setEditParentPhone] = useState('');
   const [editMotherPhone, setEditMotherPhone] = useState('');
@@ -174,8 +173,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
       setEditFatherName(currentStudent.fatherName || '');
-      setEditStudentCode(currentStudent.studentCode || '');
-      setEditNationalId(currentStudent.nationalId || '');
+      setEditNationalId(realNationalId(currentStudent.nationalId, currentStudent.studentCode));
       setEditParentPhone(currentStudent.parentPhone || '');
       setEditMotherPhone(currentStudent.motherPhone || '');
       setEditNotes(currentStudent.notes || '');
@@ -536,7 +534,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
         firstName: editFirstName.trim(),
         lastName: editLastName.trim(),
         fatherName: editFatherName.trim(),
-        studentCode: editStudentCode.trim(),
         nationalId: editNationalId.trim(),
         parentPhone: editParentPhone.trim(),
         motherPhone: editMotherPhone.trim(),
@@ -642,7 +639,6 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     {studentClass.name}
                   </span>
                 )}
-                {currentStudent.studentCode && <span>کد: {toPersianDigits(currentStudent.studentCode)}</span>}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -1016,16 +1012,9 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     </div>
 
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="text-slate-400 text-[11px]">کد دانش‌آموزی (سناد)</div>
-                      <div className="font-bold text-slate-800 text-sm mt-1 font-mono">
-                        {toPersianDigits(currentStudent.studentCode || 'ثبت نشده')}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-slate-400 text-[11px]">کد ملی</div>
                       <div className="font-bold text-slate-800 text-sm mt-1 font-mono">
-                        {toPersianDigits(currentStudent.nationalId || 'ثبت نشده')}
+                        {toPersianDigits(realNationalId(currentStudent.nationalId, currentStudent.studentCode) || 'ثبت نشده')}
                       </div>
                     </div>
 
@@ -1114,19 +1103,6 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                         value={editFatherName}
                         onChange={(e) => setEditFatherName(e.target.value)}
                         className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        کد سناد
-                      </label>
-                      <input
-                        type="text"
-                        value={editStudentCode}
-                        onChange={(e) => setEditStudentCode(e.target.value)}
-                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-left"
-                        dir="ltr"
                       />
                     </div>
 

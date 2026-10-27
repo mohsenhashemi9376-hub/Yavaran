@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student } from '../types';
 import { toPersianDigits } from '../utils/persianDate';
-import { nationalIdError, phoneError } from '../utils/validators';
+import { nationalIdError, phoneError, realNationalId } from '../utils/validators';
 import { 
   X, 
   Search, 
@@ -49,7 +49,6 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
   const [lastName, setLastName] = useState('');
   const [fatherName, setFatherName] = useState('');
   const [nationalId, setNationalId] = useState('');
-  const [studentCode, setStudentCode] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [motherPhone, setMotherPhone] = useState('');
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -117,13 +116,12 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
 
     try {
       setIsSubmitting(true);
-      const generatedCode = studentCode.trim() || Math.floor(10000000 + Math.random() * 90000000).toString();
       addStudent({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         fatherName: fatherName.trim() || undefined,
         nationalId: nationalId.trim() || '',
-        studentCode: generatedCode,
+        studentCode: '',
         parentPhone: parentPhone.trim() || '09120000000',
         ...(motherPhone.trim() ? { motherPhone: motherPhone.trim() } : {}),
         classId: classData.id,
@@ -330,7 +328,7 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                               </div>
                               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
                                 {stu.studentCode && <span>کد: {toPersianDigits(stu.studentCode)}</span>}
-                                {stu.nationalId && <span>کد ملی: {toPersianDigits(stu.nationalId)}</span>}
+                                {realNationalId(stu.nationalId, stu.studentCode) && <span>کد ملی: {toPersianDigits(realNationalId(stu.nationalId, stu.studentCode))}</span>}
                               </div>
                               <div className="mt-1">
                                 {isInThisClass ? (
@@ -492,19 +490,6 @@ export const AddStudentToClassModal: React.FC<AddStudentToClassModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    شماره دانش‌آموزی (اختیاری)
-                  </label>
-                  <input
-                    type="text"
-                    value={studentCode}
-                    onChange={(e) => setStudentCode(e.target.value)}
-                    placeholder="تولید خودکار در صورت خالی بودن"
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-teal-700 outline-none font-mono text-left"
-                    dir="ltr"
-                  />
-                </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">

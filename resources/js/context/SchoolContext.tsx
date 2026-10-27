@@ -1383,12 +1383,11 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const split = splitListName(fullName);
         const firstName = split.firstName || 'دانش‌آموز';
         const lastName = split.lastName || `شماره ${idx + 1}`;
-        const randomCode = Math.floor(10000000 + Math.random() * 90000000).toString();
         return {
           id: `stu-${Date.now()}-${idx}`,
           classId,
-          studentCode: randomCode.slice(0, 8),
-          nationalId: `00${randomCode}`,
+          studentCode: '',
+          nationalId: '',
           firstName,
           lastName,
           nameFormat: 'v2',

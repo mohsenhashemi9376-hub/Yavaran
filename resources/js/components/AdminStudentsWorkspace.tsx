@@ -1,3 +1,4 @@
+import { realNationalId } from '../utils/validators';
 import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import React, { useState } from 'react';
 import { Student, SchoolClass, AttendanceSession, MorningDelayRecord } from '../types';
@@ -124,7 +125,7 @@ export const AdminStudentsWorkspace: React.FC<AdminStudentsWorkspaceProps> = ({
         'کلاس': cls?.name || 'نامشخص',
         'پایه': cls?.grade || '-',
         'کد دانش‌آموزی': s.studentCode || '-',
-        'کد ملی': s.nationalId || '-',
+        'کد ملی': realNationalId(s.nationalId, s.studentCode) || '-',
         'شماره تماس ولی': s.parentPhone || '-',
         'تعداد غیبت': metrics.absences,
         'تعداد تأخیر': metrics.lates,

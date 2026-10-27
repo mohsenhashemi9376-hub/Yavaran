@@ -1,3 +1,4 @@
+import { realNationalId } from './validators';
 import * as XLSX from 'xlsx';
 import { SchoolClass, Student, AttendanceSession, AttendanceStatus, HomeworkStatus } from '../types';
 import { toPersianDigits } from './persianDate';
@@ -60,7 +61,7 @@ export const exportClassAttendanceToExcel = (
       'ردیف': index + 1,
       'نام و نام خانوادگی': `${studentFullName(student)}`,
       'کد دانش‌آموزی': student.studentCode || '-',
-      'کد ملی': student.nationalId || '-',
+      'کد ملی': realNationalId(student.nationalId, student.studentCode) || '-',
       'شماره تماس ولی': student.parentPhone || '-',
     };
 
@@ -248,7 +249,7 @@ export const exportStudentIndividualReportToExcel = (
     { 'مشخصه': 'نام و نام خانوادگی', 'مقدار': `${studentFullName(student)}` },
     { 'مشخصه': 'نام پدر', 'مقدار': student.fatherName || '-' },
     { 'مشخصه': 'کد دانش‌آموزی', 'مقدار': student.studentCode || '-' },
-    { 'مشخصه': 'کد ملی', 'مقدار': student.nationalId || '-' },
+    { 'مشخصه': 'کد ملی', 'مقدار': realNationalId(student.nationalId, student.studentCode) || '-' },
     { 'مشخصه': 'کلاس و رشته', 'مقدار': schoolClass ? `${schoolClass.name} (${schoolClass.grade} - ${schoolClass.major})` : '-' },
     { 'مشخصه': 'شماره تماس اولیاء', 'مقدار': student.parentPhone || '-' },
     { 'مشخصه': 'یادداشت‌های پرونده', 'مقدار': student.notes || '-' },
@@ -456,7 +457,7 @@ export const exportCoachReportToExcel = (
     return {
       'ردیف': idx + 1,
       'نام و نام خانوادگی': `${studentFullName(stu)}`,
-      'کد ملی': stu.nationalId || '-',
+      'کد ملی': realNationalId(stu.nationalId, stu.studentCode) || '-',
       'کد دانش‌آموزی': stu.studentCode || '-',
       'کلاس': cls?.name || '-',
       'پایه': cls?.grade || '-',
