@@ -46,13 +46,15 @@ const LEVELS = [
 
 interface Props {
   groups: TeacherSubjectGroup[];
+  /** با ورود از کادر داشبورد، صفحه روی کارنامهٔ کلاس باز می‌شود */
+  focusReport?: boolean;
 }
 
 /**
  * آزمون جامع در پنل دبیران فارسی، ریاضی، علوم، عربی و انگلیسی:
  * دبیر فقط نمره‌ی درس خودش را (وقتی معاونت آموزش ثبت نمره‌ی آن ماه را باز کرده) وارد می‌کند و فقط تحلیل همان درس را می‌بیند.
  */
-export const TeacherExamSection: React.FC<Props> = ({ groups }) => {
+export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => {
   const { students, comprehensiveExams, saveComprehensiveExam, isGradePeriodOpen, showToast } = useSchool();
 
   const options = useMemo(
@@ -88,6 +90,13 @@ export const TeacherExamSection: React.FC<Props> = ({ groups }) => {
     setDraft(next);
     setDirty(false);
   }, [opt?.classId, opt?.key, month, record?.updatedAt, classStudents.length]);
+
+  useEffect(() => {
+    if (!focusReport) return;
+    // پس از بازنشانی اسکرول داشبورد (useScrollTop) به کارنامه برو
+    const t = window.setTimeout(() => document.getElementById('exam-class-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    return () => window.clearTimeout(t);
+  }, [focusReport]);
 
   if (options.length === 0) {
     return <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">آزمون جامع برای دروس شما تعریف نشده است.</div>;
@@ -157,6 +166,49 @@ export const TeacherExamSection: React.FC<Props> = ({ groups }) => {
             {open ? 'درس شما برای آزمون جامع این ماه فعال نشده است.' : 'ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.'}
           </div>
         )}
+      </div>
+
+      {/* کارنامهٔ آزمون جامع کلاس: دانش‌آموز × ماه */}
+      <div id="exam-class-report" className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden scroll-mt-24">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+          <span className="text-xs font-black text-slate-800">کارنامهٔ آزمون جامع {opt.className} — {subjectLabel}</span>
+          <span className="text-[11px] font-bold text-slate-400">فقط مشاهده</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem] text-xs">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600">
+                <th className="sticky right-0 bg-slate-50 px-3 py-2 text-right font-black">دانش‌آموز</th>
+                {EXAM_MONTHS.map((m) => <th key={m.key} className="px-2 py-2 text-center font-bold whitespace-nowrap">{m.monthName.replace('مستمر ', '')}</th>)}
+                <th className="px-3 py-2 text-center font-black text-indigo-800 whitespace-nowrap">میانگین</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {classStudents.map((s) => {
+                const cells = EXAM_MONTHS.map((m) => ({ key: m.key, absent: isExamAbsent(record, s.id, m.key), v: examScoresOf(record, m.key)[s.id]?.[opt.key] }));
+                const rowAvg = mean(cells.map((c) => c.v).filter((v): v is number => typeof v === 'number'));
+                return (
+                  <tr key={s.id}>
+                    <td className="sticky right-0 bg-white px-3 py-2 font-bold text-slate-900 whitespace-nowrap">{studentFullName(s)}</td>
+                    {cells.map((c) => (
+                      <td key={c.key} className="px-2 py-1.5 text-center">
+                        {c.absent ? <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-extrabold">غایب</span>
+                          : typeof c.v === 'number' ? <span className={`px-2 py-0.5 rounded-lg font-black tabular-nums ${scorePillClass(c.v)}`}>{fa(c.v)}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    ))}
+                    <td className="px-3 py-1.5 text-center font-black text-indigo-900 tabular-nums">{fa(rowAvg)}</td>
+                  </tr>
+                );
+              })}
+              <tr className="bg-indigo-50/60 font-black text-indigo-900">
+                <td className="sticky right-0 bg-indigo-50 px-3 py-2">میانگین کلاس</td>
+                {trend.map((t) => <td key={t.key} className="px-2 py-2 text-center tabular-nums">{fa(t.avg)}</td>)}
+                <td className="px-3 py-2 text-center tabular-nums">{fa(mean(trend.map((t) => t.avg).filter((v): v is number => v !== undefined)))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* تحلیل درس خود دبیر */}

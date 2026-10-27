@@ -52,6 +52,7 @@ import { FitTable } from './ui/FitTable';
 import { Tile } from './ui/Tile';
 import { TeacherPunchTile } from './TeacherPunchTile';
 import { TimesheetWorkspace } from './TimesheetWorkspace';
+import { TeacherExamCard } from './TeacherExamCard';
 
 interface TeacherDashboardProps {
   onOpenNewAttendance: (classId?: string, subject?: string) => void;
@@ -86,6 +87,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   const schoolAnnouncements = (allAnnouncements || []).filter((a) => a.status !== 'archived');
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
+  const [examFocus, setExamFocus] = useState(false);
   useScrollTop(activeView);
 
   // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
@@ -249,6 +251,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             activeView={activeView}
             onSelectView={(view) => {
               setActiveView(view);
+              if (view !== 'exam') setExamFocus(false);
               if (view === 'grades' && !selectedClassForMonthlyGrades && teacherClasses.length > 0) {
                 setSelectedClassForMonthlyGrades(teacherClasses[0].id);
               }
@@ -273,6 +276,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               moreItems={nav.more}
               activeId={activeView}
               onSelect={(id) => {
+                if (id !== 'exam') setExamFocus(false);
                 setActiveView(id as TeacherViewType);
                 if (id === 'grades' && !selectedClassForMonthlyGrades && teacherClasses.length > 0) {
                   setSelectedClassForMonthlyGrades(teacherClasses[0].id);
@@ -379,6 +383,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <span>مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر</span>
                 </p>
               </section>
+
+              {/* کادر آزمون جامع: معدل ماه قبل */}
+              {hasExam && <TeacherExamCard groups={subjectGroups} onOpen={() => { setExamFocus(true); setActiveView('exam'); }} />}
 
               {/* کاشی‌های شیشه‌ای رنگی */}
               <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -916,7 +923,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {/* VIEW: آزمون جامع (فقط درس خود دبیر) */}
           {activeView === 'activities' && <TimesheetWorkspace />}
 
-          {activeView === 'exam' && hasExam && <TeacherExamSection groups={subjectGroups} />}
+          {activeView === 'exam' && hasExam && <TeacherExamSection groups={subjectGroups} focusReport={examFocus} />}
 
           {/* VIEW 6: REPORT CARDS (کارنامه) */}
           {activeView === 'report_cards' && (
