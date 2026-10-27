@@ -47,6 +47,29 @@ final class DataExporter
     }
 
     /**
+     * اندازه‌گیری فقط‌خواندنی حجم هر مجموعه در بسته bootstrap برای یک کاربر (بدون نوشتن در لاگ ممیزی).
+     * مجموعه‌های پرونده تربیتی عمداً اندازه‌گیری نمی‌شوند چون خواندنشان در لاگ ممیزی ثبت می‌شود.
+     *
+     * @return array<string, array{rows:int, bytes:int|null}>
+     */
+    public function measure(User $user): array
+    {
+        $policy = new AccessPolicy($user);
+        $out = [];
+        foreach (CollectionRegistry::TABLES as $collection => $table) {
+            if (NurturingRecord::modelFor($collection)) {
+                $out[$collection] = ['rows' => 0, 'bytes' => null];
+
+                continue;
+            }
+            $rows = $this->rows($user, $policy, $collection, $table);
+            $out[$collection] = ['rows' => count($rows), 'bytes' => array_sum(array_map('strlen', $rows)) + max(0, count($rows) - 1)];
+        }
+
+        return $out;
+    }
+
+    /**
      * @return array<int, string>
      */
     private function rows(User $user, AccessPolicy $policy, string $collection, string $table): array
