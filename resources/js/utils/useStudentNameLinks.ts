@@ -46,10 +46,10 @@ export function useStudentNameLinks(enabled: boolean, students: Student[], open:
       if (hit) open(hit.student);
     };
     document.addEventListener('mouseover', onOver);
-    document.addEventListener('click', onClick);
+    document.addEventListener('click', onClick, true);
     return () => {
       document.removeEventListener('mouseover', onOver);
-      document.removeEventListener('click', onClick);
+      document.removeEventListener('click', onClick, true);
     };
   }, [enabled, students, open]);
 }

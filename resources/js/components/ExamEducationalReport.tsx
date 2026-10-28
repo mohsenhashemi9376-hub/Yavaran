@@ -204,7 +204,7 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
                 <tr key={c.id} onClick={() => { setClassId(c.id); setFilters({}); }} className="cursor-pointer hover:bg-slate-50">
                   <td className="px-3 py-2 font-bold text-slate-800 whitespace-nowrap">{c.name}</td>
                   <td className={`px-2 py-2 text-center font-extrabold ${cellClass(a.classAverage)}`}>{fa(a.classAverage)}</td>
-                  <td className="px-3 py-2 text-xs text-slate-700">{a.top.length ? a.top.map((r) => studentFullName(r.student)).join('، ') : '—'}</td>
+                  <td data-no-student-link className="px-3 py-2 text-xs text-slate-700">{a.top.length ? a.top.map((r) => studentFullName(r.student)).join('، ') : '—'}</td>
                   <td className="px-2 py-2 text-center text-xs font-bold text-rose-700">{a.hasData ? toPersianDigits(a.weak.length) : '—'}</td>
                 </tr>
               ))}
