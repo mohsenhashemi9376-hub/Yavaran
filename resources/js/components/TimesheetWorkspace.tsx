@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock, LogIn, LogOut, Plus, Star, X } from 'lucide-react';
-import { apiRequest } from '../lib/serverSync';
+import { ApiError, apiRequest } from '../lib/serverSync';
+import { flushPending, getPending, hasPending, queuePending } from '../utils/offlineQueue';
 import { getRealTodayShamsiString, tehranNow, toPersianDigits } from '../utils/persianDate';
 import { ClockTimePicker } from './ClockTimePicker';
 
@@ -87,6 +88,9 @@ export const TimesheetWorkspace: React.FC = () => {
     setError('');
     try {
       const d = await apiRequest<Payload>('GET', `/api/teacher-timesheet?month=${encodeURIComponent(key)}`);
+      // نسخهٔ ارسال‌نشدهٔ همین ماه (از زمان قطعی) روی دادهٔ سرور اولویت دارد
+      const pend = getPending<{ entries?: Entries; selfEvaluation?: Evaluation }>(key);
+      if (pend) { d.entries = pend.entries; d.selfEvaluation = pend.selfEvaluation; }
       setEntries(Array.isArray(d.entries) ? {} : d.entries || {});
       const ev = (Array.isArray(d.selfEvaluation) ? {} : d.selfEvaluation || {}) as Evaluation;
       setScores(ev.scores || {});
@@ -120,6 +124,18 @@ export const TimesheetWorkspace: React.FC = () => {
 
   useEffect(() => { if (monthKey) void load(monthKey); }, [monthKey, load]);
 
+  // ارسال نسخه‌های ذخیره‌شده‌ی آفلاین با برگشتن اتصال (و هنگام باز شدن بخش)
+  useEffect(() => {
+    const flush = async () => {
+      if (!hasPending() || !navigator.onLine) return;
+      const ok = await flushPending(async (_m, payload) => { await apiRequest('POST', '/api/teacher-timesheet', payload); });
+      if (ok) setStatus('اطلاعات ذخیره‌شده‌ی آفلاین ارسال شد ✓');
+    };
+    void flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+  }, []);
+
   // با ورود به صفحه (و هر بار که ماه یا تب عوض شود) مستقیم و بدون انیمیشن روی روز جاری برو
   useEffect(() => {
     if (loading || tab !== 'timesheet' || !todayDay || month?.key !== todayMonth?.key) return;
@@ -149,7 +165,19 @@ export const TimesheetWorkspace: React.FC = () => {
           out[d.date] = { in: e.in || null, out: e.out || null, in2: e.in2 || null, out2: e.out2 || null, tags, otherText: tags.includes('other') ? (e.otherText || '').trim() : '' };
         }
       }
-      await apiRequest('POST', '/api/teacher-timesheet', { month: cur.monthKey, entries: out, selfEvaluation: { scores: cur.scores, extraNote: cur.extraNote, customAxes: cur.customAxes.map((a) => ({ id: a.id, title: a.title.trim() })) } });
+      const body = { month: cur.monthKey, entries: out, selfEvaluation: { scores: cur.scores, extraNote: cur.extraNote, customAxes: cur.customAxes.map((a) => ({ id: a.id, title: a.title.trim() })) } };
+      try {
+        await apiRequest('POST', '/api/teacher-timesheet', body);
+      } catch (err) {
+        // قطع اینترنت: نسخه روی دستگاه می‌ماند و با اتصال دوباره خودکار ارسال می‌شود
+        if (err instanceof ApiError && err.status === 0) {
+          queuePending(cur.monthKey, body);
+          setDirty(false);
+          setStatus('بدون اینترنت؛ روی دستگاه ذخیره شد و با اتصال دوباره ارسال می‌شود');
+          return true;
+        }
+        throw err;
+      }
       setDirty(false);
       setStatus('ذخیره شد ✓');
       return true;

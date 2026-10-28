@@ -105,7 +105,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   textarea { font-size: 16px !important; }
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select { min-height: 44px; }
-  button:not(table button):not([role="tab"] ) { min-height: 40px; }
+  button:not(table button):not([role="tab"] ) { min-height: 44px; }
   .yv-bottom-nav button { min-height: 56px; }
 
   /* پنجره‌ها و مودال‌ها به صورت Bottom Sheet از پایین صفحه */
