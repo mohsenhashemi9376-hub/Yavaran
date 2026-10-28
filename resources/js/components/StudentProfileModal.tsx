@@ -1,6 +1,6 @@
 import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
 import { monthlyGpa } from '../utils/monthlyReport';
-import { examMonthLabel, examMonthsWithData, studentExamSummary } from '../utils/examReport';
+import { examMonthLabel, examMonthsWithData, studentExamSummary, faExamPct } from '../utils/examReport';
 import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -1516,7 +1516,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-xs font-bold text-slate-500">معدل آزمون جامع</div>
-                      <div className="mt-1 text-3xl font-black text-indigo-900 tabular-nums">{toPersianDigits(Math.round(examSummary.total * 100) / 100)}</div>
+                      <div className="mt-1 text-3xl font-black text-indigo-900 tabular-nums">{faExamPct(examSummary.total)}</div>
                     </div>
                     <span className={`px-3 py-1.5 rounded-xl text-xs font-black ${scorePillClass(examSummary.total)}`}>{scoreLabel(examSummary.total)}</span>
                   </div>
@@ -1524,7 +1524,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     <div className="mt-3 flex flex-wrap gap-2">
                       {examSummary.months.map((m) => (
                         <span key={m.key} className="rounded-xl bg-white border border-indigo-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
-                          {m.label}: <b className="text-indigo-900 tabular-nums">{toPersianDigits(Math.round(m.gpa * 100) / 100)}</b>
+                          {m.label}: <b className="text-indigo-900 tabular-nums">{faExamPct(m.gpa)}</b>
                         </span>
                       ))}
                     </div>

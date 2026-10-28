@@ -188,9 +188,15 @@ export const stdDev = (xs: number[]): number | undefined => {
   return m === undefined ? undefined : Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
 };
 
-/** تعداد نمرات در هر گروه: ممتاز (۸۰٪ به بالا) / متوسط (۶۰ تا ۸۰٪) / ضعیف (زیر ۶۰٪) */
+/** درصد نمایشی از نمره روی مقیاس ۲۰ */
+export const examPercent = (score: number): number => score * 5;
+/** نمایش فارسی درصد نمره (ورودی روی مقیاس ۲۰)؛ مثلاً ۱۶ ← «۸۰٪» */
+export const faExamPct = (n?: number | null): string =>
+  n === undefined || n === null ? '—' : `${String(round2(examPercent(n))).replace('.', '٫').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])}٪`;
+
+/** تعداد نمرات در هر گروه: ممتاز (۱۷ به بالا) / متوسط (۱۰ تا ۱۷) / ضعیف (زیر ۱۰) */
 export const bandCounts = (xs: number[]): Record<'excellent' | 'good' | 'weak', number> => ({
-  excellent: xs.filter((v) => v >= EXAM_EXCELLENT_FROM).length,
-  good: xs.filter((v) => v >= EXAM_WEAK_BELOW && v < EXAM_EXCELLENT_FROM).length,
+  excellent: xs.filter((v) => v >= 17).length,
+  good: xs.filter((v) => v >= 10 && v < 17).length,
   weak: xs.filter((v) => v < 10).length,
 });

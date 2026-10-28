@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ClipboardCheck } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
-import { EXAM_MONTHS, examScoresOf, mean, round2 } from '../utils/examReport';
+import { EXAM_MONTHS, examScoresOf, examMaxOf, mean, round2 } from '../utils/examReport';
 import { getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { scorePillClass } from '../utils/gradePeriods';
 import { examKeyOfSubjectName, TeacherSubjectGroup } from './TeacherExamSection';
@@ -31,7 +31,7 @@ export const TeacherExamCard: React.FC<Props> = ({ groups, onOpen }) => {
         const ids = new Set(students.filter((s) => s.classId === o.classId).map((s) => s.id));
         Object.entries(examScoresOf(record, monthKey)).forEach(([sid, sc]) => {
           const v = sc[o.key];
-          if (ids.has(sid) && typeof v === 'number') vals.push(v);
+          if (ids.has(sid) && typeof v === 'number') vals.push((v / examMaxOf(record, monthKey, o.key)) * 100);
         });
       });
       return mean(vals);
@@ -61,8 +61,8 @@ export const TeacherExamCard: React.FC<Props> = ({ groups, onOpen }) => {
           </div>
         </div>
         {data && (
-          <span className={`rounded-2xl px-4 py-2 text-2xl font-black tabular-nums ${scorePillClass(data.avg)}`}>
-            {toPersianDigits(String(round2(data.avg)).replace('.', '٫'))}
+          <span className={`rounded-2xl px-4 py-2 text-2xl font-black tabular-nums ${scorePillClass(data.avg / 5)}`}>
+            {toPersianDigits(String(round2(data.avg)).replace('.', '٫'))}٪
           </span>
         )}
         <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:-translate-x-0.5" />

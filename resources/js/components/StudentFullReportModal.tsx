@@ -4,7 +4,7 @@ import { Printer, X } from 'lucide-react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSchool } from '../context/SchoolContext';
 import { SchoolClass, Student } from '../types';
-import { round2 } from '../utils/examReport';
+import { round2, faExamPct } from '../utils/examReport';
 import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { buildStudentFullReport } from '../utils/studentFullReport';
 import { getCurrentAcademicYear, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
@@ -88,7 +88,7 @@ export const StudentFullReportModal: React.FC<Props> = ({ student, classData, on
 
             <div className="grid grid-cols-3 gap-2">
               <Stat label="میانگین مستمر" value={<span className={`px-1.5 rounded-md ${cell(report.continuousAvg)}`}>{fa(report.continuousAvg)}</span>} />
-              <Stat label="معدل آزمون جامع" value={<span className={`px-1.5 rounded-md ${cell(report.exam.avg)}`}>{fa(report.exam.avg)}</span>} />
+              <Stat label="معدل آزمون جامع" value={<span className={`px-1.5 rounded-md ${cell(report.exam.avg)}`}>{faExamPct(report.exam.avg)}</span>} />
               <Stat label="رتبه در آزمون جامع" value={report.exam.rank ? `${toPersianDigits(report.exam.rank)} از ${toPersianDigits(report.exam.ranked)}` : '—'} />
             </div>
 

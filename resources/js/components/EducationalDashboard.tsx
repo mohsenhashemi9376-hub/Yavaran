@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FOLLOW_UP_MONTHS, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
-import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary } from '../utils/examReport';
+import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary, faExamPct } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus, EXAM_SUBJECTS } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
@@ -362,7 +362,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'کلاس': item.className,
       'کد ملی': item.student.nationalId || '-',
       'ستون': reportMonth === 'all' ? 'میانگین آزمون‌های جامع' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
-      'معدل': item.gpa !== undefined ? item.gpa : 'محاسبه نشده',
+      'معدل (درصد)': item.gpa !== undefined ? Math.round(item.gpa * 5 * 100) / 100 : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
       'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
       'دروس دارای افت': item.weakSubjects.join('، ') || 'ندارد',
@@ -1028,7 +1028,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                         <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
                           <div className="text-[11px] text-slate-500 mb-1">معدل آزمون جامع</div>
                           <div className={`inline-flex items-center justify-center min-w-[3rem] text-lg font-black tabular-nums px-3 py-0.5 rounded-xl ${scorePillClass(hasGpa ? item.gpa! : null)}`}>
-                            {hasGpa ? toPersianDigits(item.gpa!) : '—'}
+                            {hasGpa ? faExamPct(item.gpa!) : '—'}
                           </div>
                         </div>
                         <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
