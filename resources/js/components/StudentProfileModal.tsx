@@ -352,27 +352,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const ownAbsentCount = ownLogs.filter((l) => l.status === 'absent').length;
   const ownLateCount = ownLogs.filter((l) => l.status === 'late').length;
 
-  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
-  const badges = currentStudent && !teacherView
-    ? (() => {
-        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
-        return computeStudentBadges({
-          notes: disciplinaryNotes,
-          unexcusedAbsenceDates: [
-            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
-            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
-          ],
-          lates: [
-            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
-            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
-          ],
-          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
-          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
-          grades: studentAcademicGrades,
-        }, badgeSettings);
-      })()
-    : { discipline: false, academic: false };
-
   const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
   const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
   const filteredAttendanceRecords =
@@ -553,6 +532,27 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     const ev = timelineEvents.find((e) => e.type === 'discipline');
     return ev ? { date: ev.date, title: ev.title } : null;
   }, [timelineEvents]);
+
+  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
+  const badges = currentStudent && !teacherView
+    ? (() => {
+        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
+        return computeStudentBadges({
+          notes: disciplinaryNotes,
+          unexcusedAbsenceDates: [
+            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
+            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
+          ],
+          lates: [
+            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
+            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
+          ],
+          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
+          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
+          grades: studentAcademicGrades,
+        }, badgeSettings);
+      })()
+    : { discipline: false, academic: false };
 
   const [editingNote, setEditingNote] = useState<DisciplinaryNote | null>(null);
 
