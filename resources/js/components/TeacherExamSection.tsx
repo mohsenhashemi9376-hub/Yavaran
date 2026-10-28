@@ -80,8 +80,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const classStudents = useMemo(() => (opt ? students.filter((s) => s.classId === opt.classId).slice().sort(compareByLastName) : []), [students, opt?.classId]);
 
   const open = Boolean(opt) && isGradePeriodOpen(month, opt.subjectId);
-  const monthActive = !opt || (record?.monthlyActive?.[month] ?? record?.activeSubjects ?? [opt.key]).includes(opt.key) || !record;
-  const canEdit = open && monthActive;
+  // باز بودن ماه برای درس دبیر کافی است؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
+  const canEdit = open;
 
   useEffect(() => {
     if (!opt) return;
@@ -167,7 +167,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
         {!canEdit && (
           <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-bold text-amber-900">
             <Lock className="w-4 h-4 shrink-0" />
-            {open ? 'درس شما برای آزمون جامع این ماه فعال نشده است.' : 'ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.'}
+            ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.
           </div>
         )}
       </div>

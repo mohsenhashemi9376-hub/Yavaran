@@ -1304,10 +1304,12 @@ final class AccessPolicy
                     continue;
                 }
                 foreach ($keys as $k) {
-                    if (! in_array($k, $active, true)) {
-                        continue;
-                    }
                     if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= 20) {
+                        // باز بودن ماه برای درس دبیر کافی است؛ درس در همان ماه فعال می‌شود تا در گزارش معاونت دیده شود
+                        if (! in_array($k, $active, true)) {
+                            $active[] = $k;
+                            $base['monthlyActive'][$month] = $active;
+                        }
                         $base['monthly'][$month][$sid][$k] = round((float) $cells[$k], 2);
                     } elseif (! array_key_exists($k, $cells) && isset($base['monthly'][$month][$sid][$k])) {
                         unset($base['monthly'][$month][$sid][$k]);
