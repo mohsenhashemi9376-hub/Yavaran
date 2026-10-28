@@ -73,6 +73,7 @@ export const educationalMobileNav = (counts: { warnings: number }, canReviewLess
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'announcements', label: 'بخشنامه‌ها', icon: Megaphone },
     { id: 'teacher_evaluation', label: 'ارزیابی اساتید', icon: UserCheck },
+    { id: 'timesheets', label: 'تایم‌شیت اساتید', icon: Clock },
     ...(canReviewLessonPlans ? [{ id: 'lesson_plans', label: 'طرح درس اساتید', icon: ClipboardCheck }] : []),
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },

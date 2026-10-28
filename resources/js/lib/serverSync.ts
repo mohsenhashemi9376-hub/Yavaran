@@ -116,7 +116,7 @@ const defaultMessage = (status: number): string => {
   return 'خطای سرور در ذخیره اطلاعات رخ داد.';
 };
 
-export async function apiRequest<T = unknown>(method: 'GET' | 'POST', url: string, body?: unknown): Promise<T> {
+export async function apiRequest<T = unknown>(method: 'GET' | 'POST' | 'PUT', url: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url, {
