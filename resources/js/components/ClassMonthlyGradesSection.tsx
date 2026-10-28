@@ -25,7 +25,8 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
-  X
+  X,
+  StickyNote,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -117,6 +118,7 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
   const [activePeriodKey, setActivePeriodKey] = useState<MonthlyContinuousKey>('mehrContinuous');
   const [viewMode, setViewMode] = useState<'single_month' | 'full_matrix' | 'monthly_analytics' | 'report_card'>('full_matrix');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [chartStudent, setChartStudent] = useState<Student | null>(null);
 
@@ -534,8 +536,8 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
       {/* Mode 1: Single Month Entry Table */}
       {viewMode === 'single_month' && (
         <div className="bg-white rounded-2xl shadow-sm shadow-slate-200/60 overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center justify-between sm:justify-start gap-2">
               <h4 className="text-xs sm:text-sm font-bold text-slate-900">
                 لیست نمرات مستمر: {activePeriod.label} • درس {currentSubject?.name}
               </h4>
@@ -546,23 +548,25 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
 
             {/* Search */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-slate-400" />
+              <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="جستجوی نام دانش‌آموز..."
-                className="text-xs bg-slate-50 border border-slate-200 rounded-lg pr-8 pl-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500 outline-none w-44 sm:w-56"
+                className="text-sm sm:text-xs bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 h-11 sm:h-auto sm:py-1.5 focus:ring-2 focus:ring-emerald-500 outline-none w-full sm:w-56"
               />
             </div>
           </div>
 
-          {/* موبایل: کارت برای هر دانش‌آموز */}
+          {/* موبایل: یک ردیف فشرده برای هر دانش‌آموز (نام، نمره، وضعیت)؛ یادداشت با یک لمس باز می‌شود */}
           <div className="md:hidden divide-y divide-slate-100">
             {filteredStudents.length === 0 && <div className="p-8 text-center text-xs text-slate-400">دانش‌آموزی یافت نشد.</div>}
             {filteredStudents.map((stu, idx) => {
               const scoreStr = draftGrades[stu.id]?.[activePeriodKey] || '';
               const scoreNum = scoreStr ? parseFloat(scoreStr) : undefined;
+              const notes = draftGrades[stu.id]?.notes || '';
+              const showNotes = openNotes[stu.id] || notes !== '';
               const sum = summarizeActivity(sessions, stu.id, {
                 classId: classData.id,
                 subjectId: selectedSubjectId,
@@ -570,22 +574,22 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                 month: PERIOD_MONTH[activePeriodKey],
               });
               return (
-                <div key={stu.id} className="p-3 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-7 text-center text-xs font-bold text-slate-400">{toPersianDigits(idx + 1)}</span>
-                    <button type="button" onClick={() => onSelectStudent && onSelectStudent(stu)} className="flex-1 min-w-0 text-right text-sm font-bold text-slate-900 truncate cursor-pointer">
-                      {studentFullName(stu)}
-                    </button>
-                    {scoreNum !== undefined ? (
-                      <span className={`px-2.5 py-1 rounded-xl text-[11px] whitespace-nowrap ${scorePillClass(scoreNum)}`}>{scoreLabel(scoreNum)}</span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-xl text-[11px] bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>
-                    )}
-                  </div>
-                  {sum.total > 0 && (
-                    <span className="inline-block px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">{formatActivitySummary(sum)}</span>
-                  )}
-                  <div className="flex items-center gap-2">
+                <div key={stu.id} className="px-3 py-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 shrink-0 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(idx + 1)}</span>
+                    <div className="flex-1 min-w-0">
+                      <button type="button" onClick={() => onSelectStudent && onSelectStudent(stu)} className="block max-w-full text-right text-sm font-extrabold text-slate-900 truncate cursor-pointer !min-h-0 py-0.5">
+                        {studentFullName(stu)}
+                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {scoreNum !== undefined ? (
+                          <span className={`px-2 py-px rounded-lg text-[10px] font-bold whitespace-nowrap ${scorePillClass(scoreNum)}`}>{scoreLabel(scoreNum)}</span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">ثبت نشده</span>
+                        )}
+                        {sum.total > 0 && <span className="text-[10px] font-bold text-sky-700">{formatActivitySummary(sum)}</span>}
+                      </div>
+                    </div>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -595,17 +599,29 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
                       value={scoreStr}
                       disabled={activeLocked}
                       onChange={(e) => handleScoreChange(stu.id, activePeriodKey, e.target.value)}
-                      placeholder="نمره (۰ تا ۲۰)"
-                      className="w-28 h-11 text-center font-bold text-sm rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white disabled:bg-slate-100/70 disabled:text-slate-400 disabled:cursor-not-allowed"
+                      placeholder="—"
+                      aria-label={`نمره ${studentFullName(stu)}`}
+                      className="w-16 h-11 shrink-0 text-center font-extrabold text-base rounded-xl border border-slate-200 bg-slate-50/60 text-slate-900 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white disabled:bg-slate-100/70 disabled:text-slate-400 disabled:cursor-not-allowed"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setOpenNotes((m) => ({ ...m, [stu.id]: !m[stu.id] }))}
+                      aria-label="یادداشت دبیر"
+                      aria-pressed={showNotes}
+                      className={`w-11 h-11 shrink-0 inline-flex items-center justify-center rounded-xl cursor-pointer ${notes ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-400'}`}
+                    >
+                      <StickyNote className="w-5 h-5" />
+                    </button>
+                  </div>
+                  {showNotes && (
                     <input
                       type="text"
-                      value={draftGrades[stu.id]?.notes || ''}
+                      value={notes}
                       onChange={(e) => handleScoreChange(stu.id, 'notes', e.target.value)}
                       placeholder="یادداشت دبیر..."
-                      className="flex-1 min-w-0 h-11 text-xs bg-slate-50/60 border border-slate-200 rounded-xl px-3 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white"
+                      className="mt-2 w-full h-11 text-xs bg-slate-50/60 border border-slate-200 rounded-xl px-3 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-400/25 focus:border-emerald-500 focus:bg-white"
                     />
-                  </div>
+                  )}
                 </div>
               );
             })}
