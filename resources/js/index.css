@@ -76,7 +76,7 @@ button, input, select, textarea, optgroup { font-family: inherit; }
   to { transform: translateY(0); }
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; }
 
 /* ناحیه امن بالای صفحه (ناچ / نوار وضعیت) در حالت نصب‌شده */
 .yv-header { padding-top: env(safe-area-inset-top, 0px); }
