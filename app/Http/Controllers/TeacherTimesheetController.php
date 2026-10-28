@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\TimesheetCalendar;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,25 +71,10 @@ class TeacherTimesheetController extends Controller
         'other' => 'سایر موارد',
     ];
 
-    public function page(Request $request): View|RedirectResponse
+    /** صفحهٔ Blade قدیمی حذف شد؛ ساعت کاری فقط داخل پنل (React) است و آدرس‌های ذخیره‌شده به صفحهٔ اصلی می‌روند. */
+    public function page(): RedirectResponse
     {
-        /** @var User|null $user */
-        $user = $request->user();
-        if ($user === null || $user->mustChangePassword()) {
-            return redirect('/');
-        }
-
-        return view('teacher-timesheet', [
-            'config' => [
-                'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
-                'months' => TimesheetCalendar::months(),
-                'axes' => self::axes(),
-            'customLimit' => count(self::CUSTOM_IDS),
-                'tags' => self::TAGS,
-                'teacherName' => $user->name,
-                'serverNow' => (int) now()->getTimestampMs(),
-            ],
-        ]);
+        return redirect('/');
     }
 
     /** تقویم ماه‌های کاری، محورهای خودارزیابی و تگ‌ها برای صفحهٔ React پنل */

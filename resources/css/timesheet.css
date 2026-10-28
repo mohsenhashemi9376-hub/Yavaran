@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @source "../views";
-@source "../js/timesheet.js";
 
 @font-face {
   font-family: 'Vazirmatn';

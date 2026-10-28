@@ -44,15 +44,11 @@ class TeacherTimesheetTest extends TestCase
         $this->assertSame(['mehr', 'aban', 'azar', 'dey', 'bahman', 'esfand', 'farvardin', 'ordibehesht', 'khordad'], TimesheetCalendar::keys());
     }
 
-    public function test_guest_is_redirected_and_teacher_sees_page(): void
+    public function test_old_blade_page_redirects_home(): void
     {
         $this->get('/teacher-timesheet')->assertRedirect('/');
-
         $teacher = $this->makeUser('teacher');
-        $this->actingAs($teacher)->get('/teacher-timesheet')
-            ->assertOk()
-            ->assertSee('ساعت کاری و خودارزیابی')
-            ->assertSee('۱۴۰۵-۱۴۰۶');
+        $this->actingAs($teacher)->get('/teacher-timesheet')->assertRedirect('/');
     }
 
     public function test_save_and_load_are_per_user_and_month(): void
@@ -115,11 +111,10 @@ class TeacherTimesheetTest extends TestCase
         $this->assertSame('کلاس تقویتی', $row['extraNote']);
     }
 
-    public function test_managers_can_save_their_own_hours_and_page_has_server_clock(): void
+    public function test_managers_can_save_their_own_hours(): void
     {
         foreach (['vice_educational', 'vice_disciplinary', 'vice_nurturing', 'vice_principal', 'coach', 'admin'] as $i => $role) {
             $u = $this->makeUser($role, ['phone' => '0912000071'.$i]);
-            $this->actingAs($u)->get('/teacher-timesheet')->assertOk()->assertSee('serverNow', false)->assertSee('انتخاب ساعت');
             $this->actingAs($u)->postJson('/api/teacher-timesheet', [
                 'month' => 'aban', 'entries' => ['1405/08/01' => ['in' => '08:00', 'tags' => ['teaching']]], 'selfEvaluation' => ['scores' => []],
             ])->assertOk();
