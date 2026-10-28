@@ -41,6 +41,19 @@ export function examScoresOf(record: ComprehensiveExamRecord | undefined, month:
   return (month === 'legacy' ? record.scores : record.monthly?.[month]) || {};
 }
 
+/** بارم پیش‌فرض هر درس آزمون جامع */
+export const EXAM_DEFAULT_MAX = 20;
+
+/** بارم (نمره‌ی کل) یک درس در یک ماه؛ بدون تنظیم معاونت ۲۰ است */
+export function examMaxOf(record: ComprehensiveExamRecord | undefined, month: ExamMonth, subject: ExamSubjectKey): number {
+  if (!month || month === 'all' || month === 'legacy') return EXAM_DEFAULT_MAX;
+  const v = record?.monthlyMax?.[month]?.[subject];
+  return typeof v === 'number' && v > 0 ? v : EXAM_DEFAULT_MAX;
+}
+
+/** نمره‌ی خام را به مقیاس ۲۰ می‌برد تا معدل و تحلیل‌ها بین دروس با بارم متفاوت یکسان بماند */
+export const examNormalize = (score: number, max: number): number => (max === EXAM_DEFAULT_MAX ? score : round2((score / max) * EXAM_DEFAULT_MAX));
+
 /** آیا دانش‌آموز در آزمون جامع این ماه غایب ثبت شده است؟ */
 export const isExamAbsent = (record: ComprehensiveExamRecord | undefined, studentId: string, month: ExamMonth): boolean =>
   month !== 'all' && month !== 'legacy' && Boolean(record?.monthlyAbsent?.[month]?.[studentId]);
@@ -75,11 +88,12 @@ export const activeExamSubjects = (record?: ComprehensiveExamRecord, month?: Exa
 
 /** نمره‌ی یک دانش‌آموز در یک درس؛ برای «همه»، میانگین ماه‌هایی که نمره دارد */
 export function examSubjectScore(record: ComprehensiveExamRecord | undefined, studentId: string, subject: ExamSubjectKey, month: ExamMonth): number | undefined {
-  if (month !== 'all') {
-    const v = examScoresOf(record, month)[studentId]?.[subject];
-    return num(v) ? v : undefined;
-  }
-  return mean(examMonthsWithData(record).map((m) => examScoresOf(record, m)[studentId]?.[subject]).filter(num));
+  const scaled = (m: Exclude<ExamMonth, 'all'>) => {
+    const v = examScoresOf(record, m)[studentId]?.[subject];
+    return num(v) ? examNormalize(v, examMaxOf(record, m, subject)) : undefined;
+  };
+  if (month !== 'all') return scaled(month);
+  return mean(examMonthsWithData(record).map(scaled).filter(num));
 }
 
 /** معدل آزمون جامع یک دانش‌آموز (ماه مشخص یا میانگین همه‌ی ماه‌ها) به‌همراه نمره‌ی هر درس؛ معدل کلاس و دانش‌آموز بر مبنای آزمون جامع حساب می‌شود، نه مستمر */

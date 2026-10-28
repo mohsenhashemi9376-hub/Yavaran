@@ -1304,7 +1304,8 @@ final class AccessPolicy
                     continue;
                 }
                 foreach ($keys as $k) {
-                    if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= 20) {
+                    $max = (float) ($base['monthlyMax'][$month][$k] ?? 20);
+                    if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= ($max > 0 ? $max : 20)) {
                         // باز بودن ماه برای درس دبیر کافی است؛ درس در همان ماه فعال می‌شود تا در گزارش معاونت دیده شود
                         if (! in_array($k, $active, true)) {
                             $active[] = $k;

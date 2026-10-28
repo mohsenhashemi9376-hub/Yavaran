@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Lock, Save, Trophy, TrendingDown, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ComprehensiveExamRecord, EXAM_SUBJECTS, ExamSubjectKey, SchoolClass } from '../types';
-import { EXAM_MONTHS, EXAM_WEAK_BELOW, examScoresOf, isExamAbsent, mean, round2 } from '../utils/examReport';
+import { EXAM_MONTHS, EXAM_WEAK_BELOW, examScoresOf, examMaxOf, isExamAbsent, mean, round2 } from '../utils/examReport';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { scorePillClass } from '../utils/gradePeriods';
 import { studentFullName } from '../utils/studentName';
@@ -107,9 +107,10 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   }
 
   const subjectLabel = EXAM_SUBJECTS.find((s) => s.key === opt.key)?.label || opt.subjectName;
+  const maxScore = examMaxOf(record, month, opt.key);
   const invalid = (id: string) => {
     const n = parseScore(draft[id] ?? '');
-    return n !== null && (Number.isNaN(n) || n < 0 || n > 20);
+    return n !== null && (Number.isNaN(n) || n < 0 || n > maxScore);
   };
   const hasErrors = classStudents.some((s) => invalid(s.id));
 
@@ -264,7 +265,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
       {/* ورود نمره */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
+        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} از {toPersianDigits(maxScore)} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
         <ul className="divide-y divide-slate-100">
           {classStudents.map((s, i) => (
             <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>

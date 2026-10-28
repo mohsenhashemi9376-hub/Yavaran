@@ -838,6 +838,8 @@ export interface ComprehensiveExamRecord {
   monthlyActive?: Partial<Record<MonthlyContinuousKey, ExamSubjectKey[]>>;
   /** غیبت در آزمون جامع هر ماه (ثبت‌شده توسط معاون آموزش): کلید ماه ← studentId ← true؛ نمره‌ی دانش‌آموز غایب بسته است */
   monthlyAbsent?: Partial<Record<MonthlyContinuousKey, Record<string, boolean>>>;
+  /** بارم (سقف نمره) هر درس در هر ماه، تعیین‌شده توسط معاون آموزش؛ پیش‌فرض ۲۰ */
+  monthlyMax?: Partial<Record<MonthlyContinuousKey, Partial<Record<ExamSubjectKey, number>>>>;
   updatedAt?: string;
 }
 

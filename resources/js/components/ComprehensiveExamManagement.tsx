@@ -6,7 +6,7 @@ import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -52,10 +52,15 @@ const parseScore = (v: string | undefined): number | null => {
   const n = Number(v);
   return isNaN(n) ? null : n;
 };
-const isInvalid = (v: string | undefined) => {
+const isInvalid = (v: string | undefined, max: number = EXAM_DEFAULT_MAX) => {
   if (v === undefined || v === '') return false;
   const n = Number(v);
-  return isNaN(n) || n < 0 || n > 20;
+  return isNaN(n) || n < 0 || n > max;
+};
+/** بارم باید عددی مثبت و حداکثر ۱۰۰ باشد */
+const isInvalidMax = (v: string | undefined) => {
+  const n = Number(v);
+  return v === undefined || v === '' || isNaN(n) || n <= 0 || n > 100;
 };
 
 export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementProps> = ({ onBack, onOpenSidebar }) => {
@@ -69,6 +74,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   const [active, setActive] = useState<ExamSubjectKey[]>(EXAM_SUBJECTS.map((s) => s.key));
   const [draft, setDraft] = useState<Draft>({});
   const [absent, setAbsent] = useState<Record<string, boolean>>({});
+  /** بارم هر درس در ماه جاری (رشته‌ی ورودی)؛ پیش‌فرض ۲۰ */
+  const [maxes, setMaxes] = useState<Partial<Record<ExamSubjectKey, string>>>({});
   const [dirty, setDirty] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null);
 
@@ -92,6 +99,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       });
     });
     setDraft(next);
+    setMaxes(Object.fromEntries(EXAM_SUBJECTS.map((s) => [s.key, String(examMaxOf(record, month, s.key))])));
     setAbsent(month === 'legacy' ? {} : { ...(record?.monthlyAbsent?.[month] || {}) });
     setDirty(false);
     setSort(null);
@@ -119,17 +127,29 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
   const activeSubjects = EXAM_SUBJECTS.filter((s) => active.includes(s.key));
 
+  /** بارم عددی هر درس (در صورت ورودی نامعتبر، ۲۰) */
+  const maxOf = (key: ExamSubjectKey): number => (isInvalidMax(maxes[key]) ? EXAM_DEFAULT_MAX : Number(maxes[key]));
+  /** نمره‌ی خام را به مقیاس ۲۰ می‌برد (برای معدل و رنگ‌بندی) */
+  const scaled = (key: ExamSubjectKey, n: number | null) => (n === null ? null : examNormalize(n, maxOf(key)));
+  const hasMaxErrors = EXAM_SUBJECTS.some((s) => isInvalidMax(maxes[s.key]));
+
   const averageOf = (sid: string): number | null => {
     if (absent[sid]) return null;
     const vals = activeSubjects
-      .map((s) => draft[sid]?.[s.key])
-      .filter((v) => !isInvalid(v))
-      .map(parseScore)
+      .map((s) => {
+        const v = draft[sid]?.[s.key];
+        return isInvalid(v, maxOf(s.key)) ? null : scaled(s.key, parseScore(v));
+      })
       .filter((n): n is number => n !== null);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   };
 
-  const hasErrors = classStudents.some((st) => EXAM_SUBJECTS.some((s) => isInvalid(draft[st.id]?.[s.key])));
+  const hasErrors = hasMaxErrors || classStudents.some((st) => EXAM_SUBJECTS.some((s) => isInvalid(draft[st.id]?.[s.key], maxOf(s.key))));
+
+  const changeMax = (key: ExamSubjectKey, raw: string) => {
+    setMaxes((prev) => ({ ...prev, [key]: normalizeInput(raw) }));
+    setDirty(true);
+  };
 
   const toggleSubject = (key: ExamSubjectKey) => {
     setActive((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -173,8 +193,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     const vals = classStudents
       .filter((st) => !absent[st.id])
       .map((st) => draft[st.id]?.[s.key])
-      .filter((v) => !isInvalid(v))
-      .map(parseScore)
+      .filter((v) => !isInvalid(v, maxOf(s.key)))
+      .map((v) => scaled(s.key, parseScore(v)))
       .filter((n): n is number => n !== null);
     return { ...s, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, count: vals.length };
   });
@@ -187,7 +207,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
   const handleSave = () => {
     if (hasErrors) {
-      showToast('نمرات باید بین ۰ تا ۲۰ باشند.', 'error');
+      showToast(hasMaxErrors ? 'بارم هر درس باید عددی بین ۱ تا ۱۰۰ باشد.' : 'نمرات باید بین ۰ و بارم هر درس باشند.', 'error');
       return;
     }
     const scores: ComprehensiveExamRecord['scores'] = {};
@@ -208,6 +228,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       monthlyActive: month === 'legacy' ? base?.monthlyActive : { ...base?.monthlyActive, [month]: active },
       scores: month === 'legacy' ? scores : base?.scores || {},
       monthly: month === 'legacy' ? base?.monthly : { ...base?.monthly, [month]: scores },
+      monthlyMax: month === 'legacy' ? base?.monthlyMax : { ...base?.monthlyMax, [month]: Object.fromEntries(EXAM_SUBJECTS.map((s) => [s.key, maxOf(s.key)])) },
       monthlyAbsent: month === 'legacy' ? base?.monthlyAbsent : { ...base?.monthlyAbsent, [month]: Object.fromEntries(Object.entries(absent).filter(([, v]) => v)) },
     });
     setDirty(false);
@@ -329,6 +350,35 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             })}
           </div>
         </div>
+
+        {month !== 'legacy' && activeSubjects.length > 0 && (
+          <div>
+            <div className="text-xs font-bold text-slate-500 mb-2">بارم هر درس در آزمون {examMonthLabel(month)} (پیش‌فرض ۲۰؛ معدل‌ها بر مبنای ۲۰ محاسبه می‌شوند)</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {activeSubjects.map((s) => {
+                const bad = isInvalidMax(maxes[s.key]);
+                return (
+                  <label key={s.key} className="flex items-center justify-between gap-2 bg-slate-50 rounded-xl px-3 h-12 text-sm font-bold text-slate-700">
+                    <span className="truncate">{s.label}</span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <span className="text-[11px] text-slate-400">از</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        dir="ltr"
+                        value={toPersianDigits((maxes[s.key] ?? '').replace('.', '٫'))}
+                        onChange={(e) => changeMax(s.key, e.target.value)}
+                        aria-label={`بارم ${s.label}`}
+                        aria-invalid={bad}
+                        className={`w-14 h-9 text-center rounded-lg outline-none transition focus:ring-4 focus:ring-emerald-100 border ${bad ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white border-slate-200 text-slate-800'}`}
+                      />
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* تحلیل */}
@@ -418,6 +468,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                   <th key={s.key} className="p-3 text-center font-bold">
                     <button type="button" onClick={() => toggleSort(s.key)} className={`inline-flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-xs whitespace-nowrap ${subjectPillClass(s.label)}`}>
                       {s.label}
+                      <span className="text-[10px] font-bold opacity-70">از {toPersianDigits(maxOf(s.key))}</span>
                       <SortIcon k={s.key} />
                     </button>
                   </th>
@@ -450,7 +501,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                       </td>
                       {activeSubjects.map((s) => {
                         const v = draft[st.id]?.[s.key];
-                        const bad = isInvalid(v);
+                        const bad = isInvalid(v, maxOf(s.key));
                         return (
                           <td key={s.key} className="p-2 text-center">
                             <input
@@ -462,11 +513,11 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                               placeholder="—"
                               aria-label={`${s.label} ${studentFullName(st)}`}
                               aria-invalid={bad}
-                              title={bad ? 'نمره باید بین ۰ تا ۲۰ باشد' : undefined}
+                              title={bad ? `نمره باید بین ۰ تا ${toPersianDigits(maxOf(s.key))} باشد` : undefined}
                               className={`w-16 text-center rounded-xl py-2 outline-none transition focus:ring-4 focus:ring-emerald-100 ${
                                 bad
                                   ? 'bg-rose-50 border border-rose-300 text-rose-700 font-bold'
-                                  : examScoreClass(parseScore(v))
+                                  : examScoreClass(scaled(s.key, parseScore(v)))
                               }`}
                             />
                           </td>
