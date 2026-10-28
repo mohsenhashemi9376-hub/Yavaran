@@ -66,6 +66,10 @@ import {
 } from 'lucide-react';
 import { hasPermission } from '../utils/permissions';
 import { studentFullName } from '../utils/studentName';
+import { StudentBadges } from './StudentBadges';
+import { computeStudentBadges } from '../utils/studentBadges';
+import { useBadgeSettings } from '../lib/badgeSettingsStore';
+import { studentWorksheetHistory } from '../utils/worksheets';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { FitTable } from './ui/FitTable';
 import { StudentTimeline } from './StudentTimeline';
@@ -141,6 +145,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     if (!student) return null;
     return students.find((s) => s.id === student.id) || student;
   }, [students, student]);
+
+  const badgeSettings = useBadgeSettings();
 
   // Tab State
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
@@ -345,6 +351,27 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const ownProblemLogs = ownLogs.filter((l) => l.status !== 'present');
   const ownAbsentCount = ownLogs.filter((l) => l.status === 'absent').length;
   const ownLateCount = ownLogs.filter((l) => l.status === 'late').length;
+
+  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
+  const badges = currentStudent && !teacherView
+    ? (() => {
+        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
+        return computeStudentBadges({
+          notes: disciplinaryNotes,
+          unexcusedAbsenceDates: [
+            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
+            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
+          ],
+          lates: [
+            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
+            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
+          ],
+          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
+          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
+          grades: studentAcademicGrades,
+        }, badgeSettings);
+      })()
+    : { discipline: false, academic: false };
 
   const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
   const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
@@ -653,6 +680,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                 )}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
+              {!teacherView && <StudentBadges badges={badges} settings={badgeSettings} />}
               {!teacherView && (
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
           {currentStudent.parentPhone && (

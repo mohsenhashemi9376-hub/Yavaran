@@ -51,6 +51,7 @@ import {
 import { EditSubjectModal } from './EditSubjectModal';
 import { BellPeriodsManagementSection } from './BellPeriodsManagementSection';
 import { FitTable } from './ui/FitTable';
+import { BadgeSettingsCard } from './BadgeSettingsCard';
 
 interface AdminSettingsWorkspaceProps {
   onBack: () => void;
@@ -749,6 +750,8 @@ export const AdminSettingsWorkspace: React.FC<AdminSettingsWorkspaceProps> = ({
       {/* ========================================================================= */}
       {currentTab === 'academic_structure' && (
         <div className="space-y-6">
+          <BadgeSettingsCard />
+
           {/* Sub Navigation Bar for Academic Structure */}
           <div className="bg-white rounded-2xl p-2 border border-slate-200 shadow-xs flex items-center gap-2 flex-wrap scrollbar-none">
             <button

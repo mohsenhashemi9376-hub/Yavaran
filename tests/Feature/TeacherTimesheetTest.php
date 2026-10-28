@@ -191,4 +191,23 @@ class TeacherTimesheetTest extends TestCase
         $row = collect($aban->json('teachers'))->firstWhere('id', $teacher->id);
         $this->assertSame(4.0, (float) $row['prevHours']);
     }
+
+    public function test_badge_conditions_are_readable_by_all_and_editable_only_by_admin(): void
+    {
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000048']);
+        $vice = $this->makeUser('vice_disciplinary', ['phone' => '09120000049']);
+        $admin = $this->makeUser('admin', ['phone' => '09120000050']);
+        $payload = [
+            'windowDays' => 45,
+            'discipline' => ['maxNotes' => 1, 'maxUnexcusedAbsences' => 0, 'maxLates' => 2, 'lateAfter' => '07:30'],
+            'academic' => ['minScore' => 14, 'maxMissedWorksheets' => 0, 'maxMissedHomework' => 1],
+        ];
+
+        $this->actingAs($teacher)->getJson('/api/badge-settings')->assertOk()->assertJsonPath('windowDays', 30)->assertJsonPath('academic.minScore', 12);
+        $this->actingAs($teacher)->postJson('/api/badge-settings', $payload)->assertStatus(403);
+        $this->actingAs($vice)->postJson('/api/badge-settings', $payload)->assertStatus(403);
+        $this->actingAs($admin)->postJson('/api/badge-settings', ['windowDays' => 3] + $payload)->assertStatus(422);
+        $this->actingAs($admin)->postJson('/api/badge-settings', $payload)->assertOk();
+        $this->actingAs($teacher)->getJson('/api/badge-settings')->assertJsonPath('windowDays', 45)->assertJsonPath('discipline.lateAfter', '07:30');
+    }
 }
