@@ -8,6 +8,7 @@ import {
   Users, 
   GraduationCap, 
   UserCheck, 
+  Clock,
   HeartHandshake, 
   BookOpen, 
   FileSpreadsheet, 
@@ -32,6 +33,7 @@ export type FullScreenView =
   | 'loans' 
   | 'parent_meetings'
   | 'teachers' 
+  | 'timesheets'
   | 'coaches' 
   | 'subjects' 
   | 'warnings' 
@@ -206,6 +208,14 @@ export const AdminSidebarNav: React.FC<AdminSidebarNavProps> = ({
           tooltip: 'معلمان',
           icon: UserCheck,
           count: totalTeachers > 0 ? totalTeachers : undefined,
+          allowedRoles: ['admin', 'principal', 'vice_educational', 'vice_principal'],
+        },
+        {
+          id: 'timesheets',
+          label: 'تایم‌شیت اساتید',
+          subtitle: 'ساعت کاری و خودارزیابی ماهانه‌ی اساتید',
+          tooltip: 'تایم‌شیت اساتید',
+          icon: Clock,
           allowedRoles: ['admin', 'principal', 'vice_educational', 'vice_principal'],
         },
         {

@@ -22,7 +22,7 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
     ...(can(['principal', 'vice_disciplinary', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'discipline', label: 'انضباطی', icon: ShieldAlert }] : []),
     ...(can(['principal', 'vice_educational', 'vice_principal'])
-      ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
+      ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'timesheets', label: 'تایم‌شیت اساتید', icon: Clock }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
     ...(can(['principal', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'coaches', label: 'مربیان', icon: HeartHandshake }] : []),
     ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
