@@ -12,6 +12,7 @@ import { SessionDetailModal } from './SessionDetailModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { ClassGradeAnalytics } from './ClassGradeAnalytics';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
 import { 
   GraduationCap, 
@@ -366,12 +367,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           })()}
 
           {activeView === 'dashboard' && !selectedCourse && (
-            <div className="relative isolate space-y-6">
-              <div className="pointer-events-none absolute -top-16 -start-10 -z-10 size-72 rounded-full bg-emerald-200/40 blur-3xl" aria-hidden="true" />
-              <div className="pointer-events-none absolute top-1/2 -end-10 -z-10 size-72 rounded-full bg-teal-200/30 blur-3xl" aria-hidden="true" />
+            <div className="space-y-5">
               
               {/* کادر خوشامد شیشه‌ای (هم‌سبک پنل معاونین) */}
-              <section className="rounded-2xl border border-white/70 bg-white/60 p-4 sm:p-6 shadow-sm backdrop-blur-xl">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h2 className="text-base sm:text-xl font-black text-slate-900">{userGreeting.greeting} 👋</h2>
                   <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">دبیر</span>
@@ -382,6 +381,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <span className="text-slate-300">·</span>
                   <span>مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر</span>
                 </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => onOpenNewAttendance()} className="min-h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
+                    <CheckCircle2 className="w-4 h-4" />
+                    حضور و غیاب
+                  </button>
+                  <button type="button" onClick={() => { if (!selectedClassForMonthlyGrades && teacherClasses.length > 0) setSelectedClassForMonthlyGrades(teacherClasses[0].id); setActiveView('grades'); }} className="min-h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
+                    <Award className="w-4 h-4" />
+                    ثبت نمره
+                  </button>
+                </div>
               </section>
 
               {/* کادر آزمون جامع: معدل ماه قبل */}
@@ -445,7 +454,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                               openCourse();
                             }
                           }}
-                          className="rounded-2xl p-5 border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white/70 to-teal-50/60 shadow-sm backdrop-blur-sm hover:-translate-y-0.5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between cursor-pointer text-right"
+                          className="rounded-2xl p-4 border border-emerald-200/80 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between cursor-pointer text-right"
                         >
                           <div className="space-y-2">
                             <h4 className="text-base font-extrabold text-slate-900 leading-snug">
@@ -493,7 +502,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
 
               {/* SECTION: Recent Sessions List */}
-              <div className="rounded-2xl p-4 sm:p-5 border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl space-y-4">
+              <div className="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-white shadow-sm space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70">
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-emerald-700" />
@@ -616,25 +625,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {/* VIEW 3: MY SUBJECTS (دروس تدریسی من) */}
           {activeView === 'subjects' && (
             <div className="space-y-5">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      دروس تدریسی من
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      عناوین دروس و کلاس‌های مرتبط با هر درس
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-xs bg-amber-50 text-amber-900 font-bold px-3 py-1.5 rounded-xl border border-amber-200 self-start sm:self-auto">
-                  {toPersianDigits(subjectGroups.length)} عنوان درسی
-                </span>
-              </div>
+              <WorkspaceTitleBar
+                title="دروس تدریسی من"
+                icon={BookOpen}
+                badge={`${toPersianDigits(subjectGroups.length)} عنوان درسی`}
+                subtitle="عناوین دروس و کلاس‌های مرتبط با هر درس"
+              />
 
               <div className="space-y-4">
                 {subjectGroups.map((group, gIdx) => {
@@ -643,7 +639,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   }, 0);
 
                   return (
-                    <div key={gIdx} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+                    <div key={gIdx} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                         <div className="flex items-center gap-2">
                           <span className="px-3 py-1 bg-amber-100 text-amber-900 font-black text-sm rounded-lg border border-amber-200">
@@ -677,13 +673,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                 <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200">
                                   <button
                                     onClick={() => onOpenClassDetail(cls)}
-                                    className="flex-1 py-1 text-[11px] bg-white hover:bg-emerald-50 text-emerald-800 font-bold rounded border border-slate-200 transition cursor-pointer"
+                                    className="flex-1 min-h-11 text-xs bg-white hover:bg-emerald-50 text-emerald-800 font-bold rounded-xl border border-slate-200 transition cursor-pointer"
                                   >
                                     ورود
                                   </button>
                                   <button
                                     onClick={() => onOpenNewAttendance(cls.id)}
-                                    className="flex-1 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded transition cursor-pointer"
+                                    className="flex-1 min-h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition cursor-pointer"
                                   >
                                     حضور و غیاب
                                   </button>
@@ -703,29 +699,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {/* VIEW 4: ATTENDANCE MANAGEMENT (حضور و غیاب) */}
           {activeView === 'attendance' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      حضور و غیاب کلاس‌های شما
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      فهرست جلسات برگزار شده در کلاس‌های تحت تدریس شما
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onOpenNewAttendance()}
-                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>ثبت جلسه حضور و غیاب جدید</span>
-                </button>
-              </div>
+              <WorkspaceTitleBar
+                title="حضور و غیاب کلاس‌های شما"
+                icon={CheckCircle2}
+                subtitle="فهرست جلسات برگزار شده در کلاس‌های تحت تدریس شما"
+                actions={<HeaderAction variant="primary" icon={PlusCircle} label="ثبت جلسه جدید" onClick={() => onOpenNewAttendance()} className="!h-11" />}
+              />
 
               {/* Filters */}
               <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -858,46 +837,28 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {activeView === 'grades' && (
             <div className="space-y-4">
               {/* Class selector banner */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-700" />
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">
-                      دفتر نمرات مستمر ماهانه کلاس‌های اختصاصی شما
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      انتخاب کلاس جهت ورود و تحلیل نمرات مستمر ماه‌های مهر تا اردیبهشت
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-600 font-bold">کلاس موردنظر:</span>
+              <WorkspaceTitleBar
+                title="ثبت نمره"
+                icon={Award}
+                subtitle="دفتر نمرات مستمر ماهانه کلاس‌های شما؛ مهر تا اردیبهشت"
+                actions={(
+                  <>
                     <select
                       value={selectedClassForMonthlyGrades}
                       onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
-                      className="text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                      aria-label="کلاس"
+                      className="min-h-11 text-xs bg-slate-50 text-slate-900 border border-slate-200 font-bold rounded-xl px-3 outline-none cursor-pointer"
                     >
-                      {gradeClasses.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
+                      {gradeClasses.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
-                  </div>
-
-                  {onOpenAcademicGrades && (
-                    <button
-                      onClick={() => onOpenAcademicGrades(selectedClassForMonthlyGrades)}
-                      className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>ورود به فرم نمرات</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
+                    {onOpenAcademicGrades && (
+                      <HeaderAction variant="primary" icon={ArrowUpRight} label="ورود به فرم نمرات" onClick={() => onOpenAcademicGrades(selectedClassForMonthlyGrades)} className="!h-11" />
+                    )}
+                  </>
+                )}
+              />
 
               {currentGradeClass ? (
                 <>
@@ -928,36 +889,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {/* VIEW 6: REPORT CARDS (کارنامه) */}
           {activeView === 'report_cards' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-blue-100 text-blue-800 rounded-xl">
-                    <Award className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      کارنامه و وضعیت دانش‌آموزان کلاس‌های شما
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      مشاهده وضعیت تحصیلی، غیبت‌ها و پرونده انضباطی دانش‌آموزان کلاس‌های تحت تدریس
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 font-bold">کلاس:</span>
+              <WorkspaceTitleBar
+                title="کارنامه و نمرات"
+                icon={Award}
+                subtitle="وضعیت تحصیلی، غیبت‌ها و پرونده انضباطی دانش‌آموزان کلاس‌های شما"
+                actions={(
                   <select
                     value={selectedClassForMonthlyGrades}
                     onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
-                    className="text-xs bg-slate-50 text-slate-900 border border-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
+                    aria-label="کلاس"
+                    className="min-h-11 text-xs bg-slate-50 text-slate-900 border border-slate-200 font-bold rounded-xl px-3 outline-none cursor-pointer"
                   >
-                    {gradeClasses.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
+                    {gradeClasses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
-                </div>
-              </div>
+                )}
+              />
 
               {currentGradeClass ? (() => {
                 const classStudents = studentsOfClass(currentGradeClass.id);
@@ -1038,25 +986,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {/* VIEW 7: REPORTS (گزارش‌های آموزشی) */}
           {activeView === 'reports' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-indigo-100 text-indigo-800 rounded-xl">
-                    <BarChart2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      گزارش‌های آماری و تحلیلی آموزش
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      تحلیل جلسات برگزارشده، نرخ حضور و وضعیت کلاسی
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-xs bg-indigo-50 text-indigo-800 font-bold px-3 py-1.5 rounded-xl border border-indigo-200 self-start sm:self-auto">
-                  بر اساس دروس و کلاس‌های اختصاصی شما
-                </span>
-              </div>
+              <WorkspaceTitleBar
+                title="گزارش‌های آموزشی"
+                icon={BarChart2}
+                badge="دروس و کلاس‌های شما"
+                subtitle="تحلیل جلسات برگزارشده، نرخ حضور و وضعیت کلاسی"
+              />
 
               {/* Stats overview cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
