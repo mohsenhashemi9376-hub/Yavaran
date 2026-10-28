@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ClipboardList, FileSpreadsheet, FileText, Users } from 'lucide-react';
+import { ClipboardList, FileSpreadsheet, FileText, SlidersHorizontal, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
@@ -37,6 +37,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
   const [classId, setClassId] = useState(classData.id);
   const [period, setPeriod] = useState<MonthlyContinuousKey | 'year'>('mehrContinuous');
   // فیلتر هر ستون: شناسه‌ی درس (یا «avg») ← گروه نمره
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [cardStudent, setCardStudent] = useState<Student | null>(null);
   const [fullStudent, setFullStudent] = useState<Student | null>(null);
   const [filters, setFilters] = useState<Record<string, ScoreBand>>({});
@@ -99,6 +100,10 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       return next ? { ...rest, [col]: next } : rest;
     });
 
+  const pickClass = (id: string) => { setClassId(id); setFilters({}); };
+  const pickPeriod = (key: MonthlyContinuousKey | 'year') => { setPeriod(key); setFilters({}); };
+  const periodLabel = period === 'year' ? 'میانگین مستمر' : periodTitle(period);
+
   const headerCell = (col: string, title: string) => <ScoreColumnHeader key={col} title={title} band={filters[col]} onCycle={() => cycle(col)} />;
 
   /** فیلتر سریع بر اساس گروه میانگین (برای موبایل و خلاصه‌ی بالای صفحه) */
@@ -135,7 +140,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
           <h4 className="text-sm font-extrabold text-slate-900">کارنامه تجمیعی کلاس</h4>
           <p className="text-xs text-slate-500 mt-0.5">نمرات همه‌ی دروس کلاس در یک ماه. برای فیلتر، یکی از گروه‌های میانگین را لمس کنید.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="hidden md:grid grid-cols-2 gap-2">
           <label className="block">
             <span className="block text-[11px] font-bold text-slate-500 mb-1">کلاس</span>
             <select
@@ -204,7 +209,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       ) : (
         <>
         {/* موبایل: کارت برای هر دانش‌آموز، بدون اسکرول افقی */}
-        <div className="md:hidden p-3 space-y-3 bg-slate-50/60">
+        <div className="md:hidden p-3 pb-44 space-y-3 bg-slate-50/60">
           {visible.map((r, i) => {
             const band = scoreBand(r.avg);
             return (
@@ -304,6 +309,65 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
           </table>
         </div>
         </>
+      )}
+
+      {/* موبایل: نوار انتخاب کلاس و ماه نزدیک شست، بالای منوی پایین */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="md:hidden fixed inset-x-4 bottom-24 z-30 min-h-[52px] px-4 rounded-2xl bg-slate-900 text-white shadow-lg inline-flex items-center justify-between gap-3 cursor-pointer"
+      >
+        <span className="min-w-0 truncate text-sm font-extrabold">{cls.name} <span className="text-slate-400 font-bold">•</span> {periodLabel}</span>
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+          <SlidersHorizontal className="w-4 h-4" />
+          تغییر
+        </span>
+      </button>
+      {sheetOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex items-end" role="dialog" aria-modal="true">
+          <button type="button" aria-label="بستن" onClick={() => setSheetOpen(false)} className="absolute inset-0 bg-slate-900/50" />
+          <div className="relative w-full max-h-[80vh] overflow-y-auto bg-white rounded-t-3xl shadow-xl p-4 pb-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h5 className="text-sm font-extrabold text-slate-900">انتخاب کلاس و ماه</h5>
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label="بستن" className="w-11 h-11 inline-flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-2">ماه</div>
+              <div className="grid grid-cols-3 gap-2">
+                {[...REPORT_PERIODS.map((p) => ({ key: p.key as MonthlyContinuousKey | 'year', label: periodTitle(p.key) })), { key: 'year' as const, label: 'میانگین مستمر' }].map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => pickPeriod(o.key)}
+                    className={`min-h-[44px] px-2 rounded-xl text-xs font-bold cursor-pointer transition ${period === o.key ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-700'}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-2">کلاس</div>
+              <div className="grid grid-cols-2 gap-2">
+                {classChoices.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickClass(c.id)}
+                    className={`min-h-[44px] px-3 rounded-xl text-xs font-bold text-right cursor-pointer transition ${cls.id === c.id ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-700'}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={() => setSheetOpen(false)} className="w-full min-h-[48px] rounded-xl bg-emerald-700 text-white text-sm font-bold cursor-pointer">
+              مشاهده نتیجه
+            </button>
+          </div>
+        </div>
       )}
 
       {fullStudent && <StudentFullReportModal student={fullStudent} classData={cls} onClose={() => setFullStudent(null)} />}
