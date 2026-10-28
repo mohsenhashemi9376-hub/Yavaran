@@ -47,6 +47,43 @@ class TeacherTimesheetOverviewController extends Controller
         }
         $month = $request->validate(['month' => ['required', Rule::in(TimesheetCalendar::keys())]])['month'];
 
+        $list = $this->build($month);
+        $keys = TimesheetCalendar::keys();
+        $prevKey = $keys[array_search($month, $keys, true) - 1] ?? null;
+        $prevList = $prevKey ? $this->build($prevKey) : null;
+        $prevById = $prevList ? array_column($prevList, null, 'id') : [];
+        foreach ($list as &$row) {
+            $row['prevHours'] = $prevList ? (float) ($prevById[$row['id']]['hours'] ?? 0) : null;
+        }
+        unset($row);
+
+        return response()->json([
+            'teachers' => $list,
+            'summary' => $this->summarize($list),
+            'prevSummary' => $prevList !== null ? $this->summarize($prevList) : null,
+            'prevLabel' => $prevKey ? TimesheetCalendar::month($prevKey)['label'] : null,
+        ]);
+    }
+
+    /** خلاصهٔ ماه: مجموع ساعت، تعداد استاد دارای ثبت، میانگین ساعت هر استاد و میانگین درصد خودارزیابی */
+    private function summarize(array $list): array
+    {
+        $active = array_values(array_filter($list, static fn (array $t): bool => $t['days'] > 0));
+        $hours = array_sum(array_column($list, 'hours'));
+        $evals = array_values(array_filter($list, static fn (array $t): bool => $t['hasEval'] && $t['scoreMax'] > 0));
+        $scorePct = $evals === [] ? null : round(array_sum(array_map(static fn (array $t): float => $t['scoreTotal'] / $t['scoreMax'], $evals)) / count($evals) * 100, 1);
+
+        return [
+            'hours' => round($hours, 2),
+            'teachers' => count($list),
+            'submitted' => count($active),
+            'avgHours' => $active === [] ? 0.0 : round($hours / count($active), 2),
+            'scorePct' => $scorePct,
+        ];
+    }
+
+    private function build(string $month): array
+    {
         $rows = DB::table('teacher_timesheets')->where('month_key', $month)->get()->keyBy('user_id');
         $teachers = DB::table('users')->where('is_active', true)
             ->where(static fn ($q) => $q->where('role', 'teacher')->orWhereIn('id', $rows->keys()->all()))
@@ -99,6 +136,6 @@ class TeacherTimesheetOverviewController extends Controller
             ];
         }
 
-        return response()->json(['teachers' => $list]);
+        return $list;
     }
 }

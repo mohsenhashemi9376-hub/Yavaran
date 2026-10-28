@@ -172,4 +172,23 @@ class TeacherTimesheetTest extends TestCase
         $this->actingAs($teacher)->getJson('/api/teacher-timesheet/config')->assertJsonCount(2, 'axes');
         $this->actingAs($admin)->putJson('/api/teacher-timesheet/axes', ['axes' => []])->assertStatus(422);
     }
+
+    public function test_overview_compares_with_previous_month(): void
+    {
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000046']);
+        $vice = $this->makeUser('vice_educational', ['phone' => '09120000047']);
+        $entry = fn (string $date, string $out) => ['month' => 'aban', 'entries' => [$date => ['in' => '08:00', 'out' => $out, 'tags' => ['teaching']]], 'selfEvaluation' => ['scores' => []]];
+        $this->actingAs($teacher)->postJson('/api/teacher-timesheet', ['month' => 'mehr', 'entries' => ['1405/07/02' => ['in' => '08:00', 'out' => '12:00', 'tags' => ['teaching']]], 'selfEvaluation' => ['scores' => []]])->assertOk();
+        $this->actingAs($teacher)->postJson('/api/teacher-timesheet', $entry('1405/07/26', '14:00'))->assertOk();
+
+        $first = $this->actingAs($vice)->getJson('/api/teacher-timesheets?month=mehr')->assertOk();
+        $this->assertNull($first->json('prevSummary'));
+        $this->assertSame(4.0, (float) $first->json('summary.hours'));
+
+        $aban = $this->actingAs($vice)->getJson('/api/teacher-timesheets?month=aban')->assertOk();
+        $this->assertSame(6.0, (float) $aban->json('summary.hours'));
+        $this->assertSame(4.0, (float) $aban->json('prevSummary.hours'));
+        $row = collect($aban->json('teachers'))->firstWhere('id', $teacher->id);
+        $this->assertSame(4.0, (float) $row['prevHours']);
+    }
 }

@@ -8,6 +8,9 @@ Alpine.data('timesheetOverview', () => ({
   config: JSON.parse(document.getElementById('overview-config').textContent),
   monthKey: '',
   teachers: [],
+  summary: null,
+  prevSummary: null,
+  prevLabel: '',
   openId: '',
   loading: true,
   error: '',
@@ -85,13 +88,41 @@ Alpine.data('timesheetOverview', () => ({
     this.loading = true;
     this.error = '';
     try {
-      this.teachers = (await request(`/api/teacher-timesheets?month=${encodeURIComponent(this.monthKey)}`)).teachers;
+      const data = await request(`/api/teacher-timesheets?month=${encodeURIComponent(this.monthKey)}`);
+      this.teachers = data.teachers;
+      this.summary = data.summary;
+      this.prevSummary = data.prevSummary;
+      this.prevLabel = data.prevLabel || '';
     } catch (err) {
       if (err.message !== 'auth') this.error = err.message;
     } finally {
       this.loading = false;
     }
   },
+  // ---------- خلاصهٔ ماه و مقایسه با ماه قبل ----------
+  delta(cur, prev, unit, digits) {
+    if (prev === null || prev === undefined || cur === null || cur === undefined) return { text: '', cls: 'text-slate-400' };
+    const d = Math.round((cur - prev) * 10 ** digits) / 10 ** digits;
+    if (d === 0) return { text: 'بدون تغییر', cls: 'text-slate-400' };
+    const txt = `${d > 0 ? '▲' : '▼'} ${toFa(Math.abs(d).toString().replace('.', '٫'))}${unit}`;
+    return { text: txt, cls: d > 0 ? 'text-emerald-600' : 'text-rose-600' };
+  },
+  get cards() {
+    const s = this.summary;
+    const p = this.prevSummary;
+    if (!s) return [];
+    const mk = (key, label, value, cur, prev, unit, digits) => ({ key, label, value, ...(() => { const d = this.delta(cur, prev, unit, digits); return { deltaText: d.text, deltaClass: d.cls }; })() });
+    return [
+      mk('hours', 'مجموع ساعات', fmt(s.hours), s.hours, p?.hours, ' ساعت', 1),
+      mk('submitted', 'دارای ساعت ثبت‌شده', `${toFa(s.submitted)} از ${toFa(s.teachers)}`, s.submitted, p?.submitted, ' نفر', 0),
+      mk('avg', 'میانگین ساعت هر استاد', fmt(s.avgHours), s.avgHours, p?.avgHours, ' ساعت', 1),
+      mk('score', 'میانگین خودارزیابی', s.scorePct === null ? '—' : `${toFa(s.scorePct.toString().replace('.', '٫'))}٪`, s.scorePct, p?.scorePct, '٪', 1),
+    ];
+  },
+  get hasPrev() { return this.prevSummary !== null; },
+  get prevNote() { return this.prevLabel ? `مقایسه با ${this.prevLabel}` : ''; },
+  teacherDelta(t) { return this.delta(t.hours, t.prevHours, ' ساعت', 1).text; },
+  teacherDeltaClass(t) { return this.delta(t.hours, t.prevHours, ' ساعت', 1).cls; },
   get hasError() { return this.error !== ''; },
   get isEmpty() { return !this.loading && this.teachers.length === 0; },
   get totalText() { return fmt(this.teachers.reduce((s, t) => s + t.hours, 0)); },

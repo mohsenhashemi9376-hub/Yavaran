@@ -31,10 +31,17 @@
         </select>
       </section>
 
-      <section class="mb-4 grid grid-cols-3 gap-2 text-center">
-        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><p class="text-[11px] font-bold text-slate-500">اساتید</p><p class="mt-1 text-2xl font-extrabold" x-text="teacherCount"></p></div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><p class="text-[11px] font-bold text-slate-500">دارای ساعت ثبت‌شده</p><p class="mt-1 text-2xl font-extrabold text-emerald-600" x-text="submittedCount"></p></div>
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-600 p-3 text-white shadow-sm"><p class="text-[11px] font-bold text-emerald-100">مجموع ساعات</p><p class="mt-1 text-2xl font-extrabold" x-text="totalText"></p></div>
+      <section class="mb-4" aria-label="خلاصهٔ ماه">
+        <div class="grid grid-cols-2 gap-2 text-center">
+          <template x-for="c in cards" :key="c.key">
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p class="text-[11px] font-bold text-slate-500" x-text="c.label"></p>
+              <p class="mt-1 text-2xl font-extrabold text-slate-900" x-text="c.value"></p>
+              <p class="mt-0.5 min-h-5 text-xs font-extrabold" :class="c.deltaClass" x-text="c.deltaText"></p>
+            </div>
+          </template>
+        </div>
+        <p x-show="hasPrev" class="mt-2 text-center text-[11px] font-medium text-slate-400" x-text="prevNote"></p>
       </section>
 
       {{-- ویرایش شاخص‌های خودارزیابی (فقط مدیر مدرسه) --}}
@@ -80,7 +87,7 @@
                 <span class="block truncate text-sm font-extrabold" x-text="t.name"></span>
                 <span class="mt-0.5 block text-xs text-slate-500"><span x-text="daysText(t)"></span> روز ثبت‌شده · خودارزیابی <span x-text="scoreText(t)"></span></span>
               </span>
-              <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-extrabold text-emerald-700"><span x-text="hoursText(t)"></span> ساعت</span>
+              <span class="shrink-0 text-end"><span class="block rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-extrabold text-emerald-700"><span x-text="hoursText(t)"></span> ساعت</span><span class="mt-0.5 block text-[11px] font-extrabold" :class="teacherDeltaClass(t)" x-text="teacherDelta(t)"></span></span>
             </button>
             <div x-show="isOpen(t)" class="space-y-2 border-t border-slate-100 p-4">
               <template x-for="a in axes" :key="a.id">
