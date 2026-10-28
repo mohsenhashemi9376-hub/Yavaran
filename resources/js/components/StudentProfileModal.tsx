@@ -74,6 +74,7 @@ import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, D
 import { FitTable } from './ui/FitTable';
 import { StudentTimeline } from './StudentTimeline';
 import { StudentEducationTab } from './StudentEducationTab';
+import { useUnsavedGuard } from '../utils/unsavedGuard';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'education' | 'timeline';
 
@@ -185,6 +186,18 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditNotes(currentStudent.notes || '');
     }
   }, [isOpen, currentStudent?.id, initialTab]);
+
+  // ویرایش مشخصات: تا ذخیره نشده، خروج از صفحه هشدار می‌دهد
+  const profileEditDirty = Boolean(isOpen && isEditing && currentStudent && (
+    editFirstName !== (currentStudent.firstName || '') ||
+    editLastName !== (currentStudent.lastName || '') ||
+    editFatherName !== (currentStudent.fatherName || '') ||
+    editNationalId !== realNationalId(currentStudent.nationalId, currentStudent.studentCode) ||
+    editParentPhone !== (currentStudent.parentPhone || '') ||
+    editMotherPhone !== (currentStudent.motherPhone || '') ||
+    editNotes !== (currentStudent.notes || '')
+  ));
+  useUnsavedGuard(profileEditDirty);
 
   // Class Info
   const studentClass = useMemo(() => {
@@ -351,27 +364,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   const ownProblemLogs = ownLogs.filter((l) => l.status !== 'present');
   const ownAbsentCount = ownLogs.filter((l) => l.status === 'absent').length;
   const ownLateCount = ownLogs.filter((l) => l.status === 'late').length;
-
-  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
-  const badges = currentStudent && !teacherView
-    ? (() => {
-        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
-        return computeStudentBadges({
-          notes: disciplinaryNotes,
-          unexcusedAbsenceDates: [
-            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
-            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
-          ],
-          lates: [
-            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
-            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
-          ],
-          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
-          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
-          grades: studentAcademicGrades,
-        }, badgeSettings);
-      })()
-    : { discipline: false, academic: false };
 
   const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
   const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
@@ -554,6 +546,27 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     return ev ? { date: ev.date, title: ev.title } : null;
   }, [timelineEvents]);
 
+  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
+  const badges = currentStudent && !teacherView
+    ? (() => {
+        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
+        return computeStudentBadges({
+          notes: disciplinaryNotes,
+          unexcusedAbsenceDates: [
+            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
+            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
+          ],
+          lates: [
+            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
+            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
+          ],
+          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
+          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
+          grades: studentAcademicGrades,
+        }, badgeSettings);
+      })()
+    : { discipline: false, academic: false };
+
   const [editingNote, setEditingNote] = useState<DisciplinaryNote | null>(null);
 
   if (!isOpen || !currentStudent) return null;
@@ -637,6 +650,18 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
     setTimeout(() => setSmsCopied(false), 2500);
   };
 
+  const requestClose = () => {
+    if (!profileEditDirty) { onClose(); return; }
+    showConfirm({
+      title: 'تغییرات ذخیره نشده',
+      message: 'ویرایش مشخصات هنوز ذخیره نشده است. با بستن پرونده تغییرات از بین می‌رود.',
+      confirmLabel: 'بستن بدون ذخیره',
+      cancelLabel: 'ادامه ویرایش',
+      isDangerous: true,
+      onConfirm: onClose,
+    });
+  };
+
   const handleExportExcel = () => {
     exportStudentIndividualReportToExcel(
       currentStudent,
@@ -654,7 +679,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
       id="student-profile-modal-backdrop"
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-start sm:items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       {/* کل پنجره یک کانتینر اسکرول‌شونده است (بدون اسکرول داخلی تودرتو) */}
@@ -669,7 +694,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               {currentStudent.firstName[0]}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 truncate">
+              <h2 data-no-student-link className="text-base sm:text-lg font-extrabold text-slate-900 truncate">
                 {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
@@ -711,7 +736,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
 
           <button
             id="btn-close-student-profile"
-            onClick={onClose}
+            onClick={requestClose}
             className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
             title="بستن پرونده"
             aria-label="بستن پرونده"
@@ -1553,7 +1578,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
 
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition cursor-pointer"
             >
               بستن پرونده
