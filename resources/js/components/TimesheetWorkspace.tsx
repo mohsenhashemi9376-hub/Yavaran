@@ -119,6 +119,15 @@ export const TimesheetWorkspace: React.FC = () => {
 
   useEffect(() => { if (monthKey) void load(monthKey); }, [monthKey, load]);
 
+  // با ورود به صفحه (و هر بار که ماه یا تب عوض شود) مستقیم و بدون انیمیشن روی روز جاری برو
+  useEffect(() => {
+    if (loading || tab !== 'timesheet' || !todayDay || month?.key !== todayMonth?.key) return;
+    const id = window.requestAnimationFrame(() => document.getElementById(`ts-day-${todayDay.date}`)?.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    return () => window.cancelAnimationFrame(id);
+    // فقط با تغییر ماه/تب/پایان بارگذاری؛ نه با هر ثبت ساعت
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tab, monthKey]);
+
   const isOpen = (d: Day) => !d.off && d.g <= todayG;
 
   const save = useCallback(async (): Promise<boolean> => {
@@ -351,7 +360,7 @@ export const TimesheetWorkspace: React.FC = () => {
               : minutes !== null ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
             const badge = invalid ? 'bg-rose-100 text-rose-700' : minutes !== null ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400';
             return (
-              <article key={day.date} className={`flex flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
+              <article key={day.date} id={`ts-day-${day.date}`} className={`scroll-mt-40 flex flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
                 <div className="flex items-center justify-between gap-2 md:w-28 md:shrink-0 md:flex-col md:items-start md:justify-center">
                   <div>
                     <p className="text-sm font-extrabold text-slate-800">

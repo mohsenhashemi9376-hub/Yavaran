@@ -71,7 +71,7 @@ Alpine.data('timesheet', () => ({
     this.monthKey = (hit || (today < this.months[0].days[0].g ? this.months[0] : this.months[this.months.length - 1])).key;
     await this.load();
     // با ورود به صفحه، روز جاری را نشان بده
-    this.$nextTick(() => this.scrollToToday());
+    this.$nextTick(() => requestAnimationFrame(() => this.scrollToToday()));
     window.addEventListener('beforeunload', () => { if (this.dirty) this.save(); });
   },
 
@@ -79,7 +79,7 @@ Alpine.data('timesheet', () => ({
   scrollToToday() {
     if (!this.hasToday) return;
     const el = document.getElementById(this.dayId(this.todayDay));
-    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'instant' });
   },
 
   // ---------- ساعت زنده ----------
