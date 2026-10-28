@@ -56,6 +56,7 @@ export const TimesheetWorkspace: React.FC = () => {
   const [extraNote, setExtraNote] = useState('');
   const [customAxes, setCustomAxes] = useState<Axis[]>([]);
   const [newTitle, setNewTitle] = useState('');
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>('timesheet');
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
@@ -250,11 +251,10 @@ export const TimesheetWorkspace: React.FC = () => {
   return (
     <div className="space-y-4 text-right" dir="rtl">
       {/* ثبت سریع ورود و خروج */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-5 text-white shadow-sm" aria-label="ثبت ورود و خروج">
-        <div className="pointer-events-none absolute -start-10 -top-10 h-48 w-48 rounded-full bg-emerald-500/15 blur-3xl" />
-        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-4 md:p-5 text-white shadow-sm" aria-label="ثبت ورود و خروج">
+                <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
           <div className="flex items-center gap-4 md:shrink-0">
-            <div className="relative h-24 w-24 shrink-0">
+            <div className="relative hidden h-24 w-24 shrink-0 md:block">
               <svg viewBox="0 0 100 100" className="h-24 w-24 -rotate-90" aria-hidden="true">
                 <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(51 65 85)" strokeWidth="5" />
                 <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(52 211 153)" strokeWidth="5" strokeLinecap="round" strokeDasharray="276.5" strokeDashoffset={276.5 * (1 - ringSeconds / 60)} className="transition-[stroke-dashoffset] duration-1000 ease-linear" />
@@ -359,8 +359,24 @@ export const TimesheetWorkspace: React.FC = () => {
               : invalid ? 'border-rose-300 bg-rose-50'
               : minutes !== null ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
             const badge = invalid ? 'bg-rose-100 text-rose-700' : minutes !== null ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400';
+            // موبایل: روزهای گذشته‌ی کاری یک ردیف جمع‌شونده‌اند؛ روز جاری همیشه باز است
+            const pastOpen = open && !isToday;
+            const collapsed = pastOpen && !expandedDays[day.date];
             return (
-              <article key={day.date} id={`ts-day-${day.date}`} className={`scroll-mt-40 flex flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
+              <React.Fragment key={day.date}>
+              {pastOpen && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedDays((p) => ({ ...p, [day.date]: !p[day.date] }))}
+                  aria-expanded={!collapsed}
+                  className="md:hidden flex w-full min-h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-right shadow-sm cursor-pointer"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">{day.weekday} {day.label}</span>
+                  <span className="shrink-0 text-xs font-bold text-slate-500">{minutes !== null ? `${hoursText(minutes)} ساعت` : 'ثبت نشده'}</span>
+                  <span className={`shrink-0 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-extrabold ${invalid ? 'bg-rose-100 text-rose-700' : minutes !== null ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>{invalid ? '!' : minutes !== null ? '✓' : '!'}</span>
+                </button>
+              )}
+              <article id={`ts-day-${day.date}`} className={`scroll-mt-40 ${collapsed ? 'hidden md:flex' : 'flex'} flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
                 <div className="flex items-center justify-between gap-2 md:w-28 md:shrink-0 md:flex-col md:items-start md:justify-center">
                   <div>
                     <p className="text-sm font-extrabold text-slate-800">
@@ -407,6 +423,7 @@ export const TimesheetWorkspace: React.FC = () => {
                   </div>
                 )}
               </article>
+              </React.Fragment>
             );
           })}
         </section>

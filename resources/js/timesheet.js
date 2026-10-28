@@ -56,6 +56,7 @@ Alpine.data('timesheet', () => ({
   now: new Date(),
   /** اختلاف ساعت سرور با دستگاه (میلی‌ثانیه)؛ ساعت اشتباه دستگاه روی ثبت اثر نمی‌گذارد */
   offset: 0,
+  expanded: {},
   picker: { open: false, date: '', field: '', h: 8, m: 0 },
   hours: HOURS,
   minutes: MINUTES,
@@ -248,6 +249,18 @@ Alpine.data('timesheet', () => ({
   dayHoursText(date) {
     const h = this.dayHours(date);
     return h === null ? '—' : fmtHours(h);
+  },
+  // موبایل: روزهای گذشته‌ی کاری یک ردیف جمع‌شونده‌اند؛ روز جاری همیشه باز است
+  isPast(day) { return this.isOpen(day) && !this.isToday(day); },
+  isCollapsed(day) { return this.isPast(day) && !this.expanded[day.date]; },
+  toggleDay(day) { this.expanded = { ...this.expanded, [day.date]: !this.expanded[day.date] }; },
+  collapsedClass(day) { return this.isCollapsed(day) ? 'max-md:hidden' : ''; },
+  summaryLabel(day) { return `${day.weekday} ${day.label}`; },
+  summaryHours(day) { return this.hasHours(day.date) ? `${this.dayHoursText(day.date)} ساعت` : 'ثبت نشده'; },
+  summaryMark(day) { return this.isInvalid(day.date) || !this.hasHours(day.date) ? '!' : '✓'; },
+  summaryClass(day) {
+    if (this.isInvalid(day.date)) return 'bg-rose-100 text-rose-700';
+    return this.hasHours(day.date) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800';
   },
   rowClass(day) {
     if (day.off) return 'border-slate-200 bg-slate-100 opacity-60 grayscale';

@@ -121,7 +121,13 @@
       {{-- تب ۱: ثبت ساعات کاری (موبایل: کارت ستونی، دسکتاپ: سطر افقی شبیه جدول) --}}
       <section x-show="isTab('timesheet')" class="space-y-3" aria-label="ثبت ساعات کاری">
         <template x-for="day in days" :key="day.date">
-          <article :id="dayId(day)" :class="rowClass(day)" class="flex scroll-mt-40 flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4">
+          <div class="flex flex-col gap-3">
+          <button type="button" x-show="isPast(day)" @click="toggleDay(day)" class="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-start shadow-sm md:hidden">
+            <span class="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800" x-text="summaryLabel(day)"></span>
+            <span class="shrink-0 text-xs font-bold text-slate-500" x-text="summaryHours(day)"></span>
+            <span :class="summaryClass(day)" class="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full px-2 text-xs font-extrabold" x-text="summaryMark(day)"></span>
+          </button>
+          <article :id="dayId(day)" :class="[rowClass(day), collapsedClass(day)]" class="flex scroll-mt-40 flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4">
             {{-- تاریخ و روز --}}
             <div class="flex items-center justify-between gap-2 md:w-24 md:shrink-0 md:flex-col md:items-start md:justify-center">
               <div>
@@ -179,6 +185,7 @@
               <span class="flex min-h-14 flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-200/60 text-lg font-extrabold text-slate-400 md:min-h-12 md:w-24 md:text-base">--:--</span>
             </div>
           </article>
+          </div>
         </template>
       </section>
 

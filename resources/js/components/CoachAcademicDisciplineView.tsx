@@ -394,7 +394,7 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
   }, []);
 
   const mobileFilters: { key: typeof filterType; label: string; icon?: React.ComponentType<{ className?: string }>; active: string; idle: string }[] = [
-    { key: 'all', label: `همه (${toPersianDigits(targetStudents.length)})`, active: 'bg-indigo-600 text-white border-indigo-600', idle: 'bg-white text-slate-700 border-slate-200' },
+    { key: 'all', label: `همه (${toPersianDigits(targetStudents.length)})`, active: 'bg-emerald-700 text-white border-emerald-700', idle: 'bg-white text-slate-700 border-slate-200' },
     { key: 'needs_attention', label: `نیازمند پیگیری (${toPersianDigits(aggregateStats.attentionCount)})`, icon: AlertTriangle, active: 'bg-rose-600 text-white border-rose-600', idle: 'bg-rose-50 text-rose-800 border-rose-200' },
     { key: 'absent', label: `دارای غیبت (${toPersianDigits(aggregateStats.absentStudents)})`, icon: UserX, active: 'bg-orange-600 text-white border-orange-600', idle: 'bg-orange-50 text-orange-800 border-orange-200' },
     { key: 'delayed', label: `دارای تأخیر (${toPersianDigits(aggregateStats.delayedStudents)})`, icon: Clock, active: 'bg-amber-600 text-white border-amber-600', idle: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -676,24 +676,35 @@ export const CoachAcademicDisciplineView: React.FC<CoachAcademicDisciplineViewPr
             const gpa = acad.gpaAnnual;
             const gpaCls = gpa === null ? '' : gpa >= 18 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : gpa >= 12 ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-rose-50 text-rose-800 border-rose-200';
             const chip = 'inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border text-[11px] font-extrabold whitespace-nowrap';
+            // وضعیت کلی دانش‌آموز: هشدار (انضباطی/مردودی) ← پیگیری (معدل کم) ← ممتاز؛ نوار رنگی کنار کارت و نشان کنار نام
+            const statusTone = disc.isWarning || acad.hasFailingGrade
+              ? { stripe: 'border-s-rose-500', label: 'هشدار', badge: 'bg-rose-50 text-rose-700 border-rose-200' }
+              : gpa !== null && gpa < 14
+              ? { stripe: 'border-s-amber-500', label: 'پیگیری', badge: 'bg-amber-50 text-amber-800 border-amber-200' }
+              : gpa !== null && gpa >= 18
+              ? { stripe: 'border-s-emerald-500', label: 'ممتاز', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+              : { stripe: 'border-s-slate-200', label: '', badge: '' };
             return (
-              <article key={student.id} className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
+              <article key={student.id} className={`bg-white rounded-2xl p-3 border border-slate-200 shadow-sm border-s-4 ${statusTone.stripe}`}>
                 <div className="flex items-center gap-2.5">
                   <span className="w-6 text-center text-[11px] font-bold text-slate-400 shrink-0">{toPersianDigits(idx + 1)}</span>
                   <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${avatarGradient(student.id)} text-white flex items-center justify-center font-black text-xs shrink-0 ring-2 ring-white`}>
                     {getStudentFullName(student).charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-bold text-slate-900 text-sm truncate">{getStudentFullName(student)}</div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-bold text-slate-900 text-sm truncate">{getStudentFullName(student)}</span>
+                      {statusTone.label && <span className={`shrink-0 px-2 py-0.5 rounded-full border text-[10px] font-extrabold ${statusTone.badge}`}>{statusTone.label}</span>}
+                    </div>
                     {selectedClassId === 'all' && <div className="text-[10px] text-slate-400 truncate">{studentClass?.name || '-'}</div>}
                   </div>
                   <button
                     type="button"
                     onClick={() => { setDetailModalStudent(student); setModalActiveTab('grades'); }}
                     aria-label={`پرونده ${getStudentFullName(student)}`}
-                    className="h-10 px-3 shrink-0 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                    className="min-h-11 px-3.5 shrink-0 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Eye className="w-4 h-4 text-indigo-600" />
+                    <Eye className="w-4 h-4 text-emerald-700" />
                     پرونده
                   </button>
                 </div>
