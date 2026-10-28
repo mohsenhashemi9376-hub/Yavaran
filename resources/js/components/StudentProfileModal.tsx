@@ -636,7 +636,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
         className="bg-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
       >
         {/* ===================== HEADER ===================== */}
-        <div className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="relative bg-white border-b border-slate-200 px-3 sm:px-6 py-3 pl-14 flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-extrabold shrink-0">
               {currentStudent.firstName[0]}
@@ -681,64 +681,36 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
             </div>
           </div>
 
-          <div className="flex items-center gap-0 sm:gap-1 shrink-0">
-            {!teacherView && (
-            <>
-            <button
-              id="btn-quick-add-discipline"
-              onClick={() => setIsAddDisciplineOpen(true)}
-              className="min-h-11 px-3 sm:px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs sm:text-sm font-extrabold transition inline-flex items-center gap-1.5 cursor-pointer shadow-sm ms-1 order-first"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="whitespace-nowrap">ثبت مورد انضباطی</span>
-            </button>
-            <button
-              id="btn-profile-edit-info"
-              onClick={() => {
-                setActiveTab('info');
-                setIsEditing(true);
-              }}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="ویرایش مشخصات"
-            >
-              <Edit3 className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-print"
-              onClick={handlePrint}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="چاپ پرونده"
-            >
-              <Printer className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-excel"
-              onClick={handleExportExcel}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded-xl transition cursor-pointer"
-              title="خروجی اکسل"
-            >
-              <FileSpreadsheet className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-sms"
-              onClick={handleOpenSms}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="پیام به اولیاء"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-            </>
-            )}
-            <button
-              id="btn-close-student-profile"
-              onClick={onClose}
-              className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-              title="بستن پرونده"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <button
+            id="btn-close-student-profile"
+            onClick={onClose}
+            className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+            title="بستن پرونده"
+            aria-label="بستن پرونده"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* ===================== نوار عملیات: دکمهٔ اصلی + ابزارها ===================== */}
+        {!teacherView && (
+        <div className="bg-white border-b border-slate-200 px-3 sm:px-6 pb-3 flex items-center gap-2">
+          <button
+            id="btn-quick-add-discipline"
+            onClick={() => setIsAddDisciplineOpen(true)}
+            className="flex-1 min-h-11 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-extrabold transition inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="whitespace-nowrap">ثبت مورد انضباطی</span>
+          </button>
+          <div className="flex items-center gap-0.5 rounded-xl bg-slate-100 p-0.5 shrink-0">
+            <button id="btn-profile-edit-info" onClick={() => { setActiveTab('info'); setIsEditing(true); }} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="ویرایش مشخصات" aria-label="ویرایش مشخصات"><Edit3 className="w-5 h-5" /></button>
+            <button id="btn-profile-print" onClick={handlePrint} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="چاپ پرونده" aria-label="چاپ پرونده"><Printer className="w-5 h-5" /></button>
+            <button id="btn-profile-sms" onClick={handleOpenSms} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="پیام به اولیاء" aria-label="پیام به اولیاء"><MessageSquare className="w-5 h-5" /></button>
+            <button id="btn-profile-excel" onClick={handleExportExcel} className="hidden sm:flex w-11 h-11 items-center justify-center text-slate-500 hover:text-emerald-700 hover:bg-white rounded-lg transition cursor-pointer" title="خروجی اکسل" aria-label="خروجی اکسل"><FileSpreadsheet className="w-5 h-5" /></button>
           </div>
         </div>
+        )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
         {teacherView ? (
@@ -758,7 +730,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
         ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 px-3 sm:px-6 pt-3 text-xs">
           {/* ۱) نمره انضباط */}
-          <div className="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
+          <div className="order-1 bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
             <div className="text-slate-500 text-xs font-bold">نمره انضباط</div>
             <div className={`mt-1 text-2xl font-extrabold ${disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'}`}>
               {toPersianDigits(disciplineScore)}<span className="text-sm font-normal text-slate-400"> از ۲۰</span>
@@ -772,7 +744,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           <button
             type="button"
             onClick={() => { setActiveTab('discipline'); setIsEditing(false); scrollToSection('profile-discipline-notes'); }}
-            className="text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-violet-300 transition cursor-pointer"
+            className="order-3 lg:order-2 col-span-2 lg:col-span-1 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-violet-300 transition cursor-pointer"
           >
             <div className="text-slate-500 text-xs font-bold">موارد انضباطی</div>
             <div className={`mt-1 text-2xl font-extrabold ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
@@ -791,7 +763,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           <button
             type="button"
             onClick={() => openAttendanceTab('late')}
-            className="text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-amber-300 transition cursor-pointer"
+            className="order-4 lg:order-3 col-span-2 lg:col-span-1 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-amber-300 transition cursor-pointer"
           >
             <div className="text-slate-500 text-xs font-bold">تأخیرها</div>
             <div className={`mt-1 text-2xl font-extrabold ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
@@ -819,7 +791,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           <button
             type="button"
             onClick={() => openAttendanceTab('absent')}
-            className="text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-300 transition cursor-pointer"
+            className="order-2 lg:order-4 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-300 transition cursor-pointer"
           >
             <div className="text-slate-500 text-xs font-bold">غیبت‌ها</div>
             <div className="mt-1 text-2xl font-extrabold text-slate-800">
@@ -1316,7 +1288,28 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                       : 'سابقه‌ای برای این دانش‌آموز ثبت نشده است.'}
                 </div>
               ) : (
-                <FitTable className="w-full border border-slate-200 rounded-2xl shadow-2xs">
+                <>
+                <div className="md:hidden space-y-2">
+                  {filteredAttendanceRecords.map((r) => (
+                    <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-extrabold text-slate-800">{formatShamsiWithWeekday(r.date)}</span>
+                        {r.type === 'absent' ? (
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${r.isExcused ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                            {r.isExcused ? 'غایب موجه' : 'غایب غیرموجه'}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            تأخیر{r.entryTime ? ` • ورود ${toPersianDigits(r.entryTime)}` : ''}{` • ${formatDelayText(r.delayMinutes)}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">{r.kind === 'morning' ? 'صبحگاه' : `کلاسی (${r.eventLabel})`}{r.recordedBy ? ` · ثبت: ${r.recordedBy}` : ''}</div>
+                      {r.note && <div className="mt-2 bg-slate-50 border border-slate-200 text-slate-700 text-[11px] leading-relaxed p-2 rounded-lg">{r.note}</div>}
+                    </div>
+                  ))}
+                </div>
+                <FitTable className="hidden md:block w-full border border-slate-200 rounded-2xl shadow-2xs">
                   <table className="w-full min-w-[750px] text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
@@ -1376,6 +1369,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     </tbody>
                   </table>
                 </FitTable>
+                </>
               )}
             </div>
           )}
