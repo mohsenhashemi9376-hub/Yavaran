@@ -4,12 +4,12 @@ import { Printer, X } from 'lucide-react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useSchool } from '../context/SchoolContext';
 import { ComprehensiveExamRecord, SchoolClass, Student } from '../types';
-import { analyzeClassExam, ExamMonth, examMonthLabel, examMonthsWithData, EXAM_MONTHS, round2, studentExamTimeline } from '../utils/examReport';
+import { analyzeClassExam, ExamMonth, examMonthLabel, examMonthsWithData, EXAM_MONTHS, round2, studentExamTimeline, faExamPct, examPercent } from '../utils/examReport';
 import { SCORE_BAND_STYLE, scoreBand, scoreLabel } from '../utils/gradePeriods';
 import { getCurrentAcademicYear, getTodayShamsi, toPersianDigits } from '../utils/persianDate';
 import { studentFullName } from '../utils/studentName';
 
-const fa = (n?: number) => (n === undefined ? '—' : toPersianDigits(round2(n)));
+const fa = faExamPct;
 const SUBJECT_COLORS = ['#4f46e5', '#d97706', '#7c3aed', '#0284c7', '#db2777'];
 
 interface Props {
@@ -44,9 +44,9 @@ export const StudentExamCardModal: React.FC<Props> = ({ record, classData, class
 
   const chartData = timeline.map((p) => ({
     name: p.label,
-    'میانگین دانش‌آموز': p.avg === undefined ? null : round2(p.avg),
-    'میانگین کلاس': p.classAvg === undefined ? null : round2(p.classAvg),
-    ...Object.fromEntries(analysis.subjects.map((s) => [s.label, p.bySubject[s.key] ?? null])),
+    'میانگین دانش‌آموز': p.avg === undefined ? null : round2(examPercent(p.avg)),
+    'میانگین کلاس': p.classAvg === undefined ? null : round2(examPercent(p.classAvg)),
+    ...Object.fromEntries(analysis.subjects.map((s) => [s.label, p.bySubject[s.key] === undefined ? null : round2(examPercent(p.bySubject[s.key] as number))])),
   }));
 
   return createPortal(
@@ -132,7 +132,7 @@ export const StudentExamCardModal: React.FC<Props> = ({ record, classData, class
                     <LineChart data={chartData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[0, 20]} tick={{ fontSize: 11 }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Line type="monotone" dataKey="میانگین دانش‌آموز" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} connectNulls isAnimationActive={false} />

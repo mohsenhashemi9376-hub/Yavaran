@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Lock, Save, Trophy, TrendingDown, Users } from 'lucide-react';
+import { BarChart3, Save, Trophy, TrendingDown, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ComprehensiveExamRecord, EXAM_SUBJECTS, ExamSubjectKey, SchoolClass } from '../types';
-import { EXAM_MONTHS, EXAM_WEAK_BELOW, examScoresOf, isExamAbsent, mean, round2 } from '../utils/examReport';
+import { EXAM_MONTHS, examScoresOf, examMaxOf, isExamAbsent, mean, round2 } from '../utils/examReport';
 import { toEnglishDigits, toPersianDigits } from '../utils/persianDate';
 import { scorePillClass } from '../utils/gradePeriods';
 import { studentFullName } from '../utils/studentName';
@@ -40,12 +40,15 @@ const parseScore = (raw: string): number | null => {
   return Number.isNaN(n) ? NaN : n;
 };
 const fa = (n?: number | null) => (n === undefined || n === null ? '—' : toPersianDigits(String(round2(n)).replace('.', '٫')));
+/** درصد (۰ تا ۱۰۰) با علامت ٪ */
+const faP = (n?: number | null) => (n === undefined || n === null ? '—' : `${fa(n)}٪`);
 
+/** سطح‌بندی درصدی نسبت به بارم درس */
 const LEVELS = [
-  { label: 'عالی (بالای ۱۸)', min: 18.0001, bar: 'bg-emerald-500' },
-  { label: 'خوب (۱۵ تا ۱۸)', min: 15, bar: 'bg-sky-500' },
-  { label: 'متوسط (۱۲ تا ۱۵)', min: 12, bar: 'bg-amber-400' },
-  { label: 'نیازمند تلاش (زیر ۱۲)', min: -1, bar: 'bg-rose-500' },
+  { label: 'ممتاز (۸۰٪ و بالاتر)', min: 0.8, bar: 'bg-emerald-500' },
+  { label: 'قابل قبول (۶۰٪ تا کمتر از ۸۰٪)', min: 0.6, bar: 'bg-sky-500' },
+  { label: 'متوسط (۴۰٪ تا کمتر از ۶۰٪)', min: 0.4, bar: 'bg-amber-400' },
+  { label: 'نیازمند تلاش (زیر ۴۰٪)', min: -1, bar: 'bg-rose-500' },
 ];
 
 interface Props {
@@ -59,7 +62,7 @@ interface Props {
  * دبیر فقط نمره‌ی درس خودش را (وقتی معاونت آموزش ثبت نمره‌ی آن ماه را باز کرده) وارد می‌کند و فقط تحلیل همان درس را می‌بیند.
  */
 export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => {
-  const { students, comprehensiveExams, saveComprehensiveExam, isGradePeriodOpen, showToast } = useSchool();
+  const { students, comprehensiveExams, saveComprehensiveExam, showToast } = useSchool();
 
   const options = useMemo(
     () =>
@@ -79,9 +82,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const record: ComprehensiveExamRecord | undefined = useMemo(() => comprehensiveExams.find((r) => r.classId === opt?.classId), [comprehensiveExams, opt?.classId]);
   const classStudents = useMemo(() => (opt ? students.filter((s) => s.classId === opt.classId).slice().sort(compareByLastName) : []), [students, opt?.classId]);
 
-  const open = Boolean(opt) && isGradePeriodOpen(month, opt.subjectId);
-  // باز بودن ماه برای درس دبیر کافی است؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
-  const canEdit = open;
+  // ورود نمره‌ی آزمون جامع همیشه برای دبیر درس باز است (مستقل از بازبودن ماه در «ثبت نمرات» مستمر)؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
+  const canEdit = Boolean(opt);
 
   useEffect(() => {
     if (!opt) return;
@@ -97,8 +99,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
   useEffect(() => {
     if (!focusReport) return;
-    // پس از بازنشانی اسکرول داشبورد (useScrollTop) به کارنامه برو
-    const t = window.setTimeout(() => document.getElementById('exam-class-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    // پس از بازنشانی اسکرول داشبورد (useScrollTop) به بخش ورود نمره برو
+    const t = window.setTimeout(() => document.getElementById('exam-score-entry')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     return () => window.clearTimeout(t);
   }, [focusReport]);
 
@@ -107,9 +109,10 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   }
 
   const subjectLabel = EXAM_SUBJECTS.find((s) => s.key === opt.key)?.label || opt.subjectName;
+  const maxScore = examMaxOf(record, month, opt.key);
   const invalid = (id: string) => {
     const n = parseScore(draft[id] ?? '');
-    return n !== null && (Number.isNaN(n) || n < 0 || n > 20);
+    return n !== null && (Number.isNaN(n) || n < 0 || n > maxScore);
   };
   const hasErrors = classStudents.some((s) => invalid(s.id));
 
@@ -135,16 +138,17 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
   // تحلیل فقط برای درس خودِ دبیر
   const values = classStudents.map((s) => parseScore(draft[s.id] ?? '')).filter((n): n is number => n !== null && !Number.isNaN(n));
-  const avg = mean(values);
-  const levelCounts = LEVELS.map((l, i) => values.filter((v) => v >= l.min && (i === 0 || v < LEVELS[i - 1].min)).length);
-  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < EXAM_WEAK_BELOW; });
+  const avg = mean(values.map((v) => (v / maxScore) * 100));
+  const levelCounts = LEVELS.map((l, i) => values.filter((v) => v / maxScore >= l.min && (i === 0 || v / maxScore < LEVELS[i - 1].min)).length);
+  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < maxScore * 0.4; });
   const trend = EXAM_MONTHS.map((m) => {
-    const vs = Object.values(examScoresOf(record, m.key)).map((c) => c[opt.key]).filter((v): v is number => typeof v === 'number');
+    const mx = examMaxOf(record, m.key, opt.key);
+    const vs = Object.values(examScoresOf(record, m.key)).map((c) => c[opt.key]).filter((v): v is number => typeof v === 'number').map((v) => (v / mx) * 100);
     return { key: m.key, label: m.monthName.replace('مستمر ', ''), avg: mean(vs), n: vs.length };
   });
-  const trendMax = Math.max(20, ...trend.map((t) => t.avg ?? 0));
-  const best = values.length ? Math.max(...values) : undefined;
-  const worst = values.length ? Math.min(...values) : undefined;
+  const trendMax = Math.max(100, ...trend.map((t) => t.avg ?? 0));
+  const best = values.length ? (Math.max(...values) / maxScore) * 100 : undefined;
+  const worst = values.length ? (Math.min(...values) / maxScore) * 100 : undefined;
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -161,15 +165,35 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
             {options.map((o, i) => <option key={`${o.classId}-${o.key}`} value={i}>{o.className} — {o.subjectName}</option>)}
           </select>
           <select value={month} onChange={(e) => { if (dirty && !window.confirm('تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟')) return; setMonth(e.target.value as typeof month); }} aria-label="ماه" className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none cursor-pointer">
-            {EXAM_MONTHS.map((m) => <option key={m.key} value={m.key}>{m.monthName.replace('مستمر ', '')}{isGradePeriodOpen(m.key, opt.subjectId) ? ' 🟢' : ''}</option>)}
+            {EXAM_MONTHS.map((m) => <option key={m.key} value={m.key}>{m.monthName.replace('مستمر ', '')}</option>)}
           </select>
         </div>
-        {!canEdit && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-bold text-amber-900">
-            <Lock className="w-4 h-4 shrink-0" />
-            ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.
-          </div>
-        )}
+      </div>
+
+      {/* ورود نمره */}
+      <div id="exam-score-entry" className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden scroll-mt-24">
+        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} از {toPersianDigits(maxScore)} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
+        <ul className="divide-y divide-slate-100">
+          {classStudents.map((s, i) => (
+            <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>
+              <span className="w-6 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
+              <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</span>
+              {typeof parseScore(draft[s.id] ?? '') === 'number' && !invalid(s.id) && <span className={`hidden sm:inline px-2 py-0.5 rounded-lg text-[11px] ${scorePillClass(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 20)}`}>{faP(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 100)}</span>}
+              {isExamAbsent(record, s.id, month) && <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-extrabold">غایب</span>}
+              <input
+                value={toPersianDigits(draft[s.id] ?? '')}
+                onChange={(e) => { setDraft((p) => ({ ...p, [s.id]: toEnglishDigits(e.target.value).replace(/[٫/،,]/g, '.').replace(/[^0-9.]/g, '') })); setDirty(true); }}
+                disabled={!canEdit || isExamAbsent(record, s.id, month)}
+                inputMode="decimal"
+                dir="ltr"
+                aria-label={`نمره ${studentFullName(s)}`}
+                placeholder="—"
+                className={`w-20 h-11 text-center font-bold text-sm rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${invalid(s.id) ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}
+              />
+            </li>
+          ))}
+          {classStudents.length === 0 && <li className="py-8 text-center text-xs text-slate-400">دانش‌آموزی در این کلاس نیست.</li>}
+        </ul>
       </div>
 
       {/* کارنامهٔ آزمون جامع کلاس: دانش‌آموز × ماه */}
@@ -189,7 +213,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
             </thead>
             <tbody className="divide-y divide-slate-100">
               {classStudents.map((s) => {
-                const cells = EXAM_MONTHS.map((m) => ({ key: m.key, absent: isExamAbsent(record, s.id, m.key), v: examScoresOf(record, m.key)[s.id]?.[opt.key] }));
+                const cells = EXAM_MONTHS.map((m) => ({ key: m.key, absent: isExamAbsent(record, s.id, m.key), v: ((raw) => (typeof raw === 'number' ? (raw / examMaxOf(record, m.key, opt.key)) * 100 : undefined))(examScoresOf(record, m.key)[s.id]?.[opt.key]) }));
                 const rowAvg = mean(cells.map((c) => c.v).filter((v): v is number => typeof v === 'number'));
                 return (
                   <tr key={s.id}>
@@ -197,18 +221,18 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
                     {cells.map((c) => (
                       <td key={c.key} className="px-2 py-1.5 text-center">
                         {c.absent ? <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-extrabold">غایب</span>
-                          : typeof c.v === 'number' ? <span className={`px-2 py-0.5 rounded-lg font-black tabular-nums ${scorePillClass(c.v)}`}>{fa(c.v)}</span>
+                          : typeof c.v === 'number' ? <span className={`px-2 py-0.5 rounded-lg font-black tabular-nums ${scorePillClass(c.v / 5)}`}>{faP(c.v)}</span>
                           : <span className="text-slate-300">—</span>}
                       </td>
                     ))}
-                    <td className="px-3 py-1.5 text-center font-black text-indigo-900 tabular-nums">{fa(rowAvg)}</td>
+                    <td className="px-3 py-1.5 text-center font-black text-indigo-900 tabular-nums">{faP(rowAvg)}</td>
                   </tr>
                 );
               })}
               <tr className="bg-indigo-50/60 font-black text-indigo-900">
                 <td className="sticky right-0 bg-indigo-50 px-3 py-2">میانگین کلاس</td>
-                {trend.map((t) => <td key={t.key} className="px-2 py-2 text-center tabular-nums">{fa(t.avg)}</td>)}
-                <td className="px-3 py-2 text-center tabular-nums">{fa(mean(trend.map((t) => t.avg).filter((v): v is number => v !== undefined)))}</td>
+                {trend.map((t) => <td key={t.key} className="px-2 py-2 text-center tabular-nums">{faP(t.avg)}</td>)}
+                <td className="px-3 py-2 text-center tabular-nums">{faP(mean(trend.map((t) => t.avg).filter((v): v is number => v !== undefined)))}</td>
               </tr>
             </tbody>
           </table>
@@ -218,9 +242,9 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
       {/* تحلیل درس خود دبیر */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {[
-          { label: 'میانگین کلاس', value: fa(avg), icon: Users, tone: 'text-emerald-700' },
-          { label: 'بالاترین نمره', value: fa(best), icon: Trophy, tone: 'text-amber-600' },
-          { label: 'پایین‌ترین نمره', value: fa(worst), icon: TrendingDown, tone: 'text-rose-600' },
+          { label: 'میانگین کلاس', value: faP(avg), icon: Users, tone: 'text-emerald-700' },
+          { label: 'بالاترین نمره', value: faP(best), icon: Trophy, tone: 'text-amber-600' },
+          { label: 'پایین‌ترین نمره', value: faP(worst), icon: TrendingDown, tone: 'text-rose-600' },
           { label: 'نمره‌ی ثبت‌شده', value: `${toPersianDigits(values.length)} از ${toPersianDigits(classStudents.length)}`, icon: BarChart3, tone: 'text-sky-700' },
         ].map(({ label, value, icon: Icon, tone }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs">
@@ -246,7 +270,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
           <div className="flex items-end justify-around gap-1.5 h-28" role="img" aria-label="روند میانگین آزمون جامع">
             {trend.map((t) => (
               <div key={t.key} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                <span className="text-[10px] font-bold text-slate-600 tabular-nums">{t.avg === undefined ? '' : fa(t.avg)}</span>
+                <span className="text-[10px] font-bold text-slate-600 tabular-nums">{t.avg === undefined ? '' : faP(t.avg)}</span>
                 <div className="w-full max-w-[1.75rem] rounded-t-lg bg-emerald-500/80" style={{ height: `${t.avg === undefined ? 4 : Math.max(6, (t.avg / trendMax) * 76)}px`, opacity: t.avg === undefined ? 0.2 : 1 }} />
                 <span className="text-[10px] text-slate-500 whitespace-nowrap">{t.label}</span>
               </div>
@@ -257,41 +281,15 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
       {weakList.length > 0 && (
         <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-3 text-xs">
-          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (نمره‌ی زیر {toPersianDigits(EXAM_WEAK_BELOW)}):</div>
+          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (زیر ۴۰٪، یعنی نمره‌ی زیر {toPersianDigits(round2(maxScore * 0.4))}):</div>
           <div className="flex flex-wrap gap-1.5">{weakList.map((s) => <span key={s.id} className="px-2 py-1 rounded-lg bg-white border border-rose-200 font-bold text-rose-800">{studentFullName(s)}</span>)}</div>
         </div>
       )}
 
-      {/* ورود نمره */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
-        <ul className="divide-y divide-slate-100">
-          {classStudents.map((s, i) => (
-            <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>
-              <span className="w-6 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
-              <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</span>
-              {typeof parseScore(draft[s.id] ?? '') === 'number' && !invalid(s.id) && <span className={`hidden sm:inline px-2 py-0.5 rounded-lg text-[11px] ${scorePillClass(parseScore(draft[s.id] ?? '') as number)}`}>{fa(parseScore(draft[s.id] ?? '') as number)}</span>}
-              {isExamAbsent(record, s.id, month) && <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-extrabold">غایب</span>}
-              <input
-                value={toPersianDigits(draft[s.id] ?? '')}
-                onChange={(e) => { setDraft((p) => ({ ...p, [s.id]: toEnglishDigits(e.target.value).replace(/[٫/،,]/g, '.').replace(/[^0-9.]/g, '') })); setDirty(true); }}
-                disabled={!canEdit || isExamAbsent(record, s.id, month)}
-                inputMode="decimal"
-                dir="ltr"
-                aria-label={`نمره ${studentFullName(s)}`}
-                placeholder="—"
-                className={`w-20 h-11 text-center font-bold text-sm rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${invalid(s.id) ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}
-              />
-            </li>
-          ))}
-          {classStudents.length === 0 && <li className="py-8 text-center text-xs text-slate-400">دانش‌آموزی در این کلاس نیست.</li>}
-        </ul>
-      </div>
-
       {canEdit && (
         <div className="sticky bottom-20 md:bottom-4 z-20">
           <button type="button" onClick={save} disabled={!dirty || hasErrors} className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-extrabold shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
-            <Save className="w-4 h-4" /> {hasErrors ? 'نمره باید بین ۰ تا ۲۰ باشد' : 'ذخیره‌ی نمرات آزمون جامع'}
+            <Save className="w-4 h-4" /> {hasErrors ? `نمره باید بین ۰ تا ${toPersianDigits(maxScore)} باشد` : 'ذخیره‌ی نمرات آزمون جامع'}
           </button>
         </div>
       )}

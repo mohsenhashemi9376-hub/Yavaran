@@ -1241,29 +1241,10 @@ final class AccessPolicy
         return $this->examKeysByClass[$classId] ?? [];
     }
 
-    /** آیا ثبت نمره‌ی این ماه برای دست‌کم یکی از درس‌های آزمونیِ دبیر باز است؟ (باز بودن را معاونت آموزش تعیین می‌کند) */
+    /** ثبت نمره‌ی آزمون جامع برای هر ماهِ آزمون همیشه باز است؛ بازبودن ماه در «ثبت نمرات» فقط به نمرات مستمر مربوط است */
     private function examMonthOpenFor(string $month, array $keys): bool
     {
-        if (! in_array($month, self::EXAM_MONTH_KEYS, true) || ! CollectionRegistry::tableExists('grade_periods')) {
-            return false;
-        }
-        $row = DB::table('grade_periods')->where('code', $month)->first(['is_active', 'data']);
-        if ($row === null || ! (bool) $row->is_active) {
-            return false;
-        }
-        $d = json_decode((string) $row->data, false);
-        $ids = is_object($d) && isset($d->openSubjectIds) && is_array($d->openSubjectIds) ? $d->openSubjectIds : null;
-        if ($ids === null) {
-            return true;
-        }
-        $this->loadTeacherExamKeys();
-        foreach ($keys as $k) {
-            if (array_intersect($this->examSubjectIds[$k] ?? [], $ids) !== []) {
-                return true;
-            }
-        }
-
-        return false;
+        return in_array($month, self::EXAM_MONTH_KEYS, true) && $keys !== [];
     }
 
     /**
@@ -1304,7 +1285,8 @@ final class AccessPolicy
                     continue;
                 }
                 foreach ($keys as $k) {
-                    if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= 20) {
+                    $max = (float) ($base['monthlyMax'][$month][$k] ?? 20);
+                    if (array_key_exists($k, $cells) && is_numeric($cells[$k]) && $cells[$k] >= 0 && $cells[$k] <= ($max > 0 ? $max : 20)) {
                         // باز بودن ماه برای درس دبیر کافی است؛ درس در همان ماه فعال می‌شود تا در گزارش معاونت دیده شود
                         if (! in_array($k, $active, true)) {
                             $active[] = $k;

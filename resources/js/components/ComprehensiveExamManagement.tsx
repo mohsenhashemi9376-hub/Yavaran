@@ -6,37 +6,44 @@ import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_ACCEPTABLE_FROM, EXAM_NEEDS_EFFORT_BELOW, examLevelOf } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
   onOpenSidebar: () => void;
 }
 
-/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۰ تا کمتر از ۱۶ زرد، زیر ۱۰ قرمز، بدون نمره خاکستری کم‌رنگ */
+/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۲ تا ۱۶ آبی، ۸ تا ۱۲ زرد، زیر ۸ قرمز، بدون نمره خاکستری کم‌رنگ */
 const examScoreClass = (score: number | null | undefined): string => {
   if (score === null || score === undefined || Number.isNaN(score)) return 'bg-slate-100/70 border border-slate-200/70 text-slate-400';
   if (score >= 16) return 'bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold';
-  if (score >= 10) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
+  if (score >= EXAM_ACCEPTABLE_FROM) return 'bg-sky-100 border border-sky-200 text-sky-700 font-bold';
+  if (score >= EXAM_NEEDS_EFFORT_BELOW) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
   return 'bg-rose-100 border border-rose-200 text-rose-700 font-bold';
 };
 
 type Draft = Record<string, Partial<Record<ExamSubjectKey, string>>>;
 type SortKey = ExamSubjectKey | 'average';
 
+/** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۶۰٪ = ۱۲ */
 const LEVELS = [
-  { id: 'excellent', label: 'عالی', hint: 'بالای ۱۸', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
-  { id: 'good', label: 'خوب', hint: '۱۵ تا ۱۸', bar: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700' },
-  { id: 'medium', label: 'متوسط', hint: '۱۲ تا ۱۵', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
-  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۱۲', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
+  { id: 'excellent', label: 'ممتاز', hint: '۸۰٪ و بالاتر', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
+  { id: 'acceptable', label: 'قابل قبول', hint: '۶۰٪ تا کمتر از ۸۰٪', bar: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700' },
+  { id: 'medium', label: 'متوسط', hint: '۴۰٪ تا کمتر از ۶۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
+  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۴۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
 ] as const;
+
+const STATUS_CHIP: Record<(typeof LEVELS)[number]['id'], string> = {
+  excellent: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  acceptable: 'bg-sky-100 text-sky-800 border-sky-300',
+  medium: 'bg-amber-100 text-amber-800 border-amber-300',
+  weak: 'bg-rose-100 text-rose-800 border-rose-300',
+};
 
 const levelOf = (avg: number | null) => {
   if (avg === null) return null;
-  if (avg > 18) return LEVELS[0];
-  if (avg >= 15) return LEVELS[1];
-  if (avg >= 12) return LEVELS[2];
-  return LEVELS[3];
+  const id = examLevelOf(avg);
+  return LEVELS.find((l) => l.id === id) ?? LEVELS[3];
 };
 
 // ورودی را به رشته لاتین با نقطه اعشار تبدیل می‌کند
@@ -46,16 +53,24 @@ const normalizeInput = (raw: string) =>
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fa = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : toPersianDigits(String(round2(n)).replace('.', '٫'));
+/** معدل (روی مقیاس ۲۰) را به درصد نشان می‌دهد */
+const faPct = (n: number | null | undefined) =>
+  n === null || n === undefined ? '—' : `${toPersianDigits(String(round2(n * 5)).replace('.', '٫'))}٪`;
 
 const parseScore = (v: string | undefined): number | null => {
   if (v === undefined || v === '') return null;
   const n = Number(v);
   return isNaN(n) ? null : n;
 };
-const isInvalid = (v: string | undefined) => {
+const isInvalid = (v: string | undefined, max: number = EXAM_DEFAULT_MAX) => {
   if (v === undefined || v === '') return false;
   const n = Number(v);
-  return isNaN(n) || n < 0 || n > 20;
+  return isNaN(n) || n < 0 || n > max;
+};
+/** بارم باید عددی مثبت و حداکثر ۱۰۰ باشد */
+const isInvalidMax = (v: string | undefined) => {
+  const n = Number(v);
+  return v === undefined || v === '' || isNaN(n) || n <= 0 || n > 100;
 };
 
 export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementProps> = ({ onBack, onOpenSidebar }) => {
@@ -69,6 +84,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
   const [active, setActive] = useState<ExamSubjectKey[]>(EXAM_SUBJECTS.map((s) => s.key));
   const [draft, setDraft] = useState<Draft>({});
   const [absent, setAbsent] = useState<Record<string, boolean>>({});
+  /** بارم هر درس در ماه جاری (رشته‌ی ورودی)؛ پیش‌فرض ۲۰ */
+  const [maxes, setMaxes] = useState<Partial<Record<ExamSubjectKey, string>>>({});
   const [dirty, setDirty] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null);
 
@@ -92,6 +109,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       });
     });
     setDraft(next);
+    setMaxes(Object.fromEntries(EXAM_SUBJECTS.map((s) => [s.key, String(examMaxOf(record, month, s.key))])));
     setAbsent(month === 'legacy' ? {} : { ...(record?.monthlyAbsent?.[month] || {}) });
     setDirty(false);
     setSort(null);
@@ -119,17 +137,29 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
   const activeSubjects = EXAM_SUBJECTS.filter((s) => active.includes(s.key));
 
+  /** بارم عددی هر درس (در صورت ورودی نامعتبر، ۲۰) */
+  const maxOf = (key: ExamSubjectKey): number => (isInvalidMax(maxes[key]) ? EXAM_DEFAULT_MAX : Number(maxes[key]));
+  /** نمره‌ی خام را به مقیاس ۲۰ می‌برد (برای معدل و رنگ‌بندی) */
+  const scaled = (key: ExamSubjectKey, n: number | null) => (n === null ? null : examNormalize(n, maxOf(key)));
+  const hasMaxErrors = EXAM_SUBJECTS.some((s) => isInvalidMax(maxes[s.key]));
+
   const averageOf = (sid: string): number | null => {
     if (absent[sid]) return null;
     const vals = activeSubjects
-      .map((s) => draft[sid]?.[s.key])
-      .filter((v) => !isInvalid(v))
-      .map(parseScore)
+      .map((s) => {
+        const v = draft[sid]?.[s.key];
+        return isInvalid(v, maxOf(s.key)) ? null : scaled(s.key, parseScore(v));
+      })
       .filter((n): n is number => n !== null);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   };
 
-  const hasErrors = classStudents.some((st) => EXAM_SUBJECTS.some((s) => isInvalid(draft[st.id]?.[s.key])));
+  const hasErrors = hasMaxErrors || classStudents.some((st) => EXAM_SUBJECTS.some((s) => isInvalid(draft[st.id]?.[s.key], maxOf(s.key))));
+
+  const changeMax = (key: ExamSubjectKey, raw: string) => {
+    setMaxes((prev) => ({ ...prev, [key]: normalizeInput(raw) }));
+    setDirty(true);
+  };
 
   const toggleSubject = (key: ExamSubjectKey) => {
     setActive((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -173,8 +203,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     const vals = classStudents
       .filter((st) => !absent[st.id])
       .map((st) => draft[st.id]?.[s.key])
-      .filter((v) => !isInvalid(v))
-      .map(parseScore)
+      .filter((v) => !isInvalid(v, maxOf(s.key)))
+      .map((v) => scaled(s.key, parseScore(v)))
       .filter((n): n is number => n !== null);
     return { ...s, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, count: vals.length };
   });
@@ -187,7 +217,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
   const handleSave = () => {
     if (hasErrors) {
-      showToast('نمرات باید بین ۰ تا ۲۰ باشند.', 'error');
+      showToast(hasMaxErrors ? 'بارم هر درس باید عددی بین ۱ تا ۱۰۰ باشد.' : 'نمرات باید بین ۰ و بارم هر درس باشند.', 'error');
       return;
     }
     const scores: ComprehensiveExamRecord['scores'] = {};
@@ -208,6 +238,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       monthlyActive: month === 'legacy' ? base?.monthlyActive : { ...base?.monthlyActive, [month]: active },
       scores: month === 'legacy' ? scores : base?.scores || {},
       monthly: month === 'legacy' ? base?.monthly : { ...base?.monthly, [month]: scores },
+      monthlyMax: month === 'legacy' ? base?.monthlyMax : { ...base?.monthlyMax, [month]: Object.fromEntries(EXAM_SUBJECTS.map((s) => [s.key, maxOf(s.key)])) },
       monthlyAbsent: month === 'legacy' ? base?.monthlyAbsent : { ...base?.monthlyAbsent, [month]: Object.fromEntries(Object.entries(absent).filter(([, v]) => v)) },
     });
     setDirty(false);
@@ -338,8 +369,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <Sigma className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-500">معدل کل آزمون جامع کلاس</div>
-            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{fa(classAverage)}</div>
+            <div className="text-xs font-bold text-slate-500">معدل کل آزمون جامع کلاس (درصد)</div>
+            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{faPct(classAverage)}</div>
           </div>
         </div>
         <div className={`${card} p-4 flex items-center gap-3`}>
@@ -350,7 +381,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <div className="text-xs font-bold text-slate-500">درس قوت</div>
             <div className="text-lg font-extrabold text-slate-900 mt-0.5 truncate">
               {strongest ? strongest.label : '—'}
-              {strongest && <span className="text-sm font-bold text-emerald-600 mr-2">{fa(strongest.avg)}</span>}
+              {strongest && <span className="text-sm font-bold text-emerald-600 mr-2">{faPct(strongest.avg)}</span>}
             </div>
           </div>
         </div>
@@ -362,7 +393,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <div className="text-xs font-bold text-slate-500">درس نیازمند تقویت</div>
             <div className="text-lg font-extrabold text-slate-900 mt-0.5 truncate">
               {weakest ? weakest.label : '—'}
-              {weakest && <span className="text-sm font-bold text-rose-500 mr-2">{fa(weakest.avg)}</span>}
+              {weakest && <span className="text-sm font-bold text-rose-500 mr-2">{faPct(weakest.avg)}</span>}
             </div>
           </div>
         </div>
@@ -398,7 +429,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                   <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((s.avg ?? 0) / 20) * 100}%` }} />
                   </div>
-                  <span className="w-12 text-center text-sm font-extrabold text-slate-800">{fa(s.avg)}</span>
+                  <span className="w-14 text-center text-sm font-extrabold text-slate-800">{faPct(s.avg)}</span>
                 </div>
               );
             })}
@@ -420,6 +451,22 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                       {s.label}
                       <SortIcon k={s.key} />
                     </button>
+                    {month !== 'legacy' && (
+                      <label className="mt-1.5 flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500">
+                        از
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          dir="ltr"
+                          value={toPersianDigits((maxes[s.key] ?? '').replace('.', '٫'))}
+                          onChange={(e) => changeMax(s.key, e.target.value)}
+                          aria-label={`بارم ${s.label}`}
+                          aria-invalid={isInvalidMax(maxes[s.key])}
+                          title="بارم (نمره‌ی کل) این درس"
+                          className={`w-12 h-8 text-center rounded-lg outline-none border focus:ring-4 focus:ring-emerald-100 ${isInvalidMax(maxes[s.key]) ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white border-slate-200 text-slate-800'}`}
+                        />
+                      </label>
+                    )}
                   </th>
                 ))}
                 <th className="p-3 text-center font-bold bg-indigo-50/60 border-x border-indigo-200">
@@ -450,7 +497,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                       </td>
                       {activeSubjects.map((s) => {
                         const v = draft[st.id]?.[s.key];
-                        const bad = isInvalid(v);
+                        const bad = isInvalid(v, maxOf(s.key));
                         return (
                           <td key={s.key} className="p-2 text-center">
                             <input
@@ -462,33 +509,25 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                               placeholder="—"
                               aria-label={`${s.label} ${studentFullName(st)}`}
                               aria-invalid={bad}
-                              title={bad ? 'نمره باید بین ۰ تا ۲۰ باشد' : undefined}
+                              title={bad ? `نمره باید بین ۰ تا ${toPersianDigits(maxOf(s.key))} باشد` : undefined}
                               className={`w-16 text-center rounded-xl py-2 outline-none transition focus:ring-4 focus:ring-emerald-100 ${
                                 bad
                                   ? 'bg-rose-50 border border-rose-300 text-rose-700 font-bold'
-                                  : examScoreClass(parseScore(v))
+                                  : examScoreClass(scaled(s.key, parseScore(v)))
                               }`}
                             />
                           </td>
                         );
                       })}
                       <td className="p-3 text-center">
-                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap tabular-nums ${examScoreClass(avg)}`}>{fa(avg)}</span>
+                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap tabular-nums ${examScoreClass(avg)}`}>{faPct(avg)}</span>
                       </td>
                       <td className="p-3 text-center">
                         {absent[st.id] ? (
                           <span className="inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap bg-rose-100 text-rose-800 border-rose-300">غایب در آزمون</span>
                         ) : lv ? (
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
-                              lv.id === LEVELS[0].id
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : lv.id === LEVELS[3].id
-                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-300'
-                            }`}
-                          >
-                            {lv.id === LEVELS[0].id ? 'ممتاز / رتبه برتر' : lv.id === LEVELS[3].id ? 'نیاز به پیگیری' : 'پذیرفته / عادی'}
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${STATUS_CHIP[lv.id]}`}>
+                            {lv.id === 'excellent' ? 'ممتاز / رتبه برتر' : lv.id === 'weak' ? 'نیاز به پیگیری' : lv.label}
                           </span>
                         ) : (
                           <span className="inline-block px-3 py-1 rounded-full text-xs bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>

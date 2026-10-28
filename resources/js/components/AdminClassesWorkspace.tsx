@@ -5,7 +5,7 @@ import { toPersianDigits, getTodayShamsi } from '../utils/persianDate';
 import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { ClassProfileView } from './ClassProfileView';
 import { useSchool } from '../context/SchoolContext';
-import { classExamAverage, mean, round2 } from '../utils/examReport';
+import { classExamAverage, faExamPct, mean, round2 } from '../utils/examReport';
 import { gradeScoreForMonth } from '../utils/monthlyReport';
 import { SCORE_BAND_STYLE, scoreBand } from '../utils/gradePeriods';
 import { AddStudentToClassModal } from './AddStudentToClassModal';
@@ -437,7 +437,7 @@ export const AdminClassesWorkspace: React.FC<AdminClassesWorkspaceProps> = ({
                             {avg === undefined || !band ? (
                               <span className="text-slate-400 text-[11px]">ثبت نشده</span>
                             ) : (
-                              <span className={`px-2.5 py-0.5 rounded-lg font-black ${SCORE_BAND_STYLE[band].cell}`}>{toPersianDigits(Math.round(avg * 100) / 100)}</span>
+                              <span className={`px-2.5 py-0.5 rounded-lg font-black ${SCORE_BAND_STYLE[band].cell}`}>{faExamPct(avg)}</span>
                             )}
                           </div>
                         );
