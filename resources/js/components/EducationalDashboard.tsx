@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FOLLOW_UP_MONTHS, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
-import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary, faExamPct } from '../utils/examReport';
+import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary, faExamPct, examLevelOf, EXAM_NEEDS_EFFORT_BELOW } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus, EXAM_SUBJECTS } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
@@ -280,7 +280,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     return students.map(stu => {
       const studentClass = classes.find(c => c.id === stu.classId);
       const { gpa, scores } = studentExamSummary(recordByClass.get(stu.classId), stu.id, reportMonth as ExamMonth);
-      const weakSubjects = EXAM_SUBJECTS.filter((s) => (scores[s.key] ?? 20) < 12).map((s) => s.label);
+      const weakSubjects = EXAM_SUBJECTS.filter((s) => (scores[s.key] ?? 20) < EXAM_NEEDS_EFFORT_BELOW).map((s) => s.label);
 
       return {
         student: stu,
@@ -289,7 +289,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
         gpa: gpa !== undefined ? Number(gpa.toFixed(2)) : undefined,
         gradesCount: Object.keys(scores).length,
         weakSubjects,
-        hasWarning: gpa !== undefined ? gpa < 12 : false,
+        hasWarning: gpa !== undefined ? gpa < EXAM_NEEDS_EFFORT_BELOW : false,
       };
     });
   }, [students, classes, comprehensiveExams, reportMonth]);
@@ -364,7 +364,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
       'ستون': reportMonth === 'all' ? 'میانگین آزمون‌های جامع' : (SCORE_COLUMNS.find((m) => m.key === reportMonth)?.monthName ?? ''),
       'معدل (درصد)': item.gpa !== undefined ? Math.round(item.gpa * 5 * 100) / 100 : 'محاسبه نشده',
       'تعداد دروس ثبت شده': item.gradesCount,
-      'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : item.gpa >= 17 ? 'ممتاز' : item.gpa >= 12 ? 'عادی' : 'نیازمند تلاش',
+      'وضعیت تحصیلی': item.gpa === undefined ? 'در حال ثبت' : ({ excellent: 'ممتاز', acceptable: 'قابل قبول', medium: 'متوسط', weak: 'نیازمند تلاش' } as const)[examLevelOf(item.gpa) ?? 'weak'],
       'دروس دارای افت': item.weakSubjects.join('، ') || 'ندارد',
       'شماره تماس اولیا': item.student.parentPhone,
     }));
@@ -987,8 +987,9 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                 })
                 .map(item => {
                   const hasGpa = item.gpa !== undefined;
-                  const isExcellent = hasGpa && item.gpa! >= 17;
-                  const isWeak = hasGpa && item.gpa! < 12;
+                  const lvl = hasGpa ? examLevelOf(item.gpa!) : null;
+                  const isExcellent = lvl === 'excellent';
+                  const isWeak = lvl === 'weak';
 
                   return (
                     <div
@@ -1019,7 +1020,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
                                 ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
                                 : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
                           }`}>
-                            {isExcellent ? 'ممتاز' : isWeak ? 'نیازمند تلاش' : 'عادی'}
+                            {lvl === 'excellent' ? 'ممتاز' : lvl === 'acceptable' ? 'قابل قبول' : lvl === 'medium' ? 'متوسط' : 'نیازمند تلاش'}
                           </span>
                         )}
                       </div>

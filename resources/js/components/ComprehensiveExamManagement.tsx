@@ -6,18 +6,19 @@ import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_WEAK_BELOW } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_ACCEPTABLE_FROM, EXAM_NEEDS_EFFORT_BELOW, examLevelOf } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
   onOpenSidebar: () => void;
 }
 
-/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۲ تا کمتر از ۱۶ زرد، زیر ۱۲ قرمز، بدون نمره خاکستری کم‌رنگ */
+/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۲ تا ۱۶ آبی، ۸ تا ۱۲ زرد، زیر ۸ قرمز، بدون نمره خاکستری کم‌رنگ */
 const examScoreClass = (score: number | null | undefined): string => {
   if (score === null || score === undefined || Number.isNaN(score)) return 'bg-slate-100/70 border border-slate-200/70 text-slate-400';
   if (score >= 16) return 'bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold';
-  if (score >= EXAM_WEAK_BELOW) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
+  if (score >= EXAM_ACCEPTABLE_FROM) return 'bg-sky-100 border border-sky-200 text-sky-700 font-bold';
+  if (score >= EXAM_NEEDS_EFFORT_BELOW) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
   return 'bg-rose-100 border border-rose-200 text-rose-700 font-bold';
 };
 
@@ -27,15 +28,22 @@ type SortKey = ExamSubjectKey | 'average';
 /** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۶۰٪ = ۱۲ */
 const LEVELS = [
   { id: 'excellent', label: 'ممتاز', hint: '۸۰٪ و بالاتر', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
-  { id: 'medium', label: 'متوسط', hint: '۶۰٪ تا کمتر از ۸۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
-  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۶۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
+  { id: 'acceptable', label: 'قابل قبول', hint: '۶۰٪ تا کمتر از ۸۰٪', bar: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700' },
+  { id: 'medium', label: 'متوسط', hint: '۴۰٪ تا کمتر از ۶۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
+  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۴۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
 ] as const;
+
+const STATUS_CHIP: Record<(typeof LEVELS)[number]['id'], string> = {
+  excellent: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  acceptable: 'bg-sky-100 text-sky-800 border-sky-300',
+  medium: 'bg-amber-100 text-amber-800 border-amber-300',
+  weak: 'bg-rose-100 text-rose-800 border-rose-300',
+};
 
 const levelOf = (avg: number | null) => {
   if (avg === null) return null;
-  if (avg >= EXAM_EXCELLENT_FROM) return LEVELS[0];
-  if (avg >= EXAM_WEAK_BELOW) return LEVELS[1];
-  return LEVELS[2];
+  const id = examLevelOf(avg);
+  return LEVELS.find((l) => l.id === id) ?? LEVELS[3];
 };
 
 // ورودی را به رشته لاتین با نقطه اعشار تبدیل می‌کند
@@ -518,16 +526,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                         {absent[st.id] ? (
                           <span className="inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap bg-rose-100 text-rose-800 border-rose-300">غایب در آزمون</span>
                         ) : lv ? (
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
-                              lv.id === LEVELS[0].id
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : lv.id === LEVELS[2].id
-                                  ? 'bg-rose-100 text-rose-800 border-rose-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-300'
-                            }`}
-                          >
-                            {lv.id === LEVELS[0].id ? 'ممتاز / رتبه برتر' : lv.id === LEVELS[2].id ? 'نیاز به پیگیری' : 'پذیرفته / عادی'}
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${STATUS_CHIP[lv.id]}`}>
+                            {lv.id === 'excellent' ? 'ممتاز / رتبه برتر' : lv.id === 'weak' ? 'نیاز به پیگیری' : lv.label}
                           </span>
                         ) : (
                           <span className="inline-block px-3 py-1 rounded-full text-xs bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>

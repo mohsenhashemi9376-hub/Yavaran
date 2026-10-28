@@ -46,8 +46,9 @@ const faP = (n?: number | null) => (n === undefined || n === null ? '—' : `${f
 /** سطح‌بندی درصدی نسبت به بارم درس */
 const LEVELS = [
   { label: 'ممتاز (۸۰٪ و بالاتر)', min: 0.8, bar: 'bg-emerald-500' },
-  { label: 'متوسط (۶۰٪ تا کمتر از ۸۰٪)', min: 0.6, bar: 'bg-amber-400' },
-  { label: 'نیازمند تلاش (زیر ۶۰٪)', min: -1, bar: 'bg-rose-500' },
+  { label: 'قابل قبول (۶۰٪ تا کمتر از ۸۰٪)', min: 0.6, bar: 'bg-sky-500' },
+  { label: 'متوسط (۴۰٪ تا کمتر از ۶۰٪)', min: 0.4, bar: 'bg-amber-400' },
+  { label: 'نیازمند تلاش (زیر ۴۰٪)', min: -1, bar: 'bg-rose-500' },
 ];
 
 interface Props {
@@ -139,7 +140,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const values = classStudents.map((s) => parseScore(draft[s.id] ?? '')).filter((n): n is number => n !== null && !Number.isNaN(n));
   const avg = mean(values.map((v) => (v / maxScore) * 100));
   const levelCounts = LEVELS.map((l, i) => values.filter((v) => v / maxScore >= l.min && (i === 0 || v / maxScore < LEVELS[i - 1].min)).length);
-  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < maxScore * 0.6; });
+  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < maxScore * 0.4; });
   const trend = EXAM_MONTHS.map((m) => {
     const mx = examMaxOf(record, m.key, opt.key);
     const vs = Object.values(examScoresOf(record, m.key)).map((c) => c[opt.key]).filter((v): v is number => typeof v === 'number').map((v) => (v / mx) * 100);
@@ -280,7 +281,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
       {weakList.length > 0 && (
         <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-3 text-xs">
-          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (زیر ۶۰٪، یعنی نمره‌ی زیر {toPersianDigits(round2(maxScore * 0.6))}):</div>
+          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (زیر ۴۰٪، یعنی نمره‌ی زیر {toPersianDigits(round2(maxScore * 0.4))}):</div>
           <div className="flex flex-wrap gap-1.5">{weakList.map((s) => <span key={s.id} className="px-2 py-1 rounded-lg bg-white border border-rose-200 font-bold text-rose-800">{studentFullName(s)}</span>)}</div>
         </div>
       )}

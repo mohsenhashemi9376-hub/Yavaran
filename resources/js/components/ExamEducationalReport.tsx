@@ -3,7 +3,7 @@ import { Award, ClipboardList, FileText, Sigma, TriangleAlert } from 'lucide-rea
 import { useSchool } from '../context/SchoolContext';
 import { Student } from '../types';
 import { StudentFullReportModal } from './StudentFullReportModal';
-import { analyzeClassExam, bandCounts, stdDev, EXAM_MONTHS, EXAM_WEAK_BELOW, ExamMonth, examMonthLabel, examMonthsWithData, faExamPct } from '../utils/examReport';
+import { analyzeClassExam, bandCounts, stdDev, EXAM_MONTHS, EXAM_NEEDS_EFFORT_BELOW, ExamMonth, examMonthLabel, examMonthsWithData, faExamPct } from '../utils/examReport';
 import { SCORE_BAND_STYLE, ScoreBand, scoreBand } from '../utils/gradePeriods';
 import { toPersianDigits } from '../utils/persianDate';
 import { studentFullName, compareStudents } from '../utils/studentName';
@@ -105,7 +105,7 @@ export const ExamEducationalReport: React.FC<Props> = ({ onSelectStudent }) => {
             </div>
             <div className="rounded-2xl bg-rose-50/70 border border-rose-100 p-4 flex items-center gap-3">
               <TriangleAlert className="w-6 h-6 text-rose-500 shrink-0" />
-              <div><div className="text-xs font-bold text-rose-800">دانش‌آموزان ضعیف (معدل زیر {faExamPct(EXAM_WEAK_BELOW)})</div><div className="text-2xl font-black text-slate-900">{toPersianDigits(analysis.weak.length)} <span className="text-xs font-bold text-slate-500">نفر</span></div></div>
+              <div><div className="text-xs font-bold text-rose-800">دانش‌آموزان ضعیف (معدل زیر {faExamPct(EXAM_NEEDS_EFFORT_BELOW)})</div><div className="text-2xl font-black text-slate-900">{toPersianDigits(analysis.weak.length)} <span className="text-xs font-bold text-slate-500">نفر</span></div></div>
             </div>
           </div>
 

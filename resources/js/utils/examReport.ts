@@ -26,8 +26,15 @@ export const examMonthLabel = (m: ExamMonth): string =>
 
 /** حد «ضعیف» (۶۰٪ نمره) روی مقیاس ۲۰ برای فهرست دانش‌آموزان ضعیف */
 export const EXAM_WEAK_BELOW = 12;
-/** حد «ممتاز» (۸۰٪ نمره) روی مقیاس ۲۰ */
+/** سطح‌بندی تحلیل آزمون جامع (روی مقیاس ۲۰): ممتاز ۸۰٪+ • قابل قبول ۶۰ تا ۸۰٪ • متوسط ۴۰ تا ۶۰٪ • نیازمند تلاش زیر ۴۰٪ */
 export const EXAM_EXCELLENT_FROM = 16;
+export const EXAM_ACCEPTABLE_FROM = 12;
+export const EXAM_NEEDS_EFFORT_BELOW = 8;
+export type ExamLevelId = 'excellent' | 'acceptable' | 'medium' | 'weak';
+export const examLevelOf = (score?: number | null): ExamLevelId | null =>
+  score === undefined || score === null || Number.isNaN(score)
+    ? null
+    : score >= EXAM_EXCELLENT_FROM ? 'excellent' : score >= EXAM_ACCEPTABLE_FROM ? 'acceptable' : score >= EXAM_NEEDS_EFFORT_BELOW ? 'medium' : 'weak';
 
 export type ExamScores = Record<string, Partial<Record<ExamSubjectKey, number>>>;
 
@@ -147,7 +154,7 @@ export function analyzeClassExam(record: ComprehensiveExamRecord | undefined, cl
     subjectAverages,
     classAverage: mean(ranked.map((r) => r.avg as number)),
     top,
-    weak: ranked.filter((r) => (r.avg as number) < EXAM_WEAK_BELOW).reverse(),
+    weak: ranked.filter((r) => (r.avg as number) < EXAM_NEEDS_EFFORT_BELOW).reverse(),
     hasData: ranked.length > 0,
   };
 }
