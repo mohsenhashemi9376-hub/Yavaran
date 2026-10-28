@@ -45,6 +45,9 @@ const normalizeInput = (raw: string) =>
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const fa = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : toPersianDigits(String(round2(n)).replace('.', '٫'));
+/** معدل (روی مقیاس ۲۰) را به درصد نشان می‌دهد */
+const faPct = (n: number | null | undefined) =>
+  n === null || n === undefined ? '—' : `${toPersianDigits(String(round2(n * 5)).replace('.', '٫'))}٪`;
 
 const parseScore = (v: string | undefined): number | null => {
   if (v === undefined || v === '') return null;
@@ -358,8 +361,8 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <Sigma className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-500">معدل کل آزمون جامع کلاس</div>
-            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{fa(classAverage)}</div>
+            <div className="text-xs font-bold text-slate-500">معدل کل آزمون جامع کلاس (درصد)</div>
+            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{faPct(classAverage)}</div>
           </div>
         </div>
         <div className={`${card} p-4 flex items-center gap-3`}>
@@ -370,7 +373,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <div className="text-xs font-bold text-slate-500">درس قوت</div>
             <div className="text-lg font-extrabold text-slate-900 mt-0.5 truncate">
               {strongest ? strongest.label : '—'}
-              {strongest && <span className="text-sm font-bold text-emerald-600 mr-2">{fa(strongest.avg)}</span>}
+              {strongest && <span className="text-sm font-bold text-emerald-600 mr-2">{faPct(strongest.avg)}</span>}
             </div>
           </div>
         </div>
@@ -382,7 +385,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <div className="text-xs font-bold text-slate-500">درس نیازمند تقویت</div>
             <div className="text-lg font-extrabold text-slate-900 mt-0.5 truncate">
               {weakest ? weakest.label : '—'}
-              {weakest && <span className="text-sm font-bold text-rose-500 mr-2">{fa(weakest.avg)}</span>}
+              {weakest && <span className="text-sm font-bold text-rose-500 mr-2">{faPct(weakest.avg)}</span>}
             </div>
           </div>
         </div>
@@ -418,7 +421,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                   <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((s.avg ?? 0) / 20) * 100}%` }} />
                   </div>
-                  <span className="w-12 text-center text-sm font-extrabold text-slate-800">{fa(s.avg)}</span>
+                  <span className="w-14 text-center text-sm font-extrabold text-slate-800">{faPct(s.avg)}</span>
                 </div>
               );
             })}
@@ -509,7 +512,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                         );
                       })}
                       <td className="p-3 text-center">
-                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap tabular-nums ${examScoreClass(avg)}`}>{fa(avg)}</span>
+                        <span className={`inline-block font-black text-sm rounded-xl py-1 px-2.5 shadow-2xs whitespace-nowrap tabular-nums ${examScoreClass(avg)}`}>{faPct(avg)}</span>
                       </td>
                       <td className="p-3 text-center">
                         {absent[st.id] ? (
