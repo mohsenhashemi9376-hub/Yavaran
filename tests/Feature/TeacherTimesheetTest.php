@@ -103,7 +103,7 @@ class TeacherTimesheetTest extends TestCase
         $this->actingAs($teacher)->get('/teacher-timesheets')->assertRedirect('/');
         $this->actingAs($teacher)->getJson('/api/teacher-timesheets?month=aban')->assertStatus(403);
 
-        $this->actingAs($vice)->get('/teacher-timesheets')->assertOk();
+        $this->actingAs($vice)->get('/teacher-timesheets')->assertRedirect('/');
         $row = collect($this->actingAs($vice)->getJson('/api/teacher-timesheets?month=aban')->assertOk()->json('teachers'))->firstWhere('id', $teacher->id);
         $this->assertSame(6.5, (float) $row['hours']);
         $this->assertSame(1, $row['days']);
