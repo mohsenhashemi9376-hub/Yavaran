@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Lock, Save, Trophy, TrendingDown, Users } from 'lucide-react';
+import { BarChart3, Save, Trophy, TrendingDown, Users } from 'lucide-react';
 import { useSchool } from '../context/SchoolContext';
 import { ComprehensiveExamRecord, EXAM_SUBJECTS, ExamSubjectKey, SchoolClass } from '../types';
 import { EXAM_MONTHS, examScoresOf, examMaxOf, isExamAbsent, mean, round2 } from '../utils/examReport';
@@ -61,7 +61,7 @@ interface Props {
  * دبیر فقط نمره‌ی درس خودش را (وقتی معاونت آموزش ثبت نمره‌ی آن ماه را باز کرده) وارد می‌کند و فقط تحلیل همان درس را می‌بیند.
  */
 export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => {
-  const { students, comprehensiveExams, saveComprehensiveExam, isGradePeriodOpen, showToast } = useSchool();
+  const { students, comprehensiveExams, saveComprehensiveExam, showToast } = useSchool();
 
   const options = useMemo(
     () =>
@@ -81,9 +81,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const record: ComprehensiveExamRecord | undefined = useMemo(() => comprehensiveExams.find((r) => r.classId === opt?.classId), [comprehensiveExams, opt?.classId]);
   const classStudents = useMemo(() => (opt ? students.filter((s) => s.classId === opt.classId).slice().sort(compareByLastName) : []), [students, opt?.classId]);
 
-  const open = Boolean(opt) && isGradePeriodOpen(month, opt.subjectId);
-  // باز بودن ماه برای درس دبیر کافی است؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
-  const canEdit = open;
+  // ورود نمره‌ی آزمون جامع همیشه برای دبیر درس باز است (مستقل از بازبودن ماه در «ثبت نمرات» مستمر)؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
+  const canEdit = Boolean(opt);
 
   useEffect(() => {
     if (!opt) return;
@@ -165,15 +164,9 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
             {options.map((o, i) => <option key={`${o.classId}-${o.key}`} value={i}>{o.className} — {o.subjectName}</option>)}
           </select>
           <select value={month} onChange={(e) => { if (dirty && !window.confirm('تغییرات ذخیره‌نشده از بین می‌رود. ادامه می‌دهید؟')) return; setMonth(e.target.value as typeof month); }} aria-label="ماه" className="h-11 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm font-bold text-slate-800 outline-none cursor-pointer">
-            {EXAM_MONTHS.map((m) => <option key={m.key} value={m.key}>{m.monthName.replace('مستمر ', '')}{isGradePeriodOpen(m.key, opt.subjectId) ? ' 🟢' : ''}</option>)}
+            {EXAM_MONTHS.map((m) => <option key={m.key} value={m.key}>{m.monthName.replace('مستمر ', '')}</option>)}
           </select>
         </div>
-        {!canEdit && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-bold text-amber-900">
-            <Lock className="w-4 h-4 shrink-0" />
-            ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.
-          </div>
-        )}
       </div>
 
       {/* ورود نمره */}
