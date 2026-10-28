@@ -554,6 +554,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     return ev ? { date: ev.date, title: ev.title } : null;
   }, [timelineEvents]);
 
+  const [editingNote, setEditingNote] = useState<DisciplinaryNote | null>(null);
+
   if (!isOpen || !currentStudent) return null;
 
   // Handlers
@@ -604,8 +606,6 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       showToast('خطا در حذف', 'عملیات حذف با خطا مواجه شد.', 'error');
     }
   };
-
-  const [editingNote, setEditingNote] = useState<DisciplinaryNote | null>(null);
 
   const handleDeleteDiscipline = (noteId: string) => {
     try {
