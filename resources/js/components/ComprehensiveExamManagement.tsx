@@ -13,22 +13,22 @@ interface ComprehensiveExamManagementProps {
   onOpenSidebar: () => void;
 }
 
-/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۰ تا کمتر از ۱۶ زرد، زیر ۱۰ قرمز، بدون نمره خاکستری کم‌رنگ */
+/** رنگ‌بندی نمره: ۱۶ به بالا سبز، ۱۲ تا کمتر از ۱۶ زرد، زیر ۱۲ قرمز، بدون نمره خاکستری کم‌رنگ */
 const examScoreClass = (score: number | null | undefined): string => {
   if (score === null || score === undefined || Number.isNaN(score)) return 'bg-slate-100/70 border border-slate-200/70 text-slate-400';
   if (score >= 16) return 'bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold';
-  if (score >= 10) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
+  if (score >= EXAM_WEAK_BELOW) return 'bg-amber-100 border border-amber-200 text-amber-700 font-bold';
   return 'bg-rose-100 border border-rose-200 text-rose-700 font-bold';
 };
 
 type Draft = Record<string, Partial<Record<ExamSubjectKey, string>>>;
 type SortKey = ExamSubjectKey | 'average';
 
-/** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۵۰٪ = ۱۰ */
+/** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۶۰٪ = ۱۲ */
 const LEVELS = [
   { id: 'excellent', label: 'ممتاز', hint: '۸۰٪ و بالاتر', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
-  { id: 'medium', label: 'متوسط', hint: '۵۰٪ تا کمتر از ۸۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
-  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۵۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
+  { id: 'medium', label: 'متوسط', hint: '۶۰٪ تا کمتر از ۸۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
+  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۶۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
 ] as const;
 
 const levelOf = (avg: number | null) => {

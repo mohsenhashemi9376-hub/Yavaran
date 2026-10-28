@@ -44,8 +44,8 @@ const fa = (n?: number | null) => (n === undefined || n === null ? '—' : toPer
 /** سطح‌بندی درصدی نسبت به بارم درس */
 const LEVELS = [
   { label: 'ممتاز (۸۰٪ و بالاتر)', min: 0.8, bar: 'bg-emerald-500' },
-  { label: 'متوسط (۵۰٪ تا کمتر از ۸۰٪)', min: 0.5, bar: 'bg-amber-400' },
-  { label: 'نیازمند تلاش (زیر ۵۰٪)', min: -1, bar: 'bg-rose-500' },
+  { label: 'متوسط (۶۰٪ تا کمتر از ۸۰٪)', min: 0.6, bar: 'bg-amber-400' },
+  { label: 'نیازمند تلاش (زیر ۶۰٪)', min: -1, bar: 'bg-rose-500' },
 ];
 
 interface Props {
@@ -138,7 +138,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const values = classStudents.map((s) => parseScore(draft[s.id] ?? '')).filter((n): n is number => n !== null && !Number.isNaN(n));
   const avg = mean(values);
   const levelCounts = LEVELS.map((l, i) => values.filter((v) => v / maxScore >= l.min && (i === 0 || v / maxScore < LEVELS[i - 1].min)).length);
-  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < maxScore / 2; });
+  const weakList = classStudents.filter((s) => { const n = parseScore(draft[s.id] ?? ''); return n !== null && !Number.isNaN(n) && n < maxScore * 0.6; });
   const trend = EXAM_MONTHS.map((m) => {
     const vs = Object.values(examScoresOf(record, m.key)).map((c) => c[opt.key]).filter((v): v is number => typeof v === 'number');
     return { key: m.key, label: m.monthName.replace('مستمر ', ''), avg: mean(vs), n: vs.length };
@@ -258,7 +258,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
       {weakList.length > 0 && (
         <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-3 text-xs">
-          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (زیر ۵۰٪، یعنی نمره‌ی زیر {toPersianDigits(maxScore / 2)}):</div>
+          <div className="font-black text-rose-800 mb-1.5">نیازمند تلاش (زیر ۶۰٪، یعنی نمره‌ی زیر {toPersianDigits(round2(maxScore * 0.6))}):</div>
           <div className="flex flex-wrap gap-1.5">{weakList.map((s) => <span key={s.id} className="px-2 py-1 rounded-lg bg-white border border-rose-200 font-bold text-rose-800">{studentFullName(s)}</span>)}</div>
         </div>
       )}
