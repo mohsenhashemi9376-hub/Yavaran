@@ -6,6 +6,7 @@ import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
 import { hasUnsavedChanges } from './utils/unsavedGuard';
+import { useStudentNameLinks } from './utils/useStudentNameLinks';
 import { Header } from './components/Header';
 import { ConfidentialGuard } from './components/ConfidentialGuard';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
@@ -253,6 +254,13 @@ const MainApp: React.FC = () => {
     setProfileInitialTab(tab);
     setStudentProfileModalOpen(true);
   };
+
+  // ضربه روی نام دانش‌آموز در هر بخش (مدیر، معاونین، مربی) پرونده‌ی او را باز می‌کند
+  useStudentNameLinks(
+    isAdmin || isEducationalVice || isDisciplinaryVice || isNurturingVice || isCoach,
+    students,
+    (st) => handleOpenStudentProfile(st),
+  );
 
   const handleOpenAcademicGrades = (classId?: string, subjectId?: string) => {
     setTargetClassForGrades(classId);

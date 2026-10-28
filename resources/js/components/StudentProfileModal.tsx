@@ -694,7 +694,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               {currentStudent.firstName[0]}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 truncate">
+              <h2 data-no-student-link className="text-base sm:text-lg font-extrabold text-slate-900 truncate">
                 {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
