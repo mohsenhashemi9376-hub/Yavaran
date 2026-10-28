@@ -168,7 +168,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(teacherView && initialTab === 'info' ? 'overview' : initialTab === 'attendance' ? 'discipline' : initialTab || 'overview');
+      setActiveTab(teacherView ? (initialTab === 'grades' || initialTab === 'education' ? initialTab : 'discipline') : initialTab === 'attendance' ? 'discipline' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -340,16 +340,28 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     return rows.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
   }, [morningLogs, studentMorningDelays, studentSchoolAbsences, sessionLogs]);
 
+  // دبیر فقط سوابقی را می‌بیند که خودش در جلسه‌های کلاسش برای این دانش‌آموز ثبت کرده
+  const ownLogs = sessionLogs.filter((l) => l.session.teacherId === currentUser.id);
+  const ownProblemLogs = ownLogs.filter((l) => l.status !== 'present');
+  const ownAbsentCount = ownLogs.filter((l) => l.status === 'absent').length;
+  const ownLateCount = ownLogs.filter((l) => l.status === 'late').length;
+
   const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
   const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
   const filteredAttendanceRecords =
     attendanceFilter === 'absent' ? attendanceAbsentRows : attendanceFilter === 'late' ? attendanceLateRows : attendanceRecords;
 
-  /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) */
+  /** بعد از عوض شدن تب، تا بخش مورد نظر پایین می‌رود */
+  const scrollToSection = (id: string) => {
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+  };
+
+  /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) و رفتن به همان فهرست */
   const openAttendanceTab = (filter: 'all' | 'absent' | 'late') => {
     setAttendanceFilter(filter);
     setActiveTab('discipline');
     setIsEditing(false);
+    scrollToSection('profile-attendance-list');
   };
 
   // Attendance Metrics
@@ -641,6 +653,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                 )}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
+              {!teacherView && (
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
           {currentStudent.parentPhone && (
             <a
@@ -664,6 +677,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
             </a>
           )}
               </div>
+              )}
             </div>
           </div>
 
@@ -733,57 +747,79 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
         )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
+        {teacherView ? (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 px-3 sm:px-7 pt-3 sm:pt-5 text-xs">
+          {([
+            ['جلسه‌های من', ownLogs.length, 'text-slate-800', 'ثبت‌شده برای این دانش‌آموز'],
+            ['غیبت در کلاس من', ownAbsentCount, ownAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800', 'تعداد جلسه‌هایی که غایب بود'],
+            ['تأخیر در کلاس من', ownLateCount, ownLateCount > 0 ? 'text-amber-600' : 'text-slate-800', 'تعداد جلسه‌هایی که دیر آمد'],
+          ] as const).map(([label, value, tone, hint]) => (
+            <div key={label} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200">
+              <div className="text-slate-500 text-xs">{label}</div>
+              <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${tone}`}>{toPersianDigits(value)}</div>
+              <div className="text-[11px] text-slate-400 mt-1">{hint}</div>
+            </div>
+          ))}
+        </div>
+        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 px-3 sm:px-7 pt-3 sm:pt-5 text-xs">
           <button
             type="button"
             onClick={() => openAttendanceTab('absent')}
-            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
+            className="text-right bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
           >
-            <div className="text-slate-500 text-xs">غیبت</div>
+            <div className="text-slate-500 text-xs">روزهای غیبت</div>
             <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalAbsentCount)}
-              {totalExcusedCount > 0 && (
-                <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(totalExcusedCount)} موجه</span>
-              )}
+              <span className="text-[11px] font-bold text-slate-400 mr-1.5">غیرموجه</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              {latestAbsence ? `آخرین: ${formatShamsiDisplay(latestAbsence)}` : 'بدون غیبت'}
+              {totalExcusedCount > 0 ? `${toPersianDigits(totalExcusedCount)} روز غیبت موجه` : latestAbsence ? '' : 'بدون غیبت'}
+              {latestAbsence ? `${totalExcusedCount > 0 ? ' · ' : ''}آخرین: ${formatShamsiDisplay(latestAbsence)}` : ''}
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => openAttendanceTab('late')}
-            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
+            className="text-right bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
           >
-            <div className="text-slate-500 text-xs">تأخیر</div>
+            <div className="text-slate-500 text-xs">دفعات تأخیر</div>
             <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
               {toPersianDigits(totalDelaysCount)}
+              <span className="text-[11px] font-bold text-slate-400 mr-1.5">بار</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
               {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
             </div>
             {delaySummary.minutes > 0 && (
               <div className="text-[11px] font-bold text-amber-700 mt-1">
-                مجموع {toPersianDigits(delaySummary.minutes)} دقیقه
+                جمعاً {toPersianDigits(delaySummary.minutes)} دقیقه
               </div>
             )}
           </button>
 
-          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
-            <div className="text-slate-500 text-xs">موارد انضباطی</div>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('discipline'); setIsEditing(false); scrollToSection('profile-discipline-notes'); }}
+            className="text-right bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 hover:bg-violet-50/60 hover:border-violet-200 transition cursor-pointer"
+          >
+            <div className="text-slate-500 text-xs">موارد انضباطی ثبت‌شده</div>
             <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
               {toPersianDigits(disciplinaryNotes.length)}
-              {totalDeductedPoints > 0 && (
-                <span className="text-[11px] font-normal text-rose-500 mr-1.5">-{toPersianDigits(totalDeductedPoints)} نمره</span>
-              )}
+              <span className="text-[11px] font-bold text-slate-400 mr-1.5">مورد</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1 truncate">
               {latestDiscipline ? `آخرین: ${latestDiscipline.title}` : 'پرونده تمیز'}
             </div>
-          </div>
+            {totalDeductedPoints > 0 && (
+              <div className="text-[11px] font-bold text-rose-600 mt-1">
+                جمعاً {toPersianDigits(Math.round(totalDeductedPoints * 100) / 100)} نمره کسر شده
+              </div>
+            )}
+          </button>
 
-          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
+          <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200">
             <div className="text-slate-500 text-xs">نمره انضباط</div>
             <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${
               disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'
@@ -795,12 +831,14 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
             </div>
           </div>
         </div>
+        )}
 
         {/* =========================================================================
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
         <div className="flex items-center px-3 sm:px-7 pt-3 sm:pt-5">
           <div className="flex items-center gap-1.5 py-1 max-w-full overflow-x-auto sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {!teacherView && (
             <button
               id="tab-btn-overview"
               onClick={() => {
@@ -816,6 +854,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               <Activity className="w-3.5 h-3.5" />
               <span>خلاصه پرونده</span>
             </button>
+            )}
 
             {!teacherView && (
             <button
@@ -848,7 +887,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>انضباط و حضور ({toPersianDigits(disciplinaryNotes.length + attendanceRecords.length)})</span>
+              <span>{teacherView ? `سوابق من (${toPersianDigits(ownProblemLogs.length)})` : `انضباط و حضور (${toPersianDigits(disciplinaryNotes.length + attendanceRecords.length)})`}</span>
             </button>
 
             <button
@@ -1213,7 +1252,35 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           {/* =======================================================================
               TAB 3: حضور و غیاب و تأخیرها (ATTENDANCE & DELAYS)
           ======================================================================= */}
-          {activeTab === 'discipline' && !isEditing && (
+          {activeTab === 'discipline' && !isEditing && teacherView && (
+            <div className="space-y-3" id="profile-attendance-list">
+              <p className="text-xs text-slate-500 leading-6">فقط مواردی که خودتان در جلسه‌های کلاس برای این دانش‌آموز ثبت کرده‌اید نمایش داده می‌شود.</p>
+              {ownProblemLogs.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                  هنوز غیبت، تأخیر یا یادداشتی از طرف شما برای این دانش‌آموز ثبت نشده است.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {ownProblemLogs.map((l) => (
+                    <div key={l.session.id} className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-800">{formatShamsiWithWeekday(l.session.date)}</span>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                          l.status === 'absent' ? 'bg-rose-50 text-rose-700 border-rose-200' : l.status === 'late' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          {l.status === 'absent' ? 'غایب' : l.status === 'late' ? `تأخیر${l.delayMinutes ? ` • ${toPersianDigits(l.delayMinutes)} دقیقه` : ''}` : 'موجه'}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">{l.session.subject}{l.session.bellPeriodName ? ` • ${l.session.bellPeriodName}` : ''}</div>
+                      {l.note && <div className="mt-2 bg-slate-50 border border-slate-200 text-slate-700 text-[11px] leading-relaxed p-2 rounded-lg">{l.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'discipline' && !isEditing && !teacherView && (
             <div className="space-y-4">
               {/* آمار تجمیعی حضور پدر و مادر در جلسات عمومی أولیا (فقط با مجوز) */}
               <ParentMeetingsProfileCard studentId={currentStudent.id} />
@@ -1258,7 +1325,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               </div>
 
               {/* فیلترهای وضعیت */}
-              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
+              <div id="profile-attendance-list" className="scroll-mt-4 flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
                 {([
                   ['all', 'همه موارد', attendanceRecords.length, 'bg-slate-50 text-slate-800 border-slate-200 ring-slate-300'],
                   ['absent', 'فقط غیبت‌ها', attendanceAbsentRows.length, 'bg-rose-50 text-rose-800 border-rose-200 ring-rose-300'],
@@ -1353,7 +1420,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           )}
 
           {activeTab === 'discipline' && !isEditing && !teacherView && (
-            <div className="space-y-4">
+            <div id="profile-discipline-notes" className="scroll-mt-4 space-y-4">
               
               {/* Discipline Score Overview Card */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
