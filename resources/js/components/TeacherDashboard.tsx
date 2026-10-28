@@ -90,6 +90,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
   const [examFocus, setExamFocus] = useState(false);
   useScrollTop(activeView);
+  const [showGradeAnalytics, setShowGradeAnalytics] = useState(false);
 
   // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
   const [circularModal, setCircularModal] = useState<SchoolAnnouncement | null>(null);
@@ -862,7 +863,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
               {currentGradeClass ? (
                 <>
-                  <ClassGradeAnalytics classData={currentGradeClass} />
+                  {/* موبایل: تحلیل کلاس پیش‌فرض بسته است تا فرم نمره بالاتر دیده شود */}
+                  <button
+                    type="button"
+                    onClick={() => setShowGradeAnalytics((v) => !v)}
+                    aria-expanded={showGradeAnalytics}
+                    className="md:hidden w-full min-h-12 rounded-2xl border border-slate-200 bg-white shadow-sm px-4 text-sm font-extrabold text-slate-800 inline-flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="inline-flex items-center gap-2"><BarChart2 className="w-4 h-4 text-emerald-700" />تحلیل نمرات کلاس</span>
+                    <span className="text-xs font-bold text-emerald-700">{showGradeAnalytics ? 'بستن' : 'نمایش'}</span>
+                  </button>
+                  <div className={showGradeAnalytics ? '' : 'hidden md:block'}>
+                    <ClassGradeAnalytics classData={currentGradeClass} />
+                  </div>
                   <ClassMonthlyGradesSection
                     classData={currentGradeClass}
                     onSelectStudent={onSelectStudent}
