@@ -33,7 +33,8 @@ const unlock = () => {
   body.style.overflow = '';
   body.style.paddingInlineEnd = '';
   html.style.overscrollBehavior = '';
-  window.scrollTo(0, savedY);
+  // html دارای scroll-behavior: smooth است؛ بدون instant صفحه از بالا تا جای قبلی «سُر می‌خورد»
+  window.scrollTo({ top: savedY, left: 0, behavior: 'instant' });
   locked = false;
 };
 

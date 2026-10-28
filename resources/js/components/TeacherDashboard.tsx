@@ -10,44 +10,19 @@ import { exportClassAttendanceToExcel } from '../utils/excelExport';
 import { getUserGreeting } from '../utils/userRoles';
 import { SessionDetailModal } from './SessionDetailModal';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
-import { ClassGradeAnalytics } from './ClassGradeAnalytics';
 import { QUALITATIVE_RATING_MAP } from './TeacherEvaluationSection';
+import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
 import { TeacherSidebarNav, TeacherViewType } from './TeacherSidebarNav';
-import { 
-  GraduationCap, 
-  Users, 
-  CheckCircle2, 
-  FileSpreadsheet, 
-  PlusCircle, 
-  BookOpen, 
-  Clock, 
-  Edit, 
-  Trash2, 
-  BarChart2, 
-  Search, 
-  Lock, 
-  ChevronLeft, 
-  Eye, 
-  CheckCircle, 
-  AlertCircle, 
-  Award, 
-  Star, 
-  Bell, 
-  ShieldCheck, 
-  TrendingUp, 
-  ArrowUpRight,
-  CalendarCheck,
-  SearchX,
-  Check,
-  Calendar,
-  FileText
-} from 'lucide-react';
+import { GraduationCap, Users, CheckCircle2, PlusCircle, BookOpen, Clock, Edit, Trash2, Search, ChevronLeft, Eye, Award, Star, Bell, CalendarCheck, SearchX, Calendar, FileText } from 'lucide-react';
 import { MobileBottomNav } from './MobileBottomNav';
 import { EmptyState } from './EmptyState';
 import { teacherMobileNav, HOME } from './mobileNavConfigs';
+import { TeacherSubjectsView } from './TeacherSubjectsView';
+import { TeacherReportCardsView } from './TeacherReportCardsView';
+import { TeacherReportsView } from './TeacherReportsView';
+import { TeacherGradesView } from './TeacherGradesView';
 import { TeacherLessonPlans } from './TeacherLessonPlans';
 import { TeacherExamSection, examKeyOfSubjectName } from './TeacherExamSection';
-import { studentFullName } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
 import { Tile } from './ui/Tile';
 import { TeacherPunchTile } from './TeacherPunchTile';
@@ -89,6 +64,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [activeView, setActiveView] = useState<TeacherViewType>('dashboard');
   const [examFocus, setExamFocus] = useState(false);
   useScrollTop(activeView);
+  const [showGradeAnalytics, setShowGradeAnalytics] = useState(false);
 
   // بخشنامه‌ها: وضعیت خوانده‌شدن از اعلان‌های سرور (type=circular) خوانده می‌شود
   const [circularModal, setCircularModal] = useState<SchoolAnnouncement | null>(null);
@@ -366,12 +342,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           })()}
 
           {activeView === 'dashboard' && !selectedCourse && (
-            <div className="relative isolate space-y-6">
-              <div className="pointer-events-none absolute -top-16 -start-10 -z-10 size-72 rounded-full bg-emerald-200/40 blur-3xl" aria-hidden="true" />
-              <div className="pointer-events-none absolute top-1/2 -end-10 -z-10 size-72 rounded-full bg-teal-200/30 blur-3xl" aria-hidden="true" />
+            <div className="space-y-5">
               
               {/* کادر خوشامد شیشه‌ای (هم‌سبک پنل معاونین) */}
-              <section className="rounded-2xl border border-white/70 bg-white/60 p-4 sm:p-6 shadow-sm backdrop-blur-xl">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h2 className="text-base sm:text-xl font-black text-slate-900">{userGreeting.greeting} 👋</h2>
                   <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-gradient-to-l from-emerald-50 to-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs whitespace-nowrap">دبیر</span>
@@ -382,6 +356,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <span className="text-slate-300">·</span>
                   <span>مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر</span>
                 </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => onOpenNewAttendance()} className="min-h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
+                    <CheckCircle2 className="w-4 h-4" />
+                    حضور و غیاب
+                  </button>
+                  <button type="button" onClick={() => { if (!selectedClassForMonthlyGrades && teacherClasses.length > 0) setSelectedClassForMonthlyGrades(teacherClasses[0].id); setActiveView('grades'); }} className="min-h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
+                    <Award className="w-4 h-4" />
+                    ثبت نمره
+                  </button>
+                </div>
               </section>
 
               {/* کادر آزمون جامع: معدل ماه قبل */}
@@ -445,7 +429,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                               openCourse();
                             }
                           }}
-                          className="rounded-2xl p-5 border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white/70 to-teal-50/60 shadow-sm backdrop-blur-sm hover:-translate-y-0.5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between cursor-pointer text-right"
+                          className="rounded-2xl p-4 border border-emerald-200/80 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all space-y-4 flex flex-col justify-between cursor-pointer text-right"
                         >
                           <div className="space-y-2">
                             <h4 className="text-base font-extrabold text-slate-900 leading-snug">
@@ -493,7 +477,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
 
               {/* SECTION: Recent Sessions List */}
-              <div className="rounded-2xl p-4 sm:p-5 border border-white/70 bg-white/60 shadow-sm backdrop-blur-xl space-y-4">
+              <div className="rounded-2xl p-4 sm:p-5 border border-slate-200 bg-white shadow-sm space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70">
                   <div className="flex items-center gap-2">
                     <Clock className="w-5 h-5 text-emerald-700" />
@@ -614,118 +598,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           )}
 
           {/* VIEW 3: MY SUBJECTS (دروس تدریسی من) */}
-          {activeView === 'subjects' && (
-            <div className="space-y-5">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      دروس تدریسی من
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      عناوین دروس و کلاس‌های مرتبط با هر درس
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-xs bg-amber-50 text-amber-900 font-bold px-3 py-1.5 rounded-xl border border-amber-200 self-start sm:self-auto">
-                  {toPersianDigits(subjectGroups.length)} عنوان درسی
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                {subjectGroups.map((group, gIdx) => {
-                  const totalGroupStudents = group.classes.reduce((sum, c) => {
-                    return sum + studentsOfClass(c.id).length;
-                  }, 0);
-
-                  return (
-                    <div key={gIdx} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-900 font-black text-sm rounded-lg border border-amber-200">
-                            درس: {group.subjectName}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            ({toPersianDigits(group.classes.length)} کلاس • {toPersianDigits(totalGroupStudents)} دانش‌آموز)
-                          </span>
-                        </div>
-                      </div>
-
-                      {group.classes.length === 0 ? (
-                        <div className="text-xs text-slate-400 py-3 text-center">
-                          هنوز کلاسی برای این عنوان درسی ثبت نشده است.
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                          {group.classes.map((cls) => {
-                            const cStudents = studentsOfClass(cls.id);
-                            return (
-                              <div key={cls.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-slate-900 text-xs">{cls.name}</span>
-                                  <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                    پایه {cls.grade}
-                                  </span>
-                                </div>
-                                <div className="text-[11px] text-slate-500">
-                                  {toPersianDigits(cStudents.length)} دانش‌آموز
-                                </div>
-                                <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200">
-                                  <button
-                                    onClick={() => onOpenClassDetail(cls)}
-                                    className="flex-1 py-1 text-[11px] bg-white hover:bg-emerald-50 text-emerald-800 font-bold rounded border border-slate-200 transition cursor-pointer"
-                                  >
-                                    ورود
-                                  </button>
-                                  <button
-                                    onClick={() => onOpenNewAttendance(cls.id)}
-                                    className="flex-1 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded transition cursor-pointer"
-                                  >
-                                    حضور و غیاب
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {activeView === 'subjects' && <TeacherSubjectsView subjectGroups={subjectGroups} onOpenClassDetail={onOpenClassDetail} onOpenNewAttendance={onOpenNewAttendance} />}
 
           {/* VIEW 4: ATTENDANCE MANAGEMENT (حضور و غیاب) */}
           {activeView === 'attendance' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      حضور و غیاب کلاس‌های شما
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      فهرست جلسات برگزار شده در کلاس‌های تحت تدریس شما
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onOpenNewAttendance()}
-                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs shrink-0"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>ثبت جلسه حضور و غیاب جدید</span>
-                </button>
-              </div>
+              <WorkspaceTitleBar
+                title="حضور و غیاب کلاس‌های شما"
+                icon={CheckCircle2}
+                subtitle="فهرست جلسات برگزار شده در کلاس‌های تحت تدریس شما"
+                actions={<HeaderAction variant="primary" icon={PlusCircle} label="ثبت جلسه جدید" onClick={() => onOpenNewAttendance()} className="!h-11" />}
+              />
 
               {/* Filters */}
               <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -855,65 +738,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           )}
 
           {/* VIEW 5: MONTHLY CONTINUOUS GRADES (ثبت نمره) */}
-          {activeView === 'grades' && (
-            <div className="space-y-4">
-              {/* Class selector banner */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-700" />
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">
-                      دفتر نمرات مستمر ماهانه کلاس‌های اختصاصی شما
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      انتخاب کلاس جهت ورود و تحلیل نمرات مستمر ماه‌های مهر تا اردیبهشت
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-600 font-bold">کلاس موردنظر:</span>
-                    <select
-                      value={selectedClassForMonthlyGrades}
-                      onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
-                      className="text-xs bg-emerald-50 text-emerald-900 border border-emerald-300 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                    >
-                      {gradeClasses.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {onOpenAcademicGrades && (
-                    <button
-                      onClick={() => onOpenAcademicGrades(selectedClassForMonthlyGrades)}
-                      className="px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>ورود به فرم نمرات</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {currentGradeClass ? (
-                <>
-                  <ClassGradeAnalytics classData={currentGradeClass} />
-                  <ClassMonthlyGradesSection
-                    classData={currentGradeClass}
-                    onSelectStudent={onSelectStudent}
-                  />
-                </>
-              ) : (
-                <div className="bg-white p-8 rounded-2xl border text-center text-slate-500">
-                  هیچ کلاسی در دسترس نیست.
-                </div>
-              )}
-            </div>
-          )}
+          {activeView === 'grades' && <TeacherGradesView gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} showGradeAnalytics={showGradeAnalytics} setShowGradeAnalytics={setShowGradeAnalytics} onOpenAcademicGrades={onOpenAcademicGrades} onSelectStudent={onSelectStudent} />}
 
           {/* VIEW: طرح درس روزانه */}
           {activeView === 'lesson_plans' && (
@@ -926,193 +751,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {activeView === 'exam' && hasExam && <TeacherExamSection groups={subjectGroups} focusReport={examFocus} />}
 
           {/* VIEW 6: REPORT CARDS (کارنامه) */}
-          {activeView === 'report_cards' && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-blue-100 text-blue-800 rounded-xl">
-                    <Award className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      کارنامه و وضعیت دانش‌آموزان کلاس‌های شما
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      مشاهده وضعیت تحصیلی، غیبت‌ها و پرونده انضباطی دانش‌آموزان کلاس‌های تحت تدریس
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 font-bold">کلاس:</span>
-                  <select
-                    value={selectedClassForMonthlyGrades}
-                    onChange={(e) => setSelectedClassForMonthlyGrades(e.target.value)}
-                    className="text-xs bg-slate-50 text-slate-900 border border-slate-200 font-bold rounded-xl px-3 py-2 outline-none cursor-pointer"
-                  >
-                    {gradeClasses.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {currentGradeClass ? (() => {
-                const classStudents = studentsOfClass(currentGradeClass.id);
-                return (
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">
-                        لیست دانش‌آموزان کلاس {currentGradeClass.name} ({toPersianDigits(classStudents.length)} نفر)
-                      </span>
-                      {onOpenAcademicGrades && (
-                        <button
-                          onClick={() => onOpenAcademicGrades(currentGradeClass.id)}
-                          className="text-xs text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>مشاهده دفتر نمرات جامع</span>
-                          <ChevronLeft className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    <FitTable className="">
-                      <table className="w-full text-xs text-right">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                            <th className="p-3 font-bold">ردیف</th>
-                            <th className="p-3 font-bold">نام و نام خانوادگی</th>
-                            <th className="p-3 font-bold text-center">غیبت در جلسات شما</th>
-                            <th className="p-3 font-bold text-center">عملیات</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {classStudents.map((std, idx) => {
-                            const studentAbsences = teacherSessions
-                              .filter(s => s.classId === currentGradeClass.id)
-                              .filter(s => {
-                                const recs: StudentAttendanceRecord[] = Object.values(s.records || {});
-                                return recs.some(r => r.studentId === std.id && r.status === 'absent');
-                              })
-                              .length;
-
-                            return (
-                              <tr key={std.id} className="hover:bg-slate-50/80 transition">
-                                <td className="p-3 font-mono text-slate-400">{toPersianDigits(idx + 1)}</td>
-                                <td className="p-3 font-bold text-slate-900">
-                                  {studentFullName(std)}
-                                </td>
-                                <td className="p-3 text-center">
-                                  {studentAbsences > 0 ? (
-                                    <span className="text-rose-600 font-bold">{toPersianDigits(studentAbsences)} جلسه</span>
-                                  ) : (
-                                    <span className="text-emerald-600 font-bold">بدون غیبت</span>
-                                  )}
-                                </td>
-                                <td className="p-3 text-center">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    {onSelectStudent && (
-                                      <button
-                                        onClick={() => onSelectStudent(std)}
-                                        className="px-2.5 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg transition cursor-pointer"
-                                      >
-                                        مشاهده پرونده
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </FitTable>
-                  </div>
-                );
-              })() : null}
-            </div>
-          )}
+          {activeView === 'report_cards' && <TeacherReportCardsView teacherSessions={teacherSessions} onSelectStudent={onSelectStudent} gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} onOpenAcademicGrades={onOpenAcademicGrades} />}
 
           {/* VIEW 7: REPORTS (گزارش‌های آموزشی) */}
-          {activeView === 'reports' && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 bg-indigo-100 text-indigo-800 rounded-xl">
-                    <BarChart2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      گزارش‌های آماری و تحلیلی آموزش
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      تحلیل جلسات برگزارشده، نرخ حضور و وضعیت کلاسی
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-xs bg-indigo-50 text-indigo-800 font-bold px-3 py-1.5 rounded-xl border border-indigo-200 self-start sm:self-auto">
-                  بر اساس دروس و کلاس‌های اختصاصی شما
-                </span>
-              </div>
-
-              {/* Stats overview cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
-                  <span className="text-xs text-slate-500 block">مجموع جلسات تشکیل‌شده</span>
-                  <div className="text-2xl font-black text-slate-900">{toPersianDigits(teacherSessions.length)} جلسه</div>
-                  <span className="text-[11px] text-emerald-600 block">ثبت شده در سامانه</span>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
-                  <span className="text-xs text-slate-500 block">کلاس‌های تحت پوشش</span>
-                  <div className="text-2xl font-black text-slate-900">{toPersianDigits(teacherClasses.length)} کلاس</div>
-                  <span className="text-[11px] text-slate-500 block">{toPersianDigits(totalStudentsTaught)} دانش‌آموز تحت تدریس</span>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1">
-                  <span className="text-xs text-slate-500 block">میانگین نرخ حضور</span>
-                  <div className="text-2xl font-black text-emerald-700">
-                    {teacherSessions.length > 0 ? '۹۳٪' : '۰٪'}
-                  </div>
-                  <span className="text-[11px] text-emerald-600 block">انضباط آموزشی بالا</span>
-                </div>
-              </div>
-
-              {/* Class breakdown */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3">
-                <h4 className="font-bold text-slate-900 text-sm">
-                  تفکیک جلسات و حضور و غیاب بر اساس هر کلاس
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {teacherClasses.map(cls => {
-                    const cSessions = teacherSessions.filter(s => s.classId === cls.id);
-                    const cStudents = studentsOfClass(cls.id);
-
-                    return (
-                      <div key={cls.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800 text-xs">{cls.name}</span>
-                          <span className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded font-medium">
-                            {toPersianDigits(cStudents.length)} دانش‌آموز
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-600 flex items-center justify-between">
-                          <span>تعداد جلسات:</span>
-                          <span className="font-bold">{toPersianDigits(cSessions.length)} جلسه</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-emerald-600 h-full rounded-full" style={{ width: '85%' }}></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+          {activeView === 'reports' && <TeacherReportsView teacherClasses={teacherClasses} teacherSessions={teacherSessions} totalStudentsTaught={totalStudentsTaught} />}
 
 
           {/* VIEW 8: EVALUATIONS & NOTICES */}

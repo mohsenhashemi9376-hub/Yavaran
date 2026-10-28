@@ -66,6 +66,10 @@ import {
 } from 'lucide-react';
 import { hasPermission } from '../utils/permissions';
 import { studentFullName } from '../utils/studentName';
+import { StudentBadges } from './StudentBadges';
+import { computeStudentBadges } from '../utils/studentBadges';
+import { useBadgeSettings } from '../lib/badgeSettingsStore';
+import { studentWorksheetHistory } from '../utils/worksheets';
 import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, DELAY_POINTS_DEDUCTED, formatMinutesLong } from '../utils/delays';
 import { FitTable } from './ui/FitTable';
 import { StudentTimeline } from './StudentTimeline';
@@ -142,6 +146,8 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     return students.find((s) => s.id === student.id) || student;
   }, [students, student]);
 
+  const badgeSettings = useBadgeSettings();
+
   // Tab State
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [isEditing, setIsEditing] = useState(false);
@@ -168,7 +174,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   // Synchronize state when modal opens or student changes
   useEffect(() => {
     if (isOpen && currentStudent) {
-      setActiveTab(teacherView && initialTab === 'info' ? 'overview' : initialTab === 'attendance' ? 'discipline' : initialTab || 'overview');
+      setActiveTab(teacherView ? (initialTab === 'grades' || initialTab === 'education' ? initialTab : 'discipline') : initialTab === 'attendance' ? 'discipline' : initialTab || 'overview');
       setIsEditing(false);
       setEditFirstName(currentStudent.firstName || '');
       setEditLastName(currentStudent.lastName || '');
@@ -340,16 +346,49 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     return rows.sort((a, b) => toEnglishDigits(b.date).localeCompare(toEnglishDigits(a.date)));
   }, [morningLogs, studentMorningDelays, studentSchoolAbsences, sessionLogs]);
 
+  // دبیر فقط سوابقی را می‌بیند که خودش در جلسه‌های کلاسش برای این دانش‌آموز ثبت کرده
+  const ownLogs = sessionLogs.filter((l) => l.session.teacherId === currentUser.id);
+  const ownProblemLogs = ownLogs.filter((l) => l.status !== 'present');
+  const ownAbsentCount = ownLogs.filter((l) => l.status === 'absent').length;
+  const ownLateCount = ownLogs.filter((l) => l.status === 'late').length;
+
+  // نشان‌های افتخار (شرایط را مدیر مدرسه از تنظیمات تعیین می‌کند)
+  const badges = currentStudent && !teacherView
+    ? (() => {
+        const delayDates = new Set(studentMorningDelays.map((d) => d.date));
+        return computeStudentBadges({
+          notes: disciplinaryNotes,
+          unexcusedAbsenceDates: [
+            ...morningLogs.filter((l) => l.status === 'absent' && !l.isExcused && !String(l.id).startsWith('implicit-')).map((l) => l.date),
+            ...studentSchoolAbsences.filter((a) => !a.isExcused).map((a) => a.date),
+          ],
+          lates: [
+            ...studentMorningDelays.map((d) => ({ date: d.date, time: d.arrivalTime })),
+            ...morningLogs.filter((l) => l.status === 'present' && l.delayMinutes > 0 && !delayDates.has(l.date)).map((l) => ({ date: l.date, time: l.entryTime })),
+          ],
+          worksheetWeeks: studentWorksheetHistory(currentStudent.id, worksheets, worksheetWeeks).map((w) => ({ weekStart: w.weekStart, delivered: w.status !== 'missing' })),
+          homework: sessionLogs.map((l) => ({ date: l.session.date, status: l.homeworkStatus })),
+          grades: studentAcademicGrades,
+        }, badgeSettings);
+      })()
+    : { discipline: false, academic: false };
+
   const attendanceAbsentRows = attendanceRecords.filter((r) => r.type === 'absent');
   const attendanceLateRows = attendanceRecords.filter((r) => r.type === 'late');
   const filteredAttendanceRecords =
     attendanceFilter === 'absent' ? attendanceAbsentRows : attendanceFilter === 'late' ? attendanceLateRows : attendanceRecords;
 
-  /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) */
+  /** بعد از عوض شدن تب، تا بخش مورد نظر پایین می‌رود */
+  const scrollToSection = (id: string) => {
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+  };
+
+  /** سوئیچ به تب حضور و غیاب با فیلتر مشخص (کارت‌های آماری بالای پرونده) و رفتن به همان فهرست */
   const openAttendanceTab = (filter: 'all' | 'absent' | 'late') => {
     setAttendanceFilter(filter);
     setActiveTab('discipline');
     setIsEditing(false);
+    scrollToSection('profile-attendance-list');
   };
 
   // Attendance Metrics
@@ -621,16 +660,16 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
       {/* کل پنجره یک کانتینر اسکرول‌شونده است (بدون اسکرول داخلی تودرتو) */}
       <div 
         id="student-profile-modal-container"
-        className="bg-gradient-to-b from-emerald-50/80 via-slate-50 to-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
+        className="bg-slate-50 rounded-3xl shadow-2xl shadow-slate-900/10 w-full max-w-4xl max-h-[96vh] overflow-y-auto text-slate-800"
       >
         {/* ===================== HEADER ===================== */}
-        <div className="bg-white/70 backdrop-blur-xl border-b border-white/80 px-3 sm:px-7 pt-3 sm:pt-5 pb-3 sm:pb-4 flex items-start justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl sm:text-2xl font-extrabold shrink-0">
+        <div className="relative bg-white border-b border-slate-200 px-3 sm:px-6 py-3 pl-14 flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-extrabold shrink-0">
               {currentStudent.firstName[0]}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base sm:text-xl font-extrabold text-slate-900 truncate">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 truncate">
                 {studentFullName(currentStudent)}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
@@ -641,6 +680,8 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                 )}
                 {currentStudent.fatherName && <span>پدر: {currentStudent.fatherName}</span>}
               </div>
+              {!teacherView && <StudentBadges badges={badges} settings={badgeSettings} />}
+              {!teacherView && (
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
           {currentStudent.parentPhone && (
             <a
@@ -664,143 +705,140 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
             </a>
           )}
               </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-0 sm:gap-1.5 shrink-0">
-            {!teacherView && (
-            <>
-            <button
-              id="btn-profile-edit-info"
-              onClick={() => {
-                setActiveTab('info');
-                setIsEditing(true);
-              }}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="ویرایش مشخصات"
-            >
-              <Edit3 className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-print"
-              onClick={handlePrint}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="چاپ پرونده"
-            >
-              <Printer className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-excel"
-              onClick={handleExportExcel}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-emerald-700 rounded-xl transition cursor-pointer"
-              title="خروجی اکسل"
-            >
-              <FileSpreadsheet className="w-5 h-5" />
-            </button>
-            <button
-              id="btn-profile-sms"
-              onClick={handleOpenSms}
-              className="p-2 sm:p-2.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition cursor-pointer"
-              title="پیام به اولیاء"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-            </>
-            )}
-            <button
-              id="btn-close-student-profile"
-              onClick={onClose}
-              className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-              title="بستن پرونده"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            id="btn-close-student-profile"
+            onClick={onClose}
+            className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+            title="بستن پرونده"
+            aria-label="بستن پرونده"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* ===================== عملیات سریع ===================== */}
+        {/* ===================== نوار عملیات: دکمهٔ اصلی + ابزارها ===================== */}
         {!teacherView && (
-        <div className="bg-white/70 backdrop-blur-xl px-3 sm:px-7 pb-3 sm:pb-5 grid grid-cols-1 gap-3">
+        <div className="bg-white border-b border-slate-200 px-3 sm:px-6 pb-3 flex items-center gap-2">
           <button
             id="btn-quick-add-discipline"
             onClick={() => setIsAddDisciplineOpen(true)}
-            className="h-11 sm:h-16 rounded-2xl bg-violet-100/60 backdrop-blur border border-violet-200/80 hover:bg-violet-100 text-violet-700 font-extrabold text-sm transition flex items-center justify-center gap-2 sm:gap-2.5 cursor-pointer"
+            className="flex-1 min-h-11 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-extrabold transition inline-flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span>ثبت مورد انضباطی</span>
+            <Plus className="w-4 h-4" />
+            <span className="whitespace-nowrap">ثبت مورد انضباطی</span>
           </button>
+          <div className="flex items-center gap-0.5 rounded-xl bg-slate-100 p-0.5 shrink-0">
+            <button id="btn-profile-edit-info" onClick={() => { setActiveTab('info'); setIsEditing(true); }} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="ویرایش مشخصات" aria-label="ویرایش مشخصات"><Edit3 className="w-5 h-5" /></button>
+            <button id="btn-profile-print" onClick={handlePrint} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="چاپ پرونده" aria-label="چاپ پرونده"><Printer className="w-5 h-5" /></button>
+            <button id="btn-profile-sms" onClick={handleOpenSms} className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white rounded-lg transition cursor-pointer" title="پیام به اولیاء" aria-label="پیام به اولیاء"><MessageSquare className="w-5 h-5" /></button>
+            <button id="btn-profile-excel" onClick={handleExportExcel} className="hidden sm:flex w-11 h-11 items-center justify-center text-slate-500 hover:text-emerald-700 hover:bg-white rounded-lg transition cursor-pointer" title="خروجی اکسل" aria-label="خروجی اکسل"><FileSpreadsheet className="w-5 h-5" /></button>
+          </div>
         </div>
         )}
 
         {/* ===================== آمار (با آخرین مورد) ===================== */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 px-3 sm:px-7 pt-3 sm:pt-5 text-xs">
-          <button
-            type="button"
-            onClick={() => openAttendanceTab('absent')}
-            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-rose-50/60 hover:border-rose-200 transition cursor-pointer"
-          >
-            <div className="text-slate-500 text-xs">غیبت</div>
-            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-              {toPersianDigits(totalAbsentCount)}
-              {totalExcusedCount > 0 && (
-                <span className="text-[11px] font-normal text-slate-400 mr-1.5">+{toPersianDigits(totalExcusedCount)} موجه</span>
-              )}
+        {teacherView ? (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 px-3 sm:px-7 pt-3 sm:pt-5 text-xs">
+          {([
+            ['جلسه‌های من', ownLogs.length, 'text-slate-800', 'ثبت‌شده برای این دانش‌آموز'],
+            ['غیبت در کلاس من', ownAbsentCount, ownAbsentCount > 0 ? 'text-rose-600' : 'text-slate-800', 'تعداد جلسه‌هایی که غایب بود'],
+            ['تأخیر در کلاس من', ownLateCount, ownLateCount > 0 ? 'text-amber-600' : 'text-slate-800', 'تعداد جلسه‌هایی که دیر آمد'],
+          ] as const).map(([label, value, tone, hint]) => (
+            <div key={label} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200">
+              <div className="text-slate-500 text-xs">{label}</div>
+              <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 ${tone}`}>{toPersianDigits(value)}</div>
+              <div className="text-[11px] text-slate-400 mt-1">{hint}</div>
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {latestAbsence ? `آخرین: ${formatShamsiDisplay(latestAbsence)}` : 'بدون غیبت'}
+          ))}
+        </div>
+        ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 px-3 sm:px-6 pt-3 text-xs">
+          {/* ۱) نمره انضباط */}
+          <div className="order-1 bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200">
+            <div className="text-slate-500 text-xs font-bold">نمره انضباط</div>
+            <div className={`mt-1 text-2xl font-extrabold ${disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'}`}>
+              {toPersianDigits(disciplineScore)}<span className="text-sm font-normal text-slate-400"> از ۲۰</span>
             </div>
-          </button>
+            <div className={`mt-1 text-[11px] font-bold ${disciplineScore >= 18 ? 'text-emerald-700' : disciplineScore >= 15 ? 'text-amber-700' : 'text-rose-700'}`}>
+              {disciplineScore >= 18 ? 'وضعیت عالی' : disciplineScore >= 15 ? 'هشدار' : 'بحرانی'}
+            </div>
+          </div>
 
+          {/* ۲) موارد انضباطی */}
           <button
             type="button"
-            onClick={() => openAttendanceTab('late')}
-            className="text-right bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80 hover:bg-amber-50/60 hover:border-amber-200 transition cursor-pointer"
+            onClick={() => { setActiveTab('discipline'); setIsEditing(false); scrollToSection('profile-discipline-notes'); }}
+            className="order-3 lg:order-2 col-span-2 lg:col-span-1 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-violet-300 transition cursor-pointer"
           >
-            <div className="text-slate-500 text-xs">تأخیر</div>
-            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
-              {toPersianDigits(totalDelaysCount)}
+            <div className="text-slate-500 text-xs font-bold">موارد انضباطی</div>
+            <div className={`mt-1 text-2xl font-extrabold ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
+              {toPersianDigits(disciplinaryNotes.length)}<span className="text-sm font-normal text-slate-400"> مورد</span>
+              {totalDeductedPoints > 0 && <span className="text-[11px] font-bold text-rose-500 mr-1.5">(-{toPersianDigits(Math.round(totalDeductedPoints * 100) / 100)} نمره)</span>}
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {latestDelay ? `آخرین: ${formatShamsiDisplay(latestDelay.date)}` : 'بدون تأخیر'}
-            </div>
-            {delaySummary.minutes > 0 && (
-              <div className="text-[11px] font-bold text-amber-700 mt-1">
-                مجموع {toPersianDigits(delaySummary.minutes)} دقیقه
+            <div className="mt-1 text-[11px] text-slate-400 truncate">{latestDiscipline ? `آخرین: ${latestDiscipline.title}` : 'پرونده تمیز'}</div>
+            {deductionState.pending > 0 && (
+              <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
+                {toPersianDigits(deductionState.pending)} کسر نمره منتظر تأیید
               </div>
             )}
           </button>
 
-          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
-            <div className="text-slate-500 text-xs">موارد انضباطی</div>
-            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${disciplinaryNotes.length > 0 ? 'text-violet-600' : 'text-slate-800'}`}>
-              {toPersianDigits(disciplinaryNotes.length)}
-              {totalDeductedPoints > 0 && (
-                <span className="text-[11px] font-normal text-rose-500 mr-1.5">-{toPersianDigits(totalDeductedPoints)} نمره</span>
-              )}
+          {/* ۳) تأخیرها (هوشمند) */}
+          <button
+            type="button"
+            onClick={() => openAttendanceTab('late')}
+            className="order-4 lg:order-3 col-span-2 lg:col-span-1 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-amber-300 transition cursor-pointer"
+          >
+            <div className="text-slate-500 text-xs font-bold">تأخیرها</div>
+            <div className={`mt-1 text-2xl font-extrabold ${totalDelaysCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
+              {toPersianDigits(totalDelaysCount)}<span className="text-sm font-normal text-slate-400"> بار</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-1 truncate">
-              {latestDiscipline ? `آخرین: ${latestDiscipline.title}` : 'پرونده تمیز'}
-            </div>
-          </div>
+            {delaySummary.minutes > 0 ? (
+              <>
+                <div className="mt-1 text-[11px] text-slate-500">
+                  مجموع {toPersianDigits(delaySummary.minutes)} دقیقه
+                  {delaySummary.minutes >= 60 && <span className="text-slate-400"> · معادل {toPersianDigits(formatMinutesLong(delaySummary.minutes))}</span>}
+                </div>
+                <div className="mt-2" title={`${toPersianDigits(minutesToNextPoint)} دقیقه تا کسر بعدی`}>
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={DELAY_MINUTES_PER_POINT} aria-valuenow={Math.max(0, DELAY_MINUTES_PER_POINT - minutesToNextPoint)}>
+                    <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, Math.max(0, ((DELAY_MINUTES_PER_POINT - minutesToNextPoint) / DELAY_MINUTES_PER_POINT) * 100))}%` }} />
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-400">{toPersianDigits(minutesToNextPoint)} دقیقه تا کسر نمرهٔ بعدی (هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه)</div>
+                </div>
+              </>
+            ) : (
+              <div className="mt-1 text-[11px] text-slate-400">بدون تأخیر</div>
+            )}
+          </button>
 
-          <div className="bg-white/70 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-sm border border-white/80">
-            <div className="text-slate-500 text-xs">نمره انضباط</div>
-            <div className={`text-xl sm:text-2xl font-extrabold mt-0.5 sm:mt-1 ${
-              disciplineScore >= 18 ? 'text-emerald-600' : disciplineScore >= 15 ? 'text-amber-600' : 'text-rose-600'
-            }`}>
-              {toPersianDigits(disciplineScore)}<span className="text-sm font-normal text-slate-400"> از ۲۰</span>
+          {/* ۴) غیبت‌ها */}
+          <button
+            type="button"
+            onClick={() => openAttendanceTab('absent')}
+            className="order-2 lg:order-4 text-right bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-300 transition cursor-pointer"
+          >
+            <div className="text-slate-500 text-xs font-bold">غیبت‌ها</div>
+            <div className="mt-1 text-2xl font-extrabold text-slate-800">
+              {toPersianDigits(totalExcusedCount)}<span className="text-sm font-normal text-slate-400"> موجه</span>
             </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {disciplineScore >= 18 ? 'وضعیت عالی' : disciplineScore >= 15 ? 'هشدار' : 'بحرانی'}
+            <div className={`mt-1 text-[11px] font-bold ${totalAbsentCount > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+              {toPersianDigits(totalAbsentCount)} غیرموجه
             </div>
-          </div>
+            {latestAbsence && <div className="mt-0.5 text-[10px] text-slate-400">آخرین: {formatShamsiDisplay(latestAbsence)}</div>}
+          </button>
         </div>
+        )}
 
         {/* =========================================================================
             TABS NAVIGATION (مرحله ۵: ۵ تب مشخص و منطقی)
         ========================================================================= */}
-        <div className="flex items-center px-3 sm:px-7 pt-3 sm:pt-5">
-          <div className="flex items-center gap-1.5 py-1 max-w-full overflow-x-auto sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center px-3 sm:px-6 pt-3">
+          <div className="flex items-center gap-1.5 py-1 max-w-full overflow-x-auto whitespace-nowrap flex-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {!teacherView && (
             <button
               id="tab-btn-overview"
               onClick={() => {
@@ -816,6 +854,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               <Activity className="w-3.5 h-3.5" />
               <span>خلاصه پرونده</span>
             </button>
+            )}
 
             {!teacherView && (
             <button
@@ -848,7 +887,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span>انضباط و حضور ({toPersianDigits(disciplinaryNotes.length + attendanceRecords.length)})</span>
+              <span>{teacherView ? `سوابق من (${toPersianDigits(ownProblemLogs.length)})` : `انضباط و حضور (${toPersianDigits(disciplinaryNotes.length + attendanceRecords.length)})`}</span>
             </button>
 
             <button
@@ -1213,52 +1252,41 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
           {/* =======================================================================
               TAB 3: حضور و غیاب و تأخیرها (ATTENDANCE & DELAYS)
           ======================================================================= */}
-          {activeTab === 'discipline' && !isEditing && (
+          {activeTab === 'discipline' && !isEditing && teacherView && (
+            <div className="space-y-3" id="profile-attendance-list">
+              <p className="text-xs text-slate-500 leading-6">فقط مواردی که خودتان در جلسه‌های کلاس برای این دانش‌آموز ثبت کرده‌اید نمایش داده می‌شود.</p>
+              {ownProblemLogs.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                  هنوز غیبت، تأخیر یا یادداشتی از طرف شما برای این دانش‌آموز ثبت نشده است.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {ownProblemLogs.map((l) => (
+                    <div key={l.session.id} className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-800">{formatShamsiWithWeekday(l.session.date)}</span>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                          l.status === 'absent' ? 'bg-rose-50 text-rose-700 border-rose-200' : l.status === 'late' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          {l.status === 'absent' ? 'غایب' : l.status === 'late' ? `تأخیر${l.delayMinutes ? ` • ${toPersianDigits(l.delayMinutes)} دقیقه` : ''}` : 'موجه'}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">{l.session.subject}{l.session.bellPeriodName ? ` • ${l.session.bellPeriodName}` : ''}</div>
+                      {l.note && <div className="mt-2 bg-slate-50 border border-slate-200 text-slate-700 text-[11px] leading-relaxed p-2 rounded-lg">{l.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'discipline' && !isEditing && !teacherView && (
             <div className="space-y-4">
               {/* آمار تجمیعی حضور پدر و مادر در جلسات عمومی أولیا (فقط با مجوز) */}
               <ParentMeetingsProfileCard studentId={currentStudent.id} />
 
-              {/* خلاصه غیبت و تأخیر + کسر خودکار نمره */}
-              <div className="rounded-2xl border border-slate-200 bg-gradient-to-l from-rose-50/60 via-white to-amber-50/70 p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <div className="text-slate-500 font-bold">دفعات غیبت (غیر از غیبت کلاسی)</div>
-                  <div className="mt-1 text-lg font-black text-rose-700">
-                    {toPersianDigits(totalAbsentCount + totalExcusedCount)}
-                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
-                      ({toPersianDigits(totalExcusedCount)} موجه)
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500 font-bold">مجموع دقایق تأخیر</div>
-                  <div className="mt-1 text-lg font-black text-amber-700">
-                    {toPersianDigits(delaySummary.minutes)} دقیقه
-                    <span className="text-[11px] font-bold text-slate-400 mr-1.5">
-                      در {toPersianDigits(delaySummary.count)} بار
-                    </span>
-                  </div>
-                  {delaySummary.minutes >= 60 && (
-                    <div className="text-[10px] text-slate-400 mt-0.5">معادل {toPersianDigits(formatMinutesLong(delaySummary.minutes))}</div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-slate-500 font-bold">کسر نمره انضباط بابت تأخیر</div>
-                  <div className={`mt-1 text-lg font-black ${autoDeductedPoints > 0 ? 'text-violet-700' : 'text-slate-700'}`}>
-                    {autoDeductedPoints > 0 ? `−${toPersianDigits(autoDeductedPoints)} نمره` : 'بدون کسر'}
-                  </div>
-                  {deductionState.pending > 0 && (
-                    <div className="text-[11px] font-bold text-amber-700 mt-0.5">
-                      {toPersianDigits(deductionState.pending)} کسر منتظر تأیید معاون انضباطی
-                    </div>
-                  )}
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    به‌ازای هر {toPersianDigits(DELAY_MINUTES_PER_POINT)} دقیقه تأخیر، {toPersianDigits(DELAY_POINTS_DEDUCTED)} نمره (پس از تأیید معاون انضباطی) • {toPersianDigits(minutesToNextPoint)} دقیقه تا پیشنهاد بعدی
-                  </div>
-                </div>
-              </div>
-
               {/* فیلترهای وضعیت */}
-              <div className="flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
+              <div id="profile-attendance-list" className="scroll-mt-4 flex items-center gap-2 flex-wrap" role="tablist" aria-label="فیلتر سوابق">
                 {([
                   ['all', 'همه موارد', attendanceRecords.length, 'bg-slate-50 text-slate-800 border-slate-200 ring-slate-300'],
                   ['absent', 'فقط غیبت‌ها', attendanceAbsentRows.length, 'bg-rose-50 text-rose-800 border-rose-200 ring-rose-300'],
@@ -1288,7 +1316,28 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                       : 'سابقه‌ای برای این دانش‌آموز ثبت نشده است.'}
                 </div>
               ) : (
-                <FitTable className="w-full border border-slate-200 rounded-2xl shadow-2xs">
+                <>
+                <div className="md:hidden space-y-2">
+                  {filteredAttendanceRecords.map((r) => (
+                    <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-extrabold text-slate-800">{formatShamsiWithWeekday(r.date)}</span>
+                        {r.type === 'absent' ? (
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${r.isExcused ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                            {r.isExcused ? 'غایب موجه' : 'غایب غیرموجه'}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            تأخیر{r.entryTime ? ` • ورود ${toPersianDigits(r.entryTime)}` : ''}{` • ${formatDelayText(r.delayMinutes)}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">{r.kind === 'morning' ? 'صبحگاه' : `کلاسی (${r.eventLabel})`}{r.recordedBy ? ` · ثبت: ${r.recordedBy}` : ''}</div>
+                      {r.note && <div className="mt-2 bg-slate-50 border border-slate-200 text-slate-700 text-[11px] leading-relaxed p-2 rounded-lg">{r.note}</div>}
+                    </div>
+                  ))}
+                </div>
+                <FitTable className="hidden md:block w-full border border-slate-200 rounded-2xl shadow-2xs">
                   <table className="w-full min-w-[750px] text-right text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                       <tr>
@@ -1348,39 +1397,14 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     </tbody>
                   </table>
                 </FitTable>
+                </>
               )}
             </div>
           )}
 
           {activeTab === 'discipline' && !isEditing && !teacherView && (
-            <div className="space-y-4">
+            <div id="profile-discipline-notes" className="scroll-mt-4 space-y-4">
               
-              {/* Discipline Score Overview Card */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-xs text-slate-500">وضعیت فعلی انضباط دانش‌آموز:</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-xl font-bold font-mono ${
-                      disciplineScore >= 18 ? 'text-emerald-700' : disciplineScore >= 15 ? 'text-amber-700' : 'text-rose-700'
-                    }`}>
-                      {toPersianDigits(disciplineScore)} از ۲۰
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      (مجموع کسر امتیاز: {toPersianDigits(totalDeductedPoints)} نمره)
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  id="btn-discipline-add-note"
-                  onClick={() => setIsAddDisciplineOpen(true)}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>ثبت مورد انضباطی جدید</span>
-                </button>
-              </div>
-
               {/* Disciplinary Notes List */}
               {disciplinaryNotes.length === 0 ? (
                 <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs space-y-2">

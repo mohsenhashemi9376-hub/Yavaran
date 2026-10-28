@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, CheckCircle2, Clock, LogIn, LogOut, Star } from 'lucide-react';
-import { apiRequest } from '../lib/serverSync';
+import { CalendarDays, CheckCircle2, Clock, LogIn, LogOut, Plus, Star, X } from 'lucide-react';
+import { ApiError, apiRequest } from '../lib/serverSync';
+import { flushPending, getPending, hasPending, queuePending } from '../utils/offlineQueue';
 import { getRealTodayShamsiString, tehranNow, toPersianDigits } from '../utils/persianDate';
 import { ClockTimePicker } from './ClockTimePicker';
 
@@ -11,7 +12,8 @@ type Config = { academicYear: string; months: Month[]; axes: Axis[]; tags: Recor
 type Entry = { in?: string | null; out?: string | null; in2?: string | null; out2?: string | null; tags?: string[]; otherText?: string };
 type Entries = Record<string, Entry>;
 type Evaluation = { scores?: Record<string, number>; extraNote?: string };
-type Payload = { entries?: Entries | []; selfEvaluation?: Evaluation | [] };
+type Payload = { entries?: Entries | []; selfEvaluation?: Evaluation | []; customAxes?: Axis[] };
+const CUSTOM_IDS = ['c1', 'c2', 'c3', 'c4'];
 type Tab = 'timesheet' | 'evaluation';
 type Step = 'in' | 'out' | 'in2' | 'out2' | 'done';
 
@@ -53,6 +55,9 @@ export const TimesheetWorkspace: React.FC = () => {
   const [entries, setEntries] = useState<Entries>({});
   const [scores, setScores] = useState<Record<string, number>>({});
   const [extraNote, setExtraNote] = useState('');
+  const [customAxes, setCustomAxes] = useState<Axis[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>('timesheet');
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
@@ -62,8 +67,8 @@ export const TimesheetWorkspace: React.FC = () => {
   const [punchError, setPunchError] = useState('');
   const [, setTick] = useState(0);
   const timer = useRef<number | undefined>(undefined);
-  const latest = useRef({ monthKey, entries, scores, extraNote });
-  latest.current = { monthKey, entries, scores, extraNote };
+  const latest = useRef({ monthKey, entries, scores, extraNote, customAxes });
+  latest.current = { monthKey, entries, scores, extraNote, customAxes };
 
   useEffect(() => {
     const t = window.setInterval(() => setTick((x) => x + 1), 1000);
@@ -83,10 +88,15 @@ export const TimesheetWorkspace: React.FC = () => {
     setError('');
     try {
       const d = await apiRequest<Payload>('GET', `/api/teacher-timesheet?month=${encodeURIComponent(key)}`);
+      // نسخهٔ ارسال‌نشدهٔ همین ماه (از زمان قطعی) روی دادهٔ سرور اولویت دارد
+      const pend = getPending<{ entries?: Entries; selfEvaluation?: Evaluation }>(key);
+      if (pend) { d.entries = pend.entries; d.selfEvaluation = pend.selfEvaluation; }
       setEntries(Array.isArray(d.entries) ? {} : d.entries || {});
       const ev = (Array.isArray(d.selfEvaluation) ? {} : d.selfEvaluation || {}) as Evaluation;
       setScores(ev.scores || {});
       setExtraNote(ev.extraNote || '');
+      setCustomAxes(Array.isArray(d.customAxes) ? d.customAxes : []);
+      setNewTitle('');
       setDirty(false);
       setStatus('');
     } catch (err) {
@@ -114,6 +124,27 @@ export const TimesheetWorkspace: React.FC = () => {
 
   useEffect(() => { if (monthKey) void load(monthKey); }, [monthKey, load]);
 
+  // ارسال نسخه‌های ذخیره‌شده‌ی آفلاین با برگشتن اتصال (و هنگام باز شدن بخش)
+  useEffect(() => {
+    const flush = async () => {
+      if (!hasPending() || !navigator.onLine) return;
+      const ok = await flushPending(async (_m, payload) => { await apiRequest('POST', '/api/teacher-timesheet', payload); });
+      if (ok) setStatus('اطلاعات ذخیره‌شده‌ی آفلاین ارسال شد ✓');
+    };
+    void flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+  }, []);
+
+  // با ورود به صفحه (و هر بار که ماه یا تب عوض شود) مستقیم و بدون انیمیشن روی روز جاری برو
+  useEffect(() => {
+    if (loading || tab !== 'timesheet' || !todayDay || month?.key !== todayMonth?.key) return;
+    const id = window.requestAnimationFrame(() => document.getElementById(`ts-day-${todayDay.date}`)?.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    return () => window.cancelAnimationFrame(id);
+    // فقط با تغییر ماه/تب/پایان بارگذاری؛ نه با هر ثبت ساعت
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tab, monthKey]);
+
   const isOpen = (d: Day) => !d.off && d.g <= todayG;
 
   const save = useCallback(async (): Promise<boolean> => {
@@ -134,7 +165,19 @@ export const TimesheetWorkspace: React.FC = () => {
           out[d.date] = { in: e.in || null, out: e.out || null, in2: e.in2 || null, out2: e.out2 || null, tags, otherText: tags.includes('other') ? (e.otherText || '').trim() : '' };
         }
       }
-      await apiRequest('POST', '/api/teacher-timesheet', { month: cur.monthKey, entries: out, selfEvaluation: { scores: cur.scores, extraNote: cur.extraNote } });
+      const body = { month: cur.monthKey, entries: out, selfEvaluation: { scores: cur.scores, extraNote: cur.extraNote, customAxes: cur.customAxes.map((a) => ({ id: a.id, title: a.title.trim() })) } };
+      try {
+        await apiRequest('POST', '/api/teacher-timesheet', body);
+      } catch (err) {
+        // قطع اینترنت: نسخه روی دستگاه می‌ماند و با اتصال دوباره خودکار ارسال می‌شود
+        if (err instanceof ApiError && err.status === 0) {
+          queuePending(cur.monthKey, body);
+          setDirty(false);
+          setStatus('بدون اینترنت؛ روی دستگاه ذخیره شد و با اتصال دوباره ارسال می‌شود');
+          return true;
+        }
+        throw err;
+      }
       setDirty(false);
       setStatus('ذخیره شد ✓');
       return true;
@@ -204,7 +247,22 @@ export const TimesheetWorkspace: React.FC = () => {
   const totalMin = days.reduce((sum, d) => sum + (dayMinutes(entries[d.date]) || 0), 0);
   const filled = days.filter((d) => dayMinutes(entries[d.date]) !== null).length;
   const openCount = days.filter(isOpen).length;
-  const totalScore = (config?.axes || []).reduce((s, a) => s + (scores[a.id] || 0), 0);
+  const allAxes = [...(config?.axes || []), ...customAxes];
+  const totalScore = allAxes.reduce((s, a) => s + (scores[a.id] || 0), 0);
+  const atLimit = customAxes.length >= CUSTOM_IDS.length;
+  const addCustom = () => {
+    const title = newTitle.trim();
+    const id = CUSTOM_IDS.find((c) => !customAxes.some((a) => a.id === c));
+    if (title.length < 2 || !id) return;
+    setCustomAxes((p) => [...p, { id, title }]);
+    setNewTitle('');
+    touch();
+  };
+  const removeCustom = (id: string) => {
+    setCustomAxes((p) => p.filter((a) => a.id !== id));
+    setScores((p) => { const { [id]: _drop, ...rest } = p; return rest; });
+    touch();
+  };
 
   const ringSeconds = now.getSeconds();
   const sessions = [
@@ -221,11 +279,10 @@ export const TimesheetWorkspace: React.FC = () => {
   return (
     <div className="space-y-4 text-right" dir="rtl">
       {/* ثبت سریع ورود و خروج */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-5 text-white shadow-sm" aria-label="ثبت ورود و خروج">
-        <div className="pointer-events-none absolute -start-10 -top-10 h-48 w-48 rounded-full bg-emerald-500/15 blur-3xl" />
-        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 p-4 md:p-5 text-white shadow-sm" aria-label="ثبت ورود و خروج">
+                <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
           <div className="flex items-center gap-4 md:shrink-0">
-            <div className="relative h-24 w-24 shrink-0">
+            <div className="relative hidden h-24 w-24 shrink-0 md:block">
               <svg viewBox="0 0 100 100" className="h-24 w-24 -rotate-90" aria-hidden="true">
                 <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(51 65 85)" strokeWidth="5" />
                 <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(52 211 153)" strokeWidth="5" strokeLinecap="round" strokeDasharray="276.5" strokeDashoffset={276.5 * (1 - ringSeconds / 60)} className="transition-[stroke-dashoffset] duration-1000 ease-linear" />
@@ -330,8 +387,24 @@ export const TimesheetWorkspace: React.FC = () => {
               : invalid ? 'border-rose-300 bg-rose-50'
               : minutes !== null ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-white';
             const badge = invalid ? 'bg-rose-100 text-rose-700' : minutes !== null ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400';
+            // موبایل: روزهای گذشته‌ی کاری یک ردیف جمع‌شونده‌اند؛ روز جاری همیشه باز است
+            const pastOpen = open && !isToday;
+            const collapsed = pastOpen && !expandedDays[day.date];
             return (
-              <article key={day.date} className={`flex flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
+              <React.Fragment key={day.date}>
+              {pastOpen && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedDays((p) => ({ ...p, [day.date]: !p[day.date] }))}
+                  aria-expanded={!collapsed}
+                  className="md:hidden flex w-full min-h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-right shadow-sm cursor-pointer"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">{day.weekday} {day.label}</span>
+                  <span className="shrink-0 text-xs font-bold text-slate-500">{minutes !== null ? `${hoursText(minutes)} ساعت` : 'ثبت نشده'}</span>
+                  <span className={`shrink-0 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-extrabold ${invalid ? 'bg-rose-100 text-rose-700' : minutes !== null ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>{invalid ? '!' : minutes !== null ? '✓' : '!'}</span>
+                </button>
+              )}
+              <article id={`ts-day-${day.date}`} className={`scroll-mt-40 ${collapsed ? 'hidden md:flex' : 'flex'} flex-col gap-3 rounded-2xl border p-3 shadow-sm md:flex-row md:items-center md:gap-4 md:p-4 ${tone}`}>
                 <div className="flex items-center justify-between gap-2 md:w-28 md:shrink-0 md:flex-col md:items-start md:justify-center">
                   <div>
                     <p className="text-sm font-extrabold text-slate-800">
@@ -378,6 +451,7 @@ export const TimesheetWorkspace: React.FC = () => {
                   </div>
                 )}
               </article>
+              </React.Fragment>
             );
           })}
         </section>
@@ -388,7 +462,7 @@ export const TimesheetWorkspace: React.FC = () => {
         <section className="space-y-3" aria-label="خودارزیابی ماهانه">
           <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-bold text-slate-600">امتیاز کل خودارزیابی</p>
-            <p className="text-lg font-extrabold text-emerald-700">{fa(totalScore)} از {fa(config.axes.length * 5)}</p>
+            <p className="text-lg font-extrabold text-emerald-700">{fa(totalScore)} از {fa(allAxes.length * 5)}</p>
           </div>
           {config.axes.map((axis, i) => {
             const sc = scores[axis.id] || 0;
@@ -415,6 +489,42 @@ export const TimesheetWorkspace: React.FC = () => {
               </article>
             );
           })}
+          {customAxes.map((axis) => {
+            const sc = scores[axis.id] || 0;
+            return (
+              <article key={axis.id} className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <input type="text" maxLength={60} value={axis.title} aria-label="عنوان شاخص" onChange={(ev) => { const v = ev.target.value; setCustomAxes((p) => p.map((a) => (a.id === axis.id ? { ...a, title: v } : a))); touch(); }} className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-extrabold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">{fa(sc)} / ۵</span>
+                  <button type="button" aria-label="حذف شاخص" onClick={() => removeCustom(axis.id)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 active:bg-rose-100"><X className="h-5 w-5" /></button>
+                </div>
+                <div className="mt-3 flex items-center gap-1" role="group" aria-label={axis.title}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} type="button" aria-label={String(n)} onClick={() => { setScores((p) => ({ ...p, [axis.id]: sc === n ? 0 : n })); touch(); }} className={`flex h-12 w-12 items-center justify-center rounded-xl active:bg-slate-100 ${sc >= n ? 'text-amber-400' : 'text-slate-300'}`}>
+                      <Star className="h-8 w-8" fill={sc >= n ? 'currentColor' : 'none'} />
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => { setScores((p) => ({ ...p, [axis.id]: 0 })); touch(); }} className="ms-auto min-h-11 rounded-xl px-3 text-xs font-bold text-slate-500 active:bg-slate-100">صفر</button>
+                </div>
+              </article>
+            );
+          })}
+
+          <div className="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-extrabold text-emerald-900">افزودن شاخص شخصی</h2>
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-emerald-700">{fa(customAxes.length)} از {fa(CUSTOM_IDS.length)}</span>
+            </div>
+            <p className="mt-1 text-xs leading-6 text-slate-500">می‌توانید تا ۴ شاخص دلخواه خودتان را به فهرست خودارزیابی اضافه کنید.</p>
+            {atLimit ? (
+              <p className="mt-3 text-xs font-bold text-emerald-800">به سقف ۴ شاخص رسیده‌اید؛ برای افزودن مورد جدید، یکی را حذف کنید.</p>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input type="text" maxLength={60} value={newTitle} onChange={(ev) => setNewTitle(ev.target.value)} onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.preventDefault(); addCustom(); } }} placeholder="مثلاً: مشارکت در برنامه‌های فرهنگی" className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+                <button type="button" onClick={addCustom} disabled={newTitle.trim().length < 2} className="inline-flex min-h-12 shrink-0 items-center gap-1 rounded-xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm active:bg-emerald-700 disabled:opacity-40"><Plus className="h-4 w-4" />افزودن</button>
+              </div>
+            )}
+          </div>
         </section>
       )}
 

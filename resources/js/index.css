@@ -76,7 +76,7 @@ button, input, select, textarea, optgroup { font-family: inherit; }
   to { transform: translateY(0); }
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; }
 
 /* ناحیه امن بالای صفحه (ناچ / نوار وضعیت) در حالت نصب‌شده */
 .yv-header { padding-top: env(safe-area-inset-top, 0px); }
@@ -105,7 +105,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   textarea { font-size: 16px !important; }
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select { min-height: 44px; }
-  button:not(table button):not([role="tab"] ) { min-height: 40px; }
+  button:not(table button):not([role="tab"] ) { min-height: 44px; }
   .yv-bottom-nav button { min-height: 56px; }
 
   /* پنجره‌ها و مودال‌ها به صورت Bottom Sheet از پایین صفحه */

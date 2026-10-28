@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ClipboardList, FileSpreadsheet, FileText } from 'lucide-react';
+import { ClipboardList, FileSpreadsheet, FileText, SlidersHorizontal, Users, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../context/SchoolContext';
 import { MONTHLY_EVALUATION_PERIODS, MonthlyContinuousKey, SchoolClass, Student } from '../types';
@@ -37,6 +37,7 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
   const [classId, setClassId] = useState(classData.id);
   const [period, setPeriod] = useState<MonthlyContinuousKey | 'year'>('mehrContinuous');
   // فیلتر هر ستون: شناسه‌ی درس (یا «avg») ← گروه نمره
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [cardStudent, setCardStudent] = useState<Student | null>(null);
   const [fullStudent, setFullStudent] = useState<Student | null>(null);
   const [filters, setFilters] = useState<Record<string, ScoreBand>>({});
@@ -99,7 +100,20 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       return next ? { ...rest, [col]: next } : rest;
     });
 
+  const pickClass = (id: string) => { setClassId(id); setFilters({}); };
+  const pickPeriod = (key: MonthlyContinuousKey | 'year') => { setPeriod(key); setFilters({}); };
+  const periodLabel = period === 'year' ? 'میانگین مستمر' : periodTitle(period);
+
   const headerCell = (col: string, title: string) => <ScoreColumnHeader key={col} title={title} band={filters[col]} onCycle={() => cycle(col)} />;
+
+  /** فیلتر سریع بر اساس گروه میانگین (برای موبایل و خلاصه‌ی بالای صفحه) */
+  const toggleAvgBand = (band: ScoreBand) =>
+    setFilters((prev) => {
+      const { avg: _old, ...rest } = prev;
+      return prev.avg === band ? rest : { ...rest, avg: band };
+    });
+  const bandCount = (band: ScoreBand) => rows.filter((r) => scoreBand(r.avg) === band).length;
+  const classAverage = colAvg('avg');
 
   const cellClass = (score: number | undefined) => {
     const b = scoreBand(score);
@@ -124,9 +138,9 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
       <div className="p-4 border-b border-slate-100 space-y-3">
         <div>
           <h4 className="text-sm font-extrabold text-slate-900">کارنامه تجمیعی کلاس</h4>
-          <p className="text-xs text-slate-500 mt-0.5">نمرات همه‌ی دروس و دانش‌آموزان کلاس در یک ماه، با میانگین. برای فیلتر، روی عنوان هر ستون بزنید.</p>
+          <p className="text-xs text-slate-500 mt-0.5">نمرات همه‌ی دروس کلاس در یک ماه. برای فیلتر، یکی از گروه‌های میانگین را لمس کنید.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="hidden md:grid grid-cols-2 gap-2">
           <label className="block">
             <span className="block text-[11px] font-bold text-slate-500 mb-1">کلاس</span>
             <select
@@ -149,26 +163,92 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
             </select>
           </label>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-bold">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-slate-50 rounded-2xl py-2.5 px-1">
+            <div className="text-lg font-extrabold text-emerald-800 leading-6">{fmt(classAverage)}</div>
+            <div className="text-[11px] font-bold text-slate-500">میانگین کلاس</div>
+          </div>
+          <div className="bg-slate-50 rounded-2xl py-2.5 px-1">
+            <div className="text-lg font-extrabold text-slate-800 leading-6 inline-flex items-center gap-1">
+              <Users className="w-4 h-4 text-slate-400" />
+              {toPersianDigits(rows.length)}
+            </div>
+            <div className="text-[11px] font-bold text-slate-500">دانش‌آموز</div>
+          </div>
+          <div className="bg-slate-50 rounded-2xl py-2.5 px-1">
+            <div className="text-lg font-extrabold text-slate-800 leading-6">{toPersianDigits(subjects.length)}</div>
+            <div className="text-[11px] font-bold text-slate-500">درس</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 pb-0.5">
           {(Object.keys(SCORE_BAND_STYLE) as ScoreBand[]).map((b) => (
-            <span key={b} className={`px-2.5 py-1 rounded-full border ${SCORE_BAND_STYLE[b].chip}`}>{SCORE_BAND_STYLE[b].label}</span>
+            <button
+              key={b}
+              type="button"
+              onClick={() => toggleAvgBand(b)}
+              aria-pressed={filters.avg === b}
+              className={`shrink-0 min-h-[44px] px-3.5 rounded-xl border text-xs font-bold cursor-pointer transition ${SCORE_BAND_STYLE[b].chip} ${filters.avg === b ? 'ring-2 ring-offset-1 ring-current' : 'opacity-80'}`}
+            >
+              {SCORE_BAND_STYLE[b].label.split(' ')[0]} · {toPersianDigits(bandCount(b))}
+            </button>
           ))}
           {Object.keys(filters).length > 0 && (
-            <button type="button" onClick={() => setFilters({})} className="px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 cursor-pointer">
+            <button type="button" onClick={() => setFilters({})} className="shrink-0 min-h-[44px] px-3.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 cursor-pointer">
               حذف فیلترها
             </button>
           )}
-          <button type="button" onClick={exportExcel} className="mr-auto px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg inline-flex items-center gap-1 cursor-pointer">
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>خروجی اکسل</span>
-          </button>
         </div>
+        <button type="button" onClick={exportExcel} className="w-full min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-bold inline-flex items-center justify-center gap-2 cursor-pointer transition">
+          <FileSpreadsheet className="w-4 h-4" />
+          <span>خروجی اکسل</span>
+        </button>
       </div>
 
       {subjects.length === 0 || classStudents.length === 0 ? (
         <div className="py-12 text-center text-sm text-slate-400">برای این کلاس درس یا دانش‌آموزی ثبت نشده است.</div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* موبایل: کارت برای هر دانش‌آموز، بدون اسکرول افقی */}
+        <div className="md:hidden p-3 pb-44 space-y-3 bg-slate-50/60">
+          {visible.map((r, i) => {
+            const band = scoreBand(r.avg);
+            return (
+              <div key={r.st.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-3.5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-extrabold inline-flex items-center justify-center">{toPersianDigits(i + 1)}</span>
+                  <button type="button" onClick={() => onSelectStudent?.(r.st)} className="flex-1 min-w-0 text-right text-sm font-extrabold text-slate-900 truncate cursor-pointer">
+                    {studentFullName(r.st)}
+                  </button>
+                  <div className={`shrink-0 min-w-14 text-center rounded-xl border px-2 py-1 ${band ? SCORE_BAND_STYLE[band].chip : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                    <div className="text-base font-extrabold leading-5">{fmt(r.avg)}</div>
+                    <div className="text-[10px] font-bold">میانگین</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {subjects.map((s) => (
+                    <div key={s.id} className={`rounded-xl px-3 py-2 flex items-center justify-between gap-2 ${r.scores[s.id] === undefined ? 'bg-slate-50 text-slate-300' : cellClass(r.scores[s.id])}`}>
+                      <span className="text-[11px] font-bold leading-4 text-slate-600 line-clamp-2">{s.name}</span>
+                      <span className="text-sm font-extrabold shrink-0">{fmt(r.scores[s.id])}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setCardStudent(r.st)} className="min-h-[44px] rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                    <FileText className="w-4 h-4" />
+                    کارنامه شخصی
+                  </button>
+                  <button type="button" onClick={() => setFullStudent(r.st)} className="min-h-[44px] rounded-xl bg-indigo-50 text-indigo-800 text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                    <ClipboardList className="w-4 h-4" />
+                    کارنامه جامع
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {visible.length === 0 && <div className="py-8 text-center text-xs text-slate-400">دانش‌آموزی با این فیلترها پیدا نشد.</div>}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50/70">
@@ -227,6 +307,66 @@ export const ClassReportCard: React.FC<ClassReportCardProps> = ({ classData, onS
               </tr>
             </tfoot>
           </table>
+        </div>
+        </>
+      )}
+
+      {/* موبایل: نوار انتخاب کلاس و ماه نزدیک شست، بالای منوی پایین */}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="md:hidden fixed inset-x-4 bottom-24 z-30 min-h-[52px] px-4 rounded-2xl bg-slate-900 text-white shadow-lg inline-flex items-center justify-between gap-3 cursor-pointer"
+      >
+        <span className="min-w-0 truncate text-sm font-extrabold">{cls.name} <span className="text-slate-400 font-bold">•</span> {periodLabel}</span>
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300">
+          <SlidersHorizontal className="w-4 h-4" />
+          تغییر
+        </span>
+      </button>
+      {sheetOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex items-end" role="dialog" aria-modal="true">
+          <button type="button" aria-label="بستن" onClick={() => setSheetOpen(false)} className="absolute inset-0 bg-slate-900/50" />
+          <div className="relative w-full max-h-[80vh] overflow-y-auto bg-white rounded-t-3xl shadow-xl p-4 pb-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h5 className="text-sm font-extrabold text-slate-900">انتخاب کلاس و ماه</h5>
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label="بستن" className="w-11 h-11 inline-flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-2">ماه</div>
+              <div className="grid grid-cols-3 gap-2">
+                {[...REPORT_PERIODS.map((p) => ({ key: p.key as MonthlyContinuousKey | 'year', label: periodTitle(p.key) })), { key: 'year' as const, label: 'میانگین مستمر' }].map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => pickPeriod(o.key)}
+                    className={`min-h-[44px] px-2 rounded-xl text-xs font-bold cursor-pointer transition ${period === o.key ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-700'}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 mb-2">کلاس</div>
+              <div className="grid grid-cols-2 gap-2">
+                {classChoices.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickClass(c.id)}
+                    className={`min-h-[44px] px-3 rounded-xl text-xs font-bold text-right cursor-pointer transition ${cls.id === c.id ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-700'}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={() => setSheetOpen(false)} className="w-full min-h-[48px] rounded-xl bg-emerald-700 text-white text-sm font-bold cursor-pointer">
+              مشاهده نتیجه
+            </button>
+          </div>
         </div>
       )}
 

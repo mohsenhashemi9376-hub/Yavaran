@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BadgeSettingsController;
 use App\Http\Controllers\BootstrapController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\LessonPlanReviewController;
@@ -119,10 +120,13 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
         Route::get('teacher-timesheets', [TeacherTimesheetOverviewController::class, 'index'])
             ->middleware('throttle:60,1')
             ->name('api.teacher-timesheets.index');
+        Route::get('badge-settings', [BadgeSettingsController::class, 'show'])->middleware('throttle:60,1')->name('api.badge-settings.show');
+        Route::post('badge-settings', [BadgeSettingsController::class, 'save'])->middleware('throttle:30,1')->name('api.badge-settings.save');
         Route::prefix('teacher-timesheet')->middleware('throttle:120,1')->group(function (): void {
             Route::get('config', [TeacherTimesheetController::class, 'config'])->name('api.teacher-timesheet.config');
             Route::get('/', [TeacherTimesheetController::class, 'show'])->name('api.teacher-timesheet.show');
             Route::post('/', [TeacherTimesheetController::class, 'save'])->name('api.teacher-timesheet.save');
+            Route::put('axes', [TeacherTimesheetController::class, 'saveAxes'])->name('api.teacher-timesheet.axes');
         });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')
