@@ -16,13 +16,50 @@ use Illuminate\Validation\Rule;
 /** ساعت کاری ماهانه و خودارزیابی اساتید (سال تحصیلی ۱۴۰۵-۱۴۰۶) */
 class TeacherTimesheetController extends Controller
 {
-    public const AXES = [
+    /** شاخص‌های پیش‌فرض؛ مدیر مدرسه می‌تواند فهرست را ویرایش کند (timesheet_settings.axes) */
+    public const DEFAULT_AXES = [
         ['id' => 'growth', 'title' => 'تلاش برای ارتقاء شخصی'],
         ['id' => 'punctuality', 'title' => 'حضور به موقع در مدرسه'],
         ['id' => 'lesson_plan', 'title' => 'طرح درس نویسی و آمادگی'],
         ['id' => 'dedication', 'title' => 'دلسوزی و کار را برای خود دانستن'],
         ['id' => 'extra', 'title' => 'کارهای اضافه‌تر از وظایف اصلی'],
     ];
+
+    /** شناسه‌ی چهار شاخص شخصی که هر استاد می‌تواند خودش اضافه کند */
+    public const CUSTOM_IDS = ['c1', 'c2', 'c3', 'c4'];
+
+    /** شاخص‌های فعلی: ویرایش مدیر یا پیش‌فرض */
+    public static function axes(): array
+    {
+        try {
+            if (Schema::hasTable('timesheet_settings')) {
+                $raw = DB::table('timesheet_settings')->where('key', 'axes')->value('value');
+                $list = $raw ? json_decode($raw, true) : null;
+                if (is_array($list) && $list !== []) {
+                    return array_values($list);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('timesheet axes read failed', ['error' => $e->getMessage()]);
+        }
+
+        return self::DEFAULT_AXES;
+    }
+
+    /** شاخص‌های شخصی ثبت‌شده‌ی استاد (آخرین ماهی که داشته)؛ برای ماه جدید همان‌ها نمایش داده می‌شود */
+    private static function customAxesFor(string $userId, string $month): array
+    {
+        $rows = DB::table('teacher_timesheets')->where('user_id', $userId)
+            ->orderByRaw('month_key = ? desc', [$month])->orderByDesc('updated_at')->get(['self_evaluation']);
+        foreach ($rows as $row) {
+            $ev = $row->self_evaluation ? json_decode($row->self_evaluation, true) : [];
+            if (! empty($ev['customAxes']) && is_array($ev['customAxes'])) {
+                return array_values($ev['customAxes']);
+            }
+        }
+
+        return [];
+    }
 
     /** تگ‌های فعالیت روزانه (کلید ⇒ عنوان)؛ «سایر موارد» یک متن آزاد (otherText) هم می‌گیرد */
     public const TAGS = [
@@ -47,7 +84,8 @@ class TeacherTimesheetController extends Controller
             'config' => [
                 'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
                 'months' => TimesheetCalendar::months(),
-                'axes' => self::AXES,
+                'axes' => self::axes(),
+            'customLimit' => count(self::CUSTOM_IDS),
                 'tags' => self::TAGS,
                 'teacherName' => $user->name,
                 'serverNow' => (int) now()->getTimestampMs(),
@@ -61,7 +99,8 @@ class TeacherTimesheetController extends Controller
         return response()->json([
             'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
             'months' => TimesheetCalendar::months(),
-            'axes' => self::AXES,
+            'axes' => self::axes(),
+            'customLimit' => count(self::CUSTOM_IDS),
             'tags' => self::TAGS,
         ]);
     }
@@ -80,6 +119,7 @@ class TeacherTimesheetController extends Controller
         return response()->json([
             'entries' => $row?->entries ? json_decode($row->entries, true) : new \stdClass,
             'selfEvaluation' => $row?->self_evaluation ? json_decode($row->self_evaluation, true) : new \stdClass,
+            'customAxes' => self::customAxesFor((string) $request->user()->id, $month),
         ]);
     }
 
@@ -105,8 +145,11 @@ class TeacherTimesheetController extends Controller
             'entries.*.tags.*' => ['string', Rule::in(array_keys(self::TAGS))],
             'entries.*.otherText' => ['nullable', 'string', 'max:120'],
             'selfEvaluation' => ['present', 'array'],
-            'selfEvaluation.scores' => ['nullable', 'array', 'max:5'],
+            'selfEvaluation.scores' => ['nullable', 'array', 'max:'.(count(self::axes()) + count(self::CUSTOM_IDS))],
             'selfEvaluation.scores.*' => ['integer', 'between:0,5'],
+            'selfEvaluation.customAxes' => ['nullable', 'array', 'max:'.count(self::CUSTOM_IDS)],
+            'selfEvaluation.customAxes.*.id' => ['required', 'string', Rule::in(self::CUSTOM_IDS)],
+            'selfEvaluation.customAxes.*.title' => ['required', 'string', 'min:2', 'max:60'],
             'selfEvaluation.extraNote' => ['nullable', 'string', 'max:3000'],
         ], [
             'entries.*.in.regex' => 'ساعت ورود معتبر نیست.',
@@ -130,10 +173,18 @@ class TeacherTimesheetController extends Controller
             ];
         }
 
-        $axisIds = array_column(self::AXES, 'id');
+        // شاخص‌های شخصی: حداکثر ۴ مورد، بدون شناسه‌ی تکراری
+        $custom = [];
+        foreach ($data['selfEvaluation']['customAxes'] ?? [] as $axis) {
+            $custom[$axis['id']] = ['id' => $axis['id'], 'title' => trim($axis['title'])];
+        }
+        $custom = array_values($custom);
+
+        $axisIds = array_merge(array_column(self::axes(), 'id'), array_column($custom, 'id'));
         $scores = array_intersect_key($data['selfEvaluation']['scores'] ?? [], array_flip($axisIds));
         $evaluation = [
             'scores' => $scores,
+            'customAxes' => $custom,
             'extraNote' => (string) ($data['selfEvaluation']['extraNote'] ?? ''),
         ];
 
@@ -154,6 +205,50 @@ class TeacherTimesheetController extends Controller
         }
 
         return response()->json(['ok' => true, 'savedAt' => now()->toIso8601String()]);
+    }
+
+    /** ویرایش فهرست شاخص‌های خودارزیابی؛ فقط مدیر مدرسه */
+    public function saveAxes(Request $request): JsonResponse
+    {
+        if (! $request->user()->isAdmin()) {
+            abort(403, 'ویرایش شاخص‌ها فقط برای مدیر مدرسه امکان‌پذیر است.');
+        }
+        $data = $request->validate([
+            'axes' => ['required', 'array', 'min:1', 'max:12'],
+            'axes.*.id' => ['nullable', 'string', 'regex:/^[a-z0-9_]{1,30}$/'],
+            'axes.*.title' => ['required', 'string', 'min:2', 'max:80'],
+        ], ['axes.*.title.required' => 'عنوان شاخص نمی‌تواند خالی باشد.', 'axes.*.title.min' => 'عنوان شاخص خیلی کوتاه است.']);
+
+        $used = [];
+        $axes = [];
+        foreach ($data['axes'] as $axis) {
+            $id = $axis['id'] ?? null;
+            if ($id === null || in_array($id, self::CUSTOM_IDS, true) || isset($used[$id])) {
+                $id = 'a'.bin2hex(random_bytes(4));
+            }
+            $used[$id] = true;
+            $axes[] = ['id' => $id, 'title' => trim($axis['title'])];
+        }
+
+        self::ensureSettingsTable();
+        DB::table('timesheet_settings')->updateOrInsert(
+            ['key' => 'axes'],
+            ['value' => json_encode($axes, JSON_UNESCAPED_UNICODE), 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json(['axes' => $axes]);
+    }
+
+    private static function ensureSettingsTable(): void
+    {
+        if (Schema::hasTable('timesheet_settings')) {
+            return;
+        }
+        Schema::create('timesheet_settings', function ($table) {
+            $table->string('key', 60)->primary();
+            $table->longText('value')->nullable();
+            $table->timestamps();
+        });
     }
 
     /** اگر مهاجرت جدول روی سرور اجرا نشده باشد، جدول (بدون کلید خارجی) ساخته می‌شود تا ثبت ساعت خطای ۵۰۰ ندهد. */

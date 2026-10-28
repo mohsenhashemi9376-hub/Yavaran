@@ -123,6 +123,7 @@ Route::prefix('api')->middleware(\App\Http\Middleware\NurturingSessionGuard::cla
             Route::get('config', [TeacherTimesheetController::class, 'config'])->name('api.teacher-timesheet.config');
             Route::get('/', [TeacherTimesheetController::class, 'show'])->name('api.teacher-timesheet.show');
             Route::post('/', [TeacherTimesheetController::class, 'save'])->name('api.teacher-timesheet.save');
+            Route::put('axes', [TeacherTimesheetController::class, 'saveAxes'])->name('api.teacher-timesheet.axes');
         });
         Route::post('sync', SyncController::class)
             ->middleware('throttle:240,1')

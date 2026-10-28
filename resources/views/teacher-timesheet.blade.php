@@ -220,6 +220,39 @@
         </template>
       </section>
 
+      {{-- شاخص‌های شخصی استاد (حداکثر ۴ مورد) --}}
+      <section x-show="isTab('evaluation')" class="mt-3 space-y-3" aria-label="شاخص‌های شخصی من">
+        <template x-for="axis in customAxes" :key="axis.id">
+          <article class="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center gap-2">
+              <input type="text" maxlength="60" :value="axis.title" @input="setCustomTitle(axis.id, $event)" aria-label="عنوان شاخص" class="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-extrabold text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+              <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600"><span x-text="scoreText(axis.id)"></span> / ۵</span>
+              <button type="button" @click="removeCustom(axis.id)" aria-label="حذف شاخص" class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-lg font-bold text-rose-600 active:bg-rose-100">✕</button>
+            </div>
+            <div class="mt-3 flex items-center gap-1" role="group" :aria-label="axis.title">
+              <template x-for="n in stars" :key="n">
+                <button type="button" @click="setScore(axis.id, n)" :class="starClass(axis.id, n)" class="flex size-12 items-center justify-center rounded-xl text-4xl leading-none active:bg-slate-100" :aria-label="n">★</button>
+              </template>
+              <button type="button" @click="clearScore(axis.id)" class="ms-auto min-h-11 rounded-xl px-3 text-xs font-bold text-slate-500 active:bg-slate-100">صفر</button>
+            </div>
+          </article>
+        </template>
+
+        <div class="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 p-4">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-sm font-extrabold text-emerald-900">افزودن شاخص شخصی</h2>
+            <span class="rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-emerald-700" x-text="customCounterText"></span>
+          </div>
+          <p class="mt-1 text-xs leading-6 text-slate-500">می‌توانید تا ۴ شاخص دلخواه خودتان را به فهرست خودارزیابی اضافه کنید.</p>
+          <div x-show="canAddCustom" class="mt-3 flex items-center gap-2">
+            <input type="text" maxlength="60" :value="newTitle" @input="setNewTitle($event)" @keydown.enter.prevent="addCustom()" placeholder="مثلاً: مشارکت در برنامه‌های فرهنگی" class="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
+            <button type="button" @click="addCustom()" :disabled="addDisabled" class="min-h-12 shrink-0 rounded-xl bg-emerald-600 px-5 text-sm font-extrabold text-white shadow-sm active:bg-emerald-700 disabled:opacity-40">افزودن</button>
+          </div>
+          <p x-show="hasCustomError" class="mt-2 text-xs font-bold text-rose-600" x-text="customError"></p>
+          <p x-show="atLimit" class="mt-3 text-xs font-bold text-emerald-800">به سقف ۴ شاخص رسیده‌اید؛ برای افزودن مورد جدید، یکی را حذف کنید.</p>
+        </div>
+      </section>
+
       {{-- نوار پایین (نزدیک شست): تب‌ها + ذخیره --}}
       <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur" aria-label="بخش‌ها">
         <div class="mx-auto max-w-2xl px-4 pt-2 lg:max-w-6xl lg:px-8">

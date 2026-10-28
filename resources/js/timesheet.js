@@ -42,6 +42,9 @@ Alpine.data('timesheet', () => ({
   entries: {},
   scores: {},
   extraNote: '',
+  customAxes: [],
+  newTitle: '',
+  customError: '',
   stars: [1, 2, 3, 4, 5],
   loading: true,
   saving: false,
@@ -118,6 +121,9 @@ Alpine.data('timesheet', () => ({
       const ev = data.selfEvaluation || {};
       this.scores = ev.scores || {};
       this.extraNote = ev.extraNote || '';
+      this.customAxes = Array.isArray(data.customAxes) ? data.customAxes : [];
+      this.newTitle = '';
+      this.customError = '';
       this.dirty = false;
       this.savedText = '';
     } catch (err) {
@@ -372,10 +378,44 @@ Alpine.data('timesheet', () => ({
     return this.scoreOf(id) >= n ? 'text-amber-400' : 'text-slate-300';
   },
   setExtraNote(e) { this.extraNote = e.target.value; this.touch(); },
+  get allAxes() { return [...this.axes, ...this.customAxes]; },
   get totalScore() {
-    return this.axes.reduce((sum, a) => sum + this.scoreOf(a.id), 0);
+    return this.allAxes.reduce((sum, a) => sum + this.scoreOf(a.id), 0);
   },
-  get totalScoreText() { return `${toFa(this.totalScore)} از ${toFa(this.axes.length * 5)}`; },
+  get totalScoreText() { return `${toFa(this.totalScore)} از ${toFa(this.allAxes.length * 5)}`; },
+
+  // ---------- شاخص‌های شخصی استاد (حداکثر ۴ مورد) ----------
+  get customCount() { return this.customAxes.length; },
+  get customLimit() { return this.config.customLimit || 4; },
+  get canAddCustom() { return this.customAxes.length < this.customLimit; },
+  get atLimit() { return this.customAxes.length >= this.customLimit; },
+  get addDisabled() { return !this.canAddCustom || this.newTitle.trim().length < 2; },
+  get customCounterText() { return `${toFa(this.customAxes.length)} از ${toFa(this.customLimit)}`; },
+  get hasCustom() { return this.customAxes.length > 0; },
+  get hasCustomError() { return this.customError !== ''; },
+  setNewTitle(e) { this.newTitle = e.target.value; this.customError = ''; },
+  addCustom() {
+    const title = this.newTitle.trim();
+    if (title.length < 2) { this.customError = 'عنوان شاخص را بنویسید.'; return; }
+    if (!this.canAddCustom) return;
+    const used = this.customAxes.map((a) => a.id);
+    const id = ['c1', 'c2', 'c3', 'c4'].find((c) => !used.includes(c));
+    if (!id) return;
+    this.customAxes = [...this.customAxes, { id, title }];
+    this.newTitle = '';
+    this.customError = '';
+    this.touch();
+  },
+  removeCustom(id) {
+    this.customAxes = this.customAxes.filter((a) => a.id !== id);
+    const { [id]: _drop, ...rest } = this.scores;
+    this.scores = rest;
+    this.touch();
+  },
+  setCustomTitle(id, e) {
+    this.customAxes = this.customAxes.map((a) => (a.id === id ? { ...a, title: e.target.value } : a));
+    this.touch();
+  },
 
   // ---------- ذخیره ----------
   touch() {
@@ -421,7 +461,7 @@ Alpine.data('timesheet', () => ({
         body: JSON.stringify({
           month: this.monthKey,
           entries,
-          selfEvaluation: { scores: this.scores, extraNote: this.extraNote },
+          selfEvaluation: { scores: this.scores, extraNote: this.extraNote, customAxes: this.customAxes.map((a) => ({ id: a.id, title: a.title.trim() })) },
         }),
       });
       this.dirty = false;

@@ -135,4 +135,46 @@ class TeacherTimesheetTest extends TestCase
         $this->assertCount(5, $res->json('axes'));
         $this->assertArrayHasKey('teaching', $res->json('tags'));
     }
+
+    public function test_teacher_can_add_up_to_four_custom_axes_and_they_carry_to_next_month(): void
+    {
+        $t = $this->makeUser('teacher', ['phone' => '09120000041']);
+        $base = ['month' => 'aban', 'entries' => []];
+        $custom = [
+            ['id' => 'c1', 'title' => 'مشارکت فرهنگی'], ['id' => 'c2', 'title' => 'پیگیری اولیا'],
+            ['id' => 'c3', 'title' => 'کلاس تقویتی'], ['id' => 'c4', 'title' => 'همکاری با همکاران'],
+        ];
+        $this->actingAs($t)->postJson('/api/teacher-timesheet', $base + ['selfEvaluation' => ['scores' => ['c1' => 5, 'growth' => 3], 'customAxes' => $custom]])->assertOk();
+
+        // پنجمین شاخص (یا شناسه‌ی نامعتبر) پذیرفته نمی‌شود
+        $this->actingAs($t)->postJson('/api/teacher-timesheet', $base + ['selfEvaluation' => ['scores' => [], 'customAxes' => array_merge($custom, [['id' => 'c5', 'title' => 'پنجم']])]])->assertStatus(422);
+
+        $aban = $this->actingAs($t)->getJson('/api/teacher-timesheet?month=aban')->assertOk();
+        $this->assertCount(4, $aban->json('customAxes'));
+        $this->assertSame(5, $aban->json('selfEvaluation.scores.c1'));
+        // ماه بعد همان عنوان‌ها پیش‌نمایش داده می‌شود
+        $azar = $this->actingAs($t)->getJson('/api/teacher-timesheet?month=azar')->assertOk();
+        $this->assertSame('مشارکت فرهنگی', $azar->json('customAxes.0.title'));
+
+        // استاد دیگر شاخص‌های این استاد را نمی‌بیند
+        $other = $this->makeUser('teacher', ['phone' => '09120000042']);
+        $this->assertSame([], $this->actingAs($other)->getJson('/api/teacher-timesheet?month=aban')->json('customAxes'));
+    }
+
+    public function test_only_school_admin_can_edit_axes(): void
+    {
+        $axes = [['id' => 'growth', 'title' => 'ارتقاء شخصی'], ['id' => null, 'title' => 'همکاری با تیم']];
+        $teacher = $this->makeUser('teacher', ['phone' => '09120000043']);
+        $this->actingAs($teacher)->putJson('/api/teacher-timesheet/axes', ['axes' => $axes])->assertStatus(403);
+        $vice = $this->makeUser('vice_educational', ['phone' => '09120000044']);
+        $this->actingAs($vice)->putJson('/api/teacher-timesheet/axes', ['axes' => $axes])->assertStatus(403);
+
+        $admin = $this->makeUser('admin', ['phone' => '09120000045']);
+        $res = $this->actingAs($admin)->putJson('/api/teacher-timesheet/axes', ['axes' => $axes])->assertOk();
+        $this->assertSame('growth', $res->json('axes.0.id'));
+        $this->assertNotEmpty($res->json('axes.1.id'));
+
+        $this->actingAs($teacher)->getJson('/api/teacher-timesheet/config')->assertJsonCount(2, 'axes');
+        $this->actingAs($admin)->putJson('/api/teacher-timesheet/axes', ['axes' => []])->assertStatus(422);
+    }
 }

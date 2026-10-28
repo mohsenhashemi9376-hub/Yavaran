@@ -34,7 +34,8 @@ class TeacherTimesheetOverviewController extends Controller
             'config' => [
                 'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
                 'months' => array_map(static fn (array $m): array => ['key' => $m['key'], 'label' => $m['label']], TimesheetCalendar::months()),
-                'axes' => TeacherTimesheetController::AXES,
+                'axes' => TeacherTimesheetController::axes(),
+                'canEditAxes' => $user->isAdmin(),
             ],
         ]);
     }
@@ -51,7 +52,7 @@ class TeacherTimesheetOverviewController extends Controller
             ->where(static fn ($q) => $q->where('role', 'teacher')->orWhereIn('id', $rows->keys()->all()))
             ->orderBy('name')->get(['id', 'name']);
 
-        $axisIds = array_column(TeacherTimesheetController::AXES, 'id');
+        $axisIds = array_column(TeacherTimesheetController::axes(), 'id');
         $list = [];
         foreach ($teachers as $t) {
             $row = $rows->get($t->id);
@@ -79,13 +80,20 @@ class TeacherTimesheetOverviewController extends Controller
             foreach ($axisIds as $id) {
                 $scores[$id] = (int) ($eval['scores'][$id] ?? 0);
             }
+            // شاخص‌های شخصی استاد (حداکثر ۴) هم در امتیاز کل می‌آیند
+            $custom = [];
+            foreach ($eval['customAxes'] ?? [] as $c) {
+                $custom[] = ['title' => (string) ($c['title'] ?? ''), 'score' => (int) ($eval['scores'][$c['id'] ?? ''] ?? 0)];
+            }
             $list[] = [
                 'id' => (string) $t->id,
                 'name' => (string) $t->name,
                 'hours' => round($minutes / 60, 2),
                 'days' => $days,
                 'scores' => $scores,
-                'scoreTotal' => array_sum($scores),
+                'custom' => $custom,
+                'scoreTotal' => array_sum($scores) + array_sum(array_column($custom, 'score')),
+                'scoreMax' => (count($axisIds) + count($custom)) * 5,
                 'hasEval' => $eval !== [],
                 'extraNote' => (string) ($eval['extraNote'] ?? ''),
             ];
