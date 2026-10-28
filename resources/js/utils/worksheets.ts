@@ -92,6 +92,7 @@ export interface WorksheetAlerts {
 /**
  * هشدار فقط برای هفته‌هایی است که معاونت آموزش مهلت تعیین کرده و مهلتشان گذشته است
  * (هفته‌ی تعطیل یا بدون کاربرگ، مهلت ندارد و هشدار هم ندارد).
+ * تا مهلتِ هفته‌ی جاری تعیین نشود، هشدار فعال هم نیست (فقط سابقه‌ی هفته‌های قبل می‌ماند).
  * دانش‌آموز «غایب» به حساب نمی‌آید و هفته‌ی ثبت‌نشده‌ی یک کلاس در پیاپی بودن نادیده گرفته می‌شود.
  */
 export const computeWorksheetAlerts = (
@@ -146,7 +147,10 @@ export const computeWorksheetAlerts = (
   const streaks = new Map<string, number>();
   streakChain.forEach((v, k) => v.count >= 2 && streaks.set(k, v.count));
 
-  const latest = due[0] ? result.find((w) => w.weekStart === due[0].weekStart) : undefined;
+  // تا برای هفته‌ی جدید مهلت تعیین نشده، هشدار فعالی نمایش داده نمی‌شود و هفته‌های قبل فقط سابقه‌اند
+  const thisWeek = weekStartOf();
+  const awaitingDeadline = !weeks.some((w) => w.weekStart === thisWeek && !!w.deadline);
+  const latest = !awaitingDeadline && due[0] ? result.find((w) => w.weekStart === due[0].weekStart) : undefined;
   return {
     weeks: result,
     current: latest ?? null,

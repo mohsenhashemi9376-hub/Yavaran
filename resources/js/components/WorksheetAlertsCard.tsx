@@ -78,7 +78,7 @@ export const WorksheetAlertsCard: React.FC<Props> = ({ onOpen }) => {
 
       {!currentWeek?.deadline && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 leading-6">
-          برای هفته‌ی جاری مهلت ثبت کاربرگ تعیین نشده است؛ تا مهلت تعیین نشود برای این هفته هشداری ثبت نمی‌شود.
+          برای هفته‌ی جاری مهلت ثبت کاربرگ تعیین نشده است؛ تا مهلت جدید تعیین نشود هیچ هشداری نمایش داده نمی‌شود.
           <button type="button" onClick={onOpen} className="mr-1 font-bold text-emerald-800 hover:underline cursor-pointer">تعیین مهلت</button>
         </div>
       )}
