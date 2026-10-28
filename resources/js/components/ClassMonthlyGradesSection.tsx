@@ -356,9 +356,18 @@ export const ClassMonthlyGradesSection: React.FC<ClassMonthlyGradesSectionProps>
     XLSX.writeFile(wb, `نمرات_مستمر_${classData.name}_${currentSubject?.name || 'درس'}.xlsx`);
   };
 
+  // دبیر در کلاسی که درسی ندارد هیچ نمره‌ای نمی‌بیند (نه ماتریس سالانه، نه کارنامه‌ی تجمیعی)
+  if (restrictToOwnSubjects && classSubjects.length === 0) {
+    return (
+      <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
+        درسی از شما در این کلاس تعریف نشده است؛ نمرات این کلاس برای شما قابل مشاهده نیست.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 font-['Vazirmatn',sans-serif]">
-      
+
       {/* نوار کنترل: انتخاب درس، حالت نمایش، ذخیره */}
       <div className="bg-white rounded-2xl shadow-sm shadow-slate-200/60 p-4 sm:p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
