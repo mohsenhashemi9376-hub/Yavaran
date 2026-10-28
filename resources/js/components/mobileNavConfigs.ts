@@ -22,7 +22,7 @@ export const adminMobileNav = (role: string, isAdmin: boolean, counts: { warning
     ...(can(['principal', 'vice_disciplinary', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'discipline', label: 'انضباطی', icon: ShieldAlert }] : []),
     ...(can(['principal', 'vice_educational', 'vice_principal'])
-      ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
+      ? [{ id: 'teachers', label: 'معلمان', icon: UserCheck }, { id: 'timesheets', label: 'تایم‌شیت اساتید', icon: Clock }, { id: 'subjects', label: 'برنامه دروس', icon: BookOpen }] : []),
     ...(can(['principal', 'vice_nurturing', 'coach', 'vice_principal'])
       ? [{ id: 'coaches', label: 'مربیان', icon: HeartHandshake }] : []),
     ...(can(['principal', 'vice_disciplinary', 'vice_educational', 'vice_principal'])
@@ -73,6 +73,7 @@ export const educationalMobileNav = (counts: { warnings: number }, canReviewLess
     { id: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
     { id: 'announcements', label: 'بخشنامه‌ها', icon: Megaphone },
     { id: 'teacher_evaluation', label: 'ارزیابی اساتید', icon: UserCheck },
+    { id: 'timesheets', label: 'تایم‌شیت اساتید', icon: Clock },
     ...(canReviewLessonPlans ? [{ id: 'lesson_plans', label: 'طرح درس اساتید', icon: ClipboardCheck }] : []),
     { id: 'worksheets', label: 'کاربرگ', icon: ClipboardCheck },
     { id: 'homework_followup', label: 'پیگیری تکالیف', icon: ClipboardList },

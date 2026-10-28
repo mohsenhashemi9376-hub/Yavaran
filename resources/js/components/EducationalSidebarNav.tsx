@@ -44,7 +44,8 @@ export type EducationalViewType =
   | 'homework_followup'
   | 'worksheets'
   | 'lesson_plans'
-  | 'students' 
+  | 'timesheets'
+  | 'students'
   | 'attendance' 
   | 'settings';
 
@@ -73,7 +74,7 @@ interface EducationalSidebarNavProps {
 }
 
 interface NavItemDef {
-  id: EducationalViewType | 'timesheets';
+  id: EducationalViewType;
   label: string;
   tooltip: string;
   icon: React.ElementType;
@@ -121,7 +122,7 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
         { id: 'teachers', label: 'لیست دبیران', tooltip: 'دبیران و اساتید', icon: UserCheck },
         { id: 'lesson_plans', label: 'بررسی طرح درس‌ها', tooltip: 'نظارت، بازخورد و تأیید طرح درس روزانه‌ی اساتید', icon: ClipboardCheck },
         { id: 'teacher_evaluation', label: 'ارزیابی عملکرد', tooltip: 'ارزیابی دوره‌ای عملکرد اساتید', icon: BarChart3 },
-        { id: 'timesheets', label: 'تایم‌شیت', tooltip: 'ساعت کاری و خودارزیابی ماهانه‌ی اساتید', icon: Clock, href: '/teacher-timesheets' },
+        { id: 'timesheets', label: 'تایم‌شیت', tooltip: 'ساعت کاری و خودارزیابی ماهانه‌ی اساتید', icon: Clock },
       ],
     },
     {
@@ -172,7 +173,7 @@ export const EducationalSidebarNav: React.FC<EducationalSidebarNavProps> = ({
     .map((g) => ({ ...g, items: g.items.filter((i) => i.id !== 'lesson_plans' || currentUser.role === 'vice_educational') }))
     .filter((g) => g.items.length > 0);
 
-  const isItemActive = (item: NavItemDef) => item.id !== 'timesheets' && activeView === item.id;
+  const isItemActive = (item: NavItemDef) => activeView === item.id;
   const groupHasActive = (g: NavGroupDef) => g.items.some(isItemActive);
   const groupAlert = (g: NavGroupDef) => g.items.some((i) => (i.urgent ?? 0) > 0);
 

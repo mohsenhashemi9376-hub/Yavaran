@@ -14,9 +14,13 @@ const KEY_WORDS: Record<ExamSubjectKey, string[]> = {
   math: ['ریاضی'],
   science: ['علوم'],
   arabic: ['عربی'],
-  english: ['انگلیسی'],
+  english: ['انگلیسی', 'english'],
 };
-export const examKeyOfSubjectName = (name: string): ExamSubjectKey | null => {
+/** یکسان‌سازی «ي/ك» عربی، نیم‌فاصله، کشیده و حروف لاتین (همسان با سرور) */
+const normalizeSubjectName = (name: string): string =>
+  name.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‍ـ]/g, '').toLowerCase();
+export const examKeyOfSubjectName = (rawName: string): ExamSubjectKey | null => {
+  const name = normalizeSubjectName(rawName || '');
   for (const [key, words] of Object.entries(KEY_WORDS) as [ExamSubjectKey, string[]][]) {
     if (words.some((w) => name.includes(w)) && !(key === 'science' && name.includes('اجتماعی'))) return key;
   }
@@ -76,8 +80,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
   const classStudents = useMemo(() => (opt ? students.filter((s) => s.classId === opt.classId).slice().sort(compareByLastName) : []), [students, opt?.classId]);
 
   const open = Boolean(opt) && isGradePeriodOpen(month, opt.subjectId);
-  const monthActive = !opt || (record?.monthlyActive?.[month] ?? record?.activeSubjects ?? [opt.key]).includes(opt.key) || !record;
-  const canEdit = open && monthActive;
+  // باز بودن ماه برای درس دبیر کافی است؛ فعال‌سازی درس در آن ماه هنگام ذخیره (در سرور) انجام می‌شود
+  const canEdit = open;
 
   useEffect(() => {
     if (!opt) return;
@@ -163,7 +167,7 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
         {!canEdit && (
           <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs font-bold text-amber-900">
             <Lock className="w-4 h-4 shrink-0" />
-            {open ? 'درس شما برای آزمون جامع این ماه فعال نشده است.' : 'ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.'}
+            ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.
           </div>
         )}
       </div>

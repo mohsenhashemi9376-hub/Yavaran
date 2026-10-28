@@ -27,6 +27,8 @@ import { AdminDelaysWorkspace } from './AdminDelaysWorkspace';
 import { AdminDisciplineWorkspace } from './AdminDisciplineWorkspace';
 import { AdminReportsWorkspace } from './AdminReportsWorkspace';
 import { AdminSubjectsWorkspace } from './AdminSubjectsWorkspace';
+import { TimesheetOverviewWorkspace } from './TimesheetOverviewWorkspace';
+import { WorkspaceHeader } from './ui/WorkspaceHeader';
 import { AdminWarningsWorkspace } from './AdminWarningsWorkspace';
 import { AdminSettingsWorkspace } from './AdminSettingsWorkspace';
 
@@ -1751,6 +1753,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setIsEditTeacherModalOpen(true);
           }}
         />
+      )}
+
+      {currentFullScreenView === 'timesheets' && (
+        <div className="space-y-5" dir="rtl">
+          <WorkspaceHeader
+            title="تایم‌شیت اساتید"
+            icon={Clock}
+            section="مدیریت مدرسه"
+            subtitle="ساعت کاری و خودارزیابی ماهانه‌ی اساتید"
+            onBack={() => setCurrentFullScreenView(null)}
+            onOpenSidebar={handleOpenSidebar}
+          />
+          <TimesheetOverviewWorkspace />
+        </div>
       )}
 
       {currentFullScreenView === 'coaches' && (

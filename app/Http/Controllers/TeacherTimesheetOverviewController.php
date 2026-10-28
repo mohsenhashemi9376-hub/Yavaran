@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Support\Sync\AccessPolicy;
 use App\Support\TimesheetCalendar;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,21 +22,10 @@ class TeacherTimesheetOverviewController extends Controller
         return $user !== null && (new AccessPolicy($user))->isManager() ? $user : null;
     }
 
-    public function page(Request $request): View|RedirectResponse
+    /** صفحهٔ Blade قدیمی حذف شد؛ نمای مدیریتی تایم‌شیت داخل پنل (React) است و آدرس‌های ذخیره‌شده به صفحهٔ اصلی می‌روند. */
+    public function page(): RedirectResponse
     {
-        $user = $this->allowed($request);
-        if ($user === null || $user->mustChangePassword()) {
-            return redirect('/');
-        }
-
-        return view('teacher-timesheets', [
-            'config' => [
-                'academicYear' => TimesheetCalendar::ACADEMIC_YEAR,
-                'months' => array_map(static fn (array $m): array => ['key' => $m['key'], 'label' => $m['label']], TimesheetCalendar::months()),
-                'axes' => TeacherTimesheetController::axes(),
-                'canEditAxes' => $user->isAdmin(),
-            ],
-        ]);
+        return redirect('/');
     }
 
     public function index(Request $request): JsonResponse
