@@ -67,7 +67,7 @@ export const TeacherExamCard: React.FC<Props> = ({ groups, onOpen }) => {
         )}
         <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:-translate-x-0.5" />
       </div>
-      <div className="relative mt-2 text-[11px] font-bold text-indigo-700">مشاهدهٔ کارنامهٔ آزمون جامع به تفکیک دانش‌آموز و ماه</div>
+      <div className="relative mt-2 text-[11px] font-bold text-indigo-700">ورود نمره و مشاهدهٔ کارنامهٔ آزمون جامع به تفکیک دانش‌آموز و ماه</div>
     </button>
   );
 };

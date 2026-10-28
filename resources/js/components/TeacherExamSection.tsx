@@ -99,8 +99,8 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
 
   useEffect(() => {
     if (!focusReport) return;
-    // پس از بازنشانی اسکرول داشبورد (useScrollTop) به کارنامه برو
-    const t = window.setTimeout(() => document.getElementById('exam-class-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    // پس از بازنشانی اسکرول داشبورد (useScrollTop) به بخش ورود نمره برو
+    const t = window.setTimeout(() => document.getElementById('exam-score-entry')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     return () => window.clearTimeout(t);
   }, [focusReport]);
 
@@ -174,6 +174,32 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
             ثبت نمره‌ی این ماه هنوز توسط معاونت آموزش باز نشده است؛ فقط مشاهده می‌کنید.
           </div>
         )}
+      </div>
+
+      {/* ورود نمره */}
+      <div id="exam-score-entry" className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden scroll-mt-24">
+        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} از {toPersianDigits(maxScore)} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
+        <ul className="divide-y divide-slate-100">
+          {classStudents.map((s, i) => (
+            <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>
+              <span className="w-6 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
+              <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</span>
+              {typeof parseScore(draft[s.id] ?? '') === 'number' && !invalid(s.id) && <span className={`hidden sm:inline px-2 py-0.5 rounded-lg text-[11px] ${scorePillClass(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 20)}`}>{faP(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 100)}</span>}
+              {isExamAbsent(record, s.id, month) && <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-extrabold">غایب</span>}
+              <input
+                value={toPersianDigits(draft[s.id] ?? '')}
+                onChange={(e) => { setDraft((p) => ({ ...p, [s.id]: toEnglishDigits(e.target.value).replace(/[٫/،,]/g, '.').replace(/[^0-9.]/g, '') })); setDirty(true); }}
+                disabled={!canEdit || isExamAbsent(record, s.id, month)}
+                inputMode="decimal"
+                dir="ltr"
+                aria-label={`نمره ${studentFullName(s)}`}
+                placeholder="—"
+                className={`w-20 h-11 text-center font-bold text-sm rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${invalid(s.id) ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}
+              />
+            </li>
+          ))}
+          {classStudents.length === 0 && <li className="py-8 text-center text-xs text-slate-400">دانش‌آموزی در این کلاس نیست.</li>}
+        </ul>
       </div>
 
       {/* کارنامهٔ آزمون جامع کلاس: دانش‌آموز × ماه */}
@@ -266,36 +292,10 @@ export const TeacherExamSection: React.FC<Props> = ({ groups, focusReport }) => 
         </div>
       )}
 
-      {/* ورود نمره */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 text-xs font-black text-slate-800">ورود نمره‌ی {subjectLabel} از {toPersianDigits(maxScore)} ({toPersianDigits(classStudents.length)} دانش‌آموز)</div>
-        <ul className="divide-y divide-slate-100">
-          {classStudents.map((s, i) => (
-            <li key={s.id} className={`flex items-center gap-3 px-4 py-2 ${isExamAbsent(record, s.id, month) ? 'bg-slate-50' : ''}`}>
-              <span className="w-6 text-center text-[11px] font-bold text-slate-400">{toPersianDigits(i + 1)}</span>
-              <span className="flex-1 min-w-0 text-sm font-bold text-slate-900 truncate">{studentFullName(s)}</span>
-              {typeof parseScore(draft[s.id] ?? '') === 'number' && !invalid(s.id) && <span className={`hidden sm:inline px-2 py-0.5 rounded-lg text-[11px] ${scorePillClass(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 20)}`}>{faP(((parseScore(draft[s.id] ?? '') as number) / maxScore) * 100)}</span>}
-              {isExamAbsent(record, s.id, month) && <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 text-[11px] font-extrabold">غایب</span>}
-              <input
-                value={toPersianDigits(draft[s.id] ?? '')}
-                onChange={(e) => { setDraft((p) => ({ ...p, [s.id]: toEnglishDigits(e.target.value).replace(/[٫/،,]/g, '.').replace(/[^0-9.]/g, '') })); setDirty(true); }}
-                disabled={!canEdit || isExamAbsent(record, s.id, month)}
-                inputMode="decimal"
-                dir="ltr"
-                aria-label={`نمره ${studentFullName(s)}`}
-                placeholder="—"
-                className={`w-20 h-11 text-center font-bold text-sm rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${invalid(s.id) ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}
-              />
-            </li>
-          ))}
-          {classStudents.length === 0 && <li className="py-8 text-center text-xs text-slate-400">دانش‌آموزی در این کلاس نیست.</li>}
-        </ul>
-      </div>
-
       {canEdit && (
         <div className="sticky bottom-20 md:bottom-4 z-20">
           <button type="button" onClick={save} disabled={!dirty || hasErrors} className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-extrabold shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer">
-            <Save className="w-4 h-4" /> {hasErrors ? 'نمره باید بین ۰ تا ۲۰ باشد' : 'ذخیره‌ی نمرات آزمون جامع'}
+            <Save className="w-4 h-4" /> {hasErrors ? `نمره باید بین ۰ تا ${toPersianDigits(maxScore)} باشد` : 'ذخیره‌ی نمرات آزمون جامع'}
           </button>
         </div>
       )}
