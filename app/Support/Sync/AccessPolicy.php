@@ -1116,7 +1116,7 @@ final class AccessPolicy
         'math' => ['ریاضی'],
         'science' => ['علوم'],
         'arabic' => ['عربی'],
-        'english' => ['انگلیسی'],
+        'english' => ['انگلیسی', 'english'],
     ];
 
     /** @var array<string, array<int, string>>|null کلاس ← کلیدهای آزمون جامعی که دبیر در آن کلاس تدریس می‌کند */
@@ -1127,6 +1127,8 @@ final class AccessPolicy
 
     public static function examKeyOfSubjectName(string $name): ?string
     {
+        // یکسان‌سازی «ي/ك» عربی، نیم‌فاصله و کشیده (همسان با کلاینت)
+        $name = mb_strtolower(str_replace(['ي', 'ك', "\u{200c}", "\u{200d}", "\u{0640}"], ['ی', 'ک', '', '', ''], $name));
         foreach (self::EXAM_KEY_WORDS as $key => $words) {
             foreach ($words as $w) {
                 if (str_contains($name, $w) && ! ($key === 'science' && str_contains($name, 'اجتماعی'))) {

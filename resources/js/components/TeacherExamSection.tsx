@@ -14,9 +14,13 @@ const KEY_WORDS: Record<ExamSubjectKey, string[]> = {
   math: ['ریاضی'],
   science: ['علوم'],
   arabic: ['عربی'],
-  english: ['انگلیسی'],
+  english: ['انگلیسی', 'english'],
 };
-export const examKeyOfSubjectName = (name: string): ExamSubjectKey | null => {
+/** یکسان‌سازی «ي/ك» عربی، نیم‌فاصله، کشیده و حروف لاتین (همسان با سرور) */
+const normalizeSubjectName = (name: string): string =>
+  name.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‍ـ]/g, '').toLowerCase();
+export const examKeyOfSubjectName = (rawName: string): ExamSubjectKey | null => {
+  const name = normalizeSubjectName(rawName || '');
   for (const [key, words] of Object.entries(KEY_WORDS) as [ExamSubjectKey, string[]][]) {
     if (words.some((w) => name.includes(w)) && !(key === 'science' && name.includes('اجتماعی'))) return key;
   }
