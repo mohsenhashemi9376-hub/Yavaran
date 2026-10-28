@@ -74,6 +74,7 @@ import { summarizeStudentDelays, delayDeductionState, DELAY_MINUTES_PER_POINT, D
 import { FitTable } from './ui/FitTable';
 import { StudentTimeline } from './StudentTimeline';
 import { StudentEducationTab } from './StudentEducationTab';
+import { useUnsavedGuard } from '../utils/unsavedGuard';
 
 export type ProfileTab = 'overview' | 'info' | 'attendance' | 'discipline' | 'grades' | 'education' | 'timeline';
 
@@ -185,6 +186,18 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
       setEditNotes(currentStudent.notes || '');
     }
   }, [isOpen, currentStudent?.id, initialTab]);
+
+  // ویرایش مشخصات: تا ذخیره نشده، خروج از صفحه هشدار می‌دهد
+  const profileEditDirty = Boolean(isOpen && isEditing && currentStudent && (
+    editFirstName !== (currentStudent.firstName || '') ||
+    editLastName !== (currentStudent.lastName || '') ||
+    editFatherName !== (currentStudent.fatherName || '') ||
+    editNationalId !== realNationalId(currentStudent.nationalId, currentStudent.studentCode) ||
+    editParentPhone !== (currentStudent.parentPhone || '') ||
+    editMotherPhone !== (currentStudent.motherPhone || '') ||
+    editNotes !== (currentStudent.notes || '')
+  ));
+  useUnsavedGuard(profileEditDirty);
 
   // Class Info
   const studentClass = useMemo(() => {
@@ -637,6 +650,18 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
     setTimeout(() => setSmsCopied(false), 2500);
   };
 
+  const requestClose = () => {
+    if (!profileEditDirty) { onClose(); return; }
+    showConfirm({
+      title: 'تغییرات ذخیره نشده',
+      message: 'ویرایش مشخصات هنوز ذخیره نشده است. با بستن پرونده تغییرات از بین می‌رود.',
+      confirmLabel: 'بستن بدون ذخیره',
+      cancelLabel: 'ادامه ویرایش',
+      isDangerous: true,
+      onConfirm: onClose,
+    });
+  };
+
   const handleExportExcel = () => {
     exportStudentIndividualReportToExcel(
       currentStudent,
@@ -654,7 +679,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
       id="student-profile-modal-backdrop"
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-start sm:items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       {/* کل پنجره یک کانتینر اسکرول‌شونده است (بدون اسکرول داخلی تودرتو) */}
@@ -711,7 +736,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
 
           <button
             id="btn-close-student-profile"
-            onClick={onClose}
+            onClick={requestClose}
             className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
             title="بستن پرونده"
             aria-label="بستن پرونده"
@@ -1553,7 +1578,7 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
 
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="px-5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition cursor-pointer"
             >
               بستن پرونده

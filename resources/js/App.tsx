@@ -5,6 +5,7 @@ import { retryImport } from './utils/retryImport';
 import { useScrollTop } from './utils/useScrollTop';
 import { tehranNow, getCurrentAcademicYear, getActiveAcademicYear, getAcademicYearStart } from './utils/persianDate';
 import { SchoolProvider, useSchool } from './context/SchoolContext';
+import { hasUnsavedChanges } from './utils/unsavedGuard';
 import { Header } from './components/Header';
 import { ConfidentialGuard } from './components/ConfidentialGuard';
 import { SyncStatusBadge } from './components/SyncStatusBadge';
@@ -50,7 +51,8 @@ const MainApp: React.FC = () => {
     isNurturingVice,
     isCoach,
     isAdminOrVice,
-    viewDate
+    viewDate,
+    showConfirm,
   } = useSchool();
   
   const todayInfo = getTodayShamsi();
@@ -61,6 +63,18 @@ const MainApp: React.FC = () => {
   // Active view tab: 'main' (Classes/Attendance), 'discipline' (Disciplinary VP), 'grades' (Educational VP), 'nurture' (Nurturing VP & Coach), 'teacher' (Coach acting as Teacher)
   const [activeTab, setActiveTab] = useState<'main' | 'discipline' | 'grades' | 'nurture' | 'teacher'>('main');
   const prevUserIdRef = useRef<string>('');
+  /** جابه‌جایی بین پنل‌ها: اگر فرمی تغییر ذخیره‌نشده دارد، پیش از خروج تأیید می‌گیرد */
+  const requestTabChange = (tab: typeof activeTab) => {
+    if (tab === activeTab || !hasUnsavedChanges()) { setActiveTab(tab); return; }
+    showConfirm({
+      title: 'تغییرات ذخیره نشده',
+      message: 'تغییرات این صفحه هنوز ذخیره نشده است. اگر خارج شوید از بین می‌رود. خارج می‌شوید؟',
+      confirmLabel: 'بله، خارج شو',
+      cancelLabel: 'ماندن در صفحه',
+      isDangerous: true,
+      onConfirm: () => setActiveTab(tab),
+    });
+  };
   useScrollTop(activeTab);
   const TAB_KEY = 'yv-active-tab';
   const savedTab = (): typeof activeTab | null => {
@@ -268,7 +282,7 @@ const MainApp: React.FC = () => {
         onOpenGlobalSearch={() => setGlobalSearchModalOpen(true)}
         onHeightChange={setHeaderHeight}
         currentActiveTab={effectiveTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={requestTabChange}
       />
       </ErrorBoundary>
 
