@@ -24,8 +24,10 @@ export type ExamMonth = MonthlyContinuousKey | 'legacy' | 'all';
 export const examMonthLabel = (m: ExamMonth): string =>
   m === 'legacy' ? 'ثبت قبلی (بدون ماه)' : m === 'all' ? 'میانگین همه‌ی آزمون‌ها' : SCORE_COLUMNS.find((x) => x.key === m)?.monthName ?? m;
 
-/** حد «ضعیف» برای فهرست دانش‌آموزان ضعیف */
-export const EXAM_WEAK_BELOW = 12;
+/** حد «ضعیف» (۵۰٪ نمره) روی مقیاس ۲۰ برای فهرست دانش‌آموزان ضعیف */
+export const EXAM_WEAK_BELOW = 10;
+/** حد «ممتاز» (۸۰٪ نمره) روی مقیاس ۲۰ */
+export const EXAM_EXCELLENT_FROM = 16;
 
 export type ExamScores = Record<string, Partial<Record<ExamSubjectKey, number>>>;
 
@@ -186,9 +188,9 @@ export const stdDev = (xs: number[]): number | undefined => {
   return m === undefined ? undefined : Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
 };
 
-/** تعداد نمرات در هر گروه: ممتاز (۱۷ به بالا) / متوسط (۱۰ تا ۱۷) / ضعیف (زیر ۱۰) */
+/** تعداد نمرات در هر گروه: ممتاز (۸۰٪ به بالا) / متوسط (۵۰ تا ۸۰٪) / ضعیف (زیر ۵۰٪) */
 export const bandCounts = (xs: number[]): Record<'excellent' | 'good' | 'weak', number> => ({
-  excellent: xs.filter((v) => v >= 17).length,
-  good: xs.filter((v) => v >= 10 && v < 17).length,
+  excellent: xs.filter((v) => v >= EXAM_EXCELLENT_FROM).length,
+  good: xs.filter((v) => v >= EXAM_WEAK_BELOW && v < EXAM_EXCELLENT_FROM).length,
   weak: xs.filter((v) => v < 10).length,
 });

@@ -6,7 +6,7 @@ import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX } from '../utils/examReport';
+import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_WEAK_BELOW } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
   onBack: () => void;
@@ -24,19 +24,18 @@ const examScoreClass = (score: number | null | undefined): string => {
 type Draft = Record<string, Partial<Record<ExamSubjectKey, string>>>;
 type SortKey = ExamSubjectKey | 'average';
 
+/** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۵۰٪ = ۱۰ */
 const LEVELS = [
-  { id: 'excellent', label: 'عالی', hint: 'بالای ۱۸', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
-  { id: 'good', label: 'خوب', hint: '۱۵ تا ۱۸', bar: 'bg-sky-500', chip: 'bg-sky-50 text-sky-700' },
-  { id: 'medium', label: 'متوسط', hint: '۱۲ تا ۱۵', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
-  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۱۲', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
+  { id: 'excellent', label: 'ممتاز', hint: '۸۰٪ و بالاتر', bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
+  { id: 'medium', label: 'متوسط', hint: '۵۰٪ تا کمتر از ۸۰٪', bar: 'bg-amber-400', chip: 'bg-amber-50 text-amber-700' },
+  { id: 'weak', label: 'نیازمند تلاش', hint: 'زیر ۵۰٪', bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-700' },
 ] as const;
 
 const levelOf = (avg: number | null) => {
   if (avg === null) return null;
-  if (avg > 18) return LEVELS[0];
-  if (avg >= 15) return LEVELS[1];
-  if (avg >= 12) return LEVELS[2];
-  return LEVELS[3];
+  if (avg >= EXAM_EXCELLENT_FROM) return LEVELS[0];
+  if (avg >= EXAM_WEAK_BELOW) return LEVELS[1];
+  return LEVELS[2];
 };
 
 // ورودی را به رشته لاتین با نقطه اعشار تبدیل می‌کند
@@ -350,35 +349,6 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             })}
           </div>
         </div>
-
-        {month !== 'legacy' && activeSubjects.length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-slate-500 mb-2">بارم هر درس در آزمون {examMonthLabel(month)} (پیش‌فرض ۲۰؛ معدل‌ها بر مبنای ۲۰ محاسبه می‌شوند)</div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {activeSubjects.map((s) => {
-                const bad = isInvalidMax(maxes[s.key]);
-                return (
-                  <label key={s.key} className="flex items-center justify-between gap-2 bg-slate-50 rounded-xl px-3 h-12 text-sm font-bold text-slate-700">
-                    <span className="truncate">{s.label}</span>
-                    <span className="flex items-center gap-1 shrink-0">
-                      <span className="text-[11px] text-slate-400">از</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        dir="ltr"
-                        value={toPersianDigits((maxes[s.key] ?? '').replace('.', '٫'))}
-                        onChange={(e) => changeMax(s.key, e.target.value)}
-                        aria-label={`بارم ${s.label}`}
-                        aria-invalid={bad}
-                        className={`w-14 h-9 text-center rounded-lg outline-none transition focus:ring-4 focus:ring-emerald-100 border ${bad ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white border-slate-200 text-slate-800'}`}
-                      />
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* تحلیل */}
@@ -468,9 +438,24 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                   <th key={s.key} className="p-3 text-center font-bold">
                     <button type="button" onClick={() => toggleSort(s.key)} className={`inline-flex items-center gap-1 cursor-pointer px-3 py-1 rounded-full text-xs whitespace-nowrap ${subjectPillClass(s.label)}`}>
                       {s.label}
-                      <span className="text-[10px] font-bold opacity-70">از {toPersianDigits(maxOf(s.key))}</span>
                       <SortIcon k={s.key} />
                     </button>
+                    {month !== 'legacy' && (
+                      <label className="mt-1.5 flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500">
+                        از
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          dir="ltr"
+                          value={toPersianDigits((maxes[s.key] ?? '').replace('.', '٫'))}
+                          onChange={(e) => changeMax(s.key, e.target.value)}
+                          aria-label={`بارم ${s.label}`}
+                          aria-invalid={isInvalidMax(maxes[s.key])}
+                          title="بارم (نمره‌ی کل) این درس"
+                          className={`w-12 h-8 text-center rounded-lg outline-none border focus:ring-4 focus:ring-emerald-100 ${isInvalidMax(maxes[s.key]) ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white border-slate-200 text-slate-800'}`}
+                        />
+                      </label>
+                    )}
                   </th>
                 ))}
                 <th className="p-3 text-center font-bold bg-indigo-50/60 border-x border-indigo-200">
@@ -534,12 +519,12 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                             className={`inline-block px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
                               lv.id === LEVELS[0].id
                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                : lv.id === LEVELS[3].id
+                                : lv.id === LEVELS[2].id
                                   ? 'bg-rose-100 text-rose-800 border-rose-300'
                                   : 'bg-blue-100 text-blue-800 border-blue-300'
                             }`}
                           >
-                            {lv.id === LEVELS[0].id ? 'ممتاز / رتبه برتر' : lv.id === LEVELS[3].id ? 'نیاز به پیگیری' : 'پذیرفته / عادی'}
+                            {lv.id === LEVELS[0].id ? 'ممتاز / رتبه برتر' : lv.id === LEVELS[2].id ? 'نیاز به پیگیری' : 'پذیرفته / عادی'}
                           </span>
                         ) : (
                           <span className="inline-block px-3 py-1 rounded-full text-xs bg-slate-100/70 border border-slate-200/70 text-slate-400">—</span>
