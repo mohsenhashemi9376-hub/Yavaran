@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { computeFollowUps, FOLLOW_UP_MONTHS, FollowUpReason, FOLLOW_UP_GROUP_LABEL, FollowUpGroup, isDefaultFollowUpConfig } from '../utils/academicFollowUp';
 import { gradeScoreForMonth, ReportMonth } from '../utils/monthlyReport';
-import { SCORE_COLUMNS, EXAM_MONTHS, ExamMonth, studentExamSummary, faExamPct, examLevelOf, EXAM_NEEDS_EFFORT_BELOW } from '../utils/examReport';
+import { SCORE_COLUMNS, EXAM_MONTHS, examMonthsWithData, ExamMonth, studentExamSummary, faExamPct, examLevelOf, EXAM_NEEDS_EFFORT_BELOW } from '../utils/examReport';
 import { FollowUpCriteriaModal } from './FollowUpCriteriaModal';
 import { AcademicFollowUpStatus, EXAM_SUBJECTS } from '../types';
 import { SchoolClass, Student, StudentAcademicGrade, AcademicSubject, User, MonthlyContinuousKey } from '../types';
@@ -127,6 +127,7 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
     academicSubjects, 
     academicGrades, 
     comprehensiveExams,
+    lessonPlans,
     academicFollowUps,
     setAcademicFollowUp,
     followUpConfig,
@@ -507,8 +508,8 @@ export const EducationalDashboard: React.FC<EducationalDashboardProps> = ({
             <div data-stagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {([
                 ['classes', 'کلاس‌ها', toPersianDigits(classes.length), 'مشاهده کلاس‌ها', School, 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950', 'text-emerald-600'],
-                ['subjects', 'برنامه دروس', toPersianDigits(academicSubjects.length), 'تنظیم زنگ‌ها', BookOpen, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-blue-600'],
-                ['teachers', 'کادر اساتید', toPersianDigits(allTeachers.length), 'لیست دبیران', GraduationCap, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
+                ['lesson_plans', 'طرح درس اساتید', toPersianDigits(lessonPlans.filter((p) => p.status === 'submitted').length), 'در انتظار بررسی', FileText, 'bg-sky-50/70 border-sky-200/80 text-sky-950', 'text-blue-600'],
+                ['comprehensive_exam', 'آزمون جامع', toPersianDigits(comprehensiveExams.filter((r) => examMonthsWithData(r).length > 0).length), 'کلاس دارای نمره', BarChart3, 'bg-purple-50/70 border-purple-200/80 text-purple-950', 'text-purple-600'],
                 ['homework_followup', 'پیگیری تکالیف', toPersianDigits(homeworkProblemCount), homeworkProblemCount === 0 ? 'مورد باز نیست' : 'دانش‌آموز نیازمند پیگیری', ClipboardList, 'bg-teal-50/70 border-teal-200/80 text-teal-950', 'text-teal-600'],
                 [
                   'grades',
