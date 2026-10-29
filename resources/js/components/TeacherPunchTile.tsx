@@ -27,10 +27,10 @@ type Step = 'in' | 'out' | 'in2' | 'out2' | 'done';
 const stepOf = (e: Entry): Step => (e.out2 ? 'done' : e.in2 ? 'out2' : e.out ? 'in2' : e.in ? 'out' : 'in');
 const LABEL: Record<Step, string> = { in: 'ثبت ورود', out: 'ثبت خروج', in2: 'ثبت ورود دوم', out2: 'ثبت خروج دوم', done: 'پایان روز' };
 
-interface Props { onOpenTimesheet: () => void }
+const PUNCH_EVENT = 'yv-teacher-punch';
 
-/** کاشی «ساعت کاری» در داشبورد دبیر: ثبت ورود و خروج با یک دکمه (تا دو نوبت در روز) */
-export const TeacherPunchTile: React.FC<Props> = ({ onOpenTimesheet }) => {
+/** منطق مشترک ثبت ورود/خروج؛ دکمه‌ی هدر و کاشی ساعت کاری با رویداد همگام می‌مانند */
+export const useTeacherPunch = () => {
   const today = getTodayShamsi();
   const monthKey = useMemo(() => workMonthKey(today.year, today.month, today.day), [today.year, today.month, today.day]);
   const isFriday = today.dayOfWeek === 'جمعه';
@@ -46,7 +46,9 @@ export const TeacherPunchTile: React.FC<Props> = ({ onOpenTimesheet }) => {
   useEffect(() => {
     let alive = true;
     load().then((d) => { if (alive && d) setEntry((d.entries as Record<string, Entry>)?.[today.formattedDate] || {}); }).catch(() => undefined);
-    return () => { alive = false; };
+    const onSync = (ev: Event) => setEntry((ev as CustomEvent<Entry>).detail || {});
+    window.addEventListener(PUNCH_EVENT, onSync);
+    return () => { alive = false; window.removeEventListener(PUNCH_EVENT, onSync); };
   }, [load, today.formattedDate]);
 
   const step = stepOf(entry);
@@ -78,6 +80,7 @@ export const TeacherPunchTile: React.FC<Props> = ({ onOpenTimesheet }) => {
         selfEvaluation: Array.isArray(fresh.selfEvaluation) ? {} : fresh.selfEvaluation || {},
       });
       setEntry(e);
+      window.dispatchEvent(new CustomEvent(PUNCH_EVENT, { detail: e }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت انجام نشد. دوباره تلاش کنید.');
     } finally {
@@ -87,24 +90,43 @@ export const TeacherPunchTile: React.FC<Props> = ({ onOpenTimesheet }) => {
 
   const working = step === 'out' || step === 'out2';
   const hint = isFriday ? 'امروز تعطیل است' : !monthKey ? 'خارج از سال تحصیلی' : step === 'done' ? 'خسته نباشید ✓' : working ? `ورود: ${toPersianDigits((step === 'out' ? entry.in : entry.in2) || '')}` : `جمع امروز: ${hoursText} ساعت`;
+  return { step, busy, disabled, working, error, hint, hoursText, punch };
+};
 
+/** دکمه‌ی ورود/خروج زیر نام دبیر در هدر داشبورد: ورود اول ← خروج اول ← ورود دوم ← خروج دوم */
+export const TeacherPunchButton: React.FC = () => {
+  const { step, busy, disabled, working, error, hint, punch } = useTeacherPunch();
   return (
-    <div className="min-h-[7.5rem] p-4 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white/70 shadow-sm backdrop-blur-sm text-right flex flex-col">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold text-slate-600">ساعت کاری</span>
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white/80 text-amber-600"><Clock className="w-4 h-4" /></span>
-      </div>
+    <div className="space-y-1.5">
       <button
         type="button"
         onClick={punch}
         disabled={disabled}
-        className={`mt-2 min-h-12 w-full rounded-xl text-sm font-black text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${working ? 'bg-rose-500' : 'bg-emerald-600'}`}
+        className={`min-h-12 w-full rounded-xl text-sm font-extrabold text-white inline-flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer ${working ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-700 hover:bg-emerald-800'}`}
       >
+        <Clock className="w-4 h-4" />
         {busy ? 'در حال ثبت…' : LABEL[step]}
       </button>
-      <button type="button" onClick={onOpenTimesheet} className="mt-auto pt-1.5 text-xs font-medium text-amber-700 flex items-center gap-1 cursor-pointer">
-        <span className="truncate">{error || hint}</span><ChevronLeft className="w-3 h-3 shrink-0" />
-      </button>
+      {(error || step !== 'in') && <p className={`text-[11px] text-center ${error ? 'text-rose-600' : 'text-slate-500'}`}>{error || hint}</p>}
     </div>
+  );
+};
+
+interface Props { onOpenTimesheet: () => void }
+
+/** کاشی «ساعت کاری» در داشبورد دبیر: فقط جمع امروز و ورود به برگه؛ ثبت ورود/خروج از دکمه‌ی هدر انجام می‌شود */
+export const TeacherPunchTile: React.FC<Props> = ({ onOpenTimesheet }) => {
+  const { hoursText } = useTeacherPunch();
+  return (
+    <button type="button" onClick={onOpenTimesheet} className="min-h-[7.5rem] p-4 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white/70 shadow-sm backdrop-blur-sm text-right flex flex-col cursor-pointer">
+      <div className="flex items-center justify-between gap-2 w-full">
+        <span className="text-xs font-bold text-slate-600">ساعت کاری</span>
+        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white/80 text-amber-600"><Clock className="w-4 h-4" /></span>
+      </div>
+      <span className="mt-2 text-2xl font-black text-slate-900">{hoursText}</span>
+      <span className="mt-auto pt-1.5 text-xs font-medium text-amber-700 flex items-center gap-1">
+        <span className="truncate">جمع امروز (ساعت)</span><ChevronLeft className="w-3 h-3 shrink-0" />
+      </span>
+    </button>
   );
 };

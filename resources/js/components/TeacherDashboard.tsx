@@ -25,7 +25,7 @@ import { TeacherLessonPlans } from './TeacherLessonPlans';
 import { TeacherExamSection, examKeyOfSubjectName } from './TeacherExamSection';
 import { FitTable } from './ui/FitTable';
 import { Tile } from './ui/Tile';
-import { TeacherPunchTile } from './TeacherPunchTile';
+import { TeacherPunchTile, TeacherPunchButton } from './TeacherPunchTile';
 import { TimesheetWorkspace } from './TimesheetWorkspace';
 import { TeacherExamCard } from './TeacherExamCard';
 
@@ -364,10 +364,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <span>مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر</span>
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-2">
-                  <button type="button" onClick={() => onOpenNewAttendance()} className="min-h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
-                    <CheckCircle2 className="w-4 h-4" />
-                    حضور و غیاب
-                  </button>
+                  <TeacherPunchButton />
                 </div>
               </section>
 
