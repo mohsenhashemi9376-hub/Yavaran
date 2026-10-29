@@ -70,6 +70,7 @@ class NotificationController extends Controller
         Notifier::ensureTable();
         $user = $request->user();
         \App\Support\WorksheetReminders::syncFor($user); // یادآوری کاربرگ برای مربی
+        \App\Support\LessonPlanReminders::syncFor($user); // یادآوری طرح درس برای استاد
         \App\Support\ObservationReminders::syncFor($user); // یادآوری مشاهده‌گری برای مربی و معاون تربیتی
 
         $rows = DB::table('notifications as n')

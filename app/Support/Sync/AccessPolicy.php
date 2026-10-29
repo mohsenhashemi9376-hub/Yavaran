@@ -1355,6 +1355,26 @@ final class AccessPolicy
             || $this->teachingCourses()['id'] !== [];
     }
 
+    /** نام درس‌هایی که کاربر تدریس می‌کند (از انتساب‌ها و دبیر پیش‌فرض درس) */
+    public function teachingSubjectNames(): array
+    {
+        $names = [];
+        foreach (array_keys($this->teachingCourses()['name']) as $key) {
+            $names[substr((string) strstr((string) $key, '|'), 1)] = true;
+        }
+        if ($this->teachingCourses()['id'] !== [] && CollectionRegistry::tableExists('academic_subjects')) {
+            $byId = DB::table('academic_subjects')->pluck('name', 'id')->all();
+            foreach (array_keys($this->teachingCourses()['id']) as $key) {
+                $sid = substr((string) strstr((string) $key, '|'), 1);
+                if (isset($byId[$sid])) {
+                    $names[(string) $byId[$sid]] = true;
+                }
+            }
+        }
+
+        return array_keys($names);
+    }
+
     /** نویسنده‌ی طرح درس: دبیر، یا کاربر دارای درس (مربی/معاون معلم) برای طرح جدید یا طرح خودش */
     public function actsAsLessonPlanAuthor(?object $old): bool
     {
