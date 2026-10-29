@@ -6,7 +6,8 @@ import { subjectPillClass } from '../utils/gradePeriods';
 import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check, Download, FileText, Image as ImageIcon, FileType2, Loader2 } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
-import { exportSheet, SheetFormat } from '../utils/examSheetExport';
+import { ExamMonthsExportModal } from './ExamMonthsExportModal';
+import { exportSheet, exportExamDocx, SheetFormat } from '../utils/examSheetExport';
 import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_ACCEPTABLE_FROM, EXAM_NEEDS_EFFORT_BELOW, examLevelOf } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
@@ -256,16 +257,41 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
 
   // ------------------------- خروجی (عکس / PDF / Word) -------------------------
   const sheetRef = useRef<HTMLDivElement>(null);
-  const [exporting, setExporting] = useState<SheetFormat | null>(null);
+  const [exporting, setExporting] = useState<SheetFormat | 'docx-table' | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [monthsExportOpen, setMonthsExportOpen] = useState(false);
   const className = classes.find((c) => c.id === classId)?.name || '';
   const sheetLandscape = activeSubjects.length > 5;
 
-  const handleExport = async (format: SheetFormat) => {
+  const handleExport = async (format: SheetFormat | 'docx-table') => {
     if (exporting) return;
     setExportOpen(false);
     setExporting(format);
     try {
+      if (format === 'docx-table') {
+        await exportExamDocx([{
+          title: `کارنامه آزمون جامع ${examMonthLabel(month)}`,
+          className,
+          summary: [[`معدل کلاس: ${faPct(classAverage)}`, `درس قوت: ${strongest ? strongest.label : '—'}`, `نیازمند تقویت: ${weakest ? weakest.label : '—'}`].join('   |   ')],
+          head: ['ردیف', 'نام دانش‌آموز', ...activeSubjects.map((s) => (month === 'legacy' ? s.label : `${s.label} (از ${toPersianDigits(maxOf(s.key))})`)), 'معدل (٪)', 'وضعیت'],
+          rows: rows.map(({ st, avg }, idx) => {
+            const lv = levelOf(avg);
+            return {
+              cells: [
+                toPersianDigits(idx + 1),
+                studentFullName(st),
+                ...activeSubjects.map((s) => (absent[st.id] ? '—' : fa(parseScore(draft[st.id]?.[s.key])))),
+                faPct(avg),
+                absent[st.id] ? 'غایب در آزمون' : lv ? lv.label : '—',
+              ],
+              tone: absent[st.id] || avg === null ? 'none' : avg >= 16 ? 'good' : avg >= EXAM_ACCEPTABLE_FROM ? 'ok' : avg >= EXAM_NEEDS_EFFORT_BELOW ? 'mid' : 'bad',
+            };
+          }),
+          landscape: sheetLandscape,
+        }], `آزمون-جامع-${className}-${examMonthLabel(month)}`.replace(/\s+/g, '-'));
+        showToast('فایل Word قابل ویرایش آماده شد.', 'success');
+        return;
+      }
       // برگه‌ی ثابت خروجی یک‌بار رندر می‌شود؛ دو فریم صبر می‌کنیم تا چیدمان کامل شود
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       if (!sheetRef.current) throw new Error('no sheet');
@@ -345,13 +371,19 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
                 {([
                   ['pdf', 'فایل PDF', FileText],
                   ['png', 'عکس با کیفیت (PNG)', ImageIcon],
-                  ['docx', 'فایل Word', FileType2],
+                  ['docx', 'Word (تصویر برگه)', FileType2],
+                  ['docx-table', 'Word قابل ویرایش (جدول)', FileType2],
                 ] as const).map(([fmt, label, Icon]) => (
                   <button key={fmt} role="menuitem" type="button" onClick={() => handleExport(fmt)} className="w-full h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 cursor-pointer">
                     <Icon className="w-4 h-4" />
                     {label}
                   </button>
                 ))}
+                <div className="my-1 border-t border-slate-100" />
+                <button role="menuitem" type="button" onClick={() => { setExportOpen(false); setMonthsExportOpen(true); }} className="w-full h-11 px-3 rounded-xl text-sm font-extrabold text-emerald-800 hover:bg-emerald-50 flex items-center gap-2.5 cursor-pointer">
+                  <Check className="w-4 h-4" />
+                  انتخاب ماه‌ها (PDF / Word)
+                </button>
               </div>
             </>
           )}
@@ -696,6 +728,18 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
           <div className="p-6 text-center text-sm text-slate-400 border-t border-slate-50">حداقل یک درس را فعال کنید.</div>
         )}
       </div>
+      {monthsExportOpen && (
+        <ExamMonthsExportModal
+          className={className}
+          record={comprehensiveExams.find((r) => r.classId === classId)}
+          students={classStudents}
+          initialMonth={month}
+          hasUnsaved={dirty}
+          onClose={() => setMonthsExportOpen(false)}
+          onDone={showToast}
+        />
+      )}
+
       {/* برگه‌ی ثابت خروجی (بیرون از دید): فقط هنگام ساخت عکس/PDF/Word رندر می‌شود */}
       {exporting && (
         <div aria-hidden="true" style={{ position: 'fixed', left: -100000, top: 0, pointerEvents: 'none' }}>

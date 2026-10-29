@@ -1,6 +1,6 @@
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { Document, ImageRun, Packer, Paragraph, AlignmentType, PageOrientation } from 'docx';
+import { Document, ImageRun, Packer, Paragraph, AlignmentType, PageOrientation, Table, TableRow, TableCell, TextRun, WidthType, BorderStyle, ShadingType, VerticalAlign } from 'docx';
 
 export type SheetFormat = 'png' | 'pdf' | 'docx';
 
@@ -108,4 +108,104 @@ export async function exportSheet(node: HTMLElement, format: SheetFormat, baseNa
     ],
   });
   download(await Packer.toBlob(doc), `${baseName}.docx`);
+}
+
+export interface ExamDocxData {
+  title: string;
+  className: string;
+  /** هر خط یک پاراگراف زیر عنوان (خلاصه و تحلیل) */
+  summary: string[];
+  head: string[];
+  rows: { cells: string[]; tone?: 'good' | 'ok' | 'mid' | 'bad' | 'none' }[];
+  landscape: boolean;
+}
+
+const TONE_COLOR = { good: '047857', ok: '0369A1', mid: 'B45309', bad: 'BE123C', none: '94A3B8' } as const;
+
+/** Word با جدول واقعی و قابل ویرایش (راست‌به‌چپ؛ فونت Tahoma که روی همه‌ی سیستم‌ها فارسی را درست نشان می‌دهد) */
+export async function exportExamDocx(parts: ExamDocxData[], baseName: string) {
+  const FONT = { ascii: 'Tahoma', hAnsi: 'Tahoma', cs: 'Tahoma' };
+  const border = { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' };
+  const borders = { top: border, bottom: border, left: border, right: border };
+  const para = (text: string, o: { bold?: boolean; size?: number; color?: string; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) =>
+    new Paragraph({
+      bidirectional: true,
+      alignment: o.align ?? AlignmentType.CENTER,
+      spacing: { before: 40, after: 40 },
+      children: [new TextRun({ text, bold: o.bold, size: o.size ?? 20, color: o.color, font: FONT, rightToLeft: true })],
+    });
+
+  const cell = (text: string, o: { head?: boolean; bold?: boolean; color?: string; shade?: string; start?: boolean } = {}) =>
+    new TableCell({
+      borders,
+      verticalAlign: VerticalAlign.CENTER,
+      shading: o.head ? { type: ShadingType.CLEAR, fill: '047857', color: 'auto' } : o.shade ? { type: ShadingType.CLEAR, fill: o.shade, color: 'auto' } : undefined,
+      children: [para(text, { bold: o.head || o.bold, color: o.head ? 'FFFFFF' : o.color, size: o.head ? 19 : 20, align: o.start ? AlignmentType.START : AlignmentType.CENTER })],
+    });
+
+  const buildTable = (d: ExamDocxData) =>
+    new Table({
+      visuallyRightToLeft: true,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({ tableHeader: true, cantSplit: true, children: d.head.map((h, i) => cell(h, { head: true, start: i === 1 })) }),
+        ...d.rows.map(
+          (r, ri) =>
+            new TableRow({
+              cantSplit: true,
+              children: r.cells.map((c, i) =>
+                cell(c, {
+                  start: i === 1,
+                  bold: i === 1 || (i > 1 && i < r.cells.length - 1),
+                  color: i > 1 && i < r.cells.length - 2 ? TONE_COLOR[r.tone ?? 'none'] : undefined,
+                  shade: ri % 2 ? 'F8FAFC' : undefined,
+                })
+              ),
+            })
+        ),
+      ],
+    });
+
+  const twip = (mm: number) => Math.round((mm / 25.4) * 1440);
+  const doc = new Document({
+    styles: { default: { document: { run: { font: FONT } } } },
+    sections: parts.map((d) => ({
+      properties: {
+        page: {
+          size: { width: twip(A4.w), height: twip(A4.h), orientation: d.landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT },
+          margin: { top: twip(12), bottom: twip(12), left: twip(10), right: twip(10) },
+        },
+      },
+      children: [
+        para('دبیرستان دوره اول یاوران ولایت', { bold: true, size: 22, color: '047857' }),
+        para(d.title, { bold: true, size: 32 }),
+        para(`کلاس: ${d.className}`, { bold: true, size: 22 }),
+        ...d.summary.map((line) => para(line, { size: 19, color: '475569' })),
+        new Paragraph({ children: [] }),
+        buildTable(d),
+      ],
+    })),
+  });
+  download(await Packer.toBlob(doc), `${baseName}.docx`);
+}
+
+/** چند برگه (هر ماه یک برگه) را در یک PDF می‌گذارد؛ هر برگه از صفحه‌ی جدید شروع می‌شود */
+export async function exportSheetsPdf(items: { node: HTMLElement; landscape: boolean }[], baseName: string) {
+  await document.fonts.ready;
+  let pdf: jsPDF | null = null;
+  for (const it of items) {
+    const dataUrl = await toPng(it.node, { pixelRatio: PIXEL_RATIO, backgroundColor: '#ffffff', cacheBust: true });
+    const pageW = it.landscape ? A4.h : A4.w;
+    const pageH = it.landscape ? A4.w : A4.h;
+    const innerW = pageW - MARGIN * 2;
+    const innerH = pageH - MARGIN * 2;
+    const pages = await sliceToPages(dataUrl, innerH / innerW);
+    for (const p of pages) {
+      const orientation = it.landscape ? 'landscape' : 'portrait';
+      if (!pdf) pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true });
+      else pdf.addPage('a4', orientation);
+      pdf.addImage(p.dataUrl, 'PNG', MARGIN, MARGIN, innerW, (p.h / p.w) * innerW, undefined, 'FAST');
+    }
+  }
+  pdf?.save(`${baseName}.pdf`);
 }
