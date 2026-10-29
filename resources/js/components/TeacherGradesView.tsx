@@ -3,7 +3,7 @@ import { SchoolClass, Student } from '../types';
 import { ClassMonthlyGradesSection } from './ClassMonthlyGradesSection';
 import { ClassGradeAnalytics } from './ClassGradeAnalytics';
 import { WorkspaceTitleBar, HeaderAction } from './ui/WorkspaceHeader';
-import { BarChart2, Award, ArrowUpRight } from 'lucide-react';
+import { BarChart2, Award, ArrowUpRight, UserCheck } from 'lucide-react';
 
 interface Props {
   gradeClasses: SchoolClass[];
@@ -14,9 +14,11 @@ interface Props {
   setShowGradeAnalytics: React.Dispatch<React.SetStateAction<boolean>>;
   onOpenAcademicGrades?: (classId?: string, subjectId?: string) => void;
   onSelectStudent?: (student: Student) => void;
+  /** بازگشت به صفحه‌ی حضور و غیاب (دکمه‌ی ثابت پایین در موبایل) */
+  onBackToAttendance?: () => void;
 }
 
-export const TeacherGradesView: React.FC<Props> = ({ gradeClasses, currentGradeClass, selectedClassForMonthlyGrades, setSelectedClassForMonthlyGrades, showGradeAnalytics, setShowGradeAnalytics, onOpenAcademicGrades, onSelectStudent }) => {
+export const TeacherGradesView: React.FC<Props> = ({ gradeClasses, currentGradeClass, selectedClassForMonthlyGrades, setSelectedClassForMonthlyGrades, showGradeAnalytics, setShowGradeAnalytics, onOpenAcademicGrades, onSelectStudent, onBackToAttendance }) => {
   return (
             <div className="space-y-4">
               {/* Class selector banner */}
@@ -67,6 +69,16 @@ export const TeacherGradesView: React.FC<Props> = ({ gradeClasses, currentGradeC
                 <div className="bg-white p-8 rounded-2xl border text-center text-slate-500">
                   هیچ کلاسی در دسترس نیست.
                 </div>
+              )}
+              {onBackToAttendance && (
+                <button
+                  type="button"
+                  onClick={onBackToAttendance}
+                  className="md:hidden fixed z-40 right-4 bottom-24 min-h-12 px-4 rounded-full bg-teal-800 text-white text-sm font-extrabold shadow-lg inline-flex items-center gap-2 cursor-pointer active:scale-95 transition"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>حضور و غیاب</span>
+                </button>
               )}
             </div>
           

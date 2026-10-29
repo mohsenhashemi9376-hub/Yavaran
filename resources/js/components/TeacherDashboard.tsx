@@ -212,6 +212,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const gradeClasses = teacherClasses.filter((c) => !c.isWorkshop);
   const currentGradeClass = gradeClasses.find(c => c.id === selectedClassForMonthlyGrades) || gradeClasses[0];
   const userGreeting = getUserGreeting(currentUser);
+  // اعلان یادآوری طرح درس: انتقال به صفحه‌ی طرح درس
+  useEffect(() => {
+    const open = () => setActiveView('lesson_plans');
+    window.addEventListener('yv:open-lesson-plans', open);
+    return () => window.removeEventListener('yv:open-lesson-plans', open);
+  }, []);
+
   const myLessonPlans = (lessonPlans || []).filter((p) => p.teacherId === currentUser.id);
   const pendingLessonPlans = myLessonPlans.filter((p) => p.status === 'submitted').length;
 
@@ -356,38 +363,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <span className="text-slate-300">·</span>
                   <span>مدیریت تدریس، جلسات کلاسی و ثبت نمرات مستمر</span>
                 </p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2">
                   <button type="button" onClick={() => onOpenNewAttendance()} className="min-h-12 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
                     <CheckCircle2 className="w-4 h-4" />
                     حضور و غیاب
                   </button>
-                  <button type="button" onClick={() => { if (!selectedClassForMonthlyGrades && teacherClasses.length > 0) setSelectedClassForMonthlyGrades(teacherClasses[0].id); setActiveView('grades'); }} className="min-h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-extrabold inline-flex items-center justify-center gap-2 cursor-pointer transition">
-                    <Award className="w-4 h-4" />
-                    ثبت نمره
-                  </button>
                 </div>
               </section>
-
-              {/* کادر آزمون جامع: معدل ماه قبل */}
-              {hasExam && <TeacherExamCard groups={subjectGroups} onOpen={() => { setExamFocus(true); setActiveView('exam'); }} />}
-
-              {/* کاشی‌های شیشه‌ای رنگی */}
-              <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                <Tile tone="emerald" label="کلاس‌های من" value={toPersianDigits(teacherClasses.length)} hint={`${toPersianDigits(courseCards.length)} درس`} icon={<GraduationCap className="w-4 h-4" />} onClick={() => document.getElementById('teacher-classes-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-                <Tile tone="sky" label="دانش‌آموزان" value={toPersianDigits(totalStudentsTaught)} hint="در کلاس‌های شما" icon={<Users className="w-4 h-4" />} onClick={() => document.getElementById('teacher-classes-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-                <Tile tone="violet" label="جلسات ثبت‌شده" value={toPersianDigits(teacherSessions.length)} hint="مدیریت جلسات" icon={<CalendarCheck className="w-4 h-4" />} onClick={() => setActiveView('attendance')} />
-                <TeacherPunchTile onOpenTimesheet={() => setActiveView('activities')} />
-                <Tile tone="teal" label="طرح درس" value={toPersianDigits(myLessonPlans.length)} hint={pendingLessonPlans > 0 ? `${toPersianDigits(pendingLessonPlans)} در انتظار تأیید` : 'نوشتن و پیگیری طرح درس'} icon={<FileText className="w-4 h-4" />} onClick={() => setActiveView('lesson_plans')} />
-                <Tile
-                  tone="rose"
-                  label="اطلاعیه‌ها"
-                  value={toPersianDigits(pendingCirculars.length)}
-                  hint={pendingCirculars.length > 0 ? 'خوانده‌نشده' : 'همه خوانده شده'}
-                  badge={pendingCirculars.length > 0 ? `${toPersianDigits(pendingCirculars.length)} خوانده‌نشده` : undefined}
-                  icon={<Bell className="w-4 h-4" />}
-                  onClick={() => (firstUnreadCircular ? setCircularModal(firstUnreadCircular) : setActiveView('evaluations'))}
-                />
-              </div>
 
               {/* SECTION: دروس و کلاس‌های تدریس (هر کارت = یک درس در یک کلاس) */}
               <div id="teacher-classes-section" className="space-y-3 scroll-mt-24">
@@ -474,6 +456,27 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* کادر آزمون جامع: معدل ماه قبل */}
+              {hasExam && <TeacherExamCard groups={subjectGroups} onOpen={() => { setExamFocus(true); setActiveView('exam'); }} />}
+
+              {/* کاشی‌های شیشه‌ای رنگی */}
+              <div data-stagger className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <Tile tone="emerald" label="کلاس‌های من" value={toPersianDigits(new Set(courseCards.map((c) => c.cls.id)).size)} hint={`${toPersianDigits(courseCards.length)} درس`} icon={<GraduationCap className="w-4 h-4" />} onClick={() => document.getElementById('teacher-classes-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+                <Tile tone="sky" label="ثبت نمرات" value={toPersianDigits(teacherClasses.filter((c) => !c.isWorkshop).length)} hint="دفتر نمرات مستمر" icon={<Award className="w-4 h-4" />} onClick={() => { if (!selectedClassForMonthlyGrades && teacherClasses.length > 0) setSelectedClassForMonthlyGrades(teacherClasses[0].id); setActiveView('grades'); }} />
+                <Tile tone="violet" label="جلسات ثبت‌شده" value={toPersianDigits(teacherSessions.length)} hint="مدیریت جلسات" icon={<CalendarCheck className="w-4 h-4" />} onClick={() => setActiveView('attendance')} />
+                <TeacherPunchTile onOpenTimesheet={() => setActiveView('activities')} />
+                <Tile tone="teal" label="طرح درس" value={toPersianDigits(myLessonPlans.length)} hint={pendingLessonPlans > 0 ? `${toPersianDigits(pendingLessonPlans)} در انتظار تأیید` : 'نوشتن و پیگیری طرح درس'} icon={<FileText className="w-4 h-4" />} onClick={() => setActiveView('lesson_plans')} />
+                <Tile
+                  tone="rose"
+                  label="اطلاعیه‌ها"
+                  value={toPersianDigits(pendingCirculars.length)}
+                  hint={pendingCirculars.length > 0 ? 'خوانده‌نشده' : 'همه خوانده شده'}
+                  badge={pendingCirculars.length > 0 ? `${toPersianDigits(pendingCirculars.length)} خوانده‌نشده` : undefined}
+                  icon={<Bell className="w-4 h-4" />}
+                  onClick={() => (firstUnreadCircular ? setCircularModal(firstUnreadCircular) : setActiveView('evaluations'))}
+                />
               </div>
 
               {/* SECTION: Recent Sessions List */}
@@ -738,7 +741,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           )}
 
           {/* VIEW 5: MONTHLY CONTINUOUS GRADES (ثبت نمره) */}
-          {activeView === 'grades' && <TeacherGradesView gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} showGradeAnalytics={showGradeAnalytics} setShowGradeAnalytics={setShowGradeAnalytics} onOpenAcademicGrades={onOpenAcademicGrades} onSelectStudent={onSelectStudent} />}
+          {activeView === 'grades' && <TeacherGradesView gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} showGradeAnalytics={showGradeAnalytics} setShowGradeAnalytics={setShowGradeAnalytics} onOpenAcademicGrades={onOpenAcademicGrades} onSelectStudent={onSelectStudent} onBackToAttendance={() => setActiveView('attendance')} />}
 
           {/* VIEW: طرح درس روزانه */}
           {activeView === 'lesson_plans' && (

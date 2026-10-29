@@ -48,7 +48,10 @@ const compareFa = (a: string, b: string): number => {
   return a.length - b.length;
 };
 
-/** ترتیب الفبایی فارسی: نام خانوادگی (از حرف اول)، سپس نام */
+/**
+ * ترتیب الفبایی فارسی در همه‌ی فهرست‌ها: فیلد firstName، سپس lastName.
+ * (ثبت گروهی قدیمی نام خانوادگی واقعی را در فیلد firstName ذخیره کرده است؛ پس مرتب‌سازی بر مبنای آن، فهرست را بر اساس حرف اول فامیل می‌چیند.)
+ */
 export function compareStudents(a: { firstName?: string; lastName?: string }, b: { firstName?: string; lastName?: string }): number {
-  return compareFa(normKey(a.lastName), normKey(b.lastName)) || compareFa(normKey(a.firstName), normKey(b.firstName));
+  return compareFa(normKey(a.firstName), normKey(b.firstName)) || compareFa(normKey(a.lastName), normKey(b.lastName));
 }

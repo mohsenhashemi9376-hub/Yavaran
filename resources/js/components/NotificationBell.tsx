@@ -31,7 +31,9 @@ const NotificationAlertCard: React.FC<{
   position: { index: number; total: number };
   onAcknowledge: () => void;
   onClose: () => void;
-}> = ({ item, position, onAcknowledge, onClose }) => {
+  /** اعلان یادآوری طرح درس: باز کردن صفحه‌ی طرح درس */
+  onOpenLessonPlans?: () => void;
+}> = ({ item, position, onAcknowledge, onClose, onOpenLessonPlans }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -108,10 +110,20 @@ const NotificationAlertCard: React.FC<{
         </div>
 
         <div className="px-6 pt-4 pb-6 shrink-0 space-y-2">
+          {item.type === 'lesson_plan' && onOpenLessonPlans && (
+            <button
+              type="button"
+              onClick={onOpenLessonPlans}
+              autoFocus
+              className="w-full py-3.5 rounded-2xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-sm shadow-lg active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>رفتن به صفحه طرح درس</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onAcknowledge}
-            autoFocus
+            autoFocus={item.type !== 'lesson_plan'}
             className="w-full h-13 py-3.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <CheckCircle2 className="w-5 h-5" />
@@ -313,8 +325,14 @@ export const NotificationBell: React.FC = () => {
                       key={n.id}
                       type="button"
                       onClick={() => {
-                        setShown(n);
                         setOpen(false);
+                        if (n.type === 'lesson_plan') {
+                          // یادآوری طرح درس: مستقیم به صفحه‌ی طرح درس
+                          markRead(n);
+                          window.dispatchEvent(new CustomEvent('yv:open-lesson-plans'));
+                          return;
+                        }
+                        setShown(n);
                       }}
                       className={`w-full text-right p-3 rounded-2xl border transition cursor-pointer flex gap-2.5 ${
                         n.isRead
@@ -379,6 +397,11 @@ export const NotificationBell: React.FC = () => {
               setShown(null);
             }}
             onClose={() => closeAlert(alertItem)}
+            onOpenLessonPlans={() => {
+              markRead(alertItem);
+              setShown(null);
+              window.dispatchEvent(new CustomEvent('yv:open-lesson-plans'));
+            }}
           />,
           document.body
         )}

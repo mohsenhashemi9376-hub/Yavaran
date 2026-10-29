@@ -22,7 +22,15 @@ const examScoreClass = (score: number | null | undefined): string => {
   return 'bg-rose-100 border border-rose-200 text-rose-700 font-bold';
 };
 
-type Draft = Record<string, Partial<Record<ExamSubjectKey, string>>>;
+/** رنگ‌بندی هوشمند کارت موبایل (روی مقیاس ۲۰): ۱۶+ سبز، ۱۲ تا ۱۵٫۹۹ زرد، زیر ۱۲ قرمز، خالی خاکستری نقطه‌چین */
+const smartScoreClass = (score: number | null | undefined): string => {
+  if (score === null || score === undefined || Number.isNaN(score)) return 'bg-slate-50 border border-dashed border-slate-300 text-slate-300';
+  if (score >= 16) return 'bg-emerald-50 border border-emerald-200 text-emerald-800';
+  if (score >= 12) return 'bg-amber-50 border border-amber-200 text-amber-800';
+  return 'bg-rose-50 border border-rose-200 text-rose-800';
+};
+
+type Draft =Record<string, Partial<Record<ExamSubjectKey, string>>>;
 type SortKey = ExamSubjectKey | 'average';
 
 /** سطح‌بندی درصدی: میانگین روی مقیاس ۲۰ است، پس ۸۰٪ = ۱۶ و ۶۰٪ = ۱۲ */
@@ -438,7 +446,80 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
       </div>
 
       {/* جدول */}
-      <div className={`${card} overflow-hidden`}>
+      {/* موبایل: کارت‌های فشرده */}
+      <div className="md:hidden space-y-3" aria-label="نمرات آزمون جامع">
+        {rows.length === 0 && (
+          <div className={`${card} p-8 text-center text-sm text-slate-400`}>دانش‌آموزی در این کلاس ثبت نشده است.</div>
+        )}
+        {rows.map(({ st, avg }) => {
+          const lv = levelOf(avg);
+          const isAbsent = Boolean(absent[st.id]);
+          return (
+            <div key={st.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50 p-4 space-y-3">
+              {/* هدر: نام (راست) و معدل کل (چپ) */}
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-extrabold text-slate-800 truncate min-w-0">{studentFullName(st)}</h3>
+                <span className={`shrink-0 px-3 py-1 rounded-xl text-base font-black tabular-nums ${smartScoreClass(avg)}`} title="معدل کل">
+                  {faPct(avg)}
+                </span>
+              </div>
+
+              {/* بدنه: نمره‌ی دروس در نوار افقی */}
+              <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {activeSubjects.map((s) => {
+                  const v = draft[st.id]?.[s.key];
+                  const bad = isInvalid(v, maxOf(s.key));
+                  return (
+                    <label key={s.key} className="flex flex-col items-center gap-1 shrink-0 min-w-11">
+                      <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{s.label}</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        disabled={isAbsent}
+                        value={toPersianDigits((v ?? '').replace('.', '٫'))}
+                        onChange={(e) => setScore(st.id, s.key, e.target.value)}
+                        placeholder="--"
+                        aria-label={`${s.label} ${studentFullName(st)}`}
+                        aria-invalid={bad}
+                        className={`w-10 h-10 rounded-xl text-center text-sm font-bold outline-none transition focus:ring-4 focus:ring-emerald-100 ${
+                          bad ? 'bg-rose-50 border border-rose-400 text-rose-700' : smartScoreClass(scaled(s.key, parseScore(v)))
+                        }`}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* فوتر: وضعیت (راست) و ثبت غیبت (چپ) */}
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                {isAbsent ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold border bg-rose-100 text-rose-800 border-rose-300">غایب در آزمون</span>
+                ) : lv ? (
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${STATUS_CHIP[lv.id]}`}>{lv.label}</span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs bg-slate-50 border border-dashed border-slate-300 text-slate-400">بدون نمره</span>
+                )}
+                {month !== 'legacy' && (
+                  <button
+                    type="button"
+                    onClick={() => toggleAbsent(st.id)}
+                    disabled={!canMarkAbsent}
+                    aria-pressed={isAbsent}
+                    className={`h-9 px-3 rounded-xl text-xs font-bold border transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isAbsent ? 'bg-rose-600 text-white border-rose-600' : 'bg-transparent text-slate-600 border-slate-300 active:bg-rose-50'
+                    }`}
+                  >
+                    {isAbsent ? 'لغو غیبت' : 'ثبت غیبت'}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* دسکتاپ: جدول */}
+      <div className={`${card} overflow-hidden hidden md:block`}>
         <FitTable className="" fullView="table" title="نمرات آزمون جامع">
           <table className="w-full min-w-[920px] text-right text-sm">
             <thead>
