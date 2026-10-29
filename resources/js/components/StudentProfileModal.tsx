@@ -1,6 +1,8 @@
 import { StudentMonthlyGradesTable } from './StudentMonthlyGradesTable';
 import { monthlyGpa } from '../utils/monthlyReport';
-import { examMonthLabel, examMonthsWithData, studentExamSummary, faExamPct } from '../utils/examReport';
+import { examMonthLabel, examMonthsWithData, studentExamSummary, faExamPct, examPercent, activeExamSubjects } from '../utils/examReport';
+import { StudentExamCardModal } from './StudentExamCardModal';
+import { BarChart3 as ExamChartIcon } from 'lucide-react';
 import { scorePillClass, scoreLabel } from '../utils/gradePeriods';
 import { ParentMeetingsProfileCard } from './ParentMeetingsProfileCard';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -424,17 +426,21 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
     ? currentStudent.disciplineScore 
     : calculatedDisciplineScore;
 
+  const [examCardOpen, setExamCardOpen] = useState(false);
   // معدل آزمون جامع دانش‌آموز (کل سال و هر ماه)؛ فقط وقتی نمره‌ای ثبت شده باشد
   const examSummary = useMemo(() => {
     if (!currentStudent) return null;
     const record = comprehensiveExams.find((r) => r.classId === currentStudent.classId);
     if (!record) return null;
-    const total = studentExamSummary(record, currentStudent.id, 'all').gpa;
+    const all = studentExamSummary(record, currentStudent.id, 'all');
+    const total = all.gpa;
     if (total === undefined) return null;
     const months = examMonthsWithData(record)
-      .map((m) => ({ key: m, label: examMonthLabel(m), gpa: studentExamSummary(record, currentStudent.id, m).gpa }))
-      .filter((m) => m.gpa !== undefined) as { key: string; label: string; gpa: number }[];
-    return { total, months };
+      .map((m) => ({ key: m, label: examMonthLabel(m), ...studentExamSummary(record, currentStudent.id, m) }))
+      .filter((m) => m.gpa !== undefined) as { key: string; label: string; gpa: number; scores: Record<string, number> }[];
+    // درس‌هایی که دست‌کم در یک ماه نمره دارند
+    const subjects = activeExamSubjects(record, 'all').filter((sub) => all.scores[sub.key] !== undefined || months.some((m) => m.scores[sub.key] !== undefined));
+    return { total, months, subjects, overall: all.scores as Record<string, number>, record };
   }, [comprehensiveExams, currentStudent]);
 
   // Academic Report
@@ -1545,16 +1551,69 @@ ${monthlyGpa(studentAcademicGrades, 'all') !== undefined ? `• میانگین �
                     </div>
                     <span className={`px-3 py-1.5 rounded-xl text-xs font-black ${scorePillClass(examSummary.total)}`}>{scoreLabel(examSummary.total)}</span>
                   </div>
-                  {examSummary.months.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {examSummary.months.map((m) => (
-                        <span key={m.key} className="rounded-xl bg-white border border-indigo-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
-                          {m.label}: <b className="text-indigo-900 tabular-nums">{faExamPct(m.gpa)}</b>
-                        </span>
-                      ))}
+                  {examSummary.subjects.length > 0 && (
+                    <div className="mt-4 overflow-x-auto -mx-1 px-1">
+                      <table className="w-full min-w-[320px] text-xs border-separate border-spacing-y-1">
+                        <thead>
+                          <tr className="text-[11px] text-slate-500">
+                            <th className="text-right font-bold px-2 py-1">درس</th>
+                            {examSummary.months.map((m) => <th key={m.key} className="font-bold px-2 py-1 whitespace-nowrap">{m.label}</th>)}
+                            <th className="font-extrabold px-2 py-1 text-indigo-900 whitespace-nowrap">میانگین</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {examSummary.subjects.map((sub) => {
+                            const avg = examSummary.overall[sub.key];
+                            return (
+                              <tr key={sub.key} className="bg-white">
+                                <td className="px-2 py-2 rounded-r-xl font-extrabold text-slate-800 whitespace-nowrap border-y border-r border-indigo-100">{sub.label}</td>
+                                {examSummary.months.map((m) => {
+                                  const v = m.scores[sub.key];
+                                  return (
+                                    <td key={m.key} className="px-2 py-2 text-center tabular-nums border-y border-indigo-100">
+                                      {v === undefined ? <span className="text-slate-300">—</span> : <span className={`inline-block rounded-lg px-2 py-0.5 font-bold ${scorePillClass(v)}`}>{faExamPct(v)}</span>}
+                                    </td>
+                                  );
+                                })}
+                                <td className="px-2 py-2 rounded-l-xl text-center border-y border-l border-indigo-100">
+                                  {avg === undefined ? <span className="text-slate-300">—</span> : (
+                                    <div className="min-w-14">
+                                      <div className="font-black text-indigo-900 tabular-nums">{faExamPct(avg)}</div>
+                                      <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, examPercent(avg))}%` }} /></div>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr>
+                            <td className="px-2 py-2 font-black text-slate-900">معدل کل</td>
+                            {examSummary.months.map((m) => <td key={m.key} className="px-2 py-2 text-center font-black text-indigo-900 tabular-nums">{faExamPct(m.gpa)}</td>)}
+                            <td className="px-2 py-2 text-center font-black text-indigo-900 tabular-nums">{faExamPct(examSummary.total)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setExamCardOpen(true)}
+                    className="mt-4 w-full min-h-12 rounded-2xl bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]"
+                  >
+                    <ExamChartIcon className="w-4 h-4" />
+                    کارنامه نموداری آزمون جامع
+                  </button>
                 </div>
+              )}
+              {examCardOpen && examSummary && studentClass && currentStudent && (
+                <StudentExamCardModal
+                  record={examSummary.record}
+                  classData={studentClass}
+                  classStudents={students.filter((st) => st.classId === currentStudent.classId)}
+                  student={currentStudent}
+                  initialMonth="all"
+                  onClose={() => setExamCardOpen(false)}
+                />
               )}
 
               {/* کارنامه تفکیکی دروس: نمره‌ی هر ماه جداگانه */}
