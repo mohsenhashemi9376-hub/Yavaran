@@ -464,7 +464,7 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [rawClasses, setClasses] = useState<SchoolClass[]>([]);
   const [bellPeriods, setBellPeriods] = useState<BellPeriod[]>([]);
   const [rawStudents, setStudents] = useState<Student[]>([]);
-  // همان‌چه در کادر «نام خانوادگی» و «نام» وارد شده بدون تغییر نگه داشته می‌شود و الفبایی بر اساس نام خانوادگی مرتب می‌شود
+  // نام‌ها بدون تغییر نگه داشته می‌شوند و الفبایی بر اساس فیلد firstName (سپس lastName) مرتب می‌شوند
   const students = useMemo<Student[]>(
     () => [...rawStudents].sort(compareStudents),
     [rawStudents]
