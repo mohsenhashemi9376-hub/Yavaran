@@ -325,8 +325,14 @@ export const NotificationBell: React.FC = () => {
                       key={n.id}
                       type="button"
                       onClick={() => {
-                        setShown(n);
                         setOpen(false);
+                        if (n.type === 'lesson_plan') {
+                          // یادآوری طرح درس: مستقیم به صفحه‌ی طرح درس
+                          markRead(n);
+                          window.dispatchEvent(new CustomEvent('yv:open-lesson-plans'));
+                          return;
+                        }
+                        setShown(n);
                       }}
                       className={`w-full text-right p-3 rounded-2xl border transition cursor-pointer flex gap-2.5 ${
                         n.isRead
