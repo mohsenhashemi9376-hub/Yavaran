@@ -738,7 +738,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           )}
 
           {/* VIEW 5: MONTHLY CONTINUOUS GRADES (ثبت نمره) */}
-          {activeView === 'grades' && <TeacherGradesView gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} showGradeAnalytics={showGradeAnalytics} setShowGradeAnalytics={setShowGradeAnalytics} onOpenAcademicGrades={onOpenAcademicGrades} onSelectStudent={onSelectStudent} />}
+          {activeView === 'grades' && <TeacherGradesView gradeClasses={gradeClasses} currentGradeClass={currentGradeClass} selectedClassForMonthlyGrades={selectedClassForMonthlyGrades} setSelectedClassForMonthlyGrades={setSelectedClassForMonthlyGrades} showGradeAnalytics={showGradeAnalytics} setShowGradeAnalytics={setShowGradeAnalytics} onOpenAcademicGrades={onOpenAcademicGrades} onSelectStudent={onSelectStudent} onBackToAttendance={() => setActiveView('attendance')} />}
 
           {/* VIEW: طرح درس روزانه */}
           {activeView === 'lesson_plans' && (
