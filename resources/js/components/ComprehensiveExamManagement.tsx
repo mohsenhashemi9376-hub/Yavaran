@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSchool } from '../context/SchoolContext';
 import { EXAM_SUBJECTS, ExamSubjectKey, ComprehensiveExamRecord } from '../types';
 import { toPersianDigits, toEnglishDigits } from '../utils/persianDate';
 import { subjectPillClass } from '../utils/gradePeriods';
-import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check } from 'lucide-react';
+import { ArrowRight, Menu, ArrowUp, ArrowDown, ChevronsUpDown, Save, Trophy, TrendingDown, Sigma, Check, Download, FileText, Image as ImageIcon, FileType2, Loader2 } from 'lucide-react';
 import { studentFullName, compareStudents } from '../utils/studentName';
 import { FitTable } from './ui/FitTable';
+import { exportSheet, SheetFormat } from '../utils/examSheetExport';
 import { activeExamSubjects, defaultExamMonth, EXAM_MONTHS, ExamMonth, examMonthsWithData, examScoresOf, examMonthLabel, isExamAbsent, examMaxOf, examNormalize, EXAM_DEFAULT_MAX, EXAM_EXCELLENT_FROM, EXAM_ACCEPTABLE_FROM, EXAM_NEEDS_EFFORT_BELOW, examLevelOf } from '../utils/examReport';
 
 interface ComprehensiveExamManagementProps {
@@ -253,6 +254,30 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
     showToast(`نمرات آزمون جامع ${examMonthLabel(month)} ذخیره شد.`, 'success');
   };
 
+  // ------------------------- خروجی (عکس / PDF / Word) -------------------------
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState<SheetFormat | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const className = classes.find((c) => c.id === classId)?.name || '';
+  const sheetLandscape = activeSubjects.length > 5;
+
+  const handleExport = async (format: SheetFormat) => {
+    if (exporting) return;
+    setExportOpen(false);
+    setExporting(format);
+    try {
+      // برگه‌ی ثابت خروجی یک‌بار رندر می‌شود؛ دو فریم صبر می‌کنیم تا چیدمان کامل شود
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      if (!sheetRef.current) throw new Error('no sheet');
+      await exportSheet(sheetRef.current, format, `آزمون-جامع-${className}-${examMonthLabel(month)}`.replace(/\s+/g, '-'), sheetLandscape);
+      showToast('خروجی آماده و دانلود شد.', 'success');
+    } catch {
+      showToast('ساخت خروجی انجام نشد. دوباره تلاش کنید.', 'error');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const SortIcon = ({ k }: { k: SortKey }) =>
     sort?.key === k ? (
       sort.dir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-600" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-600" />
@@ -301,6 +326,35 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             ))}
           </select>
 
+          <div className="flex items-center gap-2 relative">
+          <button
+            type="button"
+            onClick={() => setExportOpen((o) => !o)}
+            disabled={Boolean(exporting) || rows.length === 0}
+            aria-haspopup="menu"
+            aria-expanded={exportOpen}
+            className="h-11 px-4 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 font-extrabold text-sm rounded-xl transition border border-slate-200 shadow-sm flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>{exporting ? 'در حال ساخت…' : 'خروجی'}</span>
+          </button>
+          {exportOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setExportOpen(false)} aria-hidden="true" />
+              <div role="menu" className="absolute top-12 right-0 z-40 w-52 bg-white rounded-2xl border border-slate-200 shadow-lg p-1.5">
+                {([
+                  ['pdf', 'فایل PDF', FileText],
+                  ['png', 'عکس با کیفیت (PNG)', ImageIcon],
+                  ['docx', 'فایل Word', FileType2],
+                ] as const).map(([fmt, label, Icon]) => (
+                  <button key={fmt} role="menuitem" type="button" onClick={() => handleExport(fmt)} className="w-full h-11 px-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 cursor-pointer">
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <button
             onClick={handleSave}
             disabled={!dirty || hasErrors}
@@ -309,6 +363,7 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
             <Save className="w-4 h-4" />
             <span>ذخیره نمرات</span>
           </button>
+          </div>
         </div>
 
         <div>
@@ -641,6 +696,67 @@ export const ComprehensiveExamManagement: React.FC<ComprehensiveExamManagementPr
           <div className="p-6 text-center text-sm text-slate-400 border-t border-slate-50">حداقل یک درس را فعال کنید.</div>
         )}
       </div>
+      {/* برگه‌ی ثابت خروجی (بیرون از دید): فقط هنگام ساخت عکس/PDF/Word رندر می‌شود */}
+      {exporting && (
+        <div aria-hidden="true" style={{ position: 'fixed', left: -100000, top: 0, pointerEvents: 'none' }}>
+          <div ref={sheetRef} dir="rtl" style={{ width: sheetLandscape ? 1400 : 1000, background: '#fff', padding: 32, fontFamily: "'Vazirmatn', sans-serif", color: '#0f172a' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '3px solid #047857', paddingBottom: 12, marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#047857' }}>دبیرستان دوره اول یاوران ولایت</div>
+                <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>کارنامه آزمون جامع {examMonthLabel(month)}</div>
+              </div>
+              <div style={{ textAlign: 'left', fontSize: 14, fontWeight: 700, color: '#334155' }}>
+                <div>کلاس: {className}</div>
+                <div>تعداد دانش‌آموز: {toPersianDigits(rows.length)}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, fontSize: 13, fontWeight: 700 }}>
+              <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 12, padding: '10px 14px' }}>معدل کلاس: {faPct(classAverage)}</div>
+              <div style={{ flex: 1, background: '#ecfdf5', borderRadius: 12, padding: '10px 14px', color: '#047857' }}>درس قوت: {strongest ? `${strongest.label} (${faPct(strongest.avg)})` : '—'}</div>
+              <div style={{ flex: 1, background: '#fff1f2', borderRadius: 12, padding: '10px 14px', color: '#be123c' }}>نیازمند تقویت: {weakest ? `${weakest.label} (${faPct(weakest.avg)})` : '—'}</div>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, textAlign: 'center' }}>
+              <thead>
+                <tr style={{ background: '#047857', color: '#fff' }}>
+                  <th style={{ padding: '10px 6px', border: '1px solid #cbd5e1', width: 48 }}>ردیف</th>
+                  <th style={{ padding: '10px 8px', border: '1px solid #cbd5e1', textAlign: 'right' }}>نام دانش‌آموز</th>
+                  {activeSubjects.map((s) => (
+                    <th key={s.key} style={{ padding: '10px 6px', border: '1px solid #cbd5e1' }}>
+                      {s.label}
+                      {month !== 'legacy' && <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.85 }}>از {toPersianDigits(maxOf(s.key))}</div>}
+                    </th>
+                  ))}
+                  <th style={{ padding: '10px 6px', border: '1px solid #cbd5e1' }}>معدل (٪)</th>
+                  <th style={{ padding: '10px 6px', border: '1px solid #cbd5e1' }}>وضعیت</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ st, avg }, idx) => {
+                  const lv = levelOf(avg);
+                  return (
+                    <tr key={st.id} style={{ background: idx % 2 ? '#f8fafc' : '#fff' }}>
+                      <td style={{ padding: '8px 6px', border: '1px solid #e2e8f0', color: '#64748b' }}>{toPersianDigits(idx + 1)}</td>
+                      <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{studentFullName(st)}</td>
+                      {activeSubjects.map((s) => {
+                        const v = parseScore(draft[st.id]?.[s.key]);
+                        const sc = scaled(s.key, v);
+                        const color = absent[st.id] || sc === null ? '#94a3b8' : sc >= 16 ? '#047857' : sc >= EXAM_ACCEPTABLE_FROM ? '#0369a1' : sc >= EXAM_NEEDS_EFFORT_BELOW ? '#b45309' : '#be123c';
+                        return <td key={s.key} style={{ padding: '8px 6px', border: '1px solid #e2e8f0', fontWeight: 800, color }}>{absent[st.id] ? '—' : fa(v)}</td>;
+                      })}
+                      <td style={{ padding: '8px 6px', border: '1px solid #e2e8f0', fontWeight: 900, background: '#eef2ff' }}>{faPct(avg)}</td>
+                      <td style={{ padding: '8px 6px', border: '1px solid #e2e8f0', fontWeight: 700, whiteSpace: 'nowrap' }}>{absent[st.id] ? 'غایب در آزمون' : lv ? lv.label : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div style={{ marginTop: 14, fontSize: 11, color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+              <span>سامانه یاوران</span>
+              <span>تاریخ تهیه: {toPersianDigits(new Date().toLocaleDateString('fa-IR-u-nu-latn'))}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
